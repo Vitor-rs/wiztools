@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8"><title>Fichas — Blocos de Hora</title>
+<style>
+/* margens 0,5cm nos 4 lados; A4 paisagem; blocos alinhados à esquerda */
+@page { size: A4 landscape; margin: 0.5cm; }
+body { font-family: Calibri, Arial, sans-serif; margin: 0; }
+#menu { padding: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
+#menu button { background: #356854; color: #fff; border: 0; border-radius: 6px; padding: 10px 16px; font-weight: bold; cursor: pointer; }
+@media print { #menu { display: none; } }
+table.ficha { border-collapse: collapse; width: 100%; table-layout: fixed; text-align: left; }
+/* proporções do template (A290 B100 C100 D60 E-P 40×12 Q130 px) */
+col.cA { width: 24.6%; } col.cB { width: 8.6%; } col.cC { width: 8.6%; } col.cD { width: 5.2%; }
+col.cE { width: 3.45%; } col.cQ { width: 11.1%; }
+thead.pagina td { border: 0; }
+thead .dias1 { font-size: 18pt; font-weight: bold; }
+thead .mes { font-size: 20pt; font-weight: bold; text-align: center; }
+tbody.bloco { break-inside: avoid; page-break-inside: avoid; }
+tbody.bloco td { border: 1px solid #000; height: 20px; font-size: 11pt; vertical-align: middle; text-align: center; overflow: hidden; }
+tbody.bloco td.nome { text-align: left; }
+tbody.bloco tr.h1 td { height: 24px; font-weight: bold; }
+tbody.bloco tr.h1 td.hora { font-size: 13pt; text-align: left; }
+tbody.bloco tr.h1 td.titulo, tbody.bloco tr.h1 td.obs { font-size: 12pt; }
+tbody.bloco tr.h2 td { font-weight: bold; }
+tbody.esp td { border: 0; height: 20px; }
+</style></head><body>
+<div id="menu">
+  <button onclick="gerar(['Segunda','Quarta'],['SEGUNDAS','QUARTAS'])">Segundas e Quartas</button>
+  <button onclick="gerar(['Terça','Quinta'],['TERÇAS','QUINTAS'])">Terças e Quintas</button>
+  <button onclick="gerar(['Sexta'],['SEXTAS-FEIRAS'])">Sextas</button>
+  <button onclick="gerar(['Sábado'],['SÁBADOS'])">Sábados</button>
+</div>
+<div id="folha"></div>
+<script>
+var CORES = { // paleta do TEMPLATE_BLOCOS_HORA
+  'Conn':      { a:'#ea9999', bq:'#ea9999', sub:'#f4cccc' },
+  'Vip Conn':  { a:'#ea9999', bq:'#90b5d4', sub:'#f4cccc' },
+  'Inter':     { a:'#90b5d4', bq:'#90b5d4', sub:'#a6c9ec' },
+  'Vip Inter': { a:'#90b5d4', bq:'#90b5d4', sub:'#a6c9ec' },
+  'Kids':      { a:'#ea9999', bq:'#ffd966', sub:'#f4cccc' },
+  'On':        { a:'#cccccc', bq:'#cccccc', sub:'#e6e6e6' }
+};
+var MESES = ['JANEIRO','FEVEREIRO','MARÇO','ABRIL','MAIO','JUNHO','JULHO','AGOSTO','SETEMBRO','OUTUBRO','NOVEMBRO','DEZEMBRO'];
+function esc(t){ var d=document.createElement('div'); d.textContent=t==null?'':t; return d.innerHTML; }
+function titulo(b){
+  var dias = (b.diasTurma||[]).join(' | ');
+  if (b.tipoKey==='Kids') return 'Turma Conn KIDS';
+  if (b.vip) return b.mod+' Vip'+(dias?' - '+dias:'');
+  if (b.mod==='Inter') return 'Turma Inter';
+  return 'Turma '+b.mod+(dias?' - '+dias:'');
+}
+async function gerar(dias, tit){
+  var r = await fetch('/api/fichas?dias='+encodeURIComponent(dias.join(',')));
+  var blocos = await r.json();
+  if (blocos.erro){ alert(blocos.erro); return; }
+  var vazias = ''; for (var k=0;k<12;k++) vazias += '<td></td>';
+  var h = '<table class="ficha"><colgroup><col class="cA"><col class="cB"><col class="cC"><col class="cD">';
+  for (var k=0;k<12;k++) h += '<col class="cE">';
+  h += '<col class="cQ"></colgroup>';
+  // cabeçalho da página — thead repete automaticamente em TODAS as páginas impressas
+  h += '<thead class="pagina"><tr><td class="dias1" style="text-align:right">'+esc(tit[0])+'</td>';
+  h += tit.length>1 ? '<td class="dias1" style="text-align:center">e</td><td class="dias1" colspan="2">'+esc(tit[1])+'</td>' : '<td colspan="3"></td>';
+  for (var k2=0;k2<8;k2++) h += '<td></td>'; // E..L vazias
+  h += '<td class="mes" colspan="4">'+MESES[new Date().getMonth()]+'</td><td></td></tr><tr><td colspan="17" style="height:26px"></td></tr></thead>';
+  blocos.forEach(function(b){
+    var c = CORES[b.tipoKey] || CORES['Conn'];
+    h += '<tbody class="bloco">';
+    h += '<tr class="h1"><td class="hora" style="background:'+c.a+'">Hora: '+esc(b.hora)+' - '+esc(b.fim)+'</td>';
+    h += '<td class="titulo" colspan="3" style="background:'+c.bq+'">'+esc(titulo(b))+'</td>';
+    for (var k=0;k<12;k++) h += '<td style="background:'+c.bq+'"></td>'; // E:P vazias de propósito (dia à mão)
+    h += '<td class="obs" style="background:'+c.bq+'">Observações</td></tr>';
+    h += '<tr class="h2" style="background:'+c.sub+'"><td style="background:'+c.sub+'">Aluno(a)</td><td style="background:'+c.sub+'">Dias</td><td style="background:'+c.sub+'">Livro</td><td style="background:'+c.sub+'">Aula</td>'+vazias.replace(/<td>/g,'<td style="background:'+c.sub+'">')+'<td style="background:'+c.sub+'">Professores</td></tr>';
+    b.alunos.forEach(function(a){
+      var tipoCel = b.vip ? (b.mod+' Vip') : (b.tipoKey==='Kids' ? 'Conn' : b.mod);
+      h += '<tr><td class="nome">'+esc(a.nome)+'</td><td>'+esc(a.dias)+'</td><td>'+esc(a.livro)+'</td><td>'+esc(tipoCel)+'</td>'+vazias+'<td>'+esc((a.profs||[]).join(', ')||b.profs.join(', '))+'</td></tr>';
+    });
+    h += '<tr><td colspan="17" style="height:20px"></td></tr><tr><td colspan="17" style="height:20px"></td></tr>'; // 2 linhas extras
+    h += '</tbody>';
+    h += '<tbody class="esp"><tr><td colspan="17"></td></tr><tr><td colspan="17"></td></tr><tr><td colspan="17"></td></tr></tbody>'; // 3 de afastamento
+  });
+  h += '</table>';
+  document.getElementById('folha').innerHTML = h;
+  setTimeout(function(){ window.print(); }, 150); // gera e JÁ abre a impressora
+}
+</script></body></html>

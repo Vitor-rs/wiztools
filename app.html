@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+:root{--v:#356854;--vc:#D4EDDA;--cz:#f1f3f4;--perigo:#c5221f}
+*{box-sizing:border-box;font-family:Arial,Helvetica,sans-serif}
+body{margin:0;color:#202124;font-size:13px;padding-bottom:40px}
+#abas{display:flex;position:sticky;top:0;background:#fff;border-bottom:2px solid var(--v);z-index:5}
+#abas button{flex:1;border:0;background:none;padding:10px 4px;cursor:pointer;font-weight:bold;color:#777}
+#abas button.on{color:var(--v);border-bottom:3px solid var(--v)}
+.tab{display:none;padding:10px}.tab.on{display:block}
+label{display:block;margin:8px 0 2px;font-weight:bold;font-size:11px;color:#555;text-transform:uppercase}
+input,select{width:100%;padding:7px;border:1px solid #ccc;border-radius:6px;font-size:13px}
+button.acao{background:var(--v);color:#fff;border:0;border-radius:6px;padding:9px 14px;margin:10px 6px 0 0;cursor:pointer;font-weight:bold}
+button.sec{background:#eee;color:#333}button.perigo{background:var(--perigo)}
+.badge{display:inline-block;padding:2px 10px;border-radius:10px;font-weight:bold;font-size:11px}
+.b-on{background:var(--vc);color:#155724}.b-off{background:#f8d7da;color:#721c24}
+.item{padding:7px 9px;border:1px solid #e0e0e0;border-radius:6px;margin:4px 0;cursor:pointer}
+.item:hover{background:var(--cz)}.item small{color:#777;display:block}
+.tags{display:flex;flex-wrap:wrap;gap:4px;border:1px solid #ccc;border-radius:6px;padding:4px;min-height:34px;position:relative}
+.tags input{border:0;flex:1;min-width:70px;padding:4px;outline:none}
+.pill{background:var(--v);color:#fff;border-radius:12px;padding:3px 8px;font-size:12px;display:flex;align-items:center;gap:5px}
+.pill b{cursor:pointer}
+.sug{position:relative}
+.sug .lista,.tags .lista{position:absolute;left:0;right:0;top:100%;background:#fff;border:1px solid #ccc;border-radius:0 0 6px 6px;max-height:160px;overflow:auto;z-index:9;display:none}
+.lista div{padding:6px 8px;cursor:pointer}.lista div:hover{background:var(--cz)}
+.info{background:#e8f0fe;border-radius:6px;padding:8px;margin-top:8px;font-size:12px}
+.aviso{background:#fef7e0}
+#msg{position:fixed;bottom:0;left:0;right:0;padding:8px;text-align:center;font-weight:bold;display:none;z-index:20}
+.checks{display:flex;flex-wrap:wrap;gap:6px}
+.checks label{display:flex;align-items:center;gap:3px;text-transform:none;font-weight:normal;margin:0;font-size:12px;border:1px solid #ccc;border-radius:6px;padding:4px 7px;cursor:pointer}
+.checks label.sel{background:var(--vc);border-color:var(--v)}
+h3{margin:14px 0 4px;color:var(--v);font-size:13px}
+.linha2{display:flex;gap:8px}.linha2>div{flex:1}
+.subabas{display:flex;gap:6px;margin-bottom:8px}
+.subabas button{flex:1;border:1px solid var(--v);background:#fff;color:var(--v);border-radius:6px;padding:6px;cursor:pointer;font-weight:bold;font-size:12px}
+.subabas button.on{background:var(--v);color:#fff}
+.mat{display:grid;gap:3px;margin-top:8px}
+.mat div{padding:5px 2px;text-align:center;border-radius:4px;font-size:11px}
+.mat .hd{font-weight:bold;color:var(--v)}
+.mat .cel{cursor:pointer;background:#e2e3e5;color:#888}
+.mat .cel.on{background:var(--vc);color:#155724;font-weight:bold}
+.dh{display:flex;align-items:center;gap:8px;margin:4px 0;border:1px solid #e0e0e0;border-radius:6px;padding:4px 8px}
+.dh.sel{background:var(--vc);border-color:var(--v)}
+.dh label{display:flex;align-items:center;gap:5px;margin:0;text-transform:none;font-weight:normal;font-size:12px;flex:1}
+.dh select{flex:1.4;width:auto}
+button:disabled{opacity:.5;cursor:not-allowed}
+.mat .hr{text-align:left;padding-left:4px;white-space:nowrap}
+.mat .hr b{font-size:13px}
+.mat .hr span{font-size:10px;color:#888;font-weight:normal}
+label.chk{display:flex;align-items:center;gap:6px;text-transform:none;font-weight:normal;border:1px solid #ccc;border-radius:6px;padding:7px;margin:0;font-size:12px}
+#load{position:fixed;top:0;left:0;right:0;height:3px;display:none;z-index:99;background:linear-gradient(90deg,var(--v),#9fd8c0,var(--v));background-size:200% 100%;animation:ld 1s linear infinite}@keyframes ld{0%{background-position:0 0}100%{background-position:200% 0}}
+.acao.dirty{animation:pulse 1.2s infinite}@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(53,104,84,.55)}50%{box-shadow:0 0 0 7px rgba(53,104,84,0)}}
+button.acao:disabled{background:#c9c9c9;color:#f3f3f3;cursor:not-allowed;animation:none}
+.pill.off{background:#e0e0e0;color:#555}.pill.add{background:#fff;border:1px dashed var(--v);color:var(--v)}
+</style>
+</head>
+<body>
+<div id="load"></div>
+<div id="abas">
+<button class="on" onclick="aba('alunos',this)">Alunos</button>
+<button onclick="aba('aulas',this)">Aulas</button>
+<button onclick="aba('turmas',this)">Turmas</button>
+</div>
+
+<div id="tab-alunos" class="tab on">
+<label>Buscar / cadastrar aluno</label>
+<div class="sug"><input id="al-busca" placeholder="Digite nome ou ID..." autocomplete="off"><div class="lista" id="al-sug"></div></div>
+<h3 id="al-titulo">Novo aluno</h3>
+<label>Nome completo</label><input id="al-nome">
+<label>ID da matrícula</label><input id="al-id">
+<label>Situação</label><select id="al-sit" onchange="alStatus()"></select>
+<div style="margin-top:8px">Status (derivado): <span id="al-status" class="badge b-off">—</span></div>
+<div id="al-aviso"></div>
+<button class="acao" id="al-salvar" data-off="Salvar" data-on="💾 Salvar alterações" onclick="alSalvar()">Salvar</button>
+<button class="acao perigo" id="al-excluir" style="display:none" onclick="alExcluir()">Excluir</button>
+<button class="acao sec" onclick="alNovo()">Limpar</button>
+</div>
+
+<div id="tab-aulas" class="tab">
+<div class="subabas"><button class="on" id="sub-ger-btn" onclick="subAula('ger')">Gerenciar aulas</button><button id="sub-mat-btn" onclick="subAula('mat')">Matriz de horários</button></div>
+<div id="au-sub-ger">
+<label>Aluno</label>
+<div class="sug"><input id="au-aluno" placeholder="Digite para buscar o aluno..." autocomplete="off"><div class="lista" id="au-sug"></div></div>
+<div id="au-corpo" style="display:none">
+<h3>Aulas de <span id="au-nome"></span></h3>
+<div id="au-outros"></div>
+<label>Dias e horários (marque um ou mais; desmarcar = remover)</label>
+<div id="au-dias"></div>
+<label>Livro</label>
+<div class="sug"><input id="au-livro" autocomplete="off" placeholder="Digite o livro..."><div class="lista" id="au-livro-sug"></div></div>
+<label>Professores</label>
+<div class="tags" id="au-profs"></div>
+<div class="info" id="au-turma">Turma deduzida: —</div>
+<button class="acao" id="au-salvar" data-off="Salvar agenda" data-on="💾 Salvar alterações" onclick="auSalvar()">Salvar agenda</button>
+<button class="acao sec" onclick="auNova()">Limpar</button>
+</div>
+</div>
+<div id="au-sub-mat" style="display:none">
+<h3>Matriz de horários</h3>
+<div style="font-size:12px;color:#555">Toque em cada hora para ativar (1) ou desativar (0). Só horários ativados aparecem nos agendamentos.</div>
+<div id="matriz"></div>
+<button class="acao" id="mat-salvar" data-off="Salvar matriz" data-on="💾 Salvar alterações" onclick="matSalvar()">Salvar matriz</button>
+</div>
+</div>
+
+<div id="tab-turmas" class="tab">
+<label>Buscar turma</label>
+<div class="sug"><input id="tu-busca" placeholder="Digite nome, livro, dia..." autocomplete="off"><div class="lista" id="tu-sug"></div></div>
+<h3 id="tu-titulo">Nova turma</h3>
+<label>Livro</label>
+<div class="sug"><input id="tu-livro" autocomplete="off" placeholder="Digite o livro..."><div class="lista" id="tu-livro-sug"></div></div>
+<div class="linha2">
+<div><label>Modalidade</label><select id="tu-mod" onchange="tuPreview()"></select></div>
+<div><label>VIP (sem turma)</label><label class="chk"><input type="checkbox" id="tu-vip" onchange="tuPreview()" style="width:auto"> É VIP</label></div>
+</div>
+<div id="tu-livro-info"></div>
+<label>Dias</label>
+<div class="checks" id="tu-dias"></div>
+<div class="linha2">
+<div><label>Início</label><select id="tu-hini" onchange="tuHini()"></select></div>
+<div><label>Fim</label><select id="tu-hfim" onchange="tuPreview()"></select></div>
+</div>
+<label>Professores</label>
+<div class="tags" id="tu-profs"></div>
+<label>Status</label><select id="tu-status"><option>Ativa</option><option>Inativa</option></select>
+<div class="info" id="tu-preview">Nome: —</div>
+<button class="acao" id="tu-salvar" data-off="Salvar turma" data-on="💾 Salvar alterações" onclick="tuSalvar()">Salvar turma</button>
+<button class="acao perigo" id="tu-excluir" style="display:none" onclick="tuExcluir()">Excluir</button>
+<button class="acao sec" onclick="tuNova()">Limpar</button>
+<div id="tu-membros"></div>
+</div>
+<div id="msg"></div>
+
+<script>
+var DOM=null,ALUNOS=[],TURMAS=[];
+var alSel=null,auAluno=null,tuSel=null;
+var auTags,tuTags;
+function $(id){return document.getElementById(id)}
+var LOADN=0;function loadOn(){LOADN++;$('load').style.display='block'}
+function loadOff(){LOADN=Math.max(0,LOADN-1);if(!LOADN)$('load').style.display='none'}
+var DIRTY={};
+function dirty(sec,on){DIRTY[sec]=!!on;var b=$(sec+'-salvar');if(!b)return;b.disabled=!on;b.classList.toggle('dirty',!!on);if(b.getAttribute('data-on'))b.textContent=on?b.getAttribute('data-on'):b.getAttribute('data-off');b.title=on?'Há alterações não salvas':'Nada para salvar'}
+function run(fn,args,ok){loadOn();fetch('/api/'+fn,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify((args&&args[0])!==undefined?args[0]:{})}).then(function(r){return r.json()}).then(function(r){loadOff();if(r&&r.erro){msg(r.erro,true);return}if(ok)ok(r)}).catch(function(e){loadOff();msg(String(e),true)})}
+function msg(t,erro){var m=$('msg');m.textContent=t;m.style.display='block';m.style.background=erro?'#fce8e6':'#e6f4ea';m.style.color=erro?'#c5221f':'#137333';setTimeout(function(){m.style.display='none'},4000)}
+function norm(s){return String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')}
+function aba(n,btn){document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('on')});document.querySelectorAll('#abas button').forEach(function(b){b.classList.remove('on')});$('tab-'+n).classList.add('on');btn.classList.add('on')}
+function abaPor(n){aba(n,document.querySelectorAll('#abas button')[{alunos:0,aulas:1,turmas:2}[n]])}
+
+/* autocomplete genérico: mostra sugestões conforme digita */
+function sugerir(inpId,listaId,fonteFn,rotulo,onPick,extra){
+var inp=$(inpId),ul=$(listaId);
+function render(){var q=norm(inp.value);var itens=fonteFn().filter(function(x){return q===''||norm(rotulo(x)).indexOf(q)>=0}).slice(0,8);ul.innerHTML='';itens.forEach(function(x){var d=document.createElement('div');d.textContent=rotulo(x);d.onmousedown=function(ev){ev.preventDefault();ul.style.display='none';onPick(x)};ul.appendChild(d)});if(extra)extra(ul,inp.value,itens);ul.style.display=(ul.children.length)?'block':'none'}
+inp.addEventListener('input',render);inp.addEventListener('focus',render);
+inp.addEventListener('blur',function(){setTimeout(function(){ul.style.display='none'},150)});
+}
+
+/* pílulas/tags de professores com sugestão */
+function tagWidget(contId){
+var cont=$(contId),sel=[];
+var inp=document.createElement('input');inp.placeholder='Digite e Enter...';
+var ul=document.createElement('div');ul.className='lista';
+cont.appendChild(inp);cont.appendChild(ul);
+function draw(){cont.querySelectorAll('.pill').forEach(function(p){p.remove()});sel.slice().reverse().forEach(function(nome){var p=document.createElement('span');p.className='pill';p.textContent=nome+' ';var x=document.createElement('b');x.textContent='×';x.onclick=function(){sel=sel.filter(function(s){return s!==nome});draw()};p.appendChild(x);cont.insertBefore(p,cont.firstChild)})}
+function sugest(){var q=norm(inp.value);var itens=(DOM?DOM.professores:[]).filter(function(p){return sel.indexOf(p.nome)<0&&(q===''||norm(p.nome+' '+p.nomeCompleto).indexOf(q)>=0)});ul.innerHTML='';itens.forEach(function(p){var d=document.createElement('div');d.textContent=p.nome+' — '+p.nomeCompleto;d.onmousedown=function(ev){ev.preventDefault();sel.push(p.nome);inp.value='';draw();ul.style.display='none'};ul.appendChild(d)});ul.style.display=itens.length?'block':'none'}
+inp.addEventListener('input',sugest);inp.addEventListener('focus',sugest);
+inp.addEventListener('blur',function(){setTimeout(function(){ul.style.display='none'},150)});
+inp.addEventListener('keydown',function(e){if(e.key==='Enter'&&inp.value.trim()){sel.push(inp.value.trim());inp.value='';draw();ul.style.display='none';e.preventDefault()}});
+return{get:function(){return sel.slice()},set:function(v){sel=v.slice();draw()}}
+}
+
+function init(){
+run('getDominios',[],function(d){DOM=d;TURMAS=d.turmas;montar()});
+run('getAlunos',[],function(a){ALUNOS=a});
+}
+function montar(){
+var sit=$('al-sit');sit.innerHTML='';DOM.situacoes.forEach(function(s){var o=document.createElement('option');o.textContent=s;sit.appendChild(o)});
+auDiasRender({});
+var cks=$('tu-dias');cks.innerHTML='';DOM.dias.forEach(function(d){var l=document.createElement('label');var c=document.createElement('input');c.type='checkbox';c.value=d;c.style.width='auto';c.onchange=function(){l.classList.toggle('sel',c.checked);tuPreview()};l.appendChild(c);l.appendChild(document.createTextNode(d));cks.appendChild(l)});
+var hi=$('tu-hini'),hf=$('tu-hfim');hi.innerHTML='';hf.innerHTML='';for(var h=7;h<=20;h++){var t=('0'+h).slice(-2)+':00';if(h<20){var o=document.createElement('option');o.textContent=t;hi.appendChild(o)}var o2=document.createElement('option');o2.textContent=t;hf.appendChild(o2)}
+var mo=$('tu-mod');mo.innerHTML='';DOM.modalidades.forEach(function(m){var o=document.createElement('option');o.textContent=m;mo.appendChild(o)});
+}
+function bindBuscas(){ // vinculadas SEMPRE, mesmo se os domínios falharem (fontes com guarda)
+auTags=tagWidget('au-profs');tuTags=tagWidget('tu-profs');
+sugerir('al-busca','al-sug',function(){return ALUNOS},function(a){return a.nome+' ('+a.id+') — '+a.situacao},alCarregar,function(ul,txt,itens){if(txt&&!itens.length){var d=document.createElement('div');d.textContent='➕ Cadastrar novo aluno: "'+txt+'"';d.onmousedown=function(ev){ev.preventDefault();alNovo();$('al-nome').value=txt;ul.style.display='none'};ul.appendChild(d)}});
+sugerir('au-aluno','au-sug',function(){return ALUNOS.filter(function(a){return a.status==='Ativado'})},function(a){return a.nome+' ('+a.id+')'},auCarregar);
+sugerir('au-livro','au-livro-sug',function(){return DOM?DOM.livros:[]},function(l){return l.nome+' — padrão '+l.tipoPadrao+(l.kids?' Kids':'')},function(l){$('au-livro').value=l.nome;auDeduz()});
+sugerir('tu-livro','tu-livro-sug',function(){return DOM?DOM.livros:[]},function(l){return l.nome+' — padrão '+l.tipoPadrao+(l.kids?' Kids':'')},tuAplicaLivro);
+sugerir('tu-busca','tu-sug',function(){return TURMAS||[]},function(t){return t.nome},tuCarregar);
+}
+
+/* ===== ALUNOS ===== */
+function alStatus(){var s=$('al-sit').value;var ativo=(s==='Matriculado'||s==='Rematriculado');var b=$('al-status');b.textContent=ativo?'Ativado':'Desativado';b.className='badge '+(ativo?'b-on':'b-off')}
+function alCarregar(a){dirty('al',false);alSel=a;$('al-titulo').textContent='Editar: '+a.nome;$('al-nome').value=a.nome;$('al-id').value=a.id;$('al-id').disabled=true;$('al-sit').value=a.situacao;$('al-excluir').style.display='inline-block';$('al-busca').value='';alStatus()}
+function alNovo(){dirty('al',false);alSel=null;$('al-titulo').textContent='Novo aluno';$('al-nome').value='';$('al-id').value='';$('al-id').disabled=false;$('al-sit').selectedIndex=0;$('al-excluir').style.display='none';$('al-aviso').innerHTML='';alStatus()}
+function alSalvar(){var a={id:$('al-id').value.trim(),nome:$('al-nome').value.trim(),situacao:$('al-sit').value};
+if(!a.id||!a.nome){msg('Preencha nome e ID.',true);return}
+if(!alSel){var dup=ALUNOS.filter(function(x){return String(x.id)===a.id})[0];if(dup){msg('Já existe aluno com ID '+a.id+' ('+dup.nome+'). Selecione-o na busca para editar.',true);return}}
+run('salvarAluno',[a],function(r){msg(r.criado?'Aluno cadastrado.':'Aluno atualizado.');if(r.avisoAulas)$('al-aviso').innerHTML='<div class="info aviso">⚠️ Aluno ficou Desativado mas ainda tem '+r.avisoAulas+' aula(s) na agenda. Remova-as na aba Aulas se necessário.</div>';run('getAlunos',[],function(x){ALUNOS=x})})}
+function alExcluir(){if(!alSel)return;if(!confirm('Excluir '+alSel.nome+' e TODAS as suas aulas?'))return;run('excluirAluno',[alSel.id],function(r){msg('Aluno excluído ('+r.aulasRemovidas+' aula(s) removida(s)).');alNovo();run('getAlunos',[],function(x){ALUNOS=x})})}
+
+/* ===== AULAS ===== */
+function auDiasRender(sel){sel=sel||{};var box=$('au-dias');if(!box||!DOM)return;box.innerHTML='';
+DOM.dias.forEach(function(d){var row=document.createElement('div');row.className='dh';
+var l=document.createElement('label');var c=document.createElement('input');c.type='checkbox';c.value=d;c.style.width='auto';
+var s=document.createElement('select');var ph=document.createElement('option');ph.value='';ph.textContent='hh:mm';s.appendChild(ph);
+(DOM.horariosPorDia[d]||[]).forEach(function(hx){var a=parseInt(hx,10);var o=document.createElement('option');o.value=hx;o.textContent=('0'+a).slice(-2)+'h às '+('0'+(a+1)).slice(-2)+'h';s.appendChild(o)});
+c.checked=!!sel[d];s.disabled=!c.checked;s.value=sel[d]||'';
+c.onchange=function(){s.disabled=!c.checked;if(!c.checked)s.value='';row.classList.toggle('sel',c.checked);auDeduz()};
+s.onchange=function(){auAutoTurma(d,s);auDeduz()};
+row.classList.toggle('sel',c.checked);l.appendChild(c);l.appendChild(document.createTextNode(d));row.appendChild(l);row.appendChild(s);box.appendChild(row)});auDeduz()}
+function auItens(){var out=[];document.querySelectorAll('#au-dias .dh').forEach(function(row){var c=row.querySelector('input'),s=row.querySelector('select');if(c.checked&&s.value)out.push({dia:c.value,horario:s.value})});return out}
+function auIncompletos(){var out=[];document.querySelectorAll('#au-dias .dh').forEach(function(row){var c=row.querySelector('input'),s=row.querySelector('select');if(c.checked&&!s.value)out.push(c.value)});return out}
+function turmasDoSlot(d,hh,profs){var m=TURMAS.filter(function(x){return x.status==='Ativa'&&x.horario===hh&&String(x.blocoDias).indexOf(d)>=0});
+if(m.length>1&&profs&&profs.length){var pm=m.filter(function(x){return x.professores.some(function(p){return profs.indexOf(p)>=0})});if(pm.length)m=pm}
+return m}
+function auAutoTurma(d,s){if(!s.value)return;var cands=turmasDoSlot(d,s.value,auTags?auTags.get():[]);if(cands.length!==1)return;var tu=cands[0];
+if(!$('au-livro').value.trim())$('au-livro').value=tu.livro;
+if(auTags&&!auTags.get().length&&tu.professores.length)auTags.set(tu.professores)}
+function auCarregar(a){auAluno=a;$('au-aluno').value='';$('au-corpo').style.display='block';$('au-nome').textContent=a.nome+' ('+a.id+')';auRecarrega()}
+var AU_PORLIVRO={},AU_LIVRO='';
+function auRecarrega(){run('getAulasAluno',[auAluno.id],function(aulas){
+var por={};aulas.forEach(function(x){(por[x.livro]=por[x.livro]||[]).push(x)});
+AU_PORLIVRO=por;
+var livros=Object.keys(por).sort(function(a,b){return por[b].length-por[a].length});
+auMostraLivro(livros.indexOf(AU_LIVRO)>=0?AU_LIVRO:(livros[0]||''))})}
+function auMostraLivro(l){
+AU_LIVRO=l;
+var out=$('au-outros');out.innerHTML='';
+var livros=Object.keys(AU_PORLIVRO);
+var tit=document.createElement('small');tit.textContent=livros.length?'Livros do aluno — cada livro tem a própria agenda:':'Aluno ainda sem aulas — escolha o livro abaixo.';out.appendChild(tit);
+var box=document.createElement('div');box.className='tags';box.style.border='0';box.style.padding='2px 0';out.appendChild(box);
+livros.forEach(function(x){var p=document.createElement('span');p.className='pill'+(x===l?'':' off');p.textContent=x+' ('+AU_PORLIVRO[x].length+')';p.style.cursor='pointer';
+p.onclick=function(){if(DIRTY['au']&&!confirm('Há alterações não salvas na agenda de '+AU_LIVRO+'. Descartar?'))return;auMostraLivro(x)};
+box.appendChild(p)});
+var add=document.createElement('span');add.className='pill add';add.textContent='+ livro';add.style.cursor='pointer';
+add.onclick=function(){if(DIRTY['au']&&!confirm('Há alterações não salvas. Descartar?'))return;auMostraLivro('')};
+box.appendChild(add);
+var sel={},profs=[];
+(AU_PORLIVRO[l]||[]).forEach(function(x){sel[x.dia]=x.horario;x.professores.forEach(function(p){if(profs.indexOf(p)<0)profs.push(p)})});
+$('au-livro').value=l;if(auTags)auTags.set(profs);auDiasRender(sel);dirty('au',false)}
+function auNova(){$('au-livro').value='';if(auTags)auTags.set([]);auDiasRender({})}
+function auDeduz(){var l=$('au-livro').value;var box=$('au-turma');if(!box)return;var itens=auItens();
+if(!l){box.className='info';box.textContent='Escolha o livro e marque os dias.';return}
+if(!itens.length){box.className='info';box.textContent='Marque pelo menos um dia e o horário de cada um.';return}
+var lv=DOM.livros.filter(function(x){return x.nome===l})[0];var mod=lv?lv.tipoPadrao:'Conn';
+box.className='info';box.innerHTML='';
+itens.forEach(function(it){var ln=document.createElement('div');
+if(mod==='Inter'){ln.innerHTML='🧩 '+it.dia+' '+it.horario+' → bloco <b>Interactive</b> (definido por dia+horário; alunos de livros variados — sem turma fixa)'}
+else{var cs=turmasDoSlot(it.dia,it.horario,auTags?auTags.get():[]).filter(function(x){return x.livro===l});
+if(cs.length>1){box.className='info aviso';ln.innerHTML='⚠️ '+it.dia+' '+it.horario+': '+cs.length+' turmas gêmeas neste horário ('+cs.map(function(x){return x.professores.join('/')||x.id}).join(' × ')+') — selecione a professora para vincular à turma certa.'}
+else if(cs.length===1){var t=cs[0];ln.innerHTML='✅ '+it.dia+' '+it.horario+' → <b>'+t.nome+'</b>'+(t.professores.length?' · Prof.: '+t.professores.join(', '):'')}
+else{box.className='info aviso';
+var outra=TURMAS.filter(function(x){return x.status==='Ativa'&&x.horario===it.horario&&String(x.blocoDias).indexOf(it.dia)>=0&&x.livro!==l})[0];
+if(outra){ln.innerHTML='⚠️ '+it.dia+' '+it.horario+': a turma <b>'+outra.nome+'</b> está no livro <b>'+outra.livro+'</b>, diferente de <b>'+l+'</b>. ';
+var b1=document.createElement('button');b1.className='acao';b1.style.cssText='padding:2px 8px;margin:0 4px 0 0';b1.textContent='Atualizar livro da turma';
+b1.onclick=function(){if(confirm('Alterar o livro da turma '+outra.nome+' de '+outra.livro+' para '+l+'?\n\nIsso atualiza TODAS as aulas dos alunos dessa turma.')){run('atualizarLivroTurma',[{idTurma:outra.id,novoLivro:l}],function(r){msg('Turma e '+r.aulasAtualizadas+' aula(s) atualizadas para '+r.para+'.');run('getDominios',[],function(d){DOM=d;TURMAS=d.turmas;auDeduz();if(auAluno)auRecarrega()})})}};
+var b2=document.createElement('button');b2.className='acao sec';b2.style.cssText='padding:2px 8px;margin:0';b2.textContent='Manter livro da turma';
+b2.onclick=function(){$('au-livro').value=outra.livro;auDeduz();msg('Livro revertido para '+outra.livro+' (o da turma).')};
+ln.appendChild(b1);ln.appendChild(b2)}
+else{ln.innerHTML='⚠️ '+it.dia+' '+it.horario+': nenhuma turma de '+l+'. ';var b=document.createElement('button');b.className='acao';b.style.cssText='padding:2px 8px;margin:0';b.textContent='Criar turma';b.onclick=function(){tuPrefill(l,it.dia,it.horario)};ln.appendChild(b)}}}
+box.appendChild(ln)})}
+function auSalvar(){if(!auAluno){msg('Escolha o aluno.',true);return}
+var itens=auItens();var livro=$('au-livro').value.trim();
+var inc=auIncompletos();if(inc.length){msg('Escolha o horário de: '+inc.join(', '),true);return}
+if(!livro){msg('Informe o livro.',true);return}
+if(!itens.length&&!confirm('Nenhum dia marcado: isso remove todas as aulas de '+livro+' deste aluno. Continuar?'))return;
+var profs=auTags.get();var alertas=[];
+itens.forEach(function(it){
+var tu=turmasDoSlot(it.dia,it.horario,profs)[0];
+if(tu&&tu.livro!==livro)alertas.push(it.dia+' '+it.horario+': turma '+tu.nome+' está no livro '+tu.livro)});
+if(alertas.length&&!confirm('⚠️ O aluno ficará na turma com livro DIFERENTE:\n\n'+alertas.join('\n')+'\n\nPode acontecer (relação muitos-para-muitos), mas considere atualizar o livro da turma na aba Turmas.\n\nSalvar assim mesmo?'))return;
+run('salvarAgendaLivro',[{idMatricula:auAluno.id,livro:livro,professores:profs,itens:itens}],function(r){var m=r.salvas+' aula(s) na agenda; '+r.removidas+' linha(s) substituída(s).';if(r.avisos&&r.avisos.length)m+=' ⚠️ Livro diferente do da turma em '+r.avisos.length+' dia(s).';msg(m);AU_LIVRO=livro;auRecarrega()})}
+
+var MAT=null;
+function subAula(q){$('au-sub-ger').style.display=q==='ger'?'block':'none';$('au-sub-mat').style.display=q==='mat'?'block':'none';$('sub-ger-btn').classList.toggle('on',q==='ger');$('sub-mat-btn').classList.toggle('on',q==='mat');if(q==='mat')run('getMatriz',[],function(m){MAT=m;matRender()})}
+function matRender(){var box=$('matriz');box.innerHTML='';box.className='mat';box.style.gridTemplateColumns='auto repeat('+MAT.dias.length+',1fr)';box.appendChild(document.createElement('div'));
+MAT.dias.forEach(function(d){var h=document.createElement('div');h.className='hd';h.textContent=d.slice(0,3);box.appendChild(h)});
+MAT.horas.forEach(function(hora,i){var r=document.createElement('div');r.className='hd hr';var h1=parseInt(hora,10);r.innerHTML='<b>'+('0'+h1).slice(-2)+'h</b><span>–'+('0'+(h1+1)).slice(-2)+'h</span>';box.appendChild(r);
+MAT.dias.forEach(function(d,j){var c=document.createElement('div');function pinta(){c.className='cel'+(MAT.valores[i][j]===1?' on':'');c.textContent=MAT.valores[i][j]}
+c.onclick=function(){MAT.valores[i][j]=MAT.valores[i][j]===1?0:1;pinta();dirty('mat',true)};pinta();box.appendChild(c)})});dirty('mat',false)}
+function matSalvar(){if(!MAT)return;run('salvarMatriz',[MAT.valores],function(){msg('Matriz salva.');dirty('mat',false);run('getDominios',[],function(d){DOM=d;TURMAS=d.turmas;auDiasRender({})})})}
+
+/* ===== TURMAS ===== */
+function tuAplicaLivro(l){$('tu-livro').value=l.nome;$('tu-mod').value=l.tipoPadrao;$('tu-mod').disabled=l.tipoFixo;$('tu-livro-info').innerHTML=(l.tipoFixo?'<div class="info">🔒 '+l.nome+' é sempre Connections'+(l.kids?' (Kids)':'')+' — modalidade travada.</div>':(l.kids?'<div class="info">Livro infantil (Kids).</div>':''));tuPreview()}
+function tuDias(){return Array.prototype.filter.call(document.querySelectorAll('#tu-dias input'),function(c){return c.checked}).map(function(c){return c.value}).join('+')}
+function tuSetDias(str){document.querySelectorAll('#tu-dias input').forEach(function(c){c.checked=String(str).indexOf(c.value)>=0;c.parentNode.classList.toggle('sel',c.checked)})}
+function tuHini(){var h=parseInt($('tu-hini').value,10)+1;$('tu-hfim').value=('0'+h).slice(-2)+':00';tuPreview()}
+function tuPreview(){var vip=$('tu-vip').checked;var hi=$('tu-hini').value,hf=$('tu-hfim').value;var ok=hf>hi;var p=$('tu-preview');
+if(!ok){p.className='info aviso';p.textContent='⛔ Horário impossível: o fim ('+hf+') deve ser depois do início ('+hi+').'}
+else{p.className='info';p.textContent='Nome: '+(vip?'VIP-':'Tur-')+$('tu-mod').value.toUpperCase()+' | '+($('tu-livro').value||'?')+' | '+(tuDias()||'?')+' | '+hi+'-'+hf}
+var b=$('tu-salvar');if(b)b.disabled=!ok||!DIRTY['tu']}
+function tuCarregar(t){tuSel=t;$('tu-titulo').textContent='Editar: '+t.id;$('tu-busca').value='';$('tu-livro').value=t.livro;$('tu-mod').disabled=false;$('tu-mod').value=t.modalidade;$('tu-vip').checked=!!t.vip;tuSetDias(t.blocoDias);$('tu-hini').value=t.horario;$('tu-hfim').value=t.horaFim;tuTags.set(t.professores);$('tu-status').value=t.status;$('tu-excluir').style.display='inline-block';var lv=DOM.livros.filter(function(l){return l.nome===t.livro})[0];if(lv)$('tu-mod').disabled=lv.tipoFixo;tuPreview();tuMembros();dirty('tu',false)}
+function tuNova(){tuSel=null;$('tu-titulo').textContent='Nova turma';$('tu-livro').value='';$('tu-mod').disabled=false;$('tu-mod').selectedIndex=0;$('tu-vip').checked=false;tuSetDias('');$('tu-hini').selectedIndex=0;$('tu-hfim').selectedIndex=1;tuTags.set([]);$('tu-status').value='Ativa';$('tu-excluir').style.display='none';$('tu-livro-info').innerHTML='';$('tu-membros').innerHTML='';tuPreview();dirty('tu',false)}
+function tuPrefill(livro,dia,hora){abaPor('turmas');tuNova();$('tu-livro').value=livro;var lv=DOM.livros.filter(function(l){return l.nome===livro})[0];if(lv)tuAplicaLivro(lv);tuSetDias(dia);$('tu-hini').value=hora;var h=parseInt(hora,10)+1;$('tu-hfim').value=('0'+h).slice(-2)+':00';tuPreview();msg('Campos da turma pré-preenchidos — revise e salve.')}
+function tuSalvar(){var t={id:tuSel?tuSel.id:null,livro:$('tu-livro').value.trim(),modalidade:$('tu-mod').value,vip:$('tu-vip').checked,blocoDias:tuDias(),horario:$('tu-hini').value,horaFim:$('tu-hfim').value,professores:tuTags.get(),status:$('tu-status').value};
+if(!t.livro||!t.blocoDias){msg('Informe livro e dias.',true);return}
+if(t.horaFim<=t.horario){msg('Horário impossível: o fim deve ser depois do início.',true);return}
+if(!t.professores.length&&!t.vip&&!confirm('Turma sem professora vinculada — turmas gêmeas (mesmo livro/dias/horário) só se diferenciam pela professora. Salvar mesmo assim?'))return;
+run('salvarTurma',[t],function(r){msg('Turma salva: '+r.nome);run('getTurmas',[],function(x){TURMAS=x;if(DOM)DOM.turmas=x});tuNova()})}
+function tuMembros(){if(!tuSel){$('tu-membros').innerHTML='';return}
+var box=$('tu-membros');box.innerHTML='<h3>Integrantes</h3><small>Carregando...</small>';
+run('getIntegrantesTurma',[tuSel.id],function(ms){
+box.innerHTML='<h3>Integrantes ('+ms.length+')</h3>';
+if(!ms.length){var w=document.createElement('div');w.className='info aviso';w.textContent=tuSel.vip?'VIP ainda sem aluno vinculado.':'⚠️ Turma vazia — turma Connections precisa de alunos, dias/hora e professora vinculada.';box.appendChild(w);return}
+ms.forEach(function(m){var d=document.createElement('div');d.className='item';d.style.cursor='default';
+var del=document.createElement('button');del.className='acao perigo';del.style.cssText='float:right;padding:2px 8px;margin:0';del.textContent='✕';del.title='Remover da turma';
+del.onclick=function(){if(confirm('Remover '+m.nome+' desta turma? As aulas dele neste dia/horário serão apagadas (o cadastro do aluno permanece).')){run('removerAlunoDaTurma',[{idMatricula:m.id,idTurma:tuSel.id}],function(r){msg(r.aulasRemovidas+' aula(s) removida(s).');tuMembros()})}};
+var tx=document.createElement('span');tx.innerHTML='<b>'+m.nome+'</b> ('+m.id+') · '+m.dias.join('+')+(m.divergente?' · <span style="color:#c5221f">⚠️ livro diferente: '+m.livros.join(', ')+' — considere ajustar</span>':'');
+d.appendChild(del);d.appendChild(tx);box.appendChild(d)})})}
+function tuExcluir(){if(!tuSel)return;if(!confirm('Excluir a turma '+tuSel.id+'? As aulas não são apagadas (a turma é deduzida).'))return;run('excluirTurma',[tuSel.id],function(){msg('Turma excluída.');run('getTurmas',[],function(x){TURMAS=x;if(DOM)DOM.turmas=x});tuNova()})}
+
+init();
+
+['al','au','tu','mat'].forEach(function(s){DIRTY[s]=false});
+[['tab-alunos','al'],['tab-aulas','au'],['tab-turmas','tu']].forEach(function(par){var el=document.getElementById(par[0]);if(!el)return;
+['input','change'].forEach(function(ev){el.addEventListener(ev,function(){dirty(par[1],true)})});
+el.addEventListener('click',function(e){if(e.target&&e.target.tagName==='B'&&e.target.parentElement&&String(e.target.parentElement.className).indexOf('pill')>=0)dirty(par[1],true)})});
+bindBuscas();
+setTimeout(function(){['al','au','tu','mat'].forEach(function(s){dirty(s,false)})},0);
+setTimeout(function(){if(!DOM)msg('Os domínios não carregaram — verifique as abas do arquivo (ex.: Lista_Situacoes) e reabra o painel.',true)},4000);
+</script>
+</body>
+</html>

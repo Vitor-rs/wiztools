@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "wizard-local",
+      "runtimeExecutable": "deno",
+      "runtimeArgs": ["run", "-A", "main.ts"],
+      "port": 8420
+    }
+  ]
+}

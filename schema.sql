@@ -42,15 +42,21 @@ CREATE TABLE alunos (
   situacao TEXT NOT NULL REFERENCES situacoes(situacao)
   -- SEM coluna status: é derivado (v_alunos) — era redundante na planilha
 );
-CREATE TABLE turmas (
-  id TEXT PRIMARY KEY,                 -- T001...
+CREATE TABLE turmas (                  -- turma = SALA (professora+dias+horário); sem opinião sobre
+  id TEXT PRIMARY KEY,                 -- modalidade/VIP — isso é do aluno agora (tabela aluno_livro)
   livro TEXT REFERENCES livros(nome),  -- NULL = turma Inter (multi-livro); obrigatório p/ Conn (regra no app)
-  modalidade TEXT NOT NULL,            -- Conn | Inter | On
-  vip INTEGER NOT NULL DEFAULT 0,      -- VIP = sem conceito de turma (nome VIP-)
   hora_inicio TEXT NOT NULL,
   hora_fim TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'Ativa',
   CHECK (hora_fim > hora_inicio)       -- validador de horário impossível, agora no banco
+);
+CREATE TABLE aluno_livro (             -- matrícula do aluno num livro: fonte da verdade de
+  id_matricula TEXT NOT NULL REFERENCES alunos(id_matricula) ON DELETE CASCADE,  -- modalidade/VIP/tipo de encontro (não a turma)
+  livro TEXT NOT NULL REFERENCES livros(nome),
+  modalidade TEXT NOT NULL,            -- Conn | Inter
+  vip INTEGER NOT NULL DEFAULT 0,      -- VIP = sem turma (nunca casa com turma — regra aplicada no app)
+  tipo_encontro TEXT NOT NULL DEFAULT 'Presencial', -- Presencial | Online
+  PRIMARY KEY (id_matricula, livro)
 );
 CREATE TABLE turma_dia (               -- era o texto 'Terça+Quinta' — normalizado
   turma_id TEXT NOT NULL REFERENCES turmas(id) ON DELETE CASCADE,
@@ -68,7 +74,9 @@ CREATE TABLE aulas (                   -- combinatória: 1 linha = aluno × dia 
   dia  TEXT NOT NULL REFERENCES dias(nome),
   hora TEXT NOT NULL,
   livro TEXT NOT NULL REFERENCES livros(nome),
-  UNIQUE (id_matricula, dia, hora)     -- um aluno não está em dois lugares na mesma hora
+  UNIQUE (id_matricula, dia, hora),    -- um aluno não está em dois lugares na mesma hora
+  FOREIGN KEY (id_matricula, livro) REFERENCES aluno_livro(id_matricula, livro) ON DELETE CASCADE
+  -- precisa matricular no livro (aluno_livro) antes de marcar dia/hora nele
   -- SEM nome do aluno e SEM id_funcionario gravados: eram cópias redundantes na planilha
 );
 CREATE TABLE aula_professor (
@@ -76,20 +84,17 @@ CREATE TABLE aula_professor (
   funcionario_id TEXT NOT NULL REFERENCES funcionarios(id),
   PRIMARY KEY (aula_id, funcionario_id)
 );
+CREATE TABLE aluno_situacao_historico (  -- linha do tempo manual: quando o aluno entrou em cada situação
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id_matricula TEXT NOT NULL REFERENCES alunos(id_matricula) ON DELETE CASCADE,
+  situacao TEXT NOT NULL REFERENCES situacoes(situacao),
+  data TEXT NOT NULL                     -- 'AAAA-MM-DD', digitada manualmente pela recepção
+);
 
 /* ===== derivados (as fórmulas da planilha viram VIEWs) ===== */
 CREATE VIEW v_alunos AS                -- Status derivado da situação
   SELECT a.id_matricula, a.nome, a.situacao,
          CASE WHEN s.ativa=1 THEN 'Ativado' ELSE 'Desativado' END AS status
   FROM alunos a JOIN situacoes s ON s.situacao=a.situacao;
-CREATE VIEW v_turma_nome AS            -- mesma regra do Nome_Turma (VIP-/Tur- + MOD + livro? + dias + horas + profs)
-  SELECT t.id,
-         (CASE WHEN t.vip=1 THEN 'VIP-' ELSE 'Tur-' END) || UPPER(t.modalidade)
-         || COALESCE(' | '||t.livro,'')
-         || ' | ' || COALESCE((SELECT GROUP_CONCAT(td.dia,'+') FROM turma_dia td WHERE td.turma_id=t.id),'')
-         || ' | ' || t.hora_inicio || '-' || t.hora_fim
-         || COALESCE(' | '||(SELECT GROUP_CONCAT(f.nome,'/') FROM turma_professor tp JOIN funcionarios f ON f.id=tp.funcionario_id WHERE tp.turma_id=t.id),'')
-         AS nome
-  FROM turmas t;
-CREATE VIEW v_tipo_aula AS             -- Tipo_Aula derivado (p/ prioridade dos blocos)
-  SELECT id, CASE WHEN vip=1 THEN 'Vip '||modalidade ELSE modalidade END AS tipo FROM turmas;
+/* Nome_Turma não é mais VIEW: precisa da modalidade ATUAL dos integrantes (aluno_livro), calculada em
+   JS (main.ts: turmaObj/modalidadeDaTurma) — turmas não guardam mais modalidade própria. */

@@ -11,20 +11,59 @@ const R = (sql: string, ...p: unknown[]) => db.prepare(sql).run(...p);
 
 if (Deno.args.includes("--init")) {
   db.exec(await Deno.readTextFile(PASTA + "schema.sql"));
+  db.exec("PRAGMA foreign_keys = OFF;"); // seed.sql grava aulas antes de aluno_livro existir; a migração abaixo preenche
   db.exec(await Deno.readTextFile(PASTA + "seed.sql"));
+  db.exec("PRAGMA foreign_keys = ON;");
+  migrarAlunoLivro();
   console.log("wizard.db criado com schema + dados.");
   Deno.exit(0);
+}
+
+/* migração idempotente: pré-existência de aluno_livro pra cada (id_matricula,livro) hoje em aulas —
+   modalidade/vip inferidos da turma casada (se houver) ou do tipo_padrao do livro (vip=0, avulso) */
+function migrarAlunoLivro() {
+  const pares = A("SELECT DISTINCT id_matricula, livro FROM aulas");
+  for (const p of pares) {
+    if (G("SELECT 1 FROM aluno_livro WHERE id_matricula=? AND livro=?", p.id_matricula, p.livro)) continue;
+    const lv = G("SELECT * FROM livros WHERE nome=?", p.livro);
+    const linha = G("SELECT * FROM aulas WHERE id_matricula=? AND livro=? LIMIT 1", p.id_matricula, p.livro);
+    const profs = linha ? A("SELECT f.nome FROM aula_professor ap JOIN funcionarios f ON f.id=ap.funcionario_id WHERE ap.aula_id=?", linha.id).map((x: any) => x.nome) : [];
+    const turma = linha ? A("SELECT t.* FROM turmas t JOIN turma_dia td ON td.turma_id=t.id WHERE td.dia=? AND t.hora_inicio=? AND t.status='Ativa' AND (t.livro=? OR t.livro IS NULL)", linha.dia, linha.hora, p.livro)
+      .find((t: any) => { const tp = A("SELECT f.nome FROM turma_professor tp JOIN funcionarios f ON f.id=tp.funcionario_id WHERE tp.turma_id=?", t.id).map((x: any) => x.nome); return !tp.length || !profs.length || tp.some((x: string) => profs.includes(x)); }) : undefined;
+    const mod = turma ? "Conn" : (lv?.tipo_padrao || "Conn");
+    R("INSERT INTO aluno_livro VALUES (?,?,?,?,?)", p.id_matricula, p.livro, mod, 0, "Presencial");
+  }
+  if (pares.length) console.log("aluno_livro: " + pares.length + " matrícula(s) migrada(s) a partir de aulas existentes.");
 }
 
 /* ===== helpers de domínio (mesmas regras do painel do Sheets) ===== */
 const profsDaTurma = (id: string) => A("SELECT f.nome FROM turma_professor tp JOIN funcionarios f ON f.id=tp.funcionario_id WHERE tp.turma_id=?", id).map(r => r.nome);
 const diasDaTurma = (id: string) => A("SELECT td.dia FROM turma_dia td JOIN dias d ON d.nome=td.dia WHERE td.turma_id=? ORDER BY d.ordem", id).map(r => r.dia);
+/* turma não guarda mais modalidade própria — pro nome/exibição, deriva da matrícula (aluno_livro) da
+   MAIORIA dos integrantes REAIS atuais (mesma regra de casamento de getIntegrantesTurma: livro igual
+   e, se houver gêmea, mesma professora — não basta compartilhar dia+hora com a turma); sem integrantes
+   ainda, cai no tipo_padrao do livro (ou Inter). */
+function modalidadeDaTurma(t: { id: string; hora_inicio: string; livro: string | null }): string {
+  const profsTurma = profsDaTurma(t.id);
+  const contagem: Record<string, number> = {};
+  for (const r of A("SELECT a.id, a.id_matricula, a.livro FROM aulas a JOIN turma_dia td ON td.dia=a.dia AND td.turma_id=? WHERE a.hora=?", t.id, t.hora_inicio)) {
+    if (t.livro && r.livro !== t.livro) continue; // livro diferente = avulso, não integrante desta sala
+    const pa = A("SELECT f.nome FROM aula_professor ap JOIN funcionarios f ON f.id=ap.funcionario_id WHERE ap.aula_id=?", r.id).map((x: any) => x.nome);
+    if (profsTurma.length && pa.length && !pa.some((p: string) => profsTurma.includes(p))) continue; // gêmea de outra professora
+    const mat = getMatricula(r.id_matricula, r.livro);
+    if (mat) contagem[mat.modalidade] = (contagem[mat.modalidade] || 0) + 1;
+  }
+  const melhor = Object.entries(contagem).sort((a, b) => b[1] - a[1])[0];
+  if (melhor) return melhor[0];
+  const lv = t.livro ? G("SELECT tipo_padrao FROM livros WHERE nome=?", t.livro) : null;
+  return lv?.tipo_padrao || "Inter";
+}
 function turmaObj(t: any) {
-  return { id: t.id, nome: G("SELECT nome FROM v_turma_nome WHERE id=?", t.id)?.nome || t.id,
-    livro: t.livro || "", modalidade: t.modalidade, vip: t.vip === 1,
-    blocoDias: diasDaTurma(t.id).join("+"), horario: t.hora_inicio, horaFim: t.hora_fim,
-    professores: profsDaTurma(t.id), status: t.status,
-    tipoAula: t.vip === 1 ? "Vip " + t.modalidade : t.modalidade };
+  const dias = diasDaTurma(t.id), profs = profsDaTurma(t.id), mod = modalidadeDaTurma(t);
+  const nome = "Tur-" + mod.toUpperCase() + (t.livro ? " | " + t.livro : "") + " | " + dias.join("+")
+    + " | " + t.hora_inicio + "-" + t.hora_fim + (profs.length ? " | " + profs.join("/") : "");
+  return { id: t.id, nome, livro: t.livro || "", blocoDias: dias.join("+"), horario: t.hora_inicio, horaFim: t.hora_fim,
+    professores: profs, status: t.status, modalidade: mod };
 }
 const getTurmas = () => A("SELECT * FROM turmas").map(turmaObj);
 function turmasDoSlot(dia: string, hora: string, profs: string[], livro?: string) {
@@ -33,6 +72,95 @@ function turmasDoSlot(dia: string, hora: string, profs: string[], livro?: string
   return m;
 }
 const idsDosProfs = (nomes: string[]) => nomes.map(n => G("SELECT id FROM funcionarios WHERE nome=?", n)?.id).filter(Boolean) as string[];
+const getMatricula = (idMatricula: string, livro: string) => G("SELECT * FROM aluno_livro WHERE id_matricula=? AND livro=?", idMatricula, livro);
+/* garante que exista matrícula no livro novo antes de uma cascata mudar aulas.livro (a FK exige) —
+   herda modalidade/vip/tipo_encontro da matrícula de origem quando existir */
+function garantirMatricula(idMatricula: string, livro: string, origemLivro?: string) {
+  if (G("SELECT 1 FROM aluno_livro WHERE id_matricula=? AND livro=?", idMatricula, livro)) return;
+  const base = origemLivro ? getMatricula(idMatricula, origemLivro) : null;
+  const lv = G("SELECT * FROM livros WHERE nome=?", livro);
+  R("INSERT INTO aluno_livro VALUES (?,?,?,?,?)", idMatricula, livro, base?.modalidade || lv?.tipo_padrao || "Conn", base?.vip || 0, base?.tipo_encontro || "Presencial");
+}
+/* remove a matrícula antiga se não sobrou nenhuma aula nela — sem isso, uma troca de livro (cascata de
+   turma ou trocarLivroAluno) deixava um livro "fantasma" vazio na ficha do aluno (aluno só guarda o
+   ESTADO ATUAL, não todo livro que já fez). */
+function limparMatriculaSeVazia(idMatricula: string, livro: string) {
+  if (!G("SELECT 1 FROM aulas WHERE id_matricula=? AND livro=?", idMatricula, livro))
+    R("DELETE FROM aluno_livro WHERE id_matricula=? AND livro=?", idMatricula, livro);
+}
+
+/* ===== blocos de hora (fichas de impressão + prévia ao vivo, mesma lógica) ===== */
+const GRUPOS_DIAS = [["Segunda", "Quarta"], ["Terça", "Quinta"], ["Sexta"], ["Sábado"]];
+const grupoDoDia = (dia: string) => GRUPOS_DIAS.find(g => g.includes(dia)) || [dia];
+
+type Linha = { id_matricula: string; nomeAluno: string; dia: string; hora: string; livro: string; profs: string[]; pendente?: boolean; matPendente?: { modalidade: string; vip: boolean } };
+
+/* mescla horas contíguas do MESMO aluno+dia+livro+professores num único registro com contagem de
+   aulas (ex.: 07:00 + 08:00 seguidas = 1 registro "2 aulas", horaFim = +2h) — cobre o caso de 2 lições
+   no mesmo dia (ex.: espanhol de segunda 7h-9h) sem exigir que isso seja modelado como turma. */
+function mesclarHoras(linhas: Linha[]): (Linha & { aulas: number })[] {
+  const porGrupo: Record<string, Linha[]> = {};
+  for (const l of linhas) (porGrupo[l.id_matricula + "|" + l.dia + "|" + l.livro + "|" + l.profs.slice().sort().join(",")] ||= []).push(l);
+  const resultado: (Linha & { aulas: number })[] = [];
+  for (const grupo of Object.values(porGrupo)) {
+    grupo.sort((a, b) => a.hora < b.hora ? -1 : a.hora > b.hora ? 1 : 0);
+    let atual: (Linha & { aulas: number }) | null = null;
+    for (const l of grupo) {
+      const proxima = atual ? ("0" + (parseInt(atual.hora, 10) + atual.aulas)).slice(-2) + ":00" : null;
+      if (atual && l.hora === proxima) { atual.aulas++; if (l.pendente) atual.pendente = true; }
+      else { atual = { ...l, aulas: 1 }; resultado.push(atual); }
+    }
+  }
+  return resultado;
+}
+
+function montarBlocos(
+  dias: string[],
+  alunoOverlay?: { idMatricula: string; livro: string; itens: { idMatricula: string; nome: string; livro: string; professores: string[]; dia: string; hora: string }[]; modalidade?: string; vip?: boolean },
+) {
+  const prio: Record<string, number> = {}; A("SELECT * FROM prioridade").forEach(r => prio[r.tipo] = r.prioridade);
+  const dInfo: Record<string, any> = {}; A("SELECT * FROM dias").forEach(r => dInfo[r.nome] = r);
+  const lInfo: Record<string, any> = {}; A("SELECT * FROM livros").forEach(r => lInfo[r.nome] = r);
+  const linhas: Linha[] = [];
+  const pendDias = alunoOverlay ? new Set(alunoOverlay.itens.map((it: any) => it.dia)) : null;
+  for (const a of A("SELECT a.*, al.nome nomeAluno FROM aulas a JOIN alunos al ON al.id_matricula=a.id_matricula JOIN v_alunos v ON v.id_matricula=a.id_matricula WHERE v.status='Ativado'")) {
+    if (!dias.includes(a.dia)) continue;
+    // substituído pela agenda pendente — mesma regra de salvarAgendaLivro: mesmo livro em qualquer dia OU o mesmo slot (troca de livro assume o slot)
+    if (alunoOverlay && a.id_matricula === alunoOverlay.idMatricula && (a.livro === alunoOverlay.livro || pendDias!.has(a.dia))) continue;
+    const profs = A("SELECT f.nome FROM aula_professor ap JOIN funcionarios f ON f.id=ap.funcionario_id WHERE ap.aula_id=?", a.id).map((x: any) => x.nome);
+    linhas.push({ id_matricula: a.id_matricula, nomeAluno: a.nomeAluno, dia: a.dia, hora: a.hora, livro: a.livro, profs });
+  }
+  if (alunoOverlay) {
+    const matPendente = alunoOverlay.modalidade ? { modalidade: alunoOverlay.modalidade, vip: !!alunoOverlay.vip } : undefined;
+    for (const it of alunoOverlay.itens) if (dias.includes(it.dia))
+      linhas.push({ id_matricula: it.idMatricula, nomeAluno: it.nome, dia: it.dia, hora: it.hora, livro: it.livro, profs: it.professores, pendente: true, matPendente });
+  }
+
+  const blocos: Record<string, any> = {};
+  for (const a of mesclarHoras(linhas)) {
+    const mat = a.matPendente || getMatricula(a.id_matricula, a.livro);
+    const vip = !!(mat && (mat.vip === 1 || mat.vip === true));
+    const mod = mat?.modalidade || lInfo[a.livro]?.tipo_padrao || "Conn";
+    const lv = lInfo[a.livro] || { kids: 0 };
+    const t = (!vip && mod === "Conn") ? turmasDoSlot(a.dia, a.hora, a.profs, a.livro)[0] : undefined;
+    const tipoKey = vip ? "Vip " + mod : (mod === "Conn" && lv.kids === 1 ? "Kids" : mod);
+    const fimIndividual = ("0" + (parseInt(a.hora, 10) + a.aulas)).slice(-2) + ":00";
+    const chave = (!vip && mod === "Inter") ? "I|" + a.hora : t ? "T|" + t.id + "|" + a.hora : "A|" + tipoKey + "|" + a.livro + "|" + a.hora + "|" + a.profs.join("/");
+    const b = blocos[chave] ||= { hora: a.hora, fim: t ? t.horaFim : fimIndividual,
+      turmaId: t ? t.id : null, tipoKey, mod, vip, diasTurma: t ? t.blocoDias.split("+").map((x: string) => dInfo[x]?.curto || x) : [], alunos: {}, profs: [] };
+    const al = b.alunos[a.id_matricula] ||= { nome: a.nomeAluno, dias: [], diasAulas: {}, livro: a.livro, profs: [], pendente: false };
+    if (a.pendente) al.pendente = true;
+    if (!al.dias.includes(a.dia)) al.dias.push(a.dia);
+    al.diasAulas[a.dia] = Math.max(al.diasAulas[a.dia] || 1, a.aulas);
+    a.profs.forEach(p => { if (!b.profs.includes(p)) b.profs.push(p); if (!al.profs.includes(p)) al.profs.push(p); });
+  }
+  const lista = Object.values(blocos).map((b: any) => ({ ...b,
+    alunos: Object.values(b.alunos).map((al: any) => ({ ...al,
+      dias: al.dias.map((x: string) => dInfo[x]).sort((p: any, q: any) => p.ordem - q.ordem)
+        .map((x: any) => x.codigo + ((al.diasAulas[x.nome] || 1) > 1 ? " (" + al.diasAulas[x.nome] + " aulas)" : "")).join("|") })) }));
+  lista.sort((x: any, y: any) => x.hora !== y.hora ? (x.hora < y.hora ? -1 : 1) : (prio[x.tipoKey === "Kids" ? "Conn" : x.tipoKey] || 0) - (prio[y.tipoKey === "Kids" ? "Conn" : y.tipoKey] || 0));
+  return lista;
+}
 
 /* ===== API (mesmo contrato do painel GAS) ===== */
 const api: Record<string, (a: any) => unknown> = {
@@ -57,11 +185,58 @@ const api: Record<string, (a: any) => unknown> = {
     return { ok: true, criado: !existe, status: G("SELECT status FROM v_alunos WHERE id_matricula=?", a.id)?.status };
   },
   excluirAluno: (id) => ({ ok: true, aulasRemovidas: R("DELETE FROM aulas WHERE id_matricula=?", id).changes, aluno: R("DELETE FROM alunos WHERE id_matricula=?", id).changes }),
+
+  /* ===== matrículas em livro (fonte da verdade de modalidade/VIP/tipo de encontro) ===== */
+  getMatriculasAluno: (id) => A("SELECT * FROM aluno_livro WHERE id_matricula=?", id).map(r => ({
+    livro: r.livro, modalidade: r.modalidade, vip: r.vip === 1, tipoEncontro: r.tipo_encontro })),
+  salvarMatricula({ idMatricula, livro, modalidade, vip, tipoEncontro }: any) {
+    if (!idMatricula || !livro) throw new Error("Aluno e livro são obrigatórios.");
+    if (!G("SELECT 1 FROM alunos WHERE id_matricula=?", idMatricula)) throw new Error("Aluno não encontrado.");
+    const lv = G("SELECT * FROM livros WHERE nome=?", livro); if (!lv) throw new Error("Livro inválido: " + livro);
+    let mod = modalidade || lv.tipo_padrao;
+    if (lv.tipo_fixo === 1) mod = lv.tipo_padrao; // TOTS/L. Kids: modalidade travada
+    const existe = G("SELECT 1 FROM aluno_livro WHERE id_matricula=? AND livro=?", idMatricula, livro);
+    existe ? R("UPDATE aluno_livro SET modalidade=?,vip=?,tipo_encontro=? WHERE id_matricula=? AND livro=?", mod, vip ? 1 : 0, tipoEncontro || "Presencial", idMatricula, livro)
+           : R("INSERT INTO aluno_livro VALUES (?,?,?,?,?)", idMatricula, livro, mod, vip ? 1 : 0, tipoEncontro || "Presencial");
+    return { ok: true, criado: !existe, modalidade: mod };
+  },
+  excluirMatricula({ idMatricula, livro }: any) {
+    const aulasRemovidas = R("DELETE FROM aulas WHERE id_matricula=? AND livro=?", idMatricula, livro).changes;
+    const removida = R("DELETE FROM aluno_livro WHERE id_matricula=? AND livro=?", idMatricula, livro).changes as number > 0;
+    return { ok: true, aulasRemovidas, removida };
+  },
+  /* troca o livro de UMA matrícula do aluno (ex.: terminou TOTS 6, avançou pra L. Kids 2): a nova
+     matrícula herda modalidade/vip/tipo_encontro, a agenda (dias/horas/professores) migra junto, e a
+     matrícula antiga é removida — o aluno só guarda o livro ATUAL, não todo livro que já fez. */
+  trocarLivroAluno({ idMatricula, livroAntigo, livroNovo }: any) {
+    if (!idMatricula || !livroAntigo || !livroNovo) throw new Error("Aluno, livro atual e livro novo são obrigatórios.");
+    if (livroAntigo === livroNovo) return { ok: true, aulasMovidas: 0 };
+    const antiga = getMatricula(idMatricula, livroAntigo); if (!antiga) throw new Error("Matrícula em " + livroAntigo + " não encontrada.");
+    if (G("SELECT 1 FROM aluno_livro WHERE id_matricula=? AND livro=?", idMatricula, livroNovo)) throw new Error("Aluno já está matriculado em " + livroNovo + " — remova uma das duas matrículas antes.");
+    const lvNovo = G("SELECT * FROM livros WHERE nome=?", livroNovo); if (!lvNovo) throw new Error("Livro inválido: " + livroNovo);
+    let mod = antiga.modalidade;
+    if (lvNovo.tipo_fixo === 1) mod = lvNovo.tipo_padrao; // TOTS/L. Kids: modalidade travada
+    R("INSERT INTO aluno_livro VALUES (?,?,?,?,?)", idMatricula, livroNovo, mod, antiga.vip, antiga.tipo_encontro);
+    const aulasMovidas = R("UPDATE aulas SET livro=? WHERE id_matricula=? AND livro=?", livroNovo, idMatricula, livroAntigo).changes;
+    R("DELETE FROM aluno_livro WHERE id_matricula=? AND livro=?", idMatricula, livroAntigo);
+    return { ok: true, aulasMovidas, modalidade: mod };
+  },
+
+  /* ===== histórico de situação (linha do tempo manual: matrícula/rematrícula/etc por data) ===== */
+  getHistoricoAluno: (id) => A("SELECT * FROM aluno_situacao_historico WHERE id_matricula=? ORDER BY data", id).map(r => ({ id: r.id, situacao: r.situacao, data: r.data })),
+  salvarHistoricoAluno({ idMatricula, situacao, data }: any) {
+    if (!idMatricula || !situacao || !data) throw new Error("Situação e data são obrigatórias.");
+    if (!G("SELECT 1 FROM situacoes WHERE situacao=?", situacao)) throw new Error("Situação inválida: " + situacao);
+    R("INSERT INTO aluno_situacao_historico (id_matricula,situacao,data) VALUES (?,?,?)", idMatricula, situacao, data);
+    return { ok: true };
+  },
+  excluirHistoricoAluno: (id) => ({ ok: R("DELETE FROM aluno_situacao_historico WHERE id=?", id).changes > 0 }),
+
   getAulasAluno: (id) => A("SELECT * FROM aulas WHERE id_matricula=?", id).map(r => ({ linha: r.id, dia: r.dia, horario: r.hora, livro: r.livro,
     professores: A("SELECT f.nome FROM aula_professor ap JOIN funcionarios f ON f.id=ap.funcionario_id WHERE ap.aula_id=?", r.id).map(x => x.nome) })),
   salvarAgendaLivro(p) { // sincroniza a agenda do aluno NESTE livro (desmarcar = remover; mesmo slot = troca de livro)
     if (!p?.itens) throw new Error("Dados incompletos.");
-    if (!G("SELECT 1 FROM livros WHERE nome=?", p.livro)) throw new Error("Livro inválido: " + p.livro);
+    if (!G("SELECT 1 FROM aluno_livro WHERE id_matricula=? AND livro=?", p.idMatricula, p.livro)) throw new Error("Matricule o aluno no livro " + p.livro + " antes de definir os horários.");
     const avisos: string[] = [];
     for (const it of p.itens) {
       if (!G("SELECT 1 FROM horario_ativo WHERE dia=? AND hora=? AND ativo=1", it.dia, it.horario)) throw new Error("Horário " + it.horario + " não está ativado para " + it.dia + ".");
@@ -84,9 +259,6 @@ const api: Record<string, (a: any) => unknown> = {
     if (t.horaFim <= t.horario) throw new Error("Horário impossível: o fim deve ser depois do início.");
     const lv = t.livro ? G("SELECT * FROM livros WHERE nome=?", t.livro) : null;
     if (t.livro && !lv) throw new Error("Livro inválido: " + t.livro);
-    let mod = t.modalidade || (lv ? lv.tipo_padrao : "Inter");
-    if (lv?.tipo_fixo === 1) mod = lv.tipo_padrao;
-    if (!t.livro && mod !== "Inter") throw new Error("Livro é obrigatório para turma " + mod + " — só turma Interactive é multi-livro.");
     const dias = String(t.blocoDias).split("+").map((x: string) => x.trim()).filter(Boolean);
     const meus = t.professores || [];
     const gemea = getTurmas().find(x => x.id !== t.id && x.status === "Ativa" && x.livro === (t.livro || "") && x.horario === t.horario && x.blocoDias === dias.join("+")
@@ -96,28 +268,36 @@ const api: Record<string, (a: any) => unknown> = {
     if (!id) { const max = G("SELECT MAX(CAST(SUBSTR(id,2) AS INTEGER)) m FROM turmas")?.m || 0; id = "T" + String(max + 1).padStart(3, "0"); }
     let aulasAtualizadas = 0;
     if (antiga) {
-      if (antiga.livro && t.livro && antiga.livro !== t.livro) { // cascata: livro da turma mudou → aulas de TODOS os alunos dela
+      if (antiga.livro && t.livro && antiga.livro !== t.livro) { // cascata: livro da sala mudou → aulas de TODOS os alunos dela (garante matrícula no livro novo primeiro)
         const profsAnt = profsDaTurma(id);
-        for (const a of A("SELECT a.id FROM aulas a JOIN turma_dia td ON td.dia=a.dia AND td.turma_id=? WHERE a.hora=? AND a.livro=?", id, antiga.hora_inicio, antiga.livro)) {
+        for (const a of A("SELECT a.id, a.id_matricula FROM aulas a JOIN turma_dia td ON td.dia=a.dia AND td.turma_id=? WHERE a.hora=? AND a.livro=?", id, antiga.hora_inicio, antiga.livro)) {
           const pa = A("SELECT f.nome FROM aula_professor ap JOIN funcionarios f ON f.id=ap.funcionario_id WHERE ap.aula_id=?", a.id).map(x => x.nome);
-          if (!profsAnt.length || !pa.length || pa.some(p => profsAnt.includes(p))) { R("UPDATE aulas SET livro=? WHERE id=?", t.livro, a.id); aulasAtualizadas++; }
+          if (!profsAnt.length || !pa.length || pa.some(p => profsAnt.includes(p))) {
+            garantirMatricula(a.id_matricula, t.livro, antiga.livro);
+            R("UPDATE aulas SET livro=? WHERE id=?", t.livro, a.id); aulasAtualizadas++;
+            limparMatriculaSeVazia(a.id_matricula, antiga.livro);
+          }
         }
       }
-      R("UPDATE turmas SET livro=?,modalidade=?,vip=?,hora_inicio=?,hora_fim=?,status=? WHERE id=?", t.livro || null, mod, t.vip ? 1 : 0, t.horario, t.horaFim, t.status || "Ativa", id);
+      R("UPDATE turmas SET livro=?,hora_inicio=?,hora_fim=?,status=? WHERE id=?", t.livro || null, t.horario, t.horaFim, t.status || "Ativa", id);
       R("DELETE FROM turma_dia WHERE turma_id=?", id); R("DELETE FROM turma_professor WHERE turma_id=?", id);
-    } else R("INSERT INTO turmas VALUES (?,?,?,?,?,?,?)", id, t.livro || null, mod, t.vip ? 1 : 0, t.horario, t.horaFim, t.status || "Ativa");
+    } else R("INSERT INTO turmas VALUES (?,?,?,?,?)", id, t.livro || null, t.horario, t.horaFim, t.status || "Ativa");
     dias.forEach((d: string) => R("INSERT INTO turma_dia VALUES (?,?)", id, d));
     idsDosProfs(meus).forEach(f => R("INSERT INTO turma_professor VALUES (?,?)", id, f));
-    return { ok: true, id, nome: G("SELECT nome FROM v_turma_nome WHERE id=?", id)?.nome, aulasAtualizadas };
+    return { ok: true, id, nome: turmaObj(G("SELECT * FROM turmas WHERE id=?", id)).nome, aulasAtualizadas };
   },
   excluirTurma: (id) => ({ ok: R("DELETE FROM turmas WHERE id=?", id).changes > 0 }),
   atualizarLivroTurma({ idTurma, novoLivro }: any) {
     const t = G("SELECT * FROM turmas WHERE id=?", idTurma); if (!t) throw new Error("Turma " + idTurma + " não encontrada.");
     if (!G("SELECT 1 FROM livros WHERE nome=?", novoLivro)) throw new Error("Livro inválido: " + novoLivro);
     const profs = profsDaTurma(idTurma); let n = 0;
-    for (const a of A("SELECT a.id FROM aulas a JOIN turma_dia td ON td.dia=a.dia AND td.turma_id=? WHERE a.hora=? AND a.livro=?", idTurma, t.hora_inicio, t.livro)) {
+    for (const a of A("SELECT a.id, a.id_matricula FROM aulas a JOIN turma_dia td ON td.dia=a.dia AND td.turma_id=? WHERE a.hora=? AND a.livro=?", idTurma, t.hora_inicio, t.livro)) {
       const pa = A("SELECT f.nome FROM aula_professor ap JOIN funcionarios f ON f.id=ap.funcionario_id WHERE ap.aula_id=?", a.id).map(x => x.nome);
-      if (!profs.length || !pa.length || pa.some(p => profs.includes(p))) { R("UPDATE aulas SET livro=? WHERE id=?", novoLivro, a.id); n++; }
+      if (!profs.length || !pa.length || pa.some(p => profs.includes(p))) {
+        garantirMatricula(a.id_matricula, novoLivro, t.livro);
+        R("UPDATE aulas SET livro=? WHERE id=?", novoLivro, a.id); n++;
+        limparMatriculaSeVazia(a.id_matricula, t.livro);
+      }
     }
     R("UPDATE turmas SET livro=? WHERE id=?", novoLivro, idTurma);
     return { ok: true, de: t.livro, para: novoLivro, aulasAtualizadas: n };
@@ -151,30 +331,64 @@ const api: Record<string, (a: any) => unknown> = {
     m.horas.forEach((h: string, i: number) => m.dias.forEach((d: string, j: number) => R("UPDATE horario_ativo SET ativo=? WHERE dia=? AND hora=?", valores[i][j] === 1 ? 1 : 0, d, h)));
     return { ok: true };
   },
-  fichas({ dias }: any) { // dados p/ fichas.html — mesmas regras do Gerador.gs
-    const prio: Record<string, number> = {}; A("SELECT * FROM prioridade").forEach(r => prio[r.tipo] = r.prioridade);
+  /* visão geral: 1 linha por matrícula (aluno×livro), pronta pra grade — "ver tudo num lugar só" */
+  getVisaoGeral: () => A(`SELECT al.id_matricula idm, al.livro, al.modalidade, al.vip, al.tipo_encontro tipo,
+      alu.nome, alu.situacao, v.status FROM aluno_livro al
+      JOIN alunos alu ON alu.id_matricula=al.id_matricula JOIN v_alunos v ON v.id_matricula=al.id_matricula
+      ORDER BY alu.nome, al.livro`).map(r => {
+    const aulas = A("SELECT dia, hora FROM aulas WHERE id_matricula=? AND livro=? ORDER BY hora", r.idm, r.livro);
+    const profs = aulas.length ? A(`SELECT DISTINCT f.nome FROM aula_professor ap JOIN aulas a ON a.id=ap.aula_id
+      JOIN funcionarios f ON f.id=ap.funcionario_id WHERE a.id_matricula=? AND a.livro=?`, r.idm, r.livro).map((x: any) => x.nome) : [];
+    return { id: r.idm, nome: r.nome, situacao: r.situacao, status: r.status, livro: r.livro, modalidade: r.modalidade,
+      vip: r.vip === 1, tipoEncontro: r.tipo, dias: [...new Set(aulas.map((a: any) => a.dia))].join("+"),
+      horario: aulas[0]?.hora || "", professores: profs.join("/") };
+  }),
+  fichas: ({ dias }: any) => montarBlocos(dias), // dados p/ aba Impressão — mesmas regras do Gerador.gs
+
+  /* prévia ao vivo (não grava nada): mesma agenda pendente que salvarAgendaLivro salvaria, mas só simulada.
+     modalidade/vip: se a matrícula já existe, vem do banco; se for uma matrícula nova ainda não salva,
+     o chamador manda modalidade/vip junto pra prévia refletir a configuração pendente também. */
+  previewAgendaAluno({ idMatricula, nome, livro, professores, itens, modalidade, vip }: any) {
+    if (!livro || !itens || !itens.length) return [];
+    const dias = [...new Set(itens.flatMap((it: any) => grupoDoDia(it.dia)))] as string[];
+    const overlay = { idMatricula: idMatricula || "__preview__", livro, modalidade, vip,
+      itens: itens.map((it: any) => ({ idMatricula: idMatricula || "__preview__", nome: nome || "(novo aluno)", livro, professores: professores || [], dia: it.dia, hora: it.horario || it.hora })) };
+    // só o(s) bloco(s) que de fato contêm a edição pendente (não todo bloco que calhe de cair na mesma hora)
+    return montarBlocos(dias, overlay).filter((b: any) => b.alunos.some((al: any) => al.pendente));
+  },
+  /* prévia ao vivo de uma turma-sala (livro/dias/horário/professores ainda não salvos).
+     Usa os integrantes REAIS atuais da turma (mesma regra de getIntegrantesTurma) — evita reatribuir
+     alunos de OUTRA turma que calhe de compartilhar o mesmo livro/horário quando falta professora para
+     desempatar (ver Esquema/pendências). Modalidade/VIP de cada membro vêm da própria matrícula dele. */
+  previewTurma(t: any) {
+    if (!t?.blocoDias || !t?.horario) return [];
+    const dias = String(t.blocoDias).split("+").map((x: string) => x.trim()).filter(Boolean);
     const dInfo: Record<string, any> = {}; A("SELECT * FROM dias").forEach(r => dInfo[r.nome] = r);
-    const lInfo: Record<string, any> = {}; A("SELECT * FROM livros").forEach(r => lInfo[r.nome] = r);
-    const blocos: Record<string, any> = {};
-    for (const a of A("SELECT a.*, al.nome nomeAluno FROM aulas a JOIN alunos al ON al.id_matricula=a.id_matricula JOIN v_alunos v ON v.id_matricula=a.id_matricula WHERE v.status='Ativado'")) {
-      if (!dias.includes(a.dia)) continue;
-      const profs = A("SELECT f.nome FROM aula_professor ap JOIN funcionarios f ON f.id=ap.funcionario_id WHERE ap.aula_id=?", a.id).map(x => x.nome);
-      const t = turmasDoSlot(a.dia, a.hora, profs, a.livro)[0];
-      const lv = lInfo[a.livro] || { tipo_padrao: "Conn", kids: 0 };
-      const mod = t ? t.modalidade : lv.tipo_padrao, vip = t ? t.vip : false;
-      const tipoKey = vip ? "Vip " + mod : (mod === "Conn" && lv.kids === 1 ? "Kids" : mod);
-      const chave = (!vip && mod === "Inter") ? "I|" + a.hora : t ? "T|" + t.id + "|" + a.hora : "A|" + tipoKey + "|" + a.livro + "|" + a.hora + "|" + profs.join("/");
-      const b = blocos[chave] ||= { hora: a.hora, fim: t ? t.horaFim : ("0" + (parseInt(a.hora) + 1)).slice(-2) + ":00",
-        tipoKey, mod, vip, diasTurma: t ? t.blocoDias.split("+").map((x: string) => dInfo[x]?.curto || x) : [], alunos: {}, profs: [] };
-      const al = b.alunos[a.id_matricula] ||= { nome: a.nomeAluno, dias: [], livro: a.livro, profs: [] };
-      if (!al.dias.includes(a.dia)) al.dias.push(a.dia);
-      profs.forEach(p => { if (!b.profs.includes(p)) b.profs.push(p); if (!al.profs.includes(p)) al.profs.push(p); });
-    }
-    const lista = Object.values(blocos).map((b: any) => ({ ...b,
-      alunos: Object.values(b.alunos).map((al: any) => ({ ...al, dias: al.dias.map((x: string) => dInfo[x]).sort((p: any, q: any) => p.ordem - q.ordem).map((x: any) => x.codigo).join("|") })) }));
-    lista.sort((x: any, y: any) => x.hora !== y.hora ? (x.hora < y.hora ? -1 : 1) : (prio[x.tipoKey === "Kids" ? "Conn" : x.tipoKey] || 0) - (prio[y.tipoKey === "Kids" ? "Conn" : y.tipoKey] || 0));
-    return lista;
-  }
+    const lv = t.livro ? G("SELECT * FROM livros WHERE nome=?", t.livro) : null;
+    const diasTurma = dias.map((d: string) => dInfo[d]?.curto || d);
+
+    const existente = t.id ? getTurmas().find(x => x.id === t.id) : undefined;
+    const alunosMap: Record<string, any> = {};
+    let mod = "Conn", vip = false;
+    if (existente) {
+      for (const r of A("SELECT a.*, al.nome nomeAluno FROM aulas a JOIN alunos al ON al.id_matricula=a.id_matricula JOIN turma_dia td ON td.dia=a.dia AND td.turma_id=? WHERE a.hora=?", existente.id, existente.horario)) {
+        const pa = A("SELECT f.nome FROM aula_professor ap JOIN funcionarios f ON f.id=ap.funcionario_id WHERE ap.aula_id=?", r.id).map((x: any) => x.nome);
+        const mesma = pa.some((p: string) => existente.professores.includes(p));
+        if (existente.livro && r.livro !== existente.livro && !mesma) continue; // outro livro + outra professora = avulso
+        if (existente.professores.length && pa.length && !mesma) continue; // gêmea: professora diferente = outra turma
+        // simula a cascata de salvarTurma: só quem estava no livro ANTIGO da turma acompanha o livro pendente
+        const livroPendente = (existente.livro && r.livro === existente.livro && t.livro) ? t.livro : r.livro;
+        const mat = getMatricula(r.id_matricula, r.livro);
+        if (mat) { mod = mat.modalidade; vip = mat.vip === 1; }
+        const al = alunosMap[r.id_matricula] ||= { nome: r.nomeAluno, dias: [], livro: livroPendente, profs: pa };
+        if (!al.dias.includes(r.dia)) al.dias.push(r.dia);
+      }
+    } else if (lv) mod = lv.tipo_padrao;
+    const tipoKey = vip ? "Vip " + mod : (mod === "Conn" && lv?.kids === 1 ? "Kids" : mod);
+    const alunos = Object.values(alunosMap).map((al: any) => ({ ...al,
+      dias: al.dias.map((x: string) => dInfo[x]).sort((p: any, q: any) => p.ordem - q.ordem).map((x: any) => x.codigo).join("|") }));
+    return [{ hora: t.horario, fim: t.horaFim, turmaId: t.id || null, tipoKey, mod, vip, diasTurma, alunos, profs: t.professores || [] }];
+  },
 };
 
 /* ===== servidor ===== */
@@ -190,7 +404,11 @@ Deno.serve({ port: 8420 }, async (req) => {
     } catch (e) { return Response.json({ erro: (e as Error).message }, { status: 400 }); }
   }
   const arquivo = url.pathname === "/" ? "app.html" : url.pathname.slice(1);
-  try { return new Response(await Deno.readTextFile(PASTA + arquivo), { headers: { "content-type": arquivo.endsWith(".html") ? "text/html; charset=utf-8" : "text/plain; charset=utf-8" } }); }
+  const tipo = arquivo.endsWith(".html") ? "text/html; charset=utf-8"
+    : arquivo.endsWith(".js") ? "application/javascript; charset=utf-8"
+    : arquivo.endsWith(".css") ? "text/css; charset=utf-8"
+    : "text/plain; charset=utf-8";
+  try { return new Response(await Deno.readTextFile(PASTA + arquivo), { headers: { "content-type": tipo } }); }
   catch { return new Response("não encontrado", { status: 404 }); }
 });
-console.log("Wizard local em http://localhost:8420  (painel)  |  /fichas.html  (impressão)");
+console.log("Wizard local em http://localhost:8420  (painel único: Alunos, Turmas, Horários e Impressão)");

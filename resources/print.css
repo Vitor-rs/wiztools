@@ -1,0 +1,27 @@
+/* print.css — layout da ficha impressa (blocos de hora). Medidas/margens do
+   Ficha_Recepcao_prototipo/TEMPLATE_BLOCOS_HORA.html: A4 paisagem, margem 0,5cm,
+   colunas A290 B100 C100 D60 E:P 40×12 Q130 px. Compartilhado entre a aba
+   Impressão e os painéis de prévia ao vivo (Aulas/Turmas). */
+@page { size: A4 landscape; margin: 0.5cm; }
+table.ficha { border-collapse: collapse; width: 100%; table-layout: fixed; text-align: left; font-family: Calibri, Arial, sans-serif; }
+col.cA { width: 24.6%; } col.cB { width: 8.6%; } col.cC { width: 8.6%; } col.cD { width: 5.2%; }
+col.cE { width: 3.45%; } col.cQ { width: 11.1%; }
+thead.pagina td { border: 0; }
+thead .dias1 { font-size: 18pt; font-weight: bold; }
+thead .mes { font-size: 20pt; font-weight: bold; text-align: center; }
+tbody.bloco { break-inside: avoid; page-break-inside: avoid; }
+tbody.bloco td { border: 1px solid #000; height: 20px; font-size: 11pt; vertical-align: middle; text-align: center; overflow: hidden; }
+tbody.bloco td.nome { text-align: left; }
+tbody.bloco tr.h1 td { height: 24px; font-weight: bold; }
+tbody.bloco tr.h1 td.hora { font-size: 13pt; text-align: left; }
+tbody.bloco tr.h1 td.titulo, tbody.bloco tr.h1 td.obs { font-size: 12pt; }
+tbody.bloco tr.h2 td { font-weight: bold; }
+tbody.esp td { border: 0; height: 20px; }
+
+/* prévia ao vivo: mesma tabela, em miniatura, embutida nos formulários */
+table.ficha.compacta { font-size: 85%; }
+table.ficha.compacta tbody.bloco td { font-size: 9pt; height: 16px; }
+table.ficha.compacta tbody.bloco tr.h1 td { height: 20px; }
+table.ficha.compacta tbody.bloco tr.h1 td.hora { font-size: 10.5pt; }
+table.ficha.compacta tbody.bloco tr.h1 td.titulo, table.ficha.compacta tbody.bloco tr.h1 td.obs { font-size: 9.5pt; }
+tbody.bloco tr.pendente td { box-shadow: inset 0 0 0 2px #1a73e8; }

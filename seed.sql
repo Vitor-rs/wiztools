@@ -298,16 +298,16 @@ INSERT INTO alunos VALUES ('1914','Yasmin Takeshita Milani','Encerrado');
 
 
 /* seed.sql — parte 2/2 (turmas + aulas) */
-INSERT INTO turmas VALUES ('T001','Español 4','Conn',0,'07:00','09:00','Ativa');
+INSERT INTO turmas VALUES ('T001','Español 4','07:00','09:00','Ativa');
 INSERT INTO turma_dia VALUES ('T001','Segunda');
-INSERT INTO turmas VALUES ('T002','TOTS 6','Conn',0,'09:00','10:00','Ativa');
+INSERT INTO turmas VALUES ('T002','TOTS 6','09:00','10:00','Ativa');
 INSERT INTO turma_dia VALUES ('T002','Terça');
 INSERT INTO turma_dia VALUES ('T002','Quinta');
 INSERT INTO turma_professor VALUES ('T002','FP001');
-INSERT INTO turmas VALUES ('T003','L. Kids 2','Conn',0,'09:00','11:00','Ativa');
+INSERT INTO turmas VALUES ('T003','L. Kids 2','09:00','11:00','Ativa');
 INSERT INTO turma_dia VALUES ('T003','Terça');
 INSERT INTO turma_dia VALUES ('T003','Quinta');
-INSERT INTO turmas VALUES ('T004','L. Kids 4','Conn',0,'13:00','14:00','Ativa');
+INSERT INTO turmas VALUES ('T004','L. Kids 4','13:00','14:00','Ativa');
 INSERT INTO turma_dia VALUES ('T004','Segunda');
 INSERT INTO turma_dia VALUES ('T004','Quarta');
 INSERT INTO turma_professor VALUES ('T004','FP002');

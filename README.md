@@ -17,6 +17,9 @@ deno run -A main.ts --init →  cria wizard.db do zero (SÓ na primeira vez — 
 2. Clonar o repositório numa pasta fixa, ex.: `C:\wiztools`:
    `git clone https://github.com/Vitor-rs/wiztools.git C:\wiztools`
 3. Copiar o `wizard.db` de produção para dentro da pasta (o banco NÃO vem pelo Git — de propósito).
+   Transferência fácil: o notebook publica o banco em `OneDrive\WizardBackup\wizard-recepcao.db`;
+   no desktop, espere o OneDrive sincronizar, copie esse arquivo para `C:\wiztools` e renomeie
+   para `wizard.db`.
 4. Dar dois cliques em `iniciar.bat`. Na primeira vez o Windows vai pedir para liberar o Deno
    no firewall — aceitar (isso permite acessar de outros computadores da escola).
 5. Criar um atalho do `iniciar.bat` na área de trabalho (botão direito → Enviar para → Área de

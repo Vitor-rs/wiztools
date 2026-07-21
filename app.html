@@ -10,7 +10,10 @@
 <script src="resources/vendor/lucide-icons.js"></script>
 <script src="resources/vendor/notyf/notyf.min.js"></script>
 <script src="resources/vendor/tabulator/tabulator.min.js"></script>
-<script type="module" src="resources/vendor/shoelace/shoelace-autoloader.js"></script>
+<!-- data-shoelace: caminho ABSOLUTO obrigatório — sem ele o autoloader monta um caminho relativo
+     que resolve contra a URL do próprio módulo (prefixo duplicado → 404 silencioso) e os
+     componentes sl-* nunca registram (ex.: diálogo de destravar a matriz não abria) -->
+<script type="module" src="resources/vendor/shoelace/shoelace-autoloader.js" data-shoelace="/resources/vendor/shoelace"></script>
 <style>
 :root{--v:#356854;--vc:#D4EDDA;--cz:#f1f3f4;--perigo:#c5221f;
   --sl-color-primary-600:#356854;--sl-color-primary-500:#3d7862;--sl-color-primary-300:#9fc4b5;--sl-input-border-radius-medium:8px;--sl-border-radius-medium:8px}
@@ -82,6 +85,10 @@ button.acao:disabled{background:#c9c9c9;color:#f3f3f3;cursor:not-allowed;animati
 .chips-horas{display:flex;flex-wrap:wrap;gap:4px;flex:1}
 .chip-hora{border:1px solid #ccc;background:#f1f3f4;border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer;color:#666}
 .chip-hora.on{background:var(--vc);border-color:var(--v);color:#155724;font-weight:bold}
+.chip-hora.inativa{border-color:#e8a33d;background:#fef7e0;color:#8a5a00}
+.chip-hora.inativa.on{background:#fde293;border-color:#e8a33d;color:#5f4200;font-weight:bold}
+.btn-link{background:none;border:0;color:var(--v);cursor:pointer;font-size:11px;text-decoration:underline;padding:2px 6px}
+.tx-perigo{color:var(--perigo)}
 .hist-linha{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #eee;font-size:12px}
 .hist-linha .remover{background:none;border:0;color:#999;cursor:pointer;font-size:14px;padding:0 4px}
 .hist-linha .remover:hover{color:var(--perigo)}
@@ -100,6 +107,24 @@ button.acao:disabled{background:#c9c9c9;color:#f3f3f3;cursor:not-allowed;animati
 .config-blocos h3{margin-top:0}
 #grade-geral{margin-top:10px}
 .visao-filtros{font-size:12px;color:#666;margin-bottom:8px}
+.dash-cards{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:14px}
+.dash-card{border:1px solid #e3e5e8;border-radius:12px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.05);padding:10px 14px;min-width:200px}
+.dash-card h4{margin:0 0 8px;color:var(--v);font-size:11px;text-transform:uppercase;letter-spacing:.03em}
+.dash-card h4 small{color:#999;font-weight:normal;text-transform:none}
+.dash-flex{display:flex;align-items:center;gap:12px}
+.dash-leg{font-size:11px;color:#444;max-height:150px;overflow:auto}
+.dash-leg div{display:flex;align-items:center;gap:5px;padding:1px 0;white-space:nowrap}
+.dash-leg i{width:10px;height:10px;border-radius:2px;display:inline-block;flex-shrink:0}
+.filtros-grupos{display:flex;flex-wrap:wrap;gap:8px 20px;margin-bottom:10px;align-items:flex-start}
+.fg{max-width:100%}
+.fg>b{display:block;font-size:10px;color:#777;text-transform:uppercase;letter-spacing:.03em;margin-bottom:3px}
+.fg .chips{display:flex;flex-wrap:wrap;gap:4px}
+.fg input{width:170px;padding:5px 8px;font-size:12px}
+.chip-f{border:1px solid #ccc;background:#f8f9fa;border-radius:12px;padding:2px 9px;font-size:11px;cursor:pointer;display:inline-flex;gap:4px;align-items:center;color:#555;user-select:none}
+.chip-f small{color:#999}
+.chip-f.on{background:var(--vc);border-color:var(--v);color:#155724;font-weight:600}
+.chip-f.on small{color:#4d7a63}
+.pill-mini{display:inline-block;background:#eef3f1;border:1px solid #cfe0d9;color:#2f5d4d;border-radius:10px;padding:0 7px;font-size:11px;margin:1px 2px 1px 0;font-weight:600;line-height:17px}
 
 @media print {
   #sidebar, #load, #impressao-controles { display:none !important; }
@@ -113,15 +138,15 @@ button.acao:disabled{background:#c9c9c9;color:#f3f3f3;cursor:not-allowed;animati
 <body>
 <div id="load"></div>
 <div id="sidebar">
-<button class="on" onclick="aba('alunos',this)">Alunos</button>
+<button class="on" onclick="aba('inicio',this)">Início</button>
+<button onclick="aba('alunos',this)">Alunos</button>
 <button onclick="aba('turmas',this)">Turmas</button>
 <button onclick="aba('horarios',this)">Horários</button>
-<button onclick="aba('visaogeral',this)">Visão Geral</button>
 <button onclick="aba('impressao',this)">Impressão</button>
 </div>
 <div id="conteudo">
 
-<div id="tab-alunos" class="tab on duasCols">
+<div id="tab-alunos" class="tab duasCols">
 <div class="aluno-cadastro" id="al-cadastro">
 <label>Buscar / cadastrar aluno</label>
 <div class="sug"><input id="al-busca" placeholder="Digite nome ou ID..." autocomplete="off"><div class="lista" id="al-sug"></div></div>
@@ -158,7 +183,7 @@ button.acao:disabled{background:#c9c9c9;color:#f3f3f3;cursor:not-allowed;animati
 <div class="sug"><input id="tu-busca" placeholder="Digite nome, livro, dia..." autocomplete="off"><div class="lista" id="tu-sug"></div></div>
 <h3 id="tu-titulo">Nova turma</h3>
 <label>Livro</label>
-<div class="sug"><input id="tu-livro" autocomplete="off" placeholder="Digite o livro..."><div class="lista" id="tu-livro-sug"></div></div>
+<div class="sug"><input id="tu-livro" autocomplete="off" placeholder="Digite o livro (vazio = sala Inter multi-livro)"><div class="lista" id="tu-livro-sug"></div></div>
 <div id="tu-livro-info"></div>
 <label>Dias</label>
 <div class="checks" id="tu-dias"></div>
@@ -216,9 +241,10 @@ Os horários da matriz costumam ser fixos e raramente mudam. Confirma que quer e
 <sl-button slot="footer" variant="primary" onclick="matConfirmarDestrava()">Destravar</sl-button>
 </sl-dialog>
 
-<div id="tab-visaogeral" class="tab">
-<h3>Visão geral</h3>
-<div class="visao-filtros">Todos os alunos e matrículas num lugar só — clique nos cabeçalhos pra ordenar, use os filtros pra buscar.</div>
+<div id="tab-inicio" class="tab on">
+<div id="dash" class="dash-cards"></div>
+<div class="visao-filtros">Clique nas pílulas para filtrar a tabela (contagem ao lado de cada opção); os cabeçalhos ordenam.</div>
+<div id="filtros-inicio"></div>
 <div id="grade-geral"></div>
 </div>
 
@@ -255,8 +281,8 @@ var notyf=new Notyf({duration:4200,position:{x:'center',y:'bottom'},dismissible:
 function msg(t,erro){if(erro)notyf.error(t);else notyf.success(t)}
 function norm(s){return String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')}
 function debounce(fn,ms){var t;return function(){var a=arguments;clearTimeout(t);t=setTimeout(function(){fn.apply(null,a)},ms)}}
-function aba(n,btn){document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('on')});document.querySelectorAll('#sidebar button').forEach(function(b){b.classList.remove('on')});$('tab-'+n).classList.add('on');btn.classList.add('on');if(n==='horarios')run('getMatriz',[],function(m){MAT=m;matRender();cbMontar()});if(n==='visaogeral')renderVisaoGeral()}
-function abaPor(n){aba(n,document.querySelectorAll('#sidebar button')[{alunos:0,turmas:1,horarios:2,visaogeral:3,impressao:4}[n]])}
+function aba(n,btn){document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('on')});document.querySelectorAll('#sidebar button').forEach(function(b){b.classList.remove('on')});$('tab-'+n).classList.add('on');btn.classList.add('on');if(n==='horarios')run('getMatriz',[],function(m){MAT=m;matRender();dirty('mat',false);cbMontar()});if(n==='inicio')renderInicio()}
+function abaPor(n){aba(n,document.querySelectorAll('#sidebar button')[{inicio:0,alunos:1,turmas:2,horarios:3,impressao:4}[n]])}
 function iconesEstaticos(){
 document.querySelectorAll('#al-salvar .btn-ic, #tu-salvar .btn-ic, #mat-salvar .btn-ic').forEach(function(el){el.innerHTML=icon('save',14)});
 document.querySelectorAll('#btn-imprimir .btn-ic').forEach(function(el){el.innerHTML=icon('printer',14)});
@@ -290,12 +316,14 @@ inp.addEventListener('keydown',function(e){if(e.key==='Enter'&&inp.value.trim())
 return{get:function(){return sel.slice()},set:function(v){sel=v.slice();draw()}}
 }
 
+var ALUNOS_OK=false,INICIO_FEITO=false;
+function tentarInicio(){if(DOM&&ALUNOS_OK&&!INICIO_FEITO){INICIO_FEITO=true;renderInicio()}}
 function init(){
-run('getDominios',[],function(d){DOM=d;TURMAS=d.turmas;montar()});
-run('getAlunos',[],function(a){ALUNOS=a});
+run('getDominios',[],function(d){DOM=d;TURMAS=d.turmas;montar();tentarInicio()});
+run('getAlunos',[],function(a){ALUNOS=a;ALUNOS_OK=true;tentarInicio()});
 }
 function montar(){
-var sit=$('al-sit');sit.innerHTML='';DOM.situacoes.forEach(function(s){var o=document.createElement('option');o.textContent=s;sit.appendChild(o)});
+var sit=$('al-sit');sit.innerHTML='';DOM.situacoes.forEach(function(s){var o=document.createElement('option');o.textContent=s.situacao;sit.appendChild(o)});
 var cks=$('tu-dias');cks.innerHTML='';DOM.dias.forEach(function(d){var l=document.createElement('label');var c=document.createElement('input');c.type='checkbox';c.value=d;c.style.width='auto';c.onchange=function(){l.classList.toggle('sel',c.checked);tuPreview()};l.appendChild(c);l.appendChild(document.createTextNode(d));cks.appendChild(l)});
 var hi=$('tu-hini'),hf=$('tu-hfim');hi.innerHTML='';hf.innerHTML='';for(var h=7;h<=20;h++){var t=('0'+h).slice(-2)+':00';if(h<20){var o=document.createElement('option');o.textContent=t;hi.appendChild(o)}var o2=document.createElement('option');o2.textContent=t;hf.appendChild(o2)}
 }
@@ -308,7 +336,7 @@ sugerir('tu-busca','tu-sug',function(){return TURMAS||[]},function(t){return t.n
 }
 
 /* ===== ALUNOS (cadastro + matrículas em livro, tudo na mesma tela) ===== */
-function alStatus(){var s=$('al-sit').value;var ativo=(s==='Matriculado'||s==='Rematriculado');var b=$('al-status');b.textContent=ativo?'Ativado':'Desativado';b.className='badge '+(ativo?'b-on':'b-off')}
+function alStatus(){var s=$('al-sit').value;var reg=((DOM&&DOM.situacoes)||[]).filter(function(x){return x.situacao===s})[0];var ativo=!!(reg&&reg.ativa);var b=$('al-status');b.textContent=ativo?'Ativado':'Desativado';b.className='badge '+(ativo?'b-on':'b-off')}
 function alCarregar(a){dirty('al',false);alSel=a;$('al-titulo').textContent='Editar: '+a.nome;$('al-nome').value=a.nome;$('al-id').value=a.id;$('al-id').disabled=true;$('al-sit').value=a.situacao;$('al-excluir').style.display='inline-block';$('al-busca').value='';$('nm-livro').disabled=false;histFechar();alStatus();recarregarMatriculas()}
 function alNovo(){dirty('al',false);alSel=null;$('al-titulo').textContent='Novo aluno';$('al-nome').value='';$('al-id').value='';$('al-id').disabled=false;$('al-sit').selectedIndex=0;$('al-excluir').style.display='none';$('al-aviso').innerHTML='';$('nm-livro').disabled=true;histFechar();alStatus();MATRICULAS=[];MATRIC_AULAS={};renderMatriculas()}
 function alSalvar(){var a={id:$('al-id').value.trim(),nome:$('al-nome').value.trim(),situacao:$('al-sit').value};
@@ -330,14 +358,20 @@ MATRICULAS.forEach(function(m){box.appendChild(criarCartaoMatricula(m))});
 }
 function criarEditorHoras(schedule,onChange){
 var wrap=document.createElement('div');
-DOM.dias.forEach(function(dia){
+/* dias/horas com aula existente aparecem MESMO se desativados na matriz (chip laranja) — sem isso,
+   desativar uma hora sumia com o chip e o próximo salvamento apagava a aula em silêncio */
+var diasTodos=DOM.dias.slice();Object.keys(schedule).forEach(function(d){if(diasTodos.indexOf(d)<0)diasTodos.push(d)});
+diasTodos.forEach(function(dia){
 var row=document.createElement('div');row.className='dia-horas';
 var nome=document.createElement('span');nome.className='dia-nome';nome.textContent=dia.slice(0,3);row.appendChild(nome);
 var chips=document.createElement('div');chips.className='chips-horas';
-(DOM.horariosPorDia[dia]||[]).forEach(function(hx){
+var ativos=DOM.horariosPorDia[dia]||[];
+var extras=(schedule[dia]||[]).filter(function(hx){return ativos.indexOf(hx)<0});
+ativos.concat(extras).sort().forEach(function(hx){
 var chip=document.createElement('button');chip.type='button';chip.className='chip-hora';
 var hn=parseInt(hx,10);chip.textContent=('0'+hn).slice(-2)+'h';
 chip.dataset.dia=dia;chip.dataset.hora=hx;
+if(extras.indexOf(hx)>=0){chip.classList.add('inativa');chip.title='Horário desativado na matriz — mantido porque o aluno já tem aula nele; se desmarcar e salvar, não dá para remarcar.'}
 if((schedule[dia]||[]).indexOf(hx)>=0)chip.classList.add('on');
 chip.onclick=function(){chip.classList.toggle('on');if(onChange)onChange()};
 chips.appendChild(chip);
@@ -352,7 +386,7 @@ var card=document.createElement('div');card.className='matricula-card';
 var head=document.createElement('div');head.className='cabecalho';
 var h4=document.createElement('h4');h4.textContent=m.livro;head.appendChild(h4);
 var acoesHead=document.createElement('div');
-var trocarBtn=document.createElement('button');trocarBtn.type='button';trocarBtn.style.cssText='background:none;border:0;color:var(--v);cursor:pointer;font-size:11px;text-decoration:underline;padding:2px 6px';trocarBtn.textContent='trocar livro';
+var trocarBtn=document.createElement('button');trocarBtn.type='button';trocarBtn.className='btn-link';trocarBtn.textContent='trocar livro';
 var rm=document.createElement('button');rm.type='button';rm.className='remover';rm.innerHTML='✕';rm.title='Remover matrícula';
 rm.onclick=function(){matriculaExcluir(m.livro)};
 acoesHead.appendChild(trocarBtn);acoesHead.appendChild(rm);
@@ -423,9 +457,9 @@ if(!alSel)return;
 run('salvarMatricula',[{idMatricula:alSel.id,livro:m.livro,modalidade:selMod.value,vip:vipChk.checked,tipoEncontro:selTipo.value}],function(){
 var itens=lerItensEditor(editor);
 run('salvarAgendaLivro',[{idMatricula:alSel.id,livro:m.livro,professores:profsWidget.get(),itens:itens}],function(r){
-var t='Matrícula de '+m.livro+' salva — '+r.salvas+' aula(s) na agenda.';
-if(r.avisos&&r.avisos.length)t+=' ⚠️ Livro diferente do da turma em '+r.avisos.length+' dia(s).';
-msg(t);recarregarMatriculas();
+msg('Matrícula de '+m.livro+' salva — '+r.salvas+' aula(s) na agenda.');
+if(r.avisos&&r.avisos.length)msg('⚠️ '+r.avisos.join(' · '),true);
+recarregarMatriculas();
 })})};
 
 atualizarPreview();
@@ -453,7 +487,7 @@ var del=document.createElement('button');del.type='button';del.className='remove
 del.onclick=function(){run('excluirHistoricoAluno',[h.id],function(){run('getHistoricoAluno',[alSel.id],function(hs2){histRender(hs2)})})};
 row.appendChild(txt);row.appendChild(del);box.appendChild(row)});
 var addRow=document.createElement('div');addRow.className='hist-add';
-var selSit=document.createElement('select');(DOM.situacoes||[]).forEach(function(s){var o=document.createElement('option');o.textContent=s;selSit.appendChild(o)});
+var selSit=document.createElement('select');(DOM.situacoes||[]).forEach(function(s){var o=document.createElement('option');o.textContent=s.situacao;selSit.appendChild(o)});
 var inpData=document.createElement('input');inpData.type='date';
 var addBtn=document.createElement('button');addBtn.type='button';addBtn.className='acao';addBtn.style.cssText='padding:6px 10px;margin:0';addBtn.textContent='+';
 addBtn.onclick=function(){if(!inpData.value){msg('Escolha uma data.',true);return}
@@ -470,12 +504,17 @@ MAT.dias.forEach(function(d,j){var c=document.createElement('div');c.className='
 var sw=document.createElement('span');sw.className='toggle';var bolinha=document.createElement('span');bolinha.className='bolinha';sw.appendChild(bolinha);
 function pinta(){sw.classList.toggle('on',MAT.valores[i][j]===1)}
 c.onclick=function(){if(MAT_TRAVADA){msg('Destranque a matriz (botão acima) antes de editar.',true);return}MAT.valores[i][j]=MAT.valores[i][j]===1?0:1;pinta();dirty('mat',true)};
-pinta();c.appendChild(sw);box.appendChild(c)})});dirty('mat',false)}
+pinta();c.appendChild(sw);box.appendChild(c)})})}
+/* matRender NÃO mexe no dirty: re-render (ex.: trancar de novo) preserva alterações pendentes —
+   zerar aqui desabilitava o Salvar com edições ainda não salvas na grade em memória */
 function matSalvar(){if(!MAT)return;run('salvarMatriz',[MAT.valores],function(){msg('Matriz salva.');dirty('mat',false);run('getDominios',[],function(d){DOM=d;TURMAS=d.turmas})})}
 function matAtualizarLock(){var btn=$('mat-lock-btn');btn.innerHTML=icon(MAT_TRAVADA?'lock':'lock-open',15)+' <span style="margin-left:6px">'+(MAT_TRAVADA?'Destrancar edição':'Trancar edição')+'</span>';
 $('mat-lock-status').textContent=MAT_TRAVADA?'Matriz travada — os horários são fixos; destranque para editar.':'Destravada — toque nas células para ativar/desativar.';
 if(MAT)matRender()}
-function matToggleLock(){if(MAT_TRAVADA){$('mat-dialog').show()}else{MAT_TRAVADA=true;matAtualizarLock()}}
+function matToggleLock(){if(!MAT_TRAVADA){MAT_TRAVADA=true;matAtualizarLock();return}
+var dlg=$('mat-dialog');
+if(dlg&&typeof dlg.show==='function')dlg.show();
+else if(confirm('Os horários da matriz costumam ser fixos e raramente mudam. Confirma que quer editar agora?'))matConfirmarDestrava()}
 function matConfirmarDestrava(){MAT_TRAVADA=false;matAtualizarLock();$('mat-dialog').hide()}
 
 /* ---- configurador de blocos nomeados (Almoço/Descanso/Vago): aplica em lote no grid em memória ---- */
@@ -512,10 +551,11 @@ fetch('/api/previewTurma',{method:'POST',headers:{'Content-Type':'application/js
 function tuCarregar(t){tuSel=t;$('tu-titulo').textContent='Editar: '+t.id;$('tu-busca').value='';$('tu-livro').value=t.livro;tuSetDias(t.blocoDias);$('tu-hini').value=t.horario;$('tu-hfim').value=t.horaFim;tuTags.set(t.professores);$('tu-status').value=t.status;$('tu-excluir').style.display='inline-block';tuPreview();tuMembros();dirty('tu',false)}
 function tuNova(){tuSel=null;$('tu-titulo').textContent='Nova turma';$('tu-livro').value='';tuSetDias('');$('tu-hini').selectedIndex=0;$('tu-hfim').selectedIndex=1;tuTags.set([]);$('tu-status').value='Ativa';$('tu-excluir').style.display='none';$('tu-livro-info').innerHTML='';$('tu-membros').innerHTML='';tuPreview();dirty('tu',false)}
 function tuSalvar(){var t={id:tuSel?tuSel.id:null,livro:$('tu-livro').value.trim(),blocoDias:tuDias(),horario:$('tu-hini').value,horaFim:$('tu-hfim').value,professores:tuTags.get(),status:$('tu-status').value};
-if(!t.livro||!t.blocoDias){msg('Informe livro e dias.',true);return}
+if(!t.blocoDias){msg('Marque os dias da turma.',true);return}
 if(t.horaFim<=t.horario){msg('Horário impossível: o fim deve ser depois do início.',true);return}
+if(!t.livro&&!confirm('Turma sem livro definido: vale para salas Interactive multi-livro (cada aluno segue o próprio livro na matrícula dele). Continuar?'))return;
 if(!t.professores.length&&!confirm('Turma sem professora vinculada — turmas gêmeas (mesmo livro/dias/horário) só se diferenciam pela professora. Salvar mesmo assim?'))return;
-run('salvarTurma',[t],function(r){msg('Turma salva: '+r.nome);run('getTurmas',[],function(x){TURMAS=x;if(DOM)DOM.turmas=x});tuNova()})}
+run('salvarTurma',[t],function(r){msg('Turma salva: '+r.nome);if(r.avisos&&r.avisos.length)msg('⚠️ '+r.avisos.join(' · '),true);run('getTurmas',[],function(x){TURMAS=x;if(DOM)DOM.turmas=x});tuNova()})}
 function tuMembros(){if(!tuSel){$('tu-membros').innerHTML='';return}
 var box=$('tu-membros');box.innerHTML='<h3>Integrantes</h3><small>Carregando...</small>';
 run('getIntegrantesTurma',[tuSel.id],function(ms){
@@ -524,30 +564,115 @@ if(!ms.length){var w=document.createElement('div');w.className='info aviso';w.te
 ms.forEach(function(m){var d=document.createElement('div');d.className='item';d.style.cursor='default';
 var del=document.createElement('button');del.className='acao perigo';del.style.cssText='float:right;padding:2px 8px;margin:0';del.textContent='✕';del.title='Remover da turma';
 del.onclick=function(){if(confirm('Remover '+m.nome+' desta turma? As aulas dele neste dia/horário serão apagadas (o cadastro do aluno permanece).')){run('removerAlunoDaTurma',[{idMatricula:m.id,idTurma:tuSel.id}],function(r){msg(r.aulasRemovidas+' aula(s) removida(s).');tuMembros()})}};
-var tx=document.createElement('span');tx.innerHTML='<b>'+m.nome+'</b> ('+m.id+') · '+m.dias.join('+')+(m.divergente?' · <span style="color:#c5221f">⚠️ livro diferente: '+m.livros.join(', ')+' — considere ajustar</span>':'');
+var tx=document.createElement('span');tx.innerHTML='<b>'+escBloco(m.nome)+'</b> ('+escBloco(m.id)+') · '+escBloco(m.dias.join('+'))+(m.divergente?' · <span class="tx-perigo">⚠️ livro diferente: '+escBloco(m.livros.join(', '))+' — considere ajustar</span>':'');
 d.appendChild(del);d.appendChild(tx);box.appendChild(d)})})}
 function tuExcluir(){if(!tuSel)return;if(!confirm('Excluir a turma '+tuSel.id+'? As aulas não são apagadas (a turma é deduzida).'))return;run('excluirTurma',[tuSel.id],function(){msg('Turma excluída.');run('getTurmas',[],function(x){TURMAS=x;if(DOM)DOM.turmas=x});tuNova()})}
 
 /* ===== IMPRESSÃO ===== */
 function impGerar(dias,titulos){run('fichas',[{dias:dias}],function(blocos){$('folha-impressao').innerHTML=tabelaFichaHTML(blocos,titulos,{compacto:false});$('btn-imprimir').style.display='inline-block'})}
 
-/* ===== VISÃO GERAL (Tabulator: todos os alunos×matrículas num só lugar) ===== */
-var TABELA_GERAL=null;
-function renderVisaoGeral(){run('getVisaoGeral',[],function(rows){
-if(TABELA_GERAL){TABELA_GERAL.setData(rows);return}
-TABELA_GERAL=new Tabulator('#grade-geral',{data:rows,layout:'fitColumns',height:'70vh',placeholder:'Nenhuma matrícula ainda.',
+/* ===== INÍCIO (dashboard + Tabulator: todos os alunos×matrículas num só lugar) ===== */
+var TABELA_GERAL=null,TABELA_INICIADA=false,FILTROS={},FILTRO_NOME='';
+var CORES_CAT={'Kids':'#e69138','Teens':'#6aa84f','Ws':'#3d85c6','Outros Idiomas':'#8e7cc3'};
+var ORD_COD=['2ª','3ª','4ª','5ª','6ª','Sáb','Dom'];
+var FILTRO_DEFS=[
+{campo:'situacao',rotulo:'Situação'},
+{campo:'livro',rotulo:'Livro'},
+{campo:'modalidade',rotulo:'Modalidade'},
+{campo:'vip',rotulo:'VIP'},
+{campo:'tipoEncontro',rotulo:'Tipo'},
+{campo:'dias',rotulo:'Dias',lista:true},
+{campo:'professores',rotulo:'Professores',lista:true}
+];
+function tom(hex,i,n){var f=n>1?(i/(n-1))*0.55:0;var c=parseInt(hex.slice(1),16),r=(c>>16)&255,g=(c>>8)&255,b=c&255;
+r=Math.round(r+(255-r)*f);g=Math.round(g+(255-g)*f);b=Math.round(b+(255-b)*f);return 'rgb('+r+','+g+','+b+')'}
+function pizzaSVG(dados,size){
+var total=dados.reduce(function(s,d){return s+d.valor},0);
+var r=size/2,h='<svg width="'+size+'" height="'+size+'" viewBox="0 0 '+size+' '+size+'" style="flex-shrink:0">';
+if(!total)return h+'<circle cx="'+r+'" cy="'+r+'" r="'+(r-1)+'" fill="#eee"/></svg>';
+var comValor=dados.filter(function(d){return d.valor>0});
+if(comValor.length===1)return h+'<circle cx="'+r+'" cy="'+r+'" r="'+(r-1)+'" fill="'+comValor[0].cor+'"><title>'+escBloco(comValor[0].label+': '+comValor[0].valor)+'</title></circle></svg>';
+var ang=-Math.PI/2;
+comValor.forEach(function(d){var a2=ang+2*Math.PI*d.valor/total;
+var x1=r+(r-1)*Math.cos(ang),y1=r+(r-1)*Math.sin(ang),x2=r+(r-1)*Math.cos(a2),y2=r+(r-1)*Math.sin(a2);
+h+='<path d="M'+r+' '+r+' L'+x1.toFixed(2)+' '+y1.toFixed(2)+' A'+(r-1)+' '+(r-1)+' 0 '+((a2-ang)>Math.PI?1:0)+' 1 '+x2.toFixed(2)+' '+y2.toFixed(2)+' Z" fill="'+d.cor+'" stroke="#fff" stroke-width="1"><title>'+escBloco(d.label+': '+d.valor)+'</title></path>';
+ang=a2});
+return h+'</svg>'}
+function dashCard(titulo,dados,size){
+var total=dados.reduce(function(s,d){return s+d.valor},0);
+var leg=dados.filter(function(d){return d.valor>0}).map(function(d){return '<div><i style="background:'+d.cor+'"></i>'+escBloco(d.label)+' — <b>'+d.valor+'</b></div>'}).join('');
+return '<div class="dash-card"><h4>'+escBloco(titulo)+' <small>('+total+')</small></h4><div class="dash-flex">'+pizzaSVG(dados,size||110)+'<div class="dash-leg">'+(leg||'<div style="color:#999">Sem alunos ativos.</div>')+'</div></div></div>'}
+function renderDash(rows){
+var ativos=rows.filter(function(r){return r.status==='Ativado'});
+var livros=DOM?DOM.livros:[];
+var porLivro={};ativos.forEach(function(r){porLivro[r.livro]=(porLivro[r.livro]||0)+1});
+var nCat={},porCat={};livros.forEach(function(l){if(porLivro[l.nome]){nCat[l.categoria]=(nCat[l.categoria]||0)+1;porCat[l.categoria]=(porCat[l.categoria]||0)+porLivro[l.nome]}});
+var iCat={},dadosLivro=[];
+livros.forEach(function(l){if(!porLivro[l.nome])return;var i=iCat[l.categoria]||0;iCat[l.categoria]=i+1;
+dadosLivro.push({label:l.nome,valor:porLivro[l.nome],cor:tom(CORES_CAT[l.categoria]||'#999999',i,nCat[l.categoria])})});
+var dadosCat=Object.keys(CORES_CAT).filter(function(c){return porCat[c]}).map(function(c){return {label:c,valor:porCat[c],cor:CORES_CAT[c]}});
+var nTipo={};ativos.forEach(function(r){nTipo[r.tipoEncontro]=(nTipo[r.tipoEncontro]||0)+1});
+var dadosTipo=[{label:'Presencial',valor:nTipo['Presencial']||0,cor:'#356854'},{label:'Online',valor:nTipo['Online']||0,cor:'#90b5d4'}];
+var nSit={};ALUNOS.forEach(function(a){if(a.status==='Ativado')nSit[a.situacao]=(nSit[a.situacao]||0)+1});
+var dadosSit=[{label:'Matriculado',valor:nSit['Matriculado']||0,cor:'#356854'},{label:'Rematriculado',valor:nSit['Rematriculado']||0,cor:'#9fc4b5'}];
+$('dash').innerHTML=dashCard('Alunos por livro',dadosLivro,130)+dashCard('Categorias',dadosCat)+dashCard('Presencial × Online',dadosTipo)+dashCard('Matrícula × Rematrícula',dadosSit);
+}
+function valorFiltro(def,row){return def.campo==='vip'?(row.vip?'VIP':'Normal'):row[def.campo]}
+function renderFiltros(rows){
+var box=$('filtros-inicio');box.innerHTML='';
+var barra=document.createElement('div');barra.className='filtros-grupos';
+var fgB=document.createElement('div');fgB.className='fg';fgB.innerHTML='<b>Aluno</b>';
+var inp=document.createElement('input');inp.placeholder='Buscar por nome...';inp.value=FILTRO_NOME;
+inp.addEventListener('input',debounce(function(){FILTRO_NOME=inp.value;aplicarFiltros()},150));
+fgB.appendChild(inp);barra.appendChild(fgB);
+FILTRO_DEFS.forEach(function(def){
+var vals={};rows.forEach(function(r){var v=valorFiltro(def,r);(def.lista?(v||[]):[String(v)]).forEach(function(x){vals[x]=(vals[x]||0)+1})});
+var chaves=Object.keys(vals);
+if(def.campo==='situacao'&&DOM)chaves.sort(function(a,b){var s=DOM.situacoes.map(function(x){return x.situacao});return s.indexOf(a)-s.indexOf(b)});
+else if(def.campo==='livro'&&DOM)chaves.sort(function(a,b){var s=DOM.livros.map(function(x){return x.nome});return s.indexOf(a)-s.indexOf(b)});
+else if(def.campo==='dias')chaves.sort(function(a,b){return ORD_COD.indexOf(a)-ORD_COD.indexOf(b)});
+else chaves.sort(function(a,b){return a.localeCompare(b,'pt')});
+if(chaves.length<2&&def.campo!=='situacao')return;
+var fg=document.createElement('div');fg.className='fg';fg.innerHTML='<b>'+escBloco(def.rotulo)+'</b>';
+var chips=document.createElement('div');chips.className='chips';
+var sel=FILTROS[def.campo]=FILTROS[def.campo]||{};
+chaves.forEach(function(k){
+var ch=document.createElement('span');ch.className='chip-f'+(sel[k]?' on':'');
+ch.innerHTML=escBloco(k)+' <small>'+vals[k]+'</small>';
+ch.onclick=function(){sel[k]=!sel[k];ch.classList.toggle('on',!!sel[k]);aplicarFiltros()};
+chips.appendChild(ch)});
+fg.appendChild(chips);barra.appendChild(fg)});
+box.appendChild(barra);
+}
+function aplicarFiltros(){if(!TABELA_GERAL||!TABELA_INICIADA)return; // Tabulator monta async — setFilter antes do tableBuilt deixa a grade vazia
+TABELA_GERAL.setFilter(function(row){
+if(FILTRO_NOME&&norm(row.nome).indexOf(norm(FILTRO_NOME))<0)return false;
+for(var i=0;i<FILTRO_DEFS.length;i++){var def=FILTRO_DEFS[i],sel=FILTROS[def.campo]||{};
+var marcados=Object.keys(sel).filter(function(k){return sel[k]});
+if(!marcados.length)continue;
+var v=valorFiltro(def,row);
+if(def.lista){if(!(v||[]).some(function(x){return sel[x]}))return false}
+else if(!sel[String(v)])return false}
+return true})}
+function pillsFmt(cell){return (cell.getValue()||[]).map(function(v){return '<span class="pill-mini">'+escBloco(v)+'</span>'}).join('')}
+function renderInicio(){run('getVisaoGeral',[],function(rows){
+renderDash(rows);renderFiltros(rows);
+if(TABELA_GERAL){TABELA_GERAL.setData(rows);aplicarFiltros();return}
+TABELA_GERAL=new Tabulator('#grade-geral',{data:rows,layout:'fitColumns',height:'62vh',placeholder:'Nenhuma matrícula ainda.',
 columns:[
-{title:'Aluno',field:'nome',headerFilter:'input',widthGrow:2},
-{title:'Situação',field:'situacao',headerFilter:'list',headerFilterParams:{valuesLookup:true,clearable:true}},
-{title:'Status',field:'status',headerFilter:'list',headerFilterParams:{valuesLookup:true,clearable:true},formatter:function(cell){var v=cell.getValue();return '<span class="badge '+(v==='Ativado'?'b-on':'b-off')+'">'+v+'</span>'}},
-{title:'Livro',field:'livro',headerFilter:'input'},
-{title:'Modalidade',field:'modalidade',headerFilter:'list',headerFilterParams:{valuesLookup:true,clearable:true}},
-{title:'VIP',field:'vip',formatter:'tickCross',hozAlign:'center',headerFilter:'tickCross',headerFilterParams:{tristate:true}},
-{title:'Tipo',field:'tipoEncontro',headerFilter:'list',headerFilterParams:{valuesLookup:true,clearable:true}},
-{title:'Dias',field:'dias'},
-{title:'Início',field:'horario'},
-{title:'Professores',field:'professores'}
-]})})}
+{title:'Aluno',field:'nome',widthGrow:2,minWidth:180},
+{title:'Situação',field:'situacao',width:110},
+{title:'Status',field:'status',width:100,formatter:function(cell){var v=cell.getValue();return '<span class="badge '+(v==='Ativado'?'b-on':'b-off')+'">'+v+'</span>'}},
+{title:'Livro',field:'livro',width:95},
+{title:'Mod.',field:'modalidade',width:70},
+{title:'VIP',field:'vip',formatter:'tickCross',hozAlign:'center',width:55},
+{title:'Tipo',field:'tipoEncontro',width:95},
+{title:'Dias',field:'dias',headerSort:false,formatter:pillsFmt,widthGrow:1,minWidth:110},
+{title:'Horário',field:'horario',width:105,formatter:function(cell){var d=cell.getRow().getData();return d.horario?escBloco(d.horario+'–'+d.horaFim):''}},
+{title:'Professores',field:'professores',headerSort:false,formatter:pillsFmt,widthGrow:1,minWidth:120}
+]});
+TABELA_GERAL.on('tableBuilt',function(){TABELA_INICIADA=true;aplicarFiltros()});
+})}
 
 init();
 
@@ -558,7 +683,7 @@ el.addEventListener('click',function(e){if(e.target&&e.target.tagName==='B'&&e.t
 bindBuscas();
 iconesEstaticos();matAtualizarLock();
 setTimeout(function(){['al','tu','mat'].forEach(function(s){dirty(s,false)})},0);
-setTimeout(function(){if(!DOM)msg('Os domínios não carregaram — verifique as abas do arquivo (ex.: Lista_Situacoes) e reabra o painel.',true)},4000);
+setTimeout(function(){if(!DOM)msg('Os domínios não carregaram — o servidor local está rodando? (deno run -A main.ts) Recarregue a página.',true)},4000);
 </script>
 </body>
 </html>

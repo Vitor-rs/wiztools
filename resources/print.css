@@ -1,22 +1,37 @@
-/* print.css — layout da ficha impressa (blocos de hora). Medidas/margens do
+/* print.css — layout da ficha impressa (blocos de hora). Base do
    Ficha_Recepcao_prototipo/TEMPLATE_BLOCOS_HORA.html: A4 paisagem, margem 0,5cm,
-   colunas A290 B100 C100 D60 E:P 40×12 Q130 px. Compartilhado entre a aba
-   Impressão e os painéis de prévia ao vivo (Aulas/Turmas). */
+   colunas A290 B80 C100 D80 E:P 40×12 Q130 px (Dias e Aula com a mesma largura —
+   "Conn Vip" precisa caber numa linha; só as colunas de presença E:P podem flexionar).
+   Compartilhado entre a aba Impressão e os painéis de prévia ao vivo (Aulas/Turmas). */
 @page { size: A4 landscape; margin: 0.5cm; }
-table.ficha { border-collapse: collapse; width: 100%; table-layout: fixed; text-align: left; font-family: Calibri, Arial, sans-serif; }
-col.cA { width: 24.6%; } col.cB { width: 8.6%; } col.cC { width: 8.6%; } col.cD { width: 5.2%; }
+
+/* .folha: tabela EXTERNA que pagina o conjunto. Células sem borda alguma — é ela que sofre as
+   quebras de página, e sem bordas não há o que "vazar" (a versão anterior, tabela única com
+   border-collapse, pintava bordas órfãs no topo/rodapé das páginas). O thead repete a banda de
+   título no topo de cada folha impressa, sempre com o mesmo afastamento. */
+table.folha { width: 100%; border-collapse: separate; border-spacing: 0; }
+table.folha > thead > tr > td { border: 0; padding: 0 0 0.5cm; }      /* afastamento FIXO banda → primeiro bloco da página */
+table.folha > tbody > tr > td { border: 0; padding: 0 0 44px; vertical-align: top; } /* separação entre blocos */
+table.folha.compacta > tbody > tr > td { padding-bottom: 14px; }
+
+/* banda de título (SEGUNDAS e QUARTAS · JULHO): borda na largura total, altura fixa */
+.cab-banda { border: 2px solid #000; height: 1.5cm; display: flex; align-items: center; gap: 26px;
+  padding: 0 26px; font-family: Calibri, Arial, sans-serif; }
+.cab-dias, .cab-e { font-size: 18pt; font-weight: bold; }
+.cab-mes { font-size: 20pt; font-weight: bold; margin-left: auto; padding-right: 6%; }
+
+/* .ficha: UMA tabela por bloco de hora — indivisível na impressão */
+table.ficha { border-collapse: collapse; width: 100%; table-layout: fixed; text-align: left;
+  font-family: Calibri, Arial, sans-serif; break-inside: avoid; page-break-inside: avoid; }
+col.cA { width: 24.6%; } col.cB { width: 6.9%; } col.cC { width: 8.6%; } col.cD { width: 6.9%; }
 col.cE { width: 3.45%; } col.cQ { width: 11.1%; }
-thead.pagina td { border: 0; }
-thead .dias1 { font-size: 18pt; font-weight: bold; }
-thead .mes { font-size: 20pt; font-weight: bold; text-align: center; }
-tbody.bloco { break-inside: avoid; page-break-inside: avoid; }
 tbody.bloco td { border: 1px solid #000; height: 20px; font-size: 11pt; vertical-align: middle; text-align: center; overflow: hidden; }
 tbody.bloco td.nome { text-align: left; }
+tbody.bloco td.aula { white-space: nowrap; }
 tbody.bloco tr.h1 td { height: 24px; font-weight: bold; }
 tbody.bloco tr.h1 td.hora { font-size: 13pt; text-align: left; }
 tbody.bloco tr.h1 td.titulo, tbody.bloco tr.h1 td.obs { font-size: 12pt; }
 tbody.bloco tr.h2 td { font-weight: bold; }
-tbody.esp td { border: 0; height: 20px; }
 
 /* prévia ao vivo: mesma tabela, em miniatura, embutida nos formulários */
 table.ficha.compacta { font-size: 85%; }

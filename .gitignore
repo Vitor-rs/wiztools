@@ -1,0 +1,7 @@
+# O banco de dados NUNCA vai pro Git: cada máquina tem o seu (o da recepção é o
+# de produção). Sem isso, um git pull na recepção esmagaria os dados reais com
+# o banco de teste do notebook.
+wizard.db
+*.db-journal
+*.db-wal
+*.db-shm

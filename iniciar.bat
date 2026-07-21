@@ -1,6 +1,9 @@
 @echo off
 rem ============================================================
-rem  Wizard Recepcao - iniciar o aplicativo
+rem  Wizard Recepcao - iniciar o aplicativo (uso MANUAL/desenvolvimento:
+rem  mostra a janela do servidor, util pra ver log/erro na hora).
+rem  Para o atalho da area de trabalho da RECEPCAO, use iniciar-app.vbs
+rem  (sem nenhuma janela de terminal) - crie o atalho com criar-atalho.ps1.
 rem  1) puxa a versao mais nova do GitHub (se tiver internet)
 rem  2) sobe o servidor local (janela minimizada)
 rem  3) abre o aplicativo numa janela propria do Edge

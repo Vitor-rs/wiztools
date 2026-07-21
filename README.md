@@ -20,18 +20,24 @@ deno run -A main.ts --init →  cria wizard.db do zero (SÓ na primeira vez — 
    Transferência fácil: o notebook publica o banco em `OneDrive\WizardBackup\wizard-recepcao.db`;
    no desktop, espere o OneDrive sincronizar, copie esse arquivo para `C:\wiztools` e renomeie
    para `wizard.db`.
-4. Dar dois cliques em `iniciar.bat`. Na primeira vez o Windows vai pedir para liberar o Deno
-   no firewall — aceitar (isso permite acessar de outros computadores da escola).
-5. Criar um atalho do `iniciar.bat` na área de trabalho (botão direito → Enviar para → Área de
-   trabalho) e trocar o ícone se quiser. Pronto: clicou, abriu como um programa normal.
+4. Dar dois cliques em `iniciar.bat` uma vez, só pra confirmar que sobe (a janela do servidor
+   aparece — normal aqui, é só pra teste). Na primeira vez o Windows vai pedir para liberar o
+   Deno no firewall — aceitar (isso permite acessar de outros computadores da escola). Feche
+   essa janela depois de conferir.
+5. Rodar `criar-atalho.ps1` uma vez (botão direito → Executar com o PowerShell): cria o atalho
+   **"Wizard Recepção"** na área de trabalho, apontando para `iniciar-app.vbs`. Esse é o atalho
+   do dia a dia — abre **sem nenhum terminal na tela** e sem barra de navegador, só a janela do
+   app, como um programa normal do Windows.
 
 - **Acesso de outros computadores da rede**: `http://IP-do-desktop:8420` no navegador.
-- **Atualizações**: o `iniciar.bat` faz `git pull` a cada abertura. Fechou e abriu = atualizado.
+- **Atualizações**: o atalho faz `git pull` a cada abertura. Fechou e abriu = atualizado.
   Sem internet, ele apenas abre a versão que já está instalada.
 - **Backup**: a cada dia, na primeira abertura, um snapshot do banco é salvo automaticamente em
   DOIS lugares: uma pasta oculta do computador (`%LOCALAPPDATA%\WizardBackup`) e, quando existir,
   o OneDrive (`OneDrive\WizardBackup` por padrão — destino preferido). A aba **Backup** do app
-  permite escolher outra pasta do OneDrive e fazer uma cópia manual na hora.
+  permite escolher outra pasta do OneDrive e fazer uma cópia manual na hora. A pasta escolhida é
+  gravada de forma portável (relativa à raiz do OneDrive), então funciona igual no notebook e na
+  recepção mesmo com usuários do Windows diferentes — não é preciso configurar em cada máquina.
 
 ## Fluxo de trabalho
 
@@ -56,4 +62,6 @@ deno run -A main.ts --init →  cria wizard.db do zero (SÓ na primeira vez — 
 | `blocos.js` | renderização dos blocos de hora (impressão e prévias — fonte única) |
 | `resources/print.css` | layout A4 paisagem das fichas |
 | `schema.sql` / `seed.sql` | estrutura do banco / carga inicial histórica |
-| `iniciar.bat` | atalho de produção: atualiza, sobe o servidor e abre a janela |
+| `iniciar.bat` | inicia mostrando a janela do servidor — uso manual/desenvolvimento |
+| `iniciar-app.vbs` | inicia SEM nenhuma janela — é para onde aponta o atalho de produção |
+| `criar-atalho.ps1` | roda uma vez em cada máquina pra criar o atalho da área de trabalho |

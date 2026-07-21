@@ -44,11 +44,21 @@ function migrarAlunoLivro() {
    configuração, usa %OneDrive%\WizardBackup. O banco VIVO fica fora do OneDrive de propósito
    (sincronizador + SQLite aberto corrompe) — só as cópias vão pra lá. */
 const dirBackupLocal = () => (Deno.env.get("LOCALAPPDATA") || PASTA) + "\\WizardBackup";
+/* pasta configurada é gravada RELATIVA à raiz do OneDrive quando o usuário escolhe algo dentro
+   dela — assim o mesmo wizard.db copiado para outro computador (usuário Windows diferente, ex.:
+   "user" no notebook vs "Wizard Naviraí" na recepção) reconstrói o caminho certo usando a raiz
+   OneDrive de CADA máquina, em vez de carregar um "C:\Users\user\..." travado que só existe aqui.
+   Caminho absoluto de disco/rede fora do OneDrive (ex.: "C:\..." fora dele, "\\servidor\...")
+   continua gravado como está — não há como tornar isso portável. */
 function dirBackupOneDrive(): string | null {
   const cfg = G("SELECT valor FROM config WHERE chave='backup_onedrive'")?.valor;
-  if (cfg) return cfg;
   const od = Deno.env.get("OneDrive");
+  if (cfg) return /^[A-Za-z]:\\|^\\\\/.test(cfg) ? cfg : (od ? od + "\\" + cfg.replace(/^\\+/, "") : null);
   return od ? od + "\\WizardBackup" : null;
+}
+function gravarPastaOneDrive(p: string): string {
+  const od = Deno.env.get("OneDrive");
+  return (od && p.toLowerCase().startsWith(od.toLowerCase() + "\\")) ? p.slice(od.length + 1) : p;
 }
 function alvosBackup() {
   const alvos = [{ destino: "HD (pasta oculta)", dir: dirBackupLocal() }];
@@ -443,7 +453,7 @@ const api: Record<string, (a: any) => unknown> = {
       } catch { return []; }
     };
     return { oneDriveRaiz: Deno.env.get("OneDrive") || null,
-      pastaConfigurada: G("SELECT valor FROM config WHERE chave='backup_onedrive'")?.valor || null,
+      personalizada: !!G("SELECT 1 FROM config WHERE chave='backup_onedrive'"),
       pastaOneDrive: dirBackupOneDrive(), pastaLocal: dirBackupLocal(),
       backupsOneDrive: listar(dirBackupOneDrive()), backupsLocal: listar(dirBackupLocal()) };
   },
@@ -452,7 +462,7 @@ const api: Record<string, (a: any) => unknown> = {
     if (!p) { R("DELETE FROM config WHERE chave='backup_onedrive'"); return { ok: true, pasta: dirBackupOneDrive(), padrao: true }; }
     Deno.mkdirSync(p, { recursive: true }); // valida a escolha: cria a pasta e testa escrita antes de gravar
     const teste = p + "\\.wizard-teste-escrita"; Deno.writeTextFileSync(teste, "ok"); Deno.removeSync(teste);
-    R("INSERT INTO config VALUES ('backup_onedrive',?) ON CONFLICT(chave) DO UPDATE SET valor=excluded.valor", p);
+    R("INSERT INTO config VALUES ('backup_onedrive',?) ON CONFLICT(chave) DO UPDATE SET valor=excluded.valor", gravarPastaOneDrive(p));
     return { ok: true, pasta: p, padrao: false };
   },
   fazerBackupAgora: () => executarBackup("wizard-" + new Date().toISOString().replace(/[T:]/g, "-").slice(0, 19) + ".db", false),

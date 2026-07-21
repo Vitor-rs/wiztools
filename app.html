@@ -3,6 +3,9 @@
 <head>
 <meta charset="utf-8">
 <title>Wizard — Recepção</title>
+<!-- favicon inline (SVG, sem arquivo à parte): também vira o ícone da janela/barra de
+     tarefas quando o Edge abre em --app= — sem isso a janela usa o ícone genérico do Edge -->
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2064%2064'%3E%3Crect%20width='64'%20height='64'%20rx='14'%20fill='%23356854'/%3E%3Ctext%20x='32'%20y='46'%20font-family='Arial,Helvetica,sans-serif'%20font-size='36'%20font-weight='bold'%20fill='white'%20text-anchor='middle'%3EW%3C/text%3E%3C/svg%3E">
 <link rel="stylesheet" href="resources/print.css">
 <link rel="stylesheet" href="resources/vendor/shoelace/themes/light.css">
 <link rel="stylesheet" href="resources/vendor/notyf/notyf.min.css">
@@ -589,7 +592,7 @@ function impGerar(dias,titulos){run('fichas',[{dias:dias}],function(blocos){$('f
 /* ===== BACKUP ===== */
 function bkFmtData(iso){if(!iso)return '';var d=new Date(iso);return d.toLocaleDateString('pt-BR')+' '+d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}
 function renderBackup(){run('getBackupInfo',[],function(i){
-$('bk-pasta').value=i.pastaConfigurada||'';
+$('bk-pasta').value=i.personalizada?(i.pastaOneDrive||''):'';
 $('bk-dica').innerHTML=i.oneDriveRaiz
 ?'OneDrive detectado em <b>'+escBloco(i.oneDriveRaiz)+'</b> — deixe vazio para usar a pasta padrão '+escBloco(i.oneDriveRaiz+'\\WizardBackup')+'.'
 :'OneDrive não detectado neste computador — os backups vão só para a pasta oculta do HD.';

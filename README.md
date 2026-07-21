@@ -25,9 +25,14 @@ deno run -A main.ts --init →  cria wizard.db do zero (SÓ na primeira vez — 
    Deno no firewall — aceitar (isso permite acessar de outros computadores da escola). Feche
    essa janela depois de conferir.
 5. Rodar `criar-atalho.ps1` uma vez (botão direito → Executar com o PowerShell): cria o atalho
-   **"Wizard Recepção"** na área de trabalho, apontando para `iniciar-app.vbs`. Esse é o atalho
-   do dia a dia — abre **sem nenhum terminal na tela** e sem barra de navegador, só a janela do
+   **"Wizard Recepção"** na área de trabalho, já com o ícone da Wizard, apontando para
+   `iniciar-app.vbs`. Esse é o atalho do dia a dia — abre **sem nenhum terminal na tela** e sem
+   barra de navegador, só a janela do
    app, como um programa normal do Windows.
+6. (Opcional, mas recomendado) Com o app aberto, no Edge: `⋯` → Aplicativos → **Instalar este
+   site como aplicativo**. Uma vez por computador. Sem isso, a janela do app já usa o ícone da
+   Wizard (não o do Edge) — mas com essa instalação, o Windows passa a tratar o Wizard como um
+   programa de verdade também na **barra de tarefas** (ícone próprio lá também, não o do Edge).
 
 - **Acesso de outros computadores da rede**: `http://IP-do-desktop:8420` no navegador.
 - **Atualizações**: o atalho faz `git pull` a cada abertura. Fechou e abriu = atualizado.

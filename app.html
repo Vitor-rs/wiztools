@@ -3,9 +3,15 @@
 <head>
 <meta charset="utf-8">
 <title>Wizard — Recepção</title>
-<!-- favicon inline (SVG, sem arquivo à parte): também vira o ícone da janela/barra de
-     tarefas quando o Edge abre em --app= — sem isso a janela usa o ícone genérico do Edge -->
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2064%2064'%3E%3Crect%20width='64'%20height='64'%20rx='14'%20fill='%23356854'/%3E%3Ctext%20x='32'%20y='46'%20font-family='Arial,Helvetica,sans-serif'%20font-size='36'%20font-weight='bold'%20fill='white'%20text-anchor='middle'%3EW%3C/text%3E%3C/svg%3E">
+<!-- ícone (formatura, verde da marca) + manifesto PWA: também vira o ícone da janela/
+     barra de tarefas quando o Edge abre em --app=; o manifesto permite "Instalar este
+     site como app" no Edge, o jeito robusto de o Windows parar de reusar o ícone
+     genérico do Edge na barra de tarefas (o favicon sozinho só troca o ícone da janela) -->
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="resources/wizard-icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="resources/wizard-icon-192.png">
+<link rel="apple-touch-icon" href="resources/wizard-icon-192.png">
+<meta name="theme-color" content="#356854">
 <link rel="stylesheet" href="resources/print.css">
 <link rel="stylesheet" href="resources/vendor/shoelace/themes/light.css">
 <link rel="stylesheet" href="resources/vendor/notyf/notyf.min.css">

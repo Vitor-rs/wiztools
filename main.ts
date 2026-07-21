@@ -534,8 +534,13 @@ Deno.serve({ port: 8420 }, async (req) => {
   const tipo = arquivo.endsWith(".html") ? "text/html; charset=utf-8"
     : arquivo.endsWith(".js") ? "application/javascript; charset=utf-8"
     : arquivo.endsWith(".css") ? "text/css; charset=utf-8"
+    : arquivo.endsWith(".webmanifest") ? "application/manifest+json; charset=utf-8"
+    : arquivo.endsWith(".png") ? "image/png"
+    : arquivo.endsWith(".ico") ? "image/x-icon"
+    : arquivo.endsWith(".svg") ? "image/svg+xml"
     : "text/plain; charset=utf-8";
-  try { return new Response(await Deno.readTextFile(PASTA + arquivo), { headers: { "content-type": tipo } }); }
+  /* readFile (binário) sempre — readTextFile decodificaria PNG/ICO como UTF-8 e corromperia os bytes */
+  try { return new Response(await Deno.readFile(PASTA + arquivo), { headers: { "content-type": tipo } }); }
   catch { return new Response("não encontrado", { status: 404 }); }
 });
 console.log("Wizard local em http://localhost:8420  (painel único: Alunos, Turmas, Horários e Impressão)");

@@ -4,22 +4,8 @@
 import { DatabaseSync } from "node:sqlite";
 
 const PASTA = new URL(".", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
-
-/* backup automático: 1 snapshot do banco por dia em OneDrive\WizardBackup (o OneDrive ainda guarda
-   histórico de versões de cada arquivo). Roda ANTES de abrir o banco — nunca copia meio-escrito.
-   O banco vivo fica FORA da pasta do OneDrive de propósito: sincronizador + SQLite aberto corrompe. */
-try {
-  const oneDrive = Deno.env.get("OneDrive");
-  if (oneDrive) {
-    const dir = oneDrive + "\\WizardBackup";
-    Deno.mkdirSync(dir, { recursive: true });
-    const destino = dir + "\\wizard-" + new Date().toISOString().slice(0, 10) + ".db";
-    let existe = true; try { Deno.statSync(destino); } catch { existe = false; }
-    if (!existe) { Deno.copyFileSync(PASTA + "wizard.db", destino); console.log("Backup do dia salvo em " + destino); }
-  }
-} catch (e) { console.warn("Backup no OneDrive falhou (o app segue normal): " + (e as Error).message); }
-
 const db = new DatabaseSync(PASTA + "wizard.db");
+db.exec("CREATE TABLE IF NOT EXISTS config (chave TEXT PRIMARY KEY, valor TEXT NOT NULL)"); // migração aditiva (preferências, ex.: pasta de backup)
 const A = (sql: string, ...p: any[]) => db.prepare(sql).all(...p) as any[];
 const G = (sql: string, ...p: any[]) => db.prepare(sql).get(...p) as any;
 const R = (sql: string, ...p: any[]) => db.prepare(sql).run(...p);
@@ -50,6 +36,47 @@ function migrarAlunoLivro() {
   }
   if (pares.length) console.log("aluno_livro: " + pares.length + " matrícula(s) migrada(s) a partir de aulas existentes.");
 }
+
+/* ===== backup (aba Backup) =====
+   Política: toda cópia vai SEMPRE para uma pasta oculta do Windows (%LOCALAPPDATA%\WizardBackup —
+   o AppData é oculto por padrão) e TAMBÉM para o OneDrive quando existir (destino preferido,
+   listado primeiro). A pasta do OneDrive é configurável na aba Backup (tabela config); sem
+   configuração, usa %OneDrive%\WizardBackup. O banco VIVO fica fora do OneDrive de propósito
+   (sincronizador + SQLite aberto corrompe) — só as cópias vão pra lá. */
+const dirBackupLocal = () => (Deno.env.get("LOCALAPPDATA") || PASTA) + "\\WizardBackup";
+function dirBackupOneDrive(): string | null {
+  const cfg = G("SELECT valor FROM config WHERE chave='backup_onedrive'")?.valor;
+  if (cfg) return cfg;
+  const od = Deno.env.get("OneDrive");
+  return od ? od + "\\WizardBackup" : null;
+}
+function alvosBackup() {
+  const alvos = [{ destino: "HD (pasta oculta)", dir: dirBackupLocal() }];
+  const od = dirBackupOneDrive();
+  if (od) alvos.unshift({ destino: "OneDrive", dir: od }); // preferência: OneDrive primeiro
+  return alvos;
+}
+/* copia wizard.db para todos os alvos; pularExistentes=true dá a semântica "1 por dia por destino" */
+function executarBackup(nome: string, pularExistentes: boolean) {
+  let journal = false; try { Deno.statSync(PASTA + "wizard.db-journal"); journal = true; } catch { /* sem journal = sem escrita em andamento */ }
+  if (journal) throw new Error("Há uma escrita em andamento no banco — tente de novo em alguns segundos.");
+  const feitos: { destino: string; caminho: string }[] = []; const erros: string[] = [];
+  for (const a of alvosBackup()) {
+    const caminho = a.dir + "\\" + nome;
+    try {
+      if (pularExistentes) { try { Deno.statSync(caminho); continue; } catch { /* ainda não existe hoje */ } }
+      Deno.mkdirSync(a.dir, { recursive: true });
+      Deno.copyFileSync(PASTA + "wizard.db", caminho);
+      feitos.push({ destino: a.destino, caminho });
+    } catch (e) { erros.push(a.destino + ": " + (e as Error).message); }
+  }
+  return { feitos, erros };
+}
+try { // backup diário na subida do servidor (a leitura da config acima já recuperou journal pendente)
+  const r = executarBackup("wizard-" + new Date().toISOString().slice(0, 10) + ".db", true);
+  r.feitos.forEach(f => console.log("Backup do dia salvo em " + f.caminho));
+  r.erros.forEach(e => console.warn("Backup falhou (o app segue normal) — " + e));
+} catch (e) { console.warn("Backup adiado: " + (e as Error).message); }
 
 /* ===== helpers de domínio (mesmas regras do painel do Sheets) ===== */
 const profsDaTurma = (id: string) => A("SELECT f.nome FROM turma_professor tp JOIN funcionarios f ON f.id=tp.funcionario_id WHERE tp.turma_id=?", id).map(r => r.nome);
@@ -403,6 +430,32 @@ const api: Record<string, (a: any) => unknown> = {
     });
   },
   fichas: ({ dias }: any) => montarBlocos(dias), // dados p/ aba Impressão — mesmas regras do Gerador.gs
+
+  /* ===== backup (aba Backup) ===== */
+  getBackupInfo() {
+    const listar = (dir: string | null) => {
+      if (!dir) return [];
+      try {
+        return [...Deno.readDirSync(dir)].filter(f => f.isFile && f.name.endsWith(".db"))
+          .map(f => { const st = Deno.statSync(dir + "\\" + f.name);
+            return { nome: f.name, bytes: st.size, modificado: st.mtime ? st.mtime.toISOString() : "" }; })
+          .sort((a, b) => b.modificado.localeCompare(a.modificado)).slice(0, 12);
+      } catch { return []; }
+    };
+    return { oneDriveRaiz: Deno.env.get("OneDrive") || null,
+      pastaConfigurada: G("SELECT valor FROM config WHERE chave='backup_onedrive'")?.valor || null,
+      pastaOneDrive: dirBackupOneDrive(), pastaLocal: dirBackupLocal(),
+      backupsOneDrive: listar(dirBackupOneDrive()), backupsLocal: listar(dirBackupLocal()) };
+  },
+  salvarPastaBackup({ pasta }: any) {
+    const p = String(pasta || "").trim();
+    if (!p) { R("DELETE FROM config WHERE chave='backup_onedrive'"); return { ok: true, pasta: dirBackupOneDrive(), padrao: true }; }
+    Deno.mkdirSync(p, { recursive: true }); // valida a escolha: cria a pasta e testa escrita antes de gravar
+    const teste = p + "\\.wizard-teste-escrita"; Deno.writeTextFileSync(teste, "ok"); Deno.removeSync(teste);
+    R("INSERT INTO config VALUES ('backup_onedrive',?) ON CONFLICT(chave) DO UPDATE SET valor=excluded.valor", p);
+    return { ok: true, pasta: p, padrao: false };
+  },
+  fazerBackupAgora: () => executarBackup("wizard-" + new Date().toISOString().replace(/[T:]/g, "-").slice(0, 19) + ".db", false),
 
   /* prévia ao vivo (não grava nada): mesma agenda pendente que salvarAgendaLivro salvaria, mas só simulada.
      modalidade/vip: se a matrícula já existe, vem do banco; se for uma matrícula nova ainda não salva,

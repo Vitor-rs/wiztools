@@ -143,6 +143,7 @@ button.acao:disabled{background:#c9c9c9;color:#f3f3f3;cursor:not-allowed;animati
 <button onclick="aba('turmas',this)">Turmas</button>
 <button onclick="aba('horarios',this)">Horários</button>
 <button onclick="aba('impressao',this)">Impressão</button>
+<button onclick="aba('backup',this)">Backup</button>
 </div>
 <div id="conteudo">
 
@@ -262,6 +263,20 @@ Os horários da matriz costumam ser fixos e raramente mudam. Confirma que quer e
 <div id="folha-impressao"></div>
 </div>
 
+<div id="tab-backup" class="tab">
+<h3>Backup do banco</h3>
+<div class="info" style="max-width:680px">Ao abrir, o app guarda automaticamente 1 cópia do banco por dia. Toda cópia vai <b>sempre</b> para uma pasta oculta do computador e <b>também</b> para o OneDrive quando ele existir (destino preferido).</div>
+<div id="bk-status" style="margin-top:10px"></div>
+<div style="max-width:560px">
+<label>Pasta do OneDrive para os backups</label>
+<input id="bk-pasta" placeholder="Vazio = padrão (OneDrive\WizardBackup)">
+<div id="bk-dica" style="font-size:11px;color:#777;margin-top:3px"></div>
+<button class="acao" onclick="bkSalvarPasta()">Salvar pasta</button>
+<button class="acao sec" onclick="bkAgora()">Fazer backup agora</button>
+</div>
+<div id="bk-listas" style="display:flex;gap:22px;flex-wrap:wrap;margin-top:16px"></div>
+</div>
+
 </div>
 
 <script src="blocos.js"></script>
@@ -281,8 +296,8 @@ var notyf=new Notyf({duration:4200,position:{x:'center',y:'bottom'},dismissible:
 function msg(t,erro){if(erro)notyf.error(t);else notyf.success(t)}
 function norm(s){return String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')}
 function debounce(fn,ms){var t;return function(){var a=arguments;clearTimeout(t);t=setTimeout(function(){fn.apply(null,a)},ms)}}
-function aba(n,btn){document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('on')});document.querySelectorAll('#sidebar button').forEach(function(b){b.classList.remove('on')});$('tab-'+n).classList.add('on');btn.classList.add('on');if(n==='horarios')run('getMatriz',[],function(m){MAT=m;matRender();dirty('mat',false);cbMontar()});if(n==='inicio')renderInicio()}
-function abaPor(n){aba(n,document.querySelectorAll('#sidebar button')[{inicio:0,alunos:1,turmas:2,horarios:3,impressao:4}[n]])}
+function aba(n,btn){document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('on')});document.querySelectorAll('#sidebar button').forEach(function(b){b.classList.remove('on')});$('tab-'+n).classList.add('on');btn.classList.add('on');if(n==='horarios')run('getMatriz',[],function(m){MAT=m;matRender();dirty('mat',false);cbMontar()});if(n==='inicio')renderInicio();if(n==='backup')renderBackup()}
+function abaPor(n){aba(n,document.querySelectorAll('#sidebar button')[{inicio:0,alunos:1,turmas:2,horarios:3,impressao:4,backup:5}[n]])}
 function iconesEstaticos(){
 document.querySelectorAll('#al-salvar .btn-ic, #tu-salvar .btn-ic, #mat-salvar .btn-ic').forEach(function(el){el.innerHTML=icon('save',14)});
 document.querySelectorAll('#btn-imprimir .btn-ic').forEach(function(el){el.innerHTML=icon('printer',14)});
@@ -570,6 +585,31 @@ function tuExcluir(){if(!tuSel)return;if(!confirm('Excluir a turma '+tuSel.id+'?
 
 /* ===== IMPRESSÃO ===== */
 function impGerar(dias,titulos){run('fichas',[{dias:dias}],function(blocos){$('folha-impressao').innerHTML=tabelaFichaHTML(blocos,titulos,{compacto:false});$('btn-imprimir').style.display='inline-block'})}
+
+/* ===== BACKUP ===== */
+function bkFmtData(iso){if(!iso)return '';var d=new Date(iso);return d.toLocaleDateString('pt-BR')+' '+d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}
+function renderBackup(){run('getBackupInfo',[],function(i){
+$('bk-pasta').value=i.pastaConfigurada||'';
+$('bk-dica').innerHTML=i.oneDriveRaiz
+?'OneDrive detectado em <b>'+escBloco(i.oneDriveRaiz)+'</b> — deixe vazio para usar a pasta padrão '+escBloco(i.oneDriveRaiz+'\\WizardBackup')+'.'
+:'OneDrive não detectado neste computador — os backups vão só para a pasta oculta do HD.';
+$('bk-status').innerHTML='<div class="info" style="max-width:680px">'
++(i.pastaOneDrive?'☁️ OneDrive (preferido): <b>'+escBloco(i.pastaOneDrive)+'</b><br>':'☁️ OneDrive: <b>não disponível</b><br>')
++'💾 Pasta oculta do HD: <b>'+escBloco(i.pastaLocal)+'</b></div>';
+var h='';
+[['☁️ OneDrive',i.backupsOneDrive],['💾 HD (pasta oculta)',i.backupsLocal]].forEach(function(par){
+h+='<div class="matricula-card" style="min-width:300px;flex:1;max-width:430px"><h4>'+par[0]+'</h4>';
+if(!par[1].length)h+='<div style="color:#888;font-size:12px">Nenhum backup ainda.</div>';
+par[1].forEach(function(b){h+='<div class="hist-linha"><span>'+escBloco(b.nome)+'</span><small>'+Math.round(b.bytes/1024)+' KB · '+bkFmtData(b.modificado)+'</small></div>'});
+h+='</div>'});
+$('bk-listas').innerHTML=h;
+})}
+function bkSalvarPasta(){run('salvarPastaBackup',[{pasta:$('bk-pasta').value}],function(r){msg(r.padrao?'Voltou ao padrão'+(r.pasta?': '+r.pasta:' (sem OneDrive neste computador).'):'Pasta salva: '+r.pasta);renderBackup()})}
+function bkAgora(){run('fazerBackupAgora',[],function(r){
+if(r.feitos&&r.feitos.length)msg('Backup salvo em: '+r.feitos.map(function(f){return f.destino}).join(' e ')+'.');
+else if(!(r.erros&&r.erros.length))msg('Nada a copiar.');
+if(r.erros&&r.erros.length)msg('⚠️ '+r.erros.join(' · '),true);
+renderBackup()})}
 
 /* ===== INÍCIO (dashboard + Tabulator: todos os alunos×matrículas num só lugar) ===== */
 var TABELA_GERAL=null,TABELA_INICIADA=false,FILTROS={},FILTRO_NOME='';

@@ -28,8 +28,10 @@ deno run -A main.ts --init →  cria wizard.db do zero (SÓ na primeira vez — 
 - **Acesso de outros computadores da rede**: `http://IP-do-desktop:8420` no navegador.
 - **Atualizações**: o `iniciar.bat` faz `git pull` a cada abertura. Fechou e abriu = atualizado.
   Sem internet, ele apenas abre a versão que já está instalada.
-- **Backup**: a cada dia, na primeira abertura, um snapshot do banco é salvo em
-  `OneDrive\WizardBackup\wizard-AAAA-MM-DD.db` automaticamente.
+- **Backup**: a cada dia, na primeira abertura, um snapshot do banco é salvo automaticamente em
+  DOIS lugares: uma pasta oculta do computador (`%LOCALAPPDATA%\WizardBackup`) e, quando existir,
+  o OneDrive (`OneDrive\WizardBackup` por padrão — destino preferido). A aba **Backup** do app
+  permite escolher outra pasta do OneDrive e fazer uma cópia manual na hora.
 
 ## Fluxo de trabalho
 

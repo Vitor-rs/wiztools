@@ -2,6 +2,10 @@
 PRAGMA foreign_keys = ON;
 
 /* ===== domínios ===== */
+CREATE TABLE IF NOT EXISTS config (   -- preferências do app (ex.: backup_onedrive = pasta escolhida)
+  chave TEXT PRIMARY KEY,
+  valor TEXT NOT NULL
+);
 CREATE TABLE situacoes (
   situacao TEXT PRIMARY KEY,          -- Matriculado, Rematriculado, Cancelado, Encerrado, Trancado, Evadido
   ativa    INTEGER NOT NULL DEFAULT 0 -- 1 = aluno Ativado (regra que deriva o Status)

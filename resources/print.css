@@ -35,9 +35,12 @@ tbody.bloco tr.h2 td { font-weight: bold; }
 /* colunas de data: dia da semana (h1) em cima, número do dia do mês (h2) embaixo */
 tbody.bloco tr.h1 td.dt { font-size: 9pt; text-align: center; }
 tbody.bloco tr.h2 td.dtn { font-size: 10pt; text-align: center; }
-/* marca vinda do lançador: P presente, X falta, – não aula */
+/* marca vinda do lançador: P presente (verde), X falta (vermelho), – não aula (cinza).
+   Tons fechados/corporativos de propósito: nada de neon, que na impressão lava e fica ilegível. */
 tbody.bloco td.marca { font-weight: bold; font-size: 11pt; }
-tbody.bloco td.marca.nao-aula { color: #888; font-weight: normal; }
+tbody.bloco td.marca.m-P { color: #1a6b3c; }
+tbody.bloco td.marca.m-F { color: #b3261e; }
+tbody.bloco td.marca.m-N { color: #888; font-weight: normal; }
 
 /* prévia ao vivo: mesma tabela, em miniatura, embutida nos formulários */
 table.ficha.compacta { font-size: 85%; }

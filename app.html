@@ -89,10 +89,9 @@ button.acao:disabled{background:#c9c9c9;color:#f3f3f3;cursor:not-allowed;animati
 .matricula-card h4{margin:0;color:var(--v);font-size:14px}
 .matricula-card .remover{background:none;border:0;color:#999;cursor:pointer;font-size:16px;padding:2px 6px;line-height:1}
 .matricula-card .remover:hover{color:var(--perigo)}
-.dia-horas{display:flex;align-items:flex-start;gap:8px;margin:5px 0}
-.dia-horas .dia-nome{width:30px;flex-shrink:0;font-size:11px;font-weight:bold;color:#555;padding-top:4px}
-.chips-horas{display:flex;flex-wrap:wrap;gap:4px;flex:1}
-.chip-hora{border:1px solid #ccc;background:#f1f3f4;border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer;color:#666}
+.grade-horas{display:grid;gap:3px;margin-top:6px}
+.grade-horas .hd{font-weight:bold;color:var(--v);font-size:11px;text-align:center;padding:2px 0}
+.chip-hora{border:1px solid #ccc;background:#f1f3f4;border-radius:6px;padding:4px 2px;font-size:11px;cursor:pointer;color:#666;width:100%;text-align:center}
 .chip-hora.on{background:var(--vc);border-color:var(--v);color:#155724;font-weight:bold}
 .chip-hora.inativa{border-color:#e8a33d;background:#fef7e0;color:#8a5a00}
 .chip-hora.inativa.on{background:#fde293;border-color:#e8a33d;color:#5f4200;font-weight:bold}
@@ -540,29 +539,32 @@ if(!alSel){box.innerHTML='<div class="matriculas-vazio">Escolha ou cadastre um a
 if(!MATRICULAS.length){var v=document.createElement('div');v.className='matriculas-vazio';v.textContent='Nenhuma matrícula ainda — use "+ Nova matrícula" ao lado.';box.appendChild(v)}
 MATRICULAS.forEach(function(m){box.appendChild(criarCartaoMatricula(m))});
 }
-function criarEditorHoras(schedule,onChange){
-var wrap=document.createElement('div');
-/* dias/horas com aula existente aparecem MESMO se desativados na matriz (chip laranja) — sem isso,
+/* grade dia×hora, no mesmo layout da aba Horários: dias nas colunas, horas alinhadas em linha —
+   fica fácil comparar "quem tem 09h" batendo o olho na horizontal.
+   dias/horas com aula existente aparecem MESMO se desativados na matriz (chip laranja) — sem isso,
    desativar uma hora sumia com o chip e o próximo salvamento apagava a aula em silêncio */
-var diasTodos=DOM.dias.slice();Object.keys(schedule).forEach(function(d){if(diasTodos.indexOf(d)<0)diasTodos.push(d)});
-diasTodos.forEach(function(dia){
-var row=document.createElement('div');row.className='dia-horas';
-var nome=document.createElement('span');nome.className='dia-nome';nome.textContent=dia.slice(0,3);row.appendChild(nome);
-var chips=document.createElement('div');chips.className='chips-horas';
-var ativos=DOM.horariosPorDia[dia]||[];
-var extras=(schedule[dia]||[]).filter(function(hx){return ativos.indexOf(hx)<0});
-ativos.concat(extras).sort().forEach(function(hx){
-var chip=document.createElement('button');chip.type='button';chip.className='chip-hora';
-var hn=parseInt(hx,10);chip.textContent=('0'+hn).slice(-2)+'h';
+function criarEditorHoras(schedule,onChange){
+var dias=DOM.dias.slice();Object.keys(schedule).forEach(function(d){if(dias.indexOf(d)<0)dias.push(d)});
+var horas=[];
+dias.forEach(function(d){
+(DOM.horariosPorDia[d]||[]).concat(schedule[d]||[]).forEach(function(h){if(horas.indexOf(h)<0)horas.push(h)})});
+horas.sort();
+var grid=document.createElement('div');grid.className='grade-horas';
+grid.style.gridTemplateColumns='repeat('+dias.length+',1fr)';
+dias.forEach(function(d){var hd=document.createElement('div');hd.className='hd';hd.textContent=d.slice(0,3);grid.appendChild(hd)});
+horas.forEach(function(hx){
+var hn=('0'+parseInt(hx,10)).slice(-2)+'h';
+dias.forEach(function(dia){
+var disponivel=(DOM.horariosPorDia[dia]||[]).indexOf(hx)>=0;
+var marcado=(schedule[dia]||[]).indexOf(hx)>=0;
+if(!disponivel&&!marcado){grid.appendChild(document.createElement('div'));return} // dia não abre nessa hora
+var chip=document.createElement('button');chip.type='button';chip.className='chip-hora';chip.textContent=hn;
 chip.dataset.dia=dia;chip.dataset.hora=hx;
-if(extras.indexOf(hx)>=0){chip.classList.add('inativa');chip.title='Horário desativado na matriz — mantido porque o aluno já tem aula nele; se desmarcar e salvar, não dá para remarcar.'}
-if((schedule[dia]||[]).indexOf(hx)>=0)chip.classList.add('on');
+if(!disponivel){chip.classList.add('inativa');chip.title='Horário desativado na matriz — mantido porque o aluno já tem aula nele; se desmarcar e salvar, não dá para remarcar.'}
+if(marcado)chip.classList.add('on');
 chip.onclick=function(){chip.classList.toggle('on');if(onChange)onChange()};
-chips.appendChild(chip);
-});
-row.appendChild(chips);wrap.appendChild(row);
-});
-return wrap;
+grid.appendChild(chip)})});
+return grid;
 }
 function lerItensEditor(editorEl){var out=[];editorEl.querySelectorAll('.chip-hora.on').forEach(function(c){out.push({dia:c.dataset.dia,horario:c.dataset.hora})});return out}
 function criarCartaoMatricula(m){

@@ -83,7 +83,7 @@ function blocoHTML(b, opts) {
     h += '<tr' + (a.pendente ? ' class="pendente"' : '') + '><td class="nome">' + escBloco(a.nome) + '</td><td>' + escBloco(a.dias) + '</td><td>' + escBloco(a.livro) + '</td><td class="aula">' + escBloco(tipoCel) + '</td>';
     for (var k4 = 0; k4 < COLUNAS_FICHA; k4++) {  // marca já lançada no app (reimpressão não perde o que foi preenchido)
       var st = (cols[k4] && a.presencas) ? a.presencas[cols[k4].data] : null;
-      h += '<td class="marca' + (st === 'N' ? ' nao-aula' : '') + '">' + marcaImpressa(st) + '</td>';
+      h += '<td class="marca' + (st ? ' m-' + st : '') + '">' + marcaImpressa(st) + '</td>';
     }
     h += '<td>' + escBloco((a.profs || []).join(', ') || (b.profs || []).join(', ')) + '</td></tr>';
   });

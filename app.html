@@ -135,6 +135,15 @@ button.acao:disabled{background:#c9c9c9;color:#f3f3f3;cursor:not-allowed;animati
 .chip-f.on small{color:#4d7a63}
 .pill-mini{display:inline-block;background:#eef3f1;border:1px solid #cfe0d9;color:#2f5d4d;border-radius:10px;padding:0 7px;font-size:11px;margin:1px 2px 1px 0;font-weight:600;line-height:17px}
 
+/* frequência do aluno (accordion na aba Alunos) */
+.freq-resumo{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.freq-kpi{border:1px solid #e3e5e8;border-radius:8px;padding:5px 9px;font-size:11px;color:#5f6368;line-height:1.3}
+.freq-kpi b{display:block;font-size:15px;color:#202124}
+.freq-kpi.p b{color:#1e7e34}.freq-kpi.f b{color:#c5221f}.freq-kpi.n b{color:#80868b}
+.freq-lista{max-height:230px;overflow:auto}
+.st{display:inline-block;border-radius:10px;padding:1px 8px;font-size:10px;font-weight:700}
+.st.P{background:#d7f0dd;color:#1e7e34}.st.F{background:#fdecec;color:#c5221f}.st.N{background:#f1f3f4;color:#80868b}
+
 /* ===== INÍCIO (home) ===== */
 .home-hero{display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap;
   background:linear-gradient(120deg,#356854,#48836a);color:#fff;border-radius:14px;padding:20px 24px;margin-bottom:20px}
@@ -208,10 +217,13 @@ button.acao:disabled{background:#c9c9c9;color:#f3f3f3;cursor:not-allowed;animati
 .lc-tog:hover{border-color:var(--v);background:#f1f7f4}
 .lc-tog.p{background:#34a853;border:1.5px solid #2d9147;color:#fff}
 .lc-tog.f{background:#fdecec;border:1.5px solid #e88;color:#c5221f}
+.lc-tog.n{background:#f1f3f4;border:1.5px solid #d4d7db;color:#80868b} /* não aula: feriado/férias */
+.lc-tabela thead th.lc-num{cursor:pointer}
+.lc-tabela thead th.lc-num:hover{background:#e6e8ea}
 .lc-legenda{font-size:11px;color:#80868b;padding:8px 16px;border-top:1px solid #f0f1f2;background:#fbfbfa}
 .lc-legenda i{display:inline-flex;width:14px;height:14px;border-radius:50%;vertical-align:-2px;margin:0 3px 0 10px}
 .lc-legenda i.p{background:#34a853}.lc-legenda i.f{background:#fdecec;border:1.5px solid #e88}
-.lc-legenda i.v{border:1.5px dashed #d4d7db}
+.lc-legenda i.v{border:1.5px dashed #d4d7db}.lc-legenda i.n{background:#f1f3f4;border:1.5px solid #d4d7db}
 
 #lc-dialog-corpo .mat-linha{display:flex;justify-content:space-between;align-items:center;gap:12px;
   border:1px solid #e6e8ea;border-radius:10px;padding:10px 12px;margin-bottom:8px}
@@ -221,6 +233,7 @@ button.acao:disabled{background:#c9c9c9;color:#f3f3f3;cursor:not-allowed;animati
 #lc-dialog-corpo .bt{border:1px solid #dcdfe3;background:#fff;border-radius:8px;padding:6px 12px;cursor:pointer;font-size:12px}
 #lc-dialog-corpo .bt.p.on{background:#34a853;border-color:#2d9147;color:#fff;font-weight:700}
 #lc-dialog-corpo .bt.f.on{background:#fdecec;border-color:#e88;color:#c5221f;font-weight:700}
+#lc-dialog-corpo .bt.n.on{background:#e8eaed;border-color:#bdc1c6;color:#3c4043;font-weight:700}
 #lc-dialog-corpo .aviso-dia{background:#fef7e0;border:1px solid #fde293;border-radius:8px;padding:8px 10px;
   font-size:12px;color:#7a5900;margin-bottom:10px}
 
@@ -269,6 +282,11 @@ button.acao:disabled{background:#c9c9c9;color:#f3f3f3;cursor:not-allowed;animati
 <div style="margin-top:14px">
 <button type="button" id="hist-toggle" onclick="histToggle()" style="background:none;border:1px solid #ccc;border-radius:6px;padding:6px 10px;font-size:11px;cursor:pointer;color:#555;width:100%;text-align:left">▸ Histórico de situação</button>
 <div id="hist-corpo" style="display:none;margin-top:8px"></div>
+</div>
+
+<div style="margin-top:8px">
+<button type="button" id="freq-toggle" onclick="freqToggle()" style="background:none;border:1px solid #ccc;border-radius:6px;padding:6px 10px;font-size:11px;cursor:pointer;color:#555;width:100%;text-align:left">▸ Frequência (presenças e faltas)</button>
+<div id="freq-corpo" style="display:none;margin-top:8px"></div>
 </div>
 </div>
 <div class="matriculas-col">
@@ -396,6 +414,10 @@ Os horários da matriz costumam ser fixos e raramente mudam. Confirma que quer e
 <button class="acao" onclick="impGerar(['Sábado'],['SÁBADOS'])">Sábado</button>
 <button class="acao sec" id="btn-imprimir" style="display:none" onclick="window.print()"><span class="btn-ic"></span> Imprimir</button>
 </div>
+<div style="margin-top:10px;display:flex;align-items:center;gap:8px;font-size:12px;color:#555">
+<label style="margin:0">Mês</label><input type="month" id="imp-mes" style="width:auto" onchange="impRegerar()">
+<span style="color:#777">— a folha sai com as presenças já lançadas na aba Presença (P, X, – não aula); em branco é o que falta preencher à mão.</span>
+</div>
 </div>
 <div id="folha-impressao"></div>
 </div>
@@ -496,8 +518,8 @@ function(a){$('lc-busca').value='';lcAbrirDialog(a.id)});
 
 /* ===== ALUNOS (cadastro + matrículas em livro, tudo na mesma tela) ===== */
 function alStatus(){var s=$('al-sit').value;var reg=((DOM&&DOM.situacoes)||[]).filter(function(x){return x.situacao===s})[0];var ativo=!!(reg&&reg.ativa);var b=$('al-status');b.textContent=ativo?'Ativado':'Desativado';b.className='badge '+(ativo?'b-on':'b-off')}
-function alCarregar(a){dirty('al',false);alSel=a;$('al-titulo').textContent='Editar: '+a.nome;$('al-nome').value=a.nome;$('al-id').value=a.id;$('al-id').disabled=true;$('al-sit').value=a.situacao;$('al-excluir').style.display='inline-block';$('al-busca').value='';$('nm-livro').disabled=false;histFechar();alStatus();recarregarMatriculas()}
-function alNovo(){dirty('al',false);alSel=null;$('al-titulo').textContent='Novo aluno';$('al-nome').value='';$('al-id').value='';$('al-id').disabled=false;$('al-sit').selectedIndex=0;$('al-excluir').style.display='none';$('al-aviso').innerHTML='';$('nm-livro').disabled=true;histFechar();alStatus();MATRICULAS=[];MATRIC_AULAS={};renderMatriculas()}
+function alCarregar(a){dirty('al',false);alSel=a;$('al-titulo').textContent='Editar: '+a.nome;$('al-nome').value=a.nome;$('al-id').value=a.id;$('al-id').disabled=true;$('al-sit').value=a.situacao;$('al-excluir').style.display='inline-block';$('al-busca').value='';$('nm-livro').disabled=false;histFechar();freqFechar();alStatus();recarregarMatriculas()}
+function alNovo(){dirty('al',false);alSel=null;$('al-titulo').textContent='Novo aluno';$('al-nome').value='';$('al-id').value='';$('al-id').disabled=false;$('al-sit').selectedIndex=0;$('al-excluir').style.display='none';$('al-aviso').innerHTML='';$('nm-livro').disabled=true;histFechar();freqFechar();alStatus();MATRICULAS=[];MATRIC_AULAS={};renderMatriculas()}
 function alSalvar(){var a={id:$('al-id').value.trim(),nome:$('al-nome').value.trim(),situacao:$('al-sit').value};
 if(!a.id||!a.nome){msg('Preencha nome e ID.',true);return}
 if(!alSel){var dup=ALUNOS.filter(function(x){return String(x.id)===a.id})[0];if(dup){msg('Já existe aluno com ID '+a.id+' ('+dup.nome+'). Selecione-o na busca para editar.',true);return}}
@@ -655,6 +677,37 @@ addRow.appendChild(selSit);addRow.appendChild(inpData);addRow.appendChild(addBtn
 box.appendChild(addRow);
 }
 
+/* ---- frequência do aluno (só leitura + remover lançamento errado; lançar é na aba Presença) ---- */
+var FREQ_ABERTO=false;
+function freqFechar(){FREQ_ABERTO=false;$('freq-corpo').style.display='none';$('freq-corpo').innerHTML='';$('freq-toggle').textContent='▸ Frequência (presenças e faltas)'}
+function freqToggle(){if(!alSel){msg('Escolha um aluno primeiro.',true);return}
+FREQ_ABERTO=!FREQ_ABERTO;$('freq-corpo').style.display=FREQ_ABERTO?'block':'none';
+$('freq-toggle').textContent=(FREQ_ABERTO?'▾':'▸')+' Frequência (presenças e faltas)';
+if(FREQ_ABERTO)freqCarregar()}
+function freqCarregar(){run('getFrequenciaAluno',[{idMatricula:alSel.id}],freqRender)}
+function freqRender(r){
+var box=$('freq-corpo');box.innerHTML='';
+var res=document.createElement('div');res.className='freq-resumo';
+res.innerHTML='<div class="freq-kpi p"><b>'+r.resumo.P+'</b>presenças</div>'
++'<div class="freq-kpi f"><b>'+r.resumo.F+'</b>faltas</div>'
++'<div class="freq-kpi n"><b>'+r.resumo.N+'</b>não aula</div>'
++'<div class="freq-kpi"><b>'+(r.resumo.aproveitamento===null?'—':r.resumo.aproveitamento+'%')+'</b>aproveitamento</div>';
+box.appendChild(res);
+if(!r.linhas.length){var v=document.createElement('div');v.style.cssText='color:#888;font-size:12px;padding:4px 0';
+v.textContent='Nada lançado ainda — use a aba Presença.';box.appendChild(v);return}
+var lista=document.createElement('div');lista.className='freq-lista';
+r.linhas.forEach(function(l){
+var row=document.createElement('div');row.className='hist-linha';
+var tx=document.createElement('span');
+tx.innerHTML='<span class="st '+l.status+'">'+(l.status==='P'?'P':l.status==='F'?'F':'—')+'</span> '
++'<b>'+l.numero+'</b> '+escBloco(l.diaCurto)+' · '+escBloco(l.mes.slice(0,3))+' <small style="color:#888">'+escBloco(l.livro)+'</small>';
+var del=document.createElement('button');del.type='button';del.className='remover';del.textContent='✕';del.title='Remover este lançamento';
+del.onclick=function(){if(!confirm('Remover o lançamento de '+l.numero+'/'+l.data.slice(5,7)+' ('+l.livro+')?'))return;
+run('lancarPresenca',[{idMatricula:alSel.id,livro:l.livro,data:l.data,status:null}],function(){msg('Lançamento removido.');freqCarregar()})};
+row.appendChild(tx);row.appendChild(del);lista.appendChild(row)});
+box.appendChild(lista);
+}
+
 var MAT=null,MAT_TRAVADA=true;
 function matRender(){var box=$('matriz');box.innerHTML='';box.className='mat'+(MAT_TRAVADA?' travada':'');box.style.gridTemplateColumns='auto repeat('+MAT.dias.length+',1fr)';box.appendChild(document.createElement('div'));
 MAT.dias.forEach(function(d){var h=document.createElement('div');h.className='hd';h.textContent=d.slice(0,3);box.appendChild(h)});
@@ -728,7 +781,13 @@ d.appendChild(del);d.appendChild(tx);box.appendChild(d)})})}
 function tuExcluir(){if(!tuSel)return;if(!confirm('Excluir a turma '+tuSel.id+'? As aulas não são apagadas (a turma é deduzida).'))return;run('excluirTurma',[tuSel.id],function(){msg('Turma excluída.');run('getTurmas',[],function(x){TURMAS=x;if(DOM)DOM.turmas=x});tuNova()})}
 
 /* ===== IMPRESSÃO ===== */
-function impGerar(dias,titulos){run('fichas',[{dias:dias}],function(blocos){$('folha-impressao').innerHTML=tabelaFichaHTML(blocos,titulos,{compacto:false});$('btn-imprimir').style.display='inline-block'})}
+/* a ficha sai JÁ preenchida com o que foi lançado na aba Presença — é o que permite reimprimir no
+   meio do mês (aluno novo, troca de horário) sem recopiar à mão as presenças já marcadas */
+function impGerar(dias,titulos){run('fichas',[{dias:dias,mes:$('imp-mes').value||null}],function(r){
+$('folha-impressao').innerHTML=tabelaFichaHTML(r.blocos,titulos,{compacto:false,colunas:r.colunas,mesNome:r.mesNome});
+$('imp-mes').value=r.mes;$('btn-imprimir').style.display='inline-block';IMP_ULTIMA=[dias,titulos]})}
+var IMP_ULTIMA=null;
+function impRegerar(){if(IMP_ULTIMA)impGerar(IMP_ULTIMA[0],IMP_ULTIMA[1])}
 
 /* ===== BACKUP ===== */
 function bkFmtData(iso){if(!iso)return '';var d=new Date(iso);return d.toLocaleDateString('pt-BR')+' '+d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}
@@ -812,9 +871,11 @@ var tb=document.createElement('table');tb.className='lc-tabela';
 /* dois cabeçalhos, como na ficha impressa: dia da semana em cima, número do dia do mês embaixo */
 var h1='<tr><th class="lc-th-aluno" rowspan="2">Aluno</th><th rowspan="2">Livro</th><th rowspan="2">Dias</th><th rowspan="2">Aula</th>';
 var h2='<tr>';
-LC.colunas.forEach(function(c){h1+='<th class="lc-dia'+(c.hoje?' hoje':'')+'">'+escBloco(c.codigo)+'</th>';
-h2+='<th class="lc-num'+(c.hoje?' hoje':'')+'">'+c.numero+'</th>'});
-tb.innerHTML='<thead>'+h1+'</th></tr>'+h2+'</tr></thead>';
+LC.colunas.forEach(function(c,i){h1+='<th class="lc-dia'+(c.hoje?' hoje':'')+'">'+escBloco(c.codigo)+'</th>';
+h2+='<th class="lc-num'+(c.hoje?' hoje':'')+'" data-col="'+i+'" title="Clique para marcar o dia inteiro como não aula (feriado/férias)">'+c.numero+'</th>'});
+tb.innerHTML='<thead>'+h1+'</tr>'+h2+'</tr></thead>';
+tb.querySelectorAll('thead .lc-num').forEach(function(th){
+th.onclick=function(){lcColunaNaoAula(b,LC.colunas[+th.dataset.col],card)}});
 var tbody=document.createElement('tbody');
 b.alunos.forEach(function(al){
 var tr=document.createElement('tr');
@@ -823,15 +884,14 @@ tr.innerHTML='<td class="lc-nome">'+escBloco(al.nome)+'</td><td>'+escBloco(al.li
 LC.colunas.forEach(function(c){
 var td=document.createElement('td');td.className='lc-cel'+(c.hoje?' hoje':'');
 var bt=document.createElement('button');bt.type='button';
-var st=al.presencas[c.data]||null;
-bt.className='lc-tog'+(st==='P'?' p':st==='F'?' f':'');bt.textContent=st==='F'?'✕':'';
-bt.title=escBloco(al.nome)+' — '+c.numero+'/'+(LC.data.slice(5,7))+(st?(st==='P'?' · presente':' · falta'):' · não lançado');
+lcPintar(bt,al.presencas[c.data]||null,al.nome,c);
 bt.onclick=function(){lcToggle(bt,al,c.data,card)};
 td.appendChild(bt);tr.appendChild(td)});
 tbody.appendChild(tr)});
 tb.appendChild(tbody);wrap.appendChild(tb);card.appendChild(wrap);
 var leg=document.createElement('div');leg.className='lc-legenda';
-leg.innerHTML='Clique na célula para alternar:<i class="v"></i>não lançado<i class="p"></i>presente<i class="f"></i>falta';
+leg.innerHTML='Clique na célula para alternar:<i class="v"></i>não lançado<i class="p"></i>presente<i class="f"></i>falta<i class="n"></i>não aula'
++' &nbsp;·&nbsp; clique no número do dia para marcar a coluna inteira como não aula.';
 card.appendChild(leg);
 lcResumo(card,b);
 return card;
@@ -843,15 +903,31 @@ if(!hoje){el.textContent=b.alunos.length+' aluno(s)';return}
 var n=b.alunos.filter(function(a){return a.presencas[hoje.data]}).length;
 el.innerHTML='<b>'+n+'</b> de '+b.alunos.length+' lançado(s) hoje';
 }
+var LC_ROTULO={P:'presente',F:'falta',N:'não aula'};
+function lcPintar(bt,st,nome,c){
+bt.className='lc-tog'+(st?' '+st.toLowerCase():'');
+bt.textContent=st==='F'?'✕':st==='N'?'–':'';
+bt.title=nome+' — dia '+c.numero+(st?' · '+LC_ROTULO[st]:' · não lançado');
+}
+/* ciclo: não lançado → presente → falta → não aula → não lançado.
+   "não aula" (feriado, férias, aula cancelada) não conta nem como presença nem como falta. */
 function lcToggle(bt,al,data,card){
-var atual=bt.classList.contains('p')?'P':bt.classList.contains('f')?'F':null;
-var prox=atual===null?'P':(atual==='P'?'F':null);
+var atual=bt.classList.contains('p')?'P':bt.classList.contains('f')?'F':bt.classList.contains('n')?'N':null;
+var prox=atual===null?'P':atual==='P'?'F':atual==='F'?'N':null;
 run('lancarPresenca',[{idMatricula:al.id,livro:al.livro,data:data,status:prox}],function(){
 if(prox)al.presencas[data]=prox;else delete al.presencas[data];
-bt.className='lc-tog'+(prox==='P'?' p':prox==='F'?' f':'');bt.textContent=prox==='F'?'✕':'';
+lcPintar(bt,prox,al.nome,{numero:parseInt(data.slice(8),10)});
 var b=LC.blocos.filter(function(x){return x.alunos.indexOf(al)>=0})[0];
 if(b&&card)lcResumo(card,b);
 })}
+/* coluna inteira como "não aula" (feriado/férias): clicar no número do dia no cabeçalho */
+function lcColunaNaoAula(b,c,card){
+var todosN=b.alunos.every(function(a){return a.presencas[c.data]==='N'});
+var novo=todosN?null:'N';
+if(!confirm(todosN?'Desmarcar "não aula" do dia '+c.numero+' para os '+b.alunos.length+' aluno(s) deste bloco?'
+:'Marcar o dia '+c.numero+' como NÃO AULA (feriado/férias) para os '+b.alunos.length+' aluno(s) deste bloco?'))return;
+run('lancarPresencaLote',[{itens:b.alunos.map(function(a){return {idMatricula:a.id,livro:a.livro,data:c.data,status:novo}})}],
+function(){msg(todosN?'Dia '+c.numero+' desmarcado.':'Dia '+c.numero+' marcado como não aula.');lcCarregar()})}
 /* busca rápida: qualquer aluno, mesmo fora do horário — a presença é do DIA, então cai no
    horário próprio dele (regra da recepção) */
 function lcAbrirDialog(id){
@@ -868,6 +944,7 @@ h+='<div class="mat-linha"><div><b>'+escBloco(m.livro)+'</b><small>'+escBloco(m.
 +(m.horarioNoDia.length?' · '+escBloco(m.horarioNoDia.join(', ')):'')+(m.vip?' · VIP':'')+'</small></div>'
 +'<div class="acoes"><button class="bt p'+(m.status==='P'?' on':'')+'" onclick="lcDialogLancar('+i+',\'P\')">Presente</button>'
 +'<button class="bt f'+(m.status==='F'?' on':'')+'" onclick="lcDialogLancar('+i+',\'F\')">Falta</button>'
++'<button class="bt n'+(m.status==='N'?' on':'')+'" onclick="lcDialogLancar('+i+',\'N\')" title="Feriado, férias ou aula cancelada — não conta como presença nem falta">Não aula</button>'
 +'<button class="bt" onclick="lcDialogLancar('+i+',null)">Limpar</button></div></div>'});
 $('lc-dialog-corpo').innerHTML=h;
 var dlg=$('lc-dialog');
@@ -878,7 +955,7 @@ function lcDialogLancar(i,status){
 var m=LC_INFO.matriculas[i];if(!m)return;
 run('lancarPresenca',[{idMatricula:LC_INFO.id,livro:m.livro,data:LC?LC.data:isoLocal(new Date()),status:status}],function(){
 m.status=status;
-msg(status==='P'?'Presença lançada: '+LC_INFO.nome+' ('+m.livro+').':status==='F'?'Falta lançada: '+LC_INFO.nome+' ('+m.livro+').':'Lançamento removido.');
+msg(status==='P'?'Presença lançada: '+LC_INFO.nome+' ('+m.livro+').':status==='F'?'Falta lançada: '+LC_INFO.nome+' ('+m.livro+').':status==='N'?'Marcado como não aula: '+LC_INFO.nome+' ('+m.livro+').':'Lançamento removido.');
 lcAbrirDialog(LC_INFO.id); // redesenha os botões com o estado novo
 lcCarregar();              // e reflete na tabela do bloco
 })}

@@ -13,7 +13,7 @@ db.exec(`CREATE TABLE IF NOT EXISTS presenca (
   id_matricula TEXT NOT NULL REFERENCES alunos(id_matricula) ON DELETE CASCADE,
   livro TEXT NOT NULL,
   data TEXT NOT NULL,                  -- 'AAAA-MM-DD'
-  status TEXT NOT NULL,                -- 'P' presente | 'F' falta
+  status TEXT NOT NULL,                -- 'P' presente | 'F' falta | 'N' não aula (feriado/férias/aula cancelada: não conta pra nada)
   PRIMARY KEY (id_matricula, livro, data)
 )`);
 const A = (sql: string, ...p: any[]) => db.prepare(sql).all(...p) as any[];
@@ -258,6 +258,37 @@ function montarBlocos(
   return lista;
 }
 
+/* ===== presença: colunas do mês + preenchimento (compartilhado entre lançador e ficha impressa) =====
+   As colunas do mês SÃO as colunas estreitas do template impresso: dia da semana em cima, número do
+   dia do mês embaixo. Lançador e impressão usam exatamente a mesma fonte pra nunca divergirem. */
+const MESES_PT = ["JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO", "JUNHO", "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"];
+function colunasDoMes(ref: Date, grupo: string[]) {
+  const dInfo: Record<string, any> = {}; A("SELECT * FROM dias").forEach(r => dInfo[r.nome] = r);
+  const hoje = dataISO(new Date());
+  return datasDoMes(ref, grupo).map(c => ({ ...c, codigo: dInfo[c.dia]?.codigo || c.dia,
+    curto: dInfo[c.dia]?.curto || c.dia, hoje: c.data === hoje }));
+}
+function comPresencas(blocos: any[], colunas: { data: string }[]) {
+  const mapa: Record<string, string> = {};
+  if (colunas.length) A("SELECT * FROM presenca WHERE data BETWEEN ? AND ?", colunas[0].data, colunas[colunas.length - 1].data)
+    .forEach(p => mapa[p.id_matricula + "|" + p.livro + "|" + p.data] = p.status);
+  return blocos.map(b => ({ ...b, alunos: b.alunos.map((al: any) => {
+    const pres: Record<string, string> = {};
+    colunas.forEach(c => { const s = mapa[al.id + "|" + al.livro + "|" + c.data]; if (s) pres[c.data] = s; });
+    return { ...al, presencas: pres };
+  }) }));
+}
+
+/* status vazio/null apaga o lançamento (volta a "não preenchido") */
+function gravarPresenca({ idMatricula, livro, data, status }: any) {
+  if (!idMatricula || !livro || !data) throw new Error("Dados incompletos para lançar presença.");
+  if (!status) { R("DELETE FROM presenca WHERE id_matricula=? AND livro=? AND data=?", idMatricula, livro, data); return { ok: true, status: null }; }
+  if (!["P", "F", "N"].includes(status)) throw new Error("Status inválido: use P (presente), F (falta) ou N (não aula).");
+  R("INSERT INTO presenca VALUES (?,?,?,?) ON CONFLICT(id_matricula,livro,data) DO UPDATE SET status=excluded.status",
+    idMatricula, livro, data, status);
+  return { ok: true, status };
+}
+
 /* ===== API (mesmo contrato do painel GAS) ===== */
 const api: Record<string, (a: any) => unknown> = {
   getDominios() {
@@ -462,7 +493,15 @@ const api: Record<string, (a: any) => unknown> = {
         vip: r.vip === 1, tipoEncontro: r.tipo, dias, horario: aulas[0]?.hora || "", horaFim, professores: profs };
     });
   },
-  fichas: ({ dias }: any) => montarBlocos(dias), // dados p/ aba Impressão — mesmas regras do Gerador.gs
+  /* ficha impressa: além dos blocos, devolve as colunas do mês JÁ PREENCHIDAS com o que foi lançado.
+     É o que permite reimprimir no meio do mês sem recopiar as presenças à mão — a folha sai com os
+     P/X que já estão no sistema. `mes` opcional ('AAAA-MM') para reimprimir mês anterior. */
+  fichas({ dias, mes }: any) {
+    const ref = mes ? new Date(mes + "-01T12:00:00") : new Date();
+    const colunas = colunasDoMes(ref, dias);
+    return { blocos: comPresencas(montarBlocos(dias), colunas), colunas,
+      mesNome: MESES_PT[ref.getMonth()], mes: ref.getFullYear() + "-" + ("0" + (ref.getMonth() + 1)).slice(-2) };
+  },
 
   /* ===== lançador de presença (check-in) =====
      Mesmos blocos da impressão (montarBlocos), só que com as colunas do mês já preenchidas com o
@@ -474,8 +513,7 @@ const api: Record<string, (a: any) => unknown> = {
     const ref = data ? new Date(data + "T12:00:00") : agora; // meio-dia: imune a fuso/horário de verão
     const dia = NOMES_DIA[ref.getDay()];
     const grupo = grupoDoDia(dia);
-    const colunas = datasDoMes(ref, grupo).map(c => ({ ...c, codigo: dInfo[c.dia]?.codigo || c.dia,
-      curto: dInfo[c.dia]?.curto || c.dia, hoje: c.data === dataISO(agora) }));
+    const colunas = colunasDoMes(ref, grupo);
 
     const doDia = montarBlocos([dia]);
     const horas = [...new Set(doDia.map((b: any) => b.hora))].sort();
@@ -487,24 +525,29 @@ const api: Record<string, (a: any) => unknown> = {
     }
     const blocos = doDia.filter((b: any) => b.hora === horaSel);
 
-    const mapa: Record<string, string> = {};
-    if (colunas.length) A("SELECT * FROM presenca WHERE data BETWEEN ? AND ?", colunas[0].data, colunas[colunas.length - 1].data)
-      .forEach(p => mapa[p.id_matricula + "|" + p.livro + "|" + p.data] = p.status);
-    const comPresenca = blocos.map((b: any) => ({ ...b, alunos: b.alunos.map((al: any) => {
-      const pres: Record<string, string> = {};
-      colunas.forEach(c => { const s = mapa[al.id + "|" + al.livro + "|" + c.data]; if (s) pres[c.data] = s; });
-      return { ...al, presencas: pres };
-    }) }));
     return { data: dataISO(ref), dia, diaCurto: dInfo[dia]?.curto || dia, hora: horaSel, horas, grupo, colunas,
-      blocos: comPresenca, ehHoje: dataISO(ref) === dataISO(agora) };
+      blocos: comPresencas(blocos, colunas), ehHoje: dataISO(ref) === dataISO(agora) };
   },
-  lancarPresenca({ idMatricula, livro, data, status }: any) {
-    if (!idMatricula || !livro || !data) throw new Error("Dados incompletos para lançar presença.");
-    if (!status) { R("DELETE FROM presenca WHERE id_matricula=? AND livro=? AND data=?", idMatricula, livro, data); return { ok: true, status: null }; }
-    if (status !== "P" && status !== "F") throw new Error("Status inválido: use P (presente) ou F (falta).");
-    R("INSERT INTO presenca VALUES (?,?,?,?) ON CONFLICT(id_matricula,livro,data) DO UPDATE SET status=excluded.status",
-      idMatricula, livro, data, status);
-    return { ok: true, status };
+  lancarPresenca: (p: any) => gravarPresenca(p),
+  /* lote: marcar a coluna inteira de uma data (feriado/férias = 'N' para todo mundo do bloco) */
+  lancarPresencaLote({ itens }: any) {
+    if (!Array.isArray(itens)) throw new Error("Nada para lançar.");
+    itens.forEach(gravarPresenca);
+    return { ok: true, total: itens.length };
+  },
+  /* frequência do aluno (accordion na aba Alunos): tudo que já foi lançado, em qualquer dia/livro.
+     'N' (não aula) fica FORA do cálculo de aproveitamento — não conta como presença nem como falta. */
+  getFrequenciaAluno({ idMatricula }: any) {
+    const dInfo: Record<string, any> = {}; A("SELECT * FROM dias").forEach(r => dInfo[r.nome] = r);
+    const linhas = A("SELECT * FROM presenca WHERE id_matricula=? ORDER BY data DESC, livro", idMatricula).map(l => {
+      const d = new Date(l.data + "T12:00:00");
+      return { data: l.data, livro: l.livro, status: l.status, numero: d.getDate(),
+        diaCurto: dInfo[NOMES_DIA[d.getDay()]]?.curto || "", mes: MESES_PT[d.getMonth()] };
+    });
+    const r = { P: 0, F: 0, N: 0 };
+    linhas.forEach(l => { if (l.status in r) (r as any)[l.status]++; });
+    const base = r.P + r.F; // não aula não entra na conta
+    return { linhas, resumo: { ...r, total: linhas.length, aproveitamento: base ? Math.round(r.P * 100 / base) : null } };
   },
   /* busca rápida: tudo que a janelinha de lançar precisa saber sobre o aluno naquele dia —
      inclusive o horário PRÓPRIO dele (a presença é do dia; a hora exibida é só informativa) */

@@ -92,7 +92,7 @@ CREATE TABLE IF NOT EXISTS presenca (  -- lançador de presença: 1 linha = alun
   id_matricula TEXT NOT NULL REFERENCES alunos(id_matricula) ON DELETE CASCADE,
   livro TEXT NOT NULL,                 -- texto solto de propósito: trocar de livro não apaga frequência
   data TEXT NOT NULL,                  -- 'AAAA-MM-DD' (a hora não entra: presença vale para o dia)
-  status TEXT NOT NULL,                -- 'P' presente | 'F' falta
+  status TEXT NOT NULL,                -- 'P' presente | 'F' falta | 'N' não aula (feriado/férias: não conta pra nada)
   PRIMARY KEY (id_matricula, livro, data)
 );
 CREATE TABLE aluno_situacao_historico (  -- linha do tempo manual: quando o aluno entrou em cada situação

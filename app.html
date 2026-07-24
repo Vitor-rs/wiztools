@@ -95,6 +95,9 @@ button.acao:disabled{background:#c9c9c9;color:#f3f3f3;cursor:not-allowed;animati
    de background para tingir POR CIMA da cor própria do chip, sem apagá-la */
 .grade-horas .cross-h,.grade-horas .cross-v{box-shadow:inset 0 0 0 99px rgba(53,104,84,.07)}
 .grade-horas .cross-h.cross-v{box-shadow:inset 0 0 0 99px rgba(53,104,84,.14)}
+/* célula exata sob o ponteiro: borda mais grossa em teal (verde puxado pro azul) — destaca
+   sem brigar com o verde da marca. box-sizing:border-box já evita qualquer deslocamento */
+.grade-horas .chip-hora.cross-alvo{border-width:2px;border-color:#0f766e}
 .grade-horas .cel-vazia{border-radius:6px}
 .chip-hora{border:1px solid #ccc;background:#f1f3f4;border-radius:6px;padding:4px 2px;font-size:11px;cursor:pointer;color:#666;width:100%;text-align:center}
 .chip-hora.on{background:var(--vc);border-color:var(--v);color:#155724;font-weight:bold}
@@ -576,15 +579,18 @@ chip.onclick=function(){chip.classList.toggle('on');if(onChange)onChange()};
 grid.appendChild(chip)})});
 /* crosshair: eixos independentes e com estado próprio — andar de Qua 09h para Qui 09h só repinta
    a coluna; a linha das 09h fica intacta (nada de repintar o que não mudou) */
-var diaAtivo=null,horaAtiva=null;
+var diaAtivo=null,horaAtiva=null,alvoAtivo=null;
 function marcar(lista,cls,on){(lista||[]).forEach(function(el){el.classList.toggle(cls,on)})}
-function cruzar(dia,hora){
+function cruzar(dia,hora,alvo){
 if(dia!==diaAtivo){marcar(porDia[diaAtivo],'cross-v',false);marcar(porDia[dia],'cross-v',true);diaAtivo=dia}
-if(hora!==horaAtiva){marcar(porHora[horaAtiva],'cross-h',false);marcar(porHora[hora],'cross-h',true);horaAtiva=hora}}
+if(hora!==horaAtiva){marcar(porHora[horaAtiva],'cross-h',false);marcar(porHora[hora],'cross-h',true);horaAtiva=hora}
+if(alvo!==alvoAtivo){ // célula exata sob o ponteiro: 1 sai, 1 entra — o mínimo possível
+if(alvoAtivo)alvoAtivo.classList.remove('cross-alvo');
+if(alvo)alvo.classList.add('cross-alvo');alvoAtivo=alvo}}
 grid.addEventListener('mouseover',function(e){
 var cel=e.target.closest('[data-dia]');
-if(cel&&grid.contains(cel))cruzar(cel.dataset.dia,cel.dataset.hora||null)});
-grid.addEventListener('mouseleave',function(){cruzar(null,null)});
+if(cel&&grid.contains(cel))cruzar(cel.dataset.dia,cel.dataset.hora||null,cel)});
+grid.addEventListener('mouseleave',function(){cruzar(null,null,null)});
 return grid;
 }
 function lerItensEditor(editorEl){var out=[];editorEl.querySelectorAll('.chip-hora.on').forEach(function(c){out.push({dia:c.dataset.dia,horario:c.dataset.hora})});return out}

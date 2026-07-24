@@ -27,15 +27,14 @@ function tituloBloco(b) {
   return 'Turma ' + b.mod + (dias ? ' - ' + dias : '');
 }
 
-/* colgroup do bloco: A290 B~80 C100 D~80 E-P 40×N Q130 px. Dias (B) e Aula (D) têm a MESMA
+/* colgroup do bloco: A290 B~80 C100 D~80 E-P 40×12 Q130 px. Dias (B) e Aula (D) têm a MESMA
    largura — D=60 era estreito e "Conn Vip" quebrava linha, engordando a linha do aluno. As
-   larguras de A/B/C/D/Q são fixas por regra; só as colunas de presença (E-P) podem flexionar —
-   por isso elas dividem entre si a sobra (41,9%) conforme quantas datas o mês tem. */
-var LARGURA_PRESENCA = 41.9;
-function colgroupFicha(n) {
+   larguras de A/B/C/D/Q são fixas por regra; as 12 de presença são estreitas e em número FIXO:
+   sobra sempre coluna vazia para lançar reposição/anteposição que aparecer depois. */
+var COLUNAS_FICHA = 12;
+function colgroupFicha() {
   var h = '<colgroup><col class="cA"><col class="cB"><col class="cC"><col class="cD">';
-  var w = (LARGURA_PRESENCA / n).toFixed(2) + '%';
-  for (var k = 0; k < n; k++) h += '<col class="cE" style="width:' + w + '">';
+  for (var k = 0; k < COLUNAS_FICHA; k++) h += '<col class="cE">';
   return h + '<col class="cQ"></colgroup>';
 }
 /* marca impressa a partir do que foi lançado no app: P presente, X falta, – não aula
@@ -53,40 +52,42 @@ function bandaPagina(titulos, mesNome) {
 
 /* linha vazia com as células REAIS (não colspan) — as 2 linhas extras de cada bloco precisam
    das bordas verticais para preencher aluno à mão na recepção. */
-function linhaVaziaFicha(n) {
+function linhaVaziaFicha() {
   var h = '<tr>';
-  for (var k = 0; k < n + 5; k++) h += '<td></td>'; // A B C D + N datas + Q
+  for (var k = 0; k < COLUNAS_FICHA + 5; k++) h += '<td></td>'; // A B C D + 12 datas + Q
   return h + '</tr>';
 }
 
 /* UMA <table class="ficha"> completa por bloco de hora. compacto=true: sem as 2 linhas extras
    (prévia ao vivo embutida nos formulários — não faz sentido linha de preenchimento manual ali).
-   opts.colunas (datas do mês) preenche os dois cabeçalhos e as marcas já lançadas; sem ela o
-   bloco sai como antes, com as colunas em branco (é o caso das prévias ao vivo). */
+   São SEMPRE 12 colunas estreitas: as primeiras trazem as datas que já têm lançamento (b.colunas,
+   em ordem cronológica, incluindo reposição/anteposição em dia fora do grupo) e as demais saem
+   totalmente em branco, pra recepção escrever à mão o que ainda vier. Sem b.colunas (prévias ao
+   vivo) as 12 saem em branco, exatamente como antes. */
 function blocoHTML(b, opts) {
   opts = opts || {};
-  var cols = opts.colunas || null, n = cols ? cols.length : 12;
+  var cols = b.colunas || [];
   var c = CORES[b.tipoKey] || CORES['Conn'];
-  var h = '<table class="ficha' + (opts.compacto ? ' compacta' : '') + '">' + colgroupFicha(n) + '<tbody class="bloco">';
+  var h = '<table class="ficha' + (opts.compacto ? ' compacta' : '') + '">' + colgroupFicha() + '<tbody class="bloco">';
   h += '<tr class="h1"><td class="hora" style="background:' + c.a + '">Hora: ' + escBloco(b.hora) + ' - ' + escBloco(b.fim) + '</td>';
   h += '<td class="titulo" colspan="3" style="background:' + c.bq + '">' + escBloco(tituloBloco(b)) + '</td>';
-  for (var k2 = 0; k2 < n; k2++)  // cabeçalho de cima: dia da semana da coluna
-    h += '<td class="dt" style="background:' + c.bq + '">' + (cols ? escBloco(cols[k2].codigo) : '') + '</td>';
+  for (var k2 = 0; k2 < COLUNAS_FICHA; k2++)  // cabeçalho de cima: dia da semana daquela data
+    h += '<td class="dt" style="background:' + c.bq + '">' + (cols[k2] ? escBloco(cols[k2].codigo) : '') + '</td>';
   h += '<td class="obs" style="background:' + c.bq + '">Observações</td></tr>';
   h += '<tr class="h2" style="background:' + c.sub + '"><td style="background:' + c.sub + '">Aluno(a)</td><td style="background:' + c.sub + '">Dias</td><td style="background:' + c.sub + '">Livro</td><td style="background:' + c.sub + '">Aula</td>';
-  for (var k3 = 0; k3 < n; k3++)  // cabeçalho de baixo: número do dia do mês
-    h += '<td class="dtn" style="background:' + c.sub + '">' + (cols ? cols[k3].numero : '') + '</td>';
+  for (var k3 = 0; k3 < COLUNAS_FICHA; k3++)  // cabeçalho de baixo: número do dia do mês
+    h += '<td class="dtn" style="background:' + c.sub + '">' + (cols[k3] ? cols[k3].numero : '') + '</td>';
   h += '<td style="background:' + c.sub + '">Professores</td></tr>';
   (b.alunos || []).forEach(function (a) {
     var tipoCel = b.vip ? (b.mod + ' Vip') : (b.tipoKey === 'Kids' ? 'Conn' : b.mod);
     h += '<tr' + (a.pendente ? ' class="pendente"' : '') + '><td class="nome">' + escBloco(a.nome) + '</td><td>' + escBloco(a.dias) + '</td><td>' + escBloco(a.livro) + '</td><td class="aula">' + escBloco(tipoCel) + '</td>';
-    for (var k4 = 0; k4 < n; k4++) {  // marca já lançada no app (reimpressão não perde o que foi preenchido)
-      var st = cols && a.presencas ? a.presencas[cols[k4].data] : null;
+    for (var k4 = 0; k4 < COLUNAS_FICHA; k4++) {  // marca já lançada no app (reimpressão não perde o que foi preenchido)
+      var st = (cols[k4] && a.presencas) ? a.presencas[cols[k4].data] : null;
       h += '<td class="marca' + (st === 'N' ? ' nao-aula' : '') + '">' + marcaImpressa(st) + '</td>';
     }
     h += '<td>' + escBloco((a.profs || []).join(', ') || (b.profs || []).join(', ')) + '</td></tr>';
   });
-  if (!opts.compacto) h += linhaVaziaFicha(n) + linhaVaziaFicha(n);
+  if (!opts.compacto) h += linhaVaziaFicha() + linhaVaziaFicha();
   return h + '</tbody></table>';
 }
 

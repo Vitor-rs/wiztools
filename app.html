@@ -220,6 +220,9 @@ button.acao:disabled{background:#c9c9c9;color:#f3f3f3;cursor:not-allowed;animati
 .lc-tog.n{background:#f1f3f4;border:1.5px solid #d4d7db;color:#80868b} /* não aula: feriado/férias */
 .lc-tabela thead th.lc-num{cursor:pointer}
 .lc-tabela thead th.lc-num:hover{background:#e6e8ea}
+/* off-day: dia que não é o regular do aluno (reposição/anteposição lançada) */
+.lc-tabela thead th.off{background:#fff4e5;color:#8a5a00}
+.lc-tabela td.lc-cel.off{background:#fffaf2}
 .lc-legenda{font-size:11px;color:#80868b;padding:8px 16px;border-top:1px solid #f0f1f2;background:#fbfbfa}
 .lc-legenda i{display:inline-flex;width:14px;height:14px;border-radius:50%;vertical-align:-2px;margin:0 3px 0 10px}
 .lc-legenda i.p{background:#34a853}.lc-legenda i.f{background:#fdecec;border:1.5px solid #e88}
@@ -784,7 +787,7 @@ function tuExcluir(){if(!tuSel)return;if(!confirm('Excluir a turma '+tuSel.id+'?
 /* a ficha sai JÁ preenchida com o que foi lançado na aba Presença — é o que permite reimprimir no
    meio do mês (aluno novo, troca de horário) sem recopiar à mão as presenças já marcadas */
 function impGerar(dias,titulos){run('fichas',[{dias:dias,mes:$('imp-mes').value||null}],function(r){
-$('folha-impressao').innerHTML=tabelaFichaHTML(r.blocos,titulos,{compacto:false,colunas:r.colunas,mesNome:r.mesNome});
+$('folha-impressao').innerHTML=tabelaFichaHTML(r.blocos,titulos,{compacto:false,mesNome:r.mesNome});
 $('imp-mes').value=r.mes;$('btn-imprimir').style.display='inline-block';IMP_ULTIMA=[dias,titulos]})}
 var IMP_ULTIMA=null;
 function impRegerar(){if(IMP_ULTIMA)impGerar(IMP_ULTIMA[0],IMP_ULTIMA[1])}
@@ -871,18 +874,21 @@ var tb=document.createElement('table');tb.className='lc-tabela';
 /* dois cabeçalhos, como na ficha impressa: dia da semana em cima, número do dia do mês embaixo */
 var h1='<tr><th class="lc-th-aluno" rowspan="2">Aluno</th><th rowspan="2">Livro</th><th rowspan="2">Dias</th><th rowspan="2">Aula</th>';
 var h2='<tr>';
-LC.colunas.forEach(function(c,i){h1+='<th class="lc-dia'+(c.hoje?' hoje':'')+'">'+escBloco(c.codigo)+'</th>';
-h2+='<th class="lc-num'+(c.hoje?' hoje':'')+'" data-col="'+i+'" title="Clique para marcar o dia inteiro como não aula (feriado/férias)">'+c.numero+'</th>'});
+/* colunas são POR BLOCO: além dos dias regulares do grupo, entram as datas de reposição/
+   anteposição já lançadas para os alunos deste bloco (off-day, marcado com ·) */
+b.colunas.forEach(function(c,i){h1+='<th class="lc-dia'+(c.hoje?' hoje':'')+(c.foraDoGrupo?' off':'')+'"'
++(c.foraDoGrupo?' title="'+escBloco(c.curto)+' — fora do dia regular (reposição/anteposição)"':'')+'>'+escBloco(c.codigo)+(c.foraDoGrupo?'·':'')+'</th>';
+h2+='<th class="lc-num'+(c.hoje?' hoje':'')+(c.foraDoGrupo?' off':'')+'" data-col="'+i+'" title="Clique para marcar o dia inteiro como não aula (feriado/férias)">'+c.numero+'</th>'});
 tb.innerHTML='<thead>'+h1+'</tr>'+h2+'</tr></thead>';
 tb.querySelectorAll('thead .lc-num').forEach(function(th){
-th.onclick=function(){lcColunaNaoAula(b,LC.colunas[+th.dataset.col],card)}});
+th.onclick=function(){lcColunaNaoAula(b,b.colunas[+th.dataset.col],card)}});
 var tbody=document.createElement('tbody');
 b.alunos.forEach(function(al){
 var tr=document.createElement('tr');
 var tipoCel=b.vip?(b.mod+' Vip'):(b.tipoKey==='Kids'?'Conn':b.mod);
 tr.innerHTML='<td class="lc-nome">'+escBloco(al.nome)+'</td><td>'+escBloco(al.livro)+'</td><td>'+escBloco(al.dias)+'</td><td>'+escBloco(tipoCel)+'</td>';
-LC.colunas.forEach(function(c){
-var td=document.createElement('td');td.className='lc-cel'+(c.hoje?' hoje':'');
+b.colunas.forEach(function(c){
+var td=document.createElement('td');td.className='lc-cel'+(c.hoje?' hoje':'')+(c.foraDoGrupo?' off':'');
 var bt=document.createElement('button');bt.type='button';
 lcPintar(bt,al.presencas[c.data]||null,al.nome,c);
 bt.onclick=function(){lcToggle(bt,al,c.data,card)};
@@ -891,13 +897,14 @@ tbody.appendChild(tr)});
 tb.appendChild(tbody);wrap.appendChild(tb);card.appendChild(wrap);
 var leg=document.createElement('div');leg.className='lc-legenda';
 leg.innerHTML='Clique na célula para alternar:<i class="v"></i>não lançado<i class="p"></i>presente<i class="f"></i>falta<i class="n"></i>não aula'
-+' &nbsp;·&nbsp; clique no número do dia para marcar a coluna inteira como não aula.';
++' &nbsp;·&nbsp; clique no número do dia para marcar a coluna inteira como não aula.'
++(b.colunas.some(function(c){return c.foraDoGrupo})?' &nbsp;·&nbsp; colunas em laranja (·) são reposição/anteposição, fora do dia regular.':'');
 card.appendChild(leg);
 lcResumo(card,b);
 return card;
 }
 function lcResumo(card,b){ // "3 de 7 lançados hoje" — só a coluna de hoje interessa no dia a dia
-var hoje=LC.colunas.filter(function(c){return c.hoje})[0];
+var hoje=b.colunas.filter(function(c){return c.hoje})[0];
 var el=card.querySelector('.lc-resumo');
 if(!hoje){el.textContent=b.alunos.length+' aluno(s)';return}
 var n=b.alunos.filter(function(a){return a.presencas[hoje.data]}).length;

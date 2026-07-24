@@ -6,6 +6,16 @@ import { DatabaseSync } from "node:sqlite";
 const PASTA = new URL(".", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
 const db = new DatabaseSync(PASTA + "wizard.db");
 db.exec("CREATE TABLE IF NOT EXISTS config (chave TEXT PRIMARY KEY, valor TEXT NOT NULL)"); // migração aditiva (preferências, ex.: pasta de backup)
+/* presença: 1 linha = aluno × livro × DIA (a hora não entra — regra da recepção: se o aluno vem
+   fora do horário dele, a presença vale para o dia, no horário próprio dele). `livro` é texto solto
+   de propósito (sem FK pra aluno_livro): trocar de livro não pode apagar histórico de frequência. */
+db.exec(`CREATE TABLE IF NOT EXISTS presenca (
+  id_matricula TEXT NOT NULL REFERENCES alunos(id_matricula) ON DELETE CASCADE,
+  livro TEXT NOT NULL,
+  data TEXT NOT NULL,                  -- 'AAAA-MM-DD'
+  status TEXT NOT NULL,                -- 'P' presente | 'F' falta
+  PRIMARY KEY (id_matricula, livro, data)
+)`);
 const A = (sql: string, ...p: any[]) => db.prepare(sql).all(...p) as any[];
 const G = (sql: string, ...p: any[]) => db.prepare(sql).get(...p) as any;
 const R = (sql: string, ...p: any[]) => db.prepare(sql).run(...p);
@@ -152,6 +162,19 @@ function limparMatriculaSeVazia(idMatricula: string, livro: string) {
 /* ===== blocos de hora (fichas de impressão + prévia ao vivo, mesma lógica) ===== */
 const GRUPOS_DIAS = [["Segunda", "Quarta"], ["Terça", "Quinta"], ["Sexta"], ["Sábado"]];
 const grupoDoDia = (dia: string) => GRUPOS_DIAS.find(g => g.includes(dia)) || [dia];
+
+/* datas: sempre em horário LOCAL (toISOString converteria pra UTC e viraria o dia à noite) */
+const NOMES_DIA = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
+const dataISO = (d: Date) => d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2);
+/* colunas da ficha do mês: todas as datas do mês de `ref` cujo dia da semana está no grupo
+   (ex.: Seg+Qua → todas as segundas e quartas de julho) — é o que as 12 colunas estreitas do
+   template impresso representam */
+function datasDoMes(ref: Date, dias: string[]) {
+  const ano = ref.getFullYear(), mes = ref.getMonth(), out: { data: string; dia: string; numero: number }[] = [];
+  for (const d = new Date(ano, mes, 1); d.getMonth() === mes; d.setDate(d.getDate() + 1))
+    if (dias.includes(NOMES_DIA[d.getDay()])) out.push({ data: dataISO(d), dia: NOMES_DIA[d.getDay()], numero: d.getDate() });
+  return out;
+}
 
 type Linha = { id_matricula: string; nomeAluno: string; dia: string; hora: string; livro: string; profs: string[]; pendente?: boolean; matPendente?: { modalidade: string; vip: boolean } };
 
@@ -440,6 +463,67 @@ const api: Record<string, (a: any) => unknown> = {
     });
   },
   fichas: ({ dias }: any) => montarBlocos(dias), // dados p/ aba Impressão — mesmas regras do Gerador.gs
+
+  /* ===== lançador de presença (check-in) =====
+     Mesmos blocos da impressão (montarBlocos), só que com as colunas do mês já preenchidas com o
+     que foi lançado. Sem `hora`, escolhe o bloco da hora atual; se não houver nada rodando agora,
+     devolve o bloco mais próximo do horário (a recepção quase sempre lança no meio da aula). */
+  getLancador({ data, hora }: any = {}) {
+    const dInfo: Record<string, any> = {}; A("SELECT * FROM dias").forEach(r => dInfo[r.nome] = r);
+    const agora = new Date();
+    const ref = data ? new Date(data + "T12:00:00") : agora; // meio-dia: imune a fuso/horário de verão
+    const dia = NOMES_DIA[ref.getDay()];
+    const grupo = grupoDoDia(dia);
+    const colunas = datasDoMes(ref, grupo).map(c => ({ ...c, codigo: dInfo[c.dia]?.codigo || c.dia,
+      curto: dInfo[c.dia]?.curto || c.dia, hoje: c.data === dataISO(agora) }));
+
+    const doDia = montarBlocos([dia]);
+    const horas = [...new Set(doDia.map((b: any) => b.hora))].sort();
+    let horaSel = hora || null;
+    if (!horaSel && horas.length) { // hora atual, ou a mais próxima dela
+      const hAgora = ("0" + agora.getHours()).slice(-2) + ":00";
+      horaSel = horas.includes(hAgora) ? hAgora
+        : horas.reduce((m, h) => Math.abs(parseInt(h, 10) - agora.getHours()) < Math.abs(parseInt(m, 10) - agora.getHours()) ? h : m, horas[0]);
+    }
+    const blocos = doDia.filter((b: any) => b.hora === horaSel);
+
+    const mapa: Record<string, string> = {};
+    if (colunas.length) A("SELECT * FROM presenca WHERE data BETWEEN ? AND ?", colunas[0].data, colunas[colunas.length - 1].data)
+      .forEach(p => mapa[p.id_matricula + "|" + p.livro + "|" + p.data] = p.status);
+    const comPresenca = blocos.map((b: any) => ({ ...b, alunos: b.alunos.map((al: any) => {
+      const pres: Record<string, string> = {};
+      colunas.forEach(c => { const s = mapa[al.id + "|" + al.livro + "|" + c.data]; if (s) pres[c.data] = s; });
+      return { ...al, presencas: pres };
+    }) }));
+    return { data: dataISO(ref), dia, diaCurto: dInfo[dia]?.curto || dia, hora: horaSel, horas, grupo, colunas,
+      blocos: comPresenca, ehHoje: dataISO(ref) === dataISO(agora) };
+  },
+  lancarPresenca({ idMatricula, livro, data, status }: any) {
+    if (!idMatricula || !livro || !data) throw new Error("Dados incompletos para lançar presença.");
+    if (!status) { R("DELETE FROM presenca WHERE id_matricula=? AND livro=? AND data=?", idMatricula, livro, data); return { ok: true, status: null }; }
+    if (status !== "P" && status !== "F") throw new Error("Status inválido: use P (presente) ou F (falta).");
+    R("INSERT INTO presenca VALUES (?,?,?,?) ON CONFLICT(id_matricula,livro,data) DO UPDATE SET status=excluded.status",
+      idMatricula, livro, data, status);
+    return { ok: true, status };
+  },
+  /* busca rápida: tudo que a janelinha de lançar precisa saber sobre o aluno naquele dia —
+     inclusive o horário PRÓPRIO dele (a presença é do dia; a hora exibida é só informativa) */
+  infoPresencaAluno({ idMatricula, data }: any) {
+    const dInfo: Record<string, any> = {}; A("SELECT * FROM dias").forEach(r => dInfo[r.nome] = r);
+    const alu = G("SELECT * FROM v_alunos WHERE id_matricula=?", idMatricula);
+    if (!alu) throw new Error("Aluno não encontrado.");
+    const diaData = data ? NOMES_DIA[new Date(data + "T12:00:00").getDay()] : null;
+    const matriculas = A("SELECT * FROM aluno_livro WHERE id_matricula=?", idMatricula).map(m => {
+      const aulas = A("SELECT dia, hora FROM aulas WHERE id_matricula=? AND livro=?", idMatricula, m.livro);
+      const dias = [...new Set(aulas.map((a: any) => a.dia))].sort((p, q) => (dInfo[p]?.ordem || 0) - (dInfo[q]?.ordem || 0));
+      return { livro: m.livro, modalidade: m.modalidade, vip: m.vip === 1,
+        dias: dias.map(d => dInfo[d]?.codigo || d),
+        horarioNoDia: diaData ? [...new Set(aulas.filter((a: any) => a.dia === diaData).map((a: any) => a.hora))].sort() : [],
+        ehDiaDele: diaData ? dias.includes(diaData) : false,
+        status: G("SELECT status FROM presenca WHERE id_matricula=? AND livro=? AND data=?", idMatricula, m.livro, data)?.status || null };
+    });
+    return { id: alu.id_matricula, nome: alu.nome, situacao: alu.situacao, status: alu.status, matriculas };
+  },
 
   /* ===== backup (aba Backup) ===== */
   getBackupInfo() {

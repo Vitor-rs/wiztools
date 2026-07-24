@@ -135,6 +135,95 @@ button.acao:disabled{background:#c9c9c9;color:#f3f3f3;cursor:not-allowed;animati
 .chip-f.on small{color:#4d7a63}
 .pill-mini{display:inline-block;background:#eef3f1;border:1px solid #cfe0d9;color:#2f5d4d;border-radius:10px;padding:0 7px;font-size:11px;margin:1px 2px 1px 0;font-weight:600;line-height:17px}
 
+/* ===== INÍCIO (home) ===== */
+.home-hero{display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap;
+  background:linear-gradient(120deg,#356854,#48836a);color:#fff;border-radius:14px;padding:20px 24px;margin-bottom:20px}
+.home-hero h2{margin:0;font-size:20px;font-weight:700}
+.home-hero p{margin:4px 0 0;font-size:13px;opacity:.85;text-transform:capitalize}
+.home-cta{display:flex;align-items:center;gap:12px;background:#fff;color:var(--v);border:0;border-radius:10px;
+  padding:12px 20px;cursor:pointer;font-size:14px;box-shadow:0 2px 8px rgba(0,0,0,.15);text-align:left}
+.home-cta:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(0,0,0,.2)}
+.home-cta b{display:block;font-size:15px}
+.home-cta small{display:block;color:#6b7c75;font-size:11px}
+.home-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;max-width:1000px}
+.home-card{display:flex;gap:12px;align-items:flex-start;text-align:left;background:#fff;border:1px solid #e6e8ea;
+  border-radius:12px;padding:16px;cursor:pointer;font:inherit;transition:border-color .12s,box-shadow .12s,transform .12s}
+.home-card:hover{border-color:var(--v);box-shadow:0 3px 12px rgba(53,104,84,.12);transform:translateY(-2px)}
+.home-card .ic{width:38px;height:38px;border-radius:9px;background:var(--vc);color:var(--v);display:flex;
+  align-items:center;justify-content:center;flex-shrink:0}
+.home-card b{display:block;font-size:14px;color:#202124;margin-bottom:2px}
+.home-card span{font-size:12px;color:#70757a;line-height:1.35}
+
+/* ===== LANÇADOR DE PRESENÇA (design system web, não planilha) ===== */
+.lc-topo{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-bottom:16px}
+.lc-busca{flex:1;min-width:260px;max-width:420px;position:relative;display:flex;align-items:center}
+.lc-busca-ic{position:absolute;left:11px;color:#9aa0a6;display:flex;pointer-events:none}
+.lc-busca input{padding:10px 12px 10px 34px;border:1px solid #dcdfe3;border-radius:10px;font-size:13px;background:#fff}
+.lc-nav{display:flex;align-items:center;gap:8px}
+.lc-navbtn{width:32px;height:32px;border:1px solid #dcdfe3;background:#fff;border-radius:8px;cursor:pointer;
+  font-size:17px;line-height:1;color:#5f6368;display:flex;align-items:center;justify-content:center}
+.lc-navbtn:hover{background:#f1f3f4;border-color:#c4c9ce}
+.lc-data{min-width:130px;text-align:center;line-height:1.2}
+.lc-data b{font-size:13px;color:#202124;text-transform:capitalize}
+.lc-data small{display:block;font-size:11px;color:#80868b}
+.lc-hoje{border:1px solid #dcdfe3;background:#fff;border-radius:8px;padding:7px 12px;cursor:pointer;font-size:12px;color:#5f6368}
+.lc-hoje:hover{background:#f1f3f4}
+.lc-nav select{width:auto;padding:7px 10px;border-radius:8px;border:1px solid #dcdfe3;font-size:12px}
+.lc-vazio{border:1px dashed #d4d7db;border-radius:12px;padding:34px;text-align:center;color:#80868b;font-size:13px;background:#fafbfc}
+
+.lc-card{border:1px solid #e6e8ea;border-radius:12px;background:#fff;margin-bottom:18px;overflow:hidden;
+  box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.lc-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;
+  padding:12px 16px;border-bottom:1px solid #eceef0;background:#fbfbfa}
+.lc-head-esq{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.lc-hora-badge{background:var(--v);color:#fff;border-radius:7px;padding:4px 10px;font-size:12px;font-weight:700;letter-spacing:.01em}
+.lc-head h4{margin:0;font-size:15px;color:#202124;font-weight:600}
+.lc-chip{background:#f1f3f4;border:1px solid #e3e5e8;border-radius:20px;padding:2px 10px;font-size:11px;color:#5f6368}
+.lc-chip.mod-Conn{background:#fdecec;border-color:#f5cccc;color:#a33}
+.lc-chip.mod-Inter{background:#e8f0fb;border-color:#c9dcf2;color:#2a5d8f}
+.lc-chip.mod-Kids{background:#fff6e0;border-color:#ffe2a8;color:#8a6100}
+.lc-resumo{font-size:12px;color:#70757a;white-space:nowrap}
+.lc-resumo b{color:var(--v)}
+
+.lc-wrap{overflow-x:auto}
+.lc-tabela{border-collapse:separate;border-spacing:0;width:100%;font-size:13px}
+.lc-tabela th,.lc-tabela td{border-bottom:1px solid #f0f1f2;padding:0}
+.lc-tabela thead th{background:#fbfbfa;font-weight:600;color:#5f6368;font-size:11px;text-transform:uppercase;
+  letter-spacing:.03em;padding:8px 10px;text-align:left;white-space:nowrap;border-bottom:1px solid #e6e8ea}
+.lc-tabela thead th.lc-dia{text-align:center;padding:6px 0;width:34px;min-width:34px;font-size:10px;color:#80868b}
+.lc-tabela thead th.lc-num{text-align:center;padding:4px 0;width:34px;min-width:34px;font-size:12px;
+  text-transform:none;letter-spacing:0;color:#3c4043;background:#f4f5f6;font-weight:700}
+.lc-tabela thead th.hoje{background:var(--vc);color:#155724}
+.lc-tabela tbody tr:hover{background:#fafbfc}
+.lc-tabela tbody tr:last-child td{border-bottom:0}
+.lc-tabela td{padding:7px 10px;color:#3c4043;white-space:nowrap}
+.lc-nome{font-weight:600;color:#202124;position:sticky;left:0;background:#fff;z-index:1;min-width:190px;
+  box-shadow:1px 0 0 #f0f1f2}
+.lc-tabela tbody tr:hover .lc-nome{background:#fafbfc}
+.lc-cel{text-align:center;padding:2px !important;width:34px;min-width:34px}
+.lc-cel.hoje{background:rgba(212,237,218,.35)}
+.lc-tog{width:26px;height:26px;border-radius:50%;border:1.5px dashed #d4d7db;background:transparent;cursor:pointer;
+  display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:transparent;
+  transition:background .1s,border-color .1s,color .1s;padding:0}
+.lc-tog:hover{border-color:var(--v);background:#f1f7f4}
+.lc-tog.p{background:#34a853;border:1.5px solid #2d9147;color:#fff}
+.lc-tog.f{background:#fdecec;border:1.5px solid #e88;color:#c5221f}
+.lc-legenda{font-size:11px;color:#80868b;padding:8px 16px;border-top:1px solid #f0f1f2;background:#fbfbfa}
+.lc-legenda i{display:inline-flex;width:14px;height:14px;border-radius:50%;vertical-align:-2px;margin:0 3px 0 10px}
+.lc-legenda i.p{background:#34a853}.lc-legenda i.f{background:#fdecec;border:1.5px solid #e88}
+.lc-legenda i.v{border:1.5px dashed #d4d7db}
+
+#lc-dialog-corpo .mat-linha{display:flex;justify-content:space-between;align-items:center;gap:12px;
+  border:1px solid #e6e8ea;border-radius:10px;padding:10px 12px;margin-bottom:8px}
+#lc-dialog-corpo .mat-linha b{font-size:13px}
+#lc-dialog-corpo .mat-linha small{display:block;color:#70757a;font-size:11px}
+#lc-dialog-corpo .acoes{display:flex;gap:6px;flex-shrink:0}
+#lc-dialog-corpo .bt{border:1px solid #dcdfe3;background:#fff;border-radius:8px;padding:6px 12px;cursor:pointer;font-size:12px}
+#lc-dialog-corpo .bt.p.on{background:#34a853;border-color:#2d9147;color:#fff;font-weight:700}
+#lc-dialog-corpo .bt.f.on{background:#fdecec;border-color:#e88;color:#c5221f;font-weight:700}
+#lc-dialog-corpo .aviso-dia{background:#fef7e0;border:1px solid #fde293;border-radius:8px;padding:8px 10px;
+  font-size:12px;color:#7a5900;margin-bottom:10px}
+
 @media print {
   #sidebar, #load, #impressao-controles { display:none !important; }
   .tab:not(#tab-impressao) { display:none !important; }
@@ -148,6 +237,8 @@ button.acao:disabled{background:#c9c9c9;color:#f3f3f3;cursor:not-allowed;animati
 <div id="load"></div>
 <div id="sidebar">
 <button class="on" onclick="aba('inicio',this)">Início</button>
+<button onclick="aba('presenca',this)">Presença</button>
+<button onclick="aba('dashboard',this)">Dashboard</button>
 <button onclick="aba('alunos',this)">Alunos</button>
 <button onclick="aba('turmas',this)">Turmas</button>
 <button onclick="aba('horarios',this)">Horários</button>
@@ -252,6 +343,43 @@ Os horários da matriz costumam ser fixos e raramente mudam. Confirma que quer e
 </sl-dialog>
 
 <div id="tab-inicio" class="tab on">
+<div class="home-hero">
+<div class="home-hero-txt">
+<h2>Wizard Naviraí — Recepção</h2>
+<p id="home-data">—</p>
+</div>
+<button class="home-cta" onclick="abaPor('presenca')">
+<span class="home-cta-ic"></span>
+<span><b>Lançar presença</b><small id="home-cta-sub">turma de agora</small></span>
+</button>
+</div>
+<div class="home-cards" id="home-cards"></div>
+</div>
+
+<div id="tab-presenca" class="tab">
+<div class="lc-topo">
+<div class="lc-busca sug">
+<span class="lc-busca-ic"></span>
+<input id="lc-busca" placeholder="Buscar aluno para lançar presença..." autocomplete="off">
+<div class="lista" id="lc-sug"></div>
+</div>
+<div class="lc-nav">
+<button type="button" class="lc-navbtn" onclick="lcDia(-1)" title="Dia anterior">‹</button>
+<div class="lc-data"><b id="lc-data-txt">—</b><small id="lc-data-sub"></small></div>
+<button type="button" class="lc-navbtn" onclick="lcDia(1)" title="Próximo dia">›</button>
+<button type="button" class="lc-hoje" onclick="lcHoje()">Hoje</button>
+<select id="lc-hora" onchange="lcCarregar()"></select>
+</div>
+</div>
+<div id="lc-blocos"></div>
+</div>
+
+<sl-dialog id="lc-dialog" label="Lançar presença">
+<div id="lc-dialog-corpo"></div>
+<sl-button slot="footer" onclick="document.getElementById('lc-dialog').hide()">Fechar</sl-button>
+</sl-dialog>
+
+<div id="tab-dashboard" class="tab">
 <div id="dash" class="dash-cards"></div>
 <div class="visao-filtros">Clique nas pílulas para filtrar a tabela (contagem ao lado de cada opção); os cabeçalhos ordenam.</div>
 <div id="filtros-inicio"></div>
@@ -305,11 +433,16 @@ var notyf=new Notyf({duration:4200,position:{x:'center',y:'bottom'},dismissible:
 function msg(t,erro){if(erro)notyf.error(t);else notyf.success(t)}
 function norm(s){return String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')}
 function debounce(fn,ms){var t;return function(){var a=arguments;clearTimeout(t);t=setTimeout(function(){fn.apply(null,a)},ms)}}
-function aba(n,btn){document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('on')});document.querySelectorAll('#sidebar button').forEach(function(b){b.classList.remove('on')});$('tab-'+n).classList.add('on');btn.classList.add('on');if(n==='horarios')run('getMatriz',[],function(m){MAT=m;matRender();dirty('mat',false);cbMontar()});if(n==='inicio')renderInicio();if(n==='backup')renderBackup()}
-function abaPor(n){aba(n,document.querySelectorAll('#sidebar button')[{inicio:0,alunos:1,turmas:2,horarios:3,impressao:4,backup:5}[n]])}
+function aba(n,btn){document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('on')});document.querySelectorAll('#sidebar button').forEach(function(b){b.classList.remove('on')});$('tab-'+n).classList.add('on');btn.classList.add('on');
+if(n==='horarios')run('getMatriz',[],function(m){MAT=m;matRender();dirty('mat',false);cbMontar()});
+if(n==='inicio')renderHome();if(n==='dashboard')renderDashboard();if(n==='presenca')lcCarregar();if(n==='backup')renderBackup()}
+/* acha o botão pelo próprio onclick em vez de um mapa de índices — assim adicionar/reordenar abas no
+   sidebar não quebra a navegação por código (o mapa fixo já saiu de sincronia uma vez) */
+function abaPor(n){var alvo=null;document.querySelectorAll('#sidebar button').forEach(function(b){if(String(b.getAttribute('onclick')).indexOf("'"+n+"'")>=0)alvo=b});if(alvo)aba(n,alvo)}
 function iconesEstaticos(){
 document.querySelectorAll('#al-salvar .btn-ic, #tu-salvar .btn-ic, #mat-salvar .btn-ic').forEach(function(el){el.innerHTML=icon('save',14)});
 document.querySelectorAll('#btn-imprimir .btn-ic').forEach(function(el){el.innerHTML=icon('printer',14)});
+document.querySelectorAll('.lc-busca-ic').forEach(function(el){el.innerHTML=icon('search',15)});
 }
 
 /* prévia ao vivo: mesmo container renderiza a tabela .ficha em miniatura via blocos.js */
@@ -340,11 +473,10 @@ inp.addEventListener('keydown',function(e){if(e.key==='Enter'&&inp.value.trim())
 return{get:function(){return sel.slice()},set:function(v){sel=v.slice();draw()}}
 }
 
-var ALUNOS_OK=false,INICIO_FEITO=false;
-function tentarInicio(){if(DOM&&ALUNOS_OK&&!INICIO_FEITO){INICIO_FEITO=true;renderInicio()}}
+var ALUNOS_OK=false;
 function init(){
-run('getDominios',[],function(d){DOM=d;TURMAS=d.turmas;montar();tentarInicio()});
-run('getAlunos',[],function(a){ALUNOS=a;ALUNOS_OK=true;tentarInicio()});
+run('getDominios',[],function(d){DOM=d;TURMAS=d.turmas;montar()});
+run('getAlunos',[],function(a){ALUNOS=a;ALUNOS_OK=true});
 }
 function montar(){
 var sit=$('al-sit');sit.innerHTML='';DOM.situacoes.forEach(function(s){var o=document.createElement('option');o.textContent=s.situacao;sit.appendChild(o)});
@@ -357,6 +489,9 @@ sugerir('al-busca','al-sug',function(){return ALUNOS},function(a){return a.nome+
 sugerir('nm-livro','nm-livro-sug',function(){return alSel?(DOM.livros||[]).filter(function(l){return !MATRICULAS.some(function(m){return m.livro===l.nome})}):[]},function(l){return l.nome+' — padrão '+l.tipoPadrao+(l.kids?' Kids':'')},function(l){novaMatriculaEscolhida(l);$('nm-livro').value=''});
 sugerir('tu-livro','tu-livro-sug',function(){return DOM?DOM.livros:[]},function(l){return l.nome+' — padrão '+l.tipoPadrao+(l.kids?' Kids':'')},tuAplicaLivro);
 sugerir('tu-busca','tu-sug',function(){return TURMAS||[]},function(t){return t.nome},tuCarregar);
+/* lançador: busca por qualquer pedaço do nome/ID (mesma regra de match do resto do app) */
+sugerir('lc-busca','lc-sug',function(){return ALUNOS},function(a){return a.nome+' ('+a.id+') — '+a.situacao},
+function(a){$('lc-busca').value='';lcAbrirDialog(a.id)});
 }
 
 /* ===== ALUNOS (cadastro + matrículas em livro, tudo na mesma tela) ===== */
@@ -620,7 +755,135 @@ else if(!(r.erros&&r.erros.length))msg('Nada a copiar.');
 if(r.erros&&r.erros.length)msg('⚠️ '+r.erros.join(' · '),true);
 renderBackup()})}
 
-/* ===== INÍCIO (dashboard + Tabulator: todos os alunos×matrículas num só lugar) ===== */
+/* ===== INÍCIO (home: atalhos para as páginas + chamada do lançador) ===== */
+var PAGINAS=[
+{aba:'presenca',ic:'clipboard-check',titulo:'Presença',desc:'Lançar quem veio na aula de agora'},
+{aba:'dashboard',ic:'layout-dashboard',titulo:'Dashboard',desc:'Gráficos e tabela de todas as matrículas'},
+{aba:'alunos',ic:'users',titulo:'Alunos',desc:'Cadastro, matrículas em livro e agenda'},
+{aba:'turmas',ic:'graduation-cap',titulo:'Turmas',desc:'Salas: livro, dias, horário e professoras'},
+{aba:'horarios',ic:'calendar-clock',titulo:'Horários',desc:'Matriz de horários disponíveis'},
+{aba:'impressao',ic:'printer',titulo:'Impressão',desc:'Fichas de frequência em A4 para imprimir'},
+{aba:'backup',ic:'hard-drive',titulo:'Backup',desc:'Cópias do banco no HD e no OneDrive'}
+];
+function dataExtenso(iso){var d=iso?new Date(iso+'T12:00:00'):new Date();
+return d.toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}
+function renderHome(){
+$('home-data').textContent=dataExtenso(null);
+document.querySelector('.home-cta-ic').innerHTML=icon('clipboard-check',22);
+var box=$('home-cards');
+if(!box.children.length)PAGINAS.forEach(function(p){
+var b=document.createElement('button');b.type='button';b.className='home-card';b.onclick=function(){abaPor(p.aba)};
+b.innerHTML='<span class="ic">'+icon(p.ic,20)+'</span><span><b>'+escBloco(p.titulo)+'</b><span>'+escBloco(p.desc)+'</span></span>';
+box.appendChild(b)});
+/* resumo do que está acontecendo agora — mesma fonte do lançador, sem duplicar regra */
+run('getLancador',[{}],function(r){
+var n=(r.blocos||[]).reduce(function(s,b){return s+b.alunos.length},0);
+$('home-cta-sub').textContent=r.hora?(r.hora+' · '+n+' aluno(s) na sala'):'nenhuma aula hoje';
+})}
+
+/* ===== PRESENÇA (lançador / check-in) ===== */
+var LC=null,LC_DATA=null,LC_HORA=null,LC_INFO=null;
+function isoLocal(d){return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2)}
+function lcCarregar(){run('getLancador',[{data:LC_DATA,hora:LC_HORA}],function(r){LC=r;LC_DATA=r.data;LC_HORA=r.hora;lcRender()})}
+function lcDia(delta){var d=new Date((LC_DATA||isoLocal(new Date()))+'T12:00:00');d.setDate(d.getDate()+delta);
+LC_DATA=isoLocal(d);LC_HORA=null;lcCarregar()}
+function lcHoje(){LC_DATA=null;LC_HORA=null;lcCarregar()}
+function lcRender(){
+$('lc-data-txt').textContent=dataExtenso(LC.data).replace(/ de \d{4}$/,'');
+$('lc-data-sub').textContent=LC.ehHoje?'hoje':'';
+var sel=$('lc-hora');sel.innerHTML='';
+if(!LC.horas.length){var o=document.createElement('option');o.textContent='sem aulas';sel.appendChild(o);sel.disabled=true}
+else{sel.disabled=false;LC.horas.forEach(function(h){var o=document.createElement('option');o.value=h;o.textContent=h;if(h===LC.hora)o.selected=true;sel.appendChild(o)})}
+var box=$('lc-blocos');box.innerHTML='';
+if(!LC.blocos.length){box.innerHTML='<div class="lc-vazio">Nenhuma turma neste dia/horário.<br><small>Use as setas para trocar de dia ou escolha outro horário acima.</small></div>';return}
+LC.blocos.forEach(function(b){box.appendChild(lcCard(b))});
+}
+function lcCard(b){
+var card=document.createElement('div');card.className='lc-card';
+var chipCls=b.tipoKey==='Kids'?'mod-Kids':(b.mod==='Conn'?'mod-Conn':'mod-Inter');
+var head=document.createElement('div');head.className='lc-head';
+head.innerHTML='<div class="lc-head-esq"><span class="lc-hora-badge">'+escBloco(b.hora+' – '+b.fim)+'</span>'
++'<h4>'+escBloco(tituloBloco(b))+'</h4><span class="lc-chip '+chipCls+'">'+escBloco(b.tipoKey==='Kids'?'Conn Kids':b.mod)+'</span>'
++(b.profs.length?'<span class="lc-chip">'+escBloco(b.profs.join(', '))+'</span>':'')+'</div>'
++'<div class="lc-resumo"></div>';
+card.appendChild(head);
+var wrap=document.createElement('div');wrap.className='lc-wrap';
+var tb=document.createElement('table');tb.className='lc-tabela';
+/* dois cabeçalhos, como na ficha impressa: dia da semana em cima, número do dia do mês embaixo */
+var h1='<tr><th class="lc-th-aluno" rowspan="2">Aluno</th><th rowspan="2">Livro</th><th rowspan="2">Dias</th><th rowspan="2">Aula</th>';
+var h2='<tr>';
+LC.colunas.forEach(function(c){h1+='<th class="lc-dia'+(c.hoje?' hoje':'')+'">'+escBloco(c.codigo)+'</th>';
+h2+='<th class="lc-num'+(c.hoje?' hoje':'')+'">'+c.numero+'</th>'});
+tb.innerHTML='<thead>'+h1+'</th></tr>'+h2+'</tr></thead>';
+var tbody=document.createElement('tbody');
+b.alunos.forEach(function(al){
+var tr=document.createElement('tr');
+var tipoCel=b.vip?(b.mod+' Vip'):(b.tipoKey==='Kids'?'Conn':b.mod);
+tr.innerHTML='<td class="lc-nome">'+escBloco(al.nome)+'</td><td>'+escBloco(al.livro)+'</td><td>'+escBloco(al.dias)+'</td><td>'+escBloco(tipoCel)+'</td>';
+LC.colunas.forEach(function(c){
+var td=document.createElement('td');td.className='lc-cel'+(c.hoje?' hoje':'');
+var bt=document.createElement('button');bt.type='button';
+var st=al.presencas[c.data]||null;
+bt.className='lc-tog'+(st==='P'?' p':st==='F'?' f':'');bt.textContent=st==='F'?'✕':'';
+bt.title=escBloco(al.nome)+' — '+c.numero+'/'+(LC.data.slice(5,7))+(st?(st==='P'?' · presente':' · falta'):' · não lançado');
+bt.onclick=function(){lcToggle(bt,al,c.data,card)};
+td.appendChild(bt);tr.appendChild(td)});
+tbody.appendChild(tr)});
+tb.appendChild(tbody);wrap.appendChild(tb);card.appendChild(wrap);
+var leg=document.createElement('div');leg.className='lc-legenda';
+leg.innerHTML='Clique na célula para alternar:<i class="v"></i>não lançado<i class="p"></i>presente<i class="f"></i>falta';
+card.appendChild(leg);
+lcResumo(card,b);
+return card;
+}
+function lcResumo(card,b){ // "3 de 7 lançados hoje" — só a coluna de hoje interessa no dia a dia
+var hoje=LC.colunas.filter(function(c){return c.hoje})[0];
+var el=card.querySelector('.lc-resumo');
+if(!hoje){el.textContent=b.alunos.length+' aluno(s)';return}
+var n=b.alunos.filter(function(a){return a.presencas[hoje.data]}).length;
+el.innerHTML='<b>'+n+'</b> de '+b.alunos.length+' lançado(s) hoje';
+}
+function lcToggle(bt,al,data,card){
+var atual=bt.classList.contains('p')?'P':bt.classList.contains('f')?'F':null;
+var prox=atual===null?'P':(atual==='P'?'F':null);
+run('lancarPresenca',[{idMatricula:al.id,livro:al.livro,data:data,status:prox}],function(){
+if(prox)al.presencas[data]=prox;else delete al.presencas[data];
+bt.className='lc-tog'+(prox==='P'?' p':prox==='F'?' f':'');bt.textContent=prox==='F'?'✕':'';
+var b=LC.blocos.filter(function(x){return x.alunos.indexOf(al)>=0})[0];
+if(b&&card)lcResumo(card,b);
+})}
+/* busca rápida: qualquer aluno, mesmo fora do horário — a presença é do DIA, então cai no
+   horário próprio dele (regra da recepção) */
+function lcAbrirDialog(id){
+run('infoPresencaAluno',[{idMatricula:id,data:LC?LC.data:isoLocal(new Date())}],function(inf){
+LC_INFO=inf;
+var h='<div style="margin-bottom:10px"><b style="font-size:15px">'+escBloco(inf.nome)+'</b> '
++'<span class="badge '+(inf.status==='Ativado'?'b-on':'b-off')+'">'+escBloco(inf.status)+'</span>'
++'<br><small style="color:#70757a">'+escBloco(inf.situacao)+' · matrícula '+escBloco(inf.id)+'</small></div>'
++'<div style="font-size:12px;color:#5f6368;margin-bottom:10px">Lançando em <b>'+escBloco(dataExtenso(inf.data||(LC?LC.data:null)))+'</b></div>';
+if(!inf.matriculas.length)h+='<div class="aviso-dia">Este aluno não tem matrícula em livro — cadastre na aba Alunos antes de lançar presença.</div>';
+inf.matriculas.forEach(function(m,i){
+if(!m.ehDiaDele)h+='<div class="aviso-dia">⚠️ <b>'+escBloco(m.livro)+'</b>: hoje não é dia dele ('+escBloco(m.dias.join('|')||'sem agenda')+'). Pode lançar mesmo assim — a presença vale para o dia e aparece no horário normal dele.</div>';
+h+='<div class="mat-linha"><div><b>'+escBloco(m.livro)+'</b><small>'+escBloco(m.dias.join('|')||'sem agenda')
++(m.horarioNoDia.length?' · '+escBloco(m.horarioNoDia.join(', ')):'')+(m.vip?' · VIP':'')+'</small></div>'
++'<div class="acoes"><button class="bt p'+(m.status==='P'?' on':'')+'" onclick="lcDialogLancar('+i+',\'P\')">Presente</button>'
++'<button class="bt f'+(m.status==='F'?' on':'')+'" onclick="lcDialogLancar('+i+',\'F\')">Falta</button>'
++'<button class="bt" onclick="lcDialogLancar('+i+',null)">Limpar</button></div></div>'});
+$('lc-dialog-corpo').innerHTML=h;
+var dlg=$('lc-dialog');
+if(dlg&&typeof dlg.show==='function')dlg.show();
+else msg('Não foi possível abrir a janela — recarregue a página (F5).',true);
+})}
+function lcDialogLancar(i,status){
+var m=LC_INFO.matriculas[i];if(!m)return;
+run('lancarPresenca',[{idMatricula:LC_INFO.id,livro:m.livro,data:LC?LC.data:isoLocal(new Date()),status:status}],function(){
+m.status=status;
+msg(status==='P'?'Presença lançada: '+LC_INFO.nome+' ('+m.livro+').':status==='F'?'Falta lançada: '+LC_INFO.nome+' ('+m.livro+').':'Lançamento removido.');
+lcAbrirDialog(LC_INFO.id); // redesenha os botões com o estado novo
+lcCarregar();              // e reflete na tabela do bloco
+})}
+
+/* ===== DASHBOARD (gráficos + Tabulator: todos os alunos×matrículas num só lugar) ===== */
 var TABELA_GERAL=null,TABELA_INICIADA=false,FILTROS={},FILTRO_NOME='';
 var CORES_CAT={'Kids':'#e69138','Teens':'#6aa84f','Ws':'#3d85c6','Outros Idiomas':'#8e7cc3'};
 var ORD_COD=['2ª','3ª','4ª','5ª','6ª','Sáb','Dom'];
@@ -704,7 +967,11 @@ if(def.lista){if(!(v||[]).some(function(x){return sel[x]}))return false}
 else if(!sel[String(v)])return false}
 return true})}
 function pillsFmt(cell){return (cell.getValue()||[]).map(function(v){return '<span class="pill-mini">'+escBloco(v)+'</span>'}).join('')}
-function renderInicio(){run('getVisaoGeral',[],function(rows){
+/* render sob demanda (não na carga): montar o Tabulator num container escondido calcula larguras
+   erradas — só monta quando a aba Dashboard aparece de fato */
+function renderDashboard(){
+if(!DOM||!ALUNOS_OK){setTimeout(renderDashboard,150);return} // domínios/alunos ainda carregando
+run('getVisaoGeral',[],function(rows){
 renderDash(rows);renderFiltros(rows);
 if(TABELA_GERAL){TABELA_GERAL.setData(rows);aplicarFiltros();return}
 TABELA_GERAL=new Tabulator('#grade-geral',{data:rows,layout:'fitColumns',height:'62vh',placeholder:'Nenhuma matrícula ainda.',
@@ -730,7 +997,7 @@ init();
 ['input','change'].forEach(function(ev){el.addEventListener(ev,function(){dirty(par[1],true)})});
 el.addEventListener('click',function(e){if(e.target&&e.target.tagName==='B'&&e.target.parentElement&&String(e.target.parentElement.className).indexOf('pill')>=0)dirty(par[1],true)})});
 bindBuscas();
-iconesEstaticos();matAtualizarLock();
+iconesEstaticos();matAtualizarLock();renderHome(); // Início é a aba visível na abertura
 setTimeout(function(){['al','tu','mat'].forEach(function(s){dirty(s,false)})},0);
 setTimeout(function(){if(!DOM)msg('Os domínios não carregaram — o servidor local está rodando? (deno run -A main.ts) Recarregue a página.',true)},4000);
 </script>

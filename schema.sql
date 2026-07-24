@@ -88,6 +88,13 @@ CREATE TABLE aula_professor (
   funcionario_id TEXT NOT NULL REFERENCES funcionarios(id),
   PRIMARY KEY (aula_id, funcionario_id)
 );
+CREATE TABLE IF NOT EXISTS presenca (  -- lançador de presença: 1 linha = aluno × livro × DIA
+  id_matricula TEXT NOT NULL REFERENCES alunos(id_matricula) ON DELETE CASCADE,
+  livro TEXT NOT NULL,                 -- texto solto de propósito: trocar de livro não apaga frequência
+  data TEXT NOT NULL,                  -- 'AAAA-MM-DD' (a hora não entra: presença vale para o dia)
+  status TEXT NOT NULL,                -- 'P' presente | 'F' falta
+  PRIMARY KEY (id_matricula, livro, data)
+);
 CREATE TABLE aluno_situacao_historico (  -- linha do tempo manual: quando o aluno entrou em cada situação
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   id_matricula TEXT NOT NULL REFERENCES alunos(id_matricula) ON DELETE CASCADE,

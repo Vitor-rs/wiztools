@@ -422,7 +422,7 @@ Os horários da matriz costumam ser fixos e raramente mudam. Confirma que quer e
 <div class="lc-data"><b id="lc-data-txt">—</b><small id="lc-data-sub"></small></div>
 <button type="button" class="lc-navbtn" onclick="lcDia(1)" title="Próximo dia">›</button>
 <button type="button" class="lc-hoje" onclick="lcHoje()">Hoje</button>
-<select id="lc-hora" onchange="lcCarregar()"></select>
+<select id="lc-hora" onchange="lcHora(this.value)"></select>
 </div>
 </div>
 <div id="lc-blocos"></div>
@@ -493,7 +493,9 @@ function norm(s){return String(s).toLowerCase().normalize('NFD').replace(/[\u030
 function debounce(fn,ms){var t;return function(){var a=arguments;clearTimeout(t);t=setTimeout(function(){fn.apply(null,a)},ms)}}
 function aba(n,btn){document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('on')});document.querySelectorAll('#sidebar button').forEach(function(b){b.classList.remove('on')});$('tab-'+n).classList.add('on');btn.classList.add('on');
 if(n==='horarios')run('getMatriz',[],function(m){MAT=m;matRender();dirty('mat',false);cbMontar()});
-if(n==='inicio')renderHome();if(n==='dashboard')renderDashboard();if(n==='presenca')lcCarregar();if(n==='backup')renderBackup()}
+/* Presença sempre reabre no "agora" (lcHoje zera data+hora): se a recepcionista espiou outro
+   horário e trocou de aba, ao voltar ela vê de novo a turma que está em aula neste momento */
+if(n==='inicio')renderHome();if(n==='dashboard')renderDashboard();if(n==='presenca')lcHoje();if(n==='backup')renderBackup()}
 /* acha o botão pelo próprio onclick em vez de um mapa de índices — assim adicionar/reordenar abas no
    sidebar não quebra a navegação por código (o mapa fixo já saiu de sincronia uma vez) */
 function abaPor(n){var alvo=null;document.querySelectorAll('#sidebar button').forEach(function(b){if(String(b.getAttribute('onclick')).indexOf("'"+n+"'")>=0)alvo=b});if(alvo)aba(n,alvo)}
@@ -901,9 +903,17 @@ $('home-cta-sub').textContent=r.hora?(r.hora+' · '+n+' aluno(s) na sala'):'nenh
 /* ===== PRESENÇA (lançador / check-in) ===== */
 var LC=null,LC_DATA=null,LC_HORA=null,LC_INFO=null;
 function isoLocal(d){return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2)}
-function lcCarregar(){run('getLancador',[{data:LC_DATA,hora:LC_HORA}],function(r){LC=r;LC_DATA=r.data;LC_HORA=r.hora;lcRender()})}
+/* LC_SEQ descarta resposta obsoleta: trocando de hora/dia rápido, duas chamadas ficam em voo e a
+   que chegar por último vence — mesmo sendo a mais antiga, o que deixava a tabela numa hora que
+   não era a selecionada. Mesmo padrão do PREV_SEQ das prévias. */
+var LC_SEQ=0;
+function lcCarregar(){var seq=++LC_SEQ;
+run('getLancador',[{data:LC_DATA,hora:LC_HORA}],function(r){if(seq!==LC_SEQ)return;LC=r;LC_DATA=r.data;LC_HORA=r.hora;lcRender()})}
 function lcDia(delta){var d=new Date((LC_DATA||isoLocal(new Date()))+'T12:00:00');d.setDate(d.getDate()+delta);
 LC_DATA=isoLocal(d);LC_HORA=null;lcCarregar()}
+/* trocar a hora no seletor: precisa GRAVAR a escolha antes de recarregar — sem isso lcCarregar()
+   reenviava LC_HORA (a hora antiga), o servidor devolvia a mesma e o select voltava sozinho */
+function lcHora(h){LC_HORA=h||null;lcCarregar()}
 function lcHoje(){LC_DATA=null;LC_HORA=null;lcCarregar()}
 function lcRender(){
 $('lc-data-txt').textContent=dataExtenso(LC.data).replace(/ de \d{4}$/,'');

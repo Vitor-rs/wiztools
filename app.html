@@ -111,7 +111,7 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
 .matricula-card h4{margin:0;color:var(--v);font-size:14px}
 .matricula-card .remover{background:none;border:0;color:var(--tx3);cursor:pointer;font-size:16px;padding:2px 6px;line-height:1}
 .matricula-card .remover:hover{color:var(--perigo)}
-.grade-horas{--w-hora:38px;display:grid;gap:3px;margin-top:6px;justify-content:start} /* 38px ≈ 1cm */
+.grade-horas{--w-hora:52px;display:grid;gap:3px;margin-top:6px;justify-content:start} /* comporta "07-08" */
 .grade-horas .hd{font-weight:bold;color:var(--v);font-size:11px;text-align:center;padding:2px 0}
 /* crosshair: realce leve da linha (hora) e da coluna (dia) sob o ponteiro. box-shadow inset em vez
    de background para tingir POR CIMA da cor própria do chip, sem apagá-la */
@@ -126,7 +126,11 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
    estilo futuro engrosse borda/padding — o layout nunca mais é empurrado por hover */
 .grade-horas .chip-hora,.grade-horas .cel-vazia{height:25px}
 .grade-horas .cel-vazia{border-radius:6px}
-.chip-hora{border:1px solid #ccc;background:#f1f3f4;border-radius:6px;padding:4px 2px;font-size:11px;cursor:pointer;color:var(--tx2);width:100%;text-align:center}
+.chip-hora{border:1px solid #ccc;background:#f1f3f4;border-radius:6px;padding:4px 2px;font-size:11px;cursor:pointer;color:var(--tx2);width:100%;text-align:center;
+  font-variant-numeric:tabular-nums;white-space:nowrap}
+/* hora de início em destaque; a de fim menor e mais apagada, só para dar a noção do intervalo */
+.chip-hora b{font-weight:600}
+.chip-hora i{font-style:normal;font-size:10px;opacity:.62;margin-left:1px}
 .chip-hora.on{background:var(--vc);border-color:var(--v);color:#155724;font-weight:bold}
 .chip-hora.inativa{border-color:#e8a33d;background:#fef7e0;color:#8a5a00}
 .chip-hora.inativa.on{background:#fde293;border-color:#e8a33d;color:#5f4200;font-weight:bold}
@@ -801,13 +805,16 @@ function reg(el,dia,hora){el.dataset.dia=dia;(porDia[dia]=porDia[dia]||[]).push(
 if(hora){el.dataset.hora=hora;(porHora[hora]=porHora[hora]||[]).push(el)}}
 dias.forEach(function(d){var hd=document.createElement('div');hd.className='hd';hd.textContent=d.slice(0,3);reg(hd,d,null);grid.appendChild(hd)});
 horas.forEach(function(hx){
-var hn=('0'+parseInt(hx,10)).slice(-2)+'h';
+/* rótulo "07-08": a aula dura 1h, então mostrar início e fim deixa claro o intervalo que a
+   marcação cobre — antes era só "07h" e dava margem a dúvida */
+var hIni=('0'+parseInt(hx,10)).slice(-2), hFim=('0'+(parseInt(hx,10)+1)).slice(-2);
 dias.forEach(function(dia){
 var disponivel=(DOM.horariosPorDia[dia]||[]).indexOf(hx)>=0;
 var marcado=(schedule[dia]||[]).indexOf(hx)>=0;
 if(!disponivel&&!marcado){ // dia não abre nessa hora: célula vazia, mas ainda participa do crosshair
 var vazia=document.createElement('div');vazia.className='cel-vazia';reg(vazia,dia,hx);grid.appendChild(vazia);return}
-var chip=document.createElement('button');chip.type='button';chip.className='chip-hora';chip.textContent=hn;
+var chip=document.createElement('button');chip.type='button';chip.className='chip-hora';
+chip.innerHTML='<b>'+hIni+'</b><i>-'+hFim+'</i>';chip.title=hIni+':00 às '+hFim+':00';
 reg(chip,dia,hx);
 if(!disponivel){chip.classList.add('inativa');chip.title='Horário desativado na matriz — mantido porque o aluno já tem aula nele; se desmarcar e salvar, não dá para remarcar.'}
 if(marcado)chip.classList.add('on');

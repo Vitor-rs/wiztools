@@ -733,6 +733,64 @@ const api: Record<string, (a: any) => unknown> = {
     return { id: alu.id_matricula, nome: alu.nome, situacao: alu.situacao, status: alu.status, matriculas };
   },
 
+  /* ===== horário em lote =====
+     Turma fechada (Conn) costuma ter o mesmo padrão de horas para todo mundo — ex.: italiano de
+     sábado, 10h às 12h, que são DUAS aulas por aluno. Em vez de marcar 10 e 11 aluno por aluno,
+     a recepção monta o horário de um e replica para os colegas do bloco. */
+  getColegasDeHorario({ idMatricula, itens }: any) {
+    if (!Array.isArray(itens) || !itens.length) throw new Error("Marque ao menos um dia/horário.");
+    const chaves = new Set(itens.map((it: any) => it.dia + "|" + it.horario));
+    /* colega = quem tem aula em ALGUM dos slots marcados (é o que caracteriza "mesmo bloco").
+       O livro de cada um é preservado: numa sala Inter os livros diferem entre alunos. */
+    const ids = new Set<string>();
+    for (const it of itens)
+      A("SELECT DISTINCT id_matricula FROM aulas WHERE dia=? AND hora=?", it.dia, it.horario)
+        .forEach(r => ids.add(r.id_matricula));
+    ids.add(idMatricula);
+    return [...ids].map(id => {
+      const aulas = A(`SELECT a.dia, a.hora, a.livro FROM aulas a WHERE a.id_matricula=? ORDER BY a.hora`, id);
+      const livro = aulas.find(a => chaves.has(a.dia + "|" + a.hora))?.livro || aulas[0]?.livro || null;
+      const doLivro = aulas.filter(a => a.livro === livro);
+      const atuais = new Set(doLivro.map(a => a.dia + "|" + a.hora));
+      const mat = livro ? getMatricula(id, livro) : null;
+      return { id, nome: G("SELECT nome FROM alunos WHERE id_matricula=?", id)?.nome, livro,
+        modalidade: mat?.modalidade || null, vip: mat?.vip === 1,
+        horarioAtual: doLivro.map(a => ({ dia: a.dia, horario: a.hora })),
+        aulasNoLivro: doLivro.length,
+        // já bate exatamente com o horário proposto? então não há o que aplicar
+        igual: atuais.size === chaves.size && [...chaves].every(k => atuais.has(k)),
+        ehOAluno: id === idMatricula };
+    }).sort((a, b) => String(a.nome).localeCompare(String(b.nome), "pt"));
+  },
+  /* aplica o mesmo conjunto de dia/hora aos alunos escolhidos, cada um no SEU livro e mantendo
+     os professores que já tinha (o vínculo de professor é outro fluxo, não se mexe aqui). */
+  aplicarHorarioEmLote({ itens, alunos }: any) {
+    if (!Array.isArray(itens) || !itens.length) throw new Error("Marque ao menos um dia/horário.");
+    if (!Array.isArray(alunos) || !alunos.length) throw new Error("Escolha ao menos um aluno.");
+    for (const it of itens)
+      if (!G("SELECT 1 FROM horario_ativo WHERE dia=? AND hora=? AND ativo=1", it.dia, it.horario))
+        throw new Error("Horário " + it.horario + " não está ativado para " + it.dia + ".");
+    let alterados = 0, aulasCriadas = 0;
+    const avisos: string[] = [];
+    for (const al of alunos) {
+      const livro = al.livro;
+      if (!livro || !getMatricula(al.id, livro)) { avisos.push(al.nome + ": sem matrícula no livro — ignorado."); continue; }
+      // professores atuais desse aluno neste livro, para não se perderem ao recriar as aulas
+      const profs = A(`SELECT DISTINCT f.nome FROM aula_professor ap JOIN aulas a ON a.id=ap.aula_id
+        JOIN funcionarios f ON f.id=ap.funcionario_id WHERE a.id_matricula=? AND a.livro=?`, al.id, livro).map((x: any) => x.nome);
+      const fids = idsDosProfs(profs);
+      R("DELETE FROM aulas WHERE id_matricula=? AND livro=?", al.id, livro);
+      for (const it of itens) {
+        R("DELETE FROM aulas WHERE id_matricula=? AND dia=? AND hora=?", al.id, it.dia, it.horario); // um aluno não fica em 2 lugares
+        const r = R("INSERT INTO aulas (id_matricula,dia,hora,livro) VALUES (?,?,?,?)", al.id, it.dia, it.horario, livro);
+        fids.forEach(f => R("INSERT INTO aula_professor VALUES (?,?)", r.lastInsertRowid, f));
+        aulasCriadas++;
+      }
+      alterados++;
+    }
+    return { ok: true, alunos: alterados, aulas: aulasCriadas, avisos };
+  },
+
   /* ===== funcionários / professores (CRUD da aba Professores) ===== */
   getFuncionarios: () => A("SELECT * FROM funcionarios ORDER BY nome").map(f => ({
     id: f.id, nome: f.nome, nomeCompleto: f.nome_completo,

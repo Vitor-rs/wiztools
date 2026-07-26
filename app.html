@@ -595,6 +595,12 @@ Os horários da matriz costumam ser fixos e raramente mudam. Confirma que quer e
 <div id="lc-hoje" style="display:none"></div>
 </div>
 
+<sl-dialog id="hlote-dialog" label="Aplicar horário à turma">
+<div id="hlote-corpo"></div>
+<sl-button slot="footer" onclick="document.getElementById('hlote-dialog').hide()">Cancelar</sl-button>
+<sl-button slot="footer" variant="primary" onclick="horaLoteAplicar()">Aplicar aos marcados</sl-button>
+</sl-dialog>
+
 <sl-dialog id="lote-dialog" label="Aplicar professores à turma">
 <div id="lote-corpo"></div>
 <sl-button slot="footer" onclick="document.getElementById('lote-dialog').hide()">Cancelar</sl-button>
@@ -866,10 +872,13 @@ var vipChk=document.createElement('input');vipChk.type='checkbox';vipChk.style.w
 vipLabel.appendChild(vipChk);vipLabel.appendChild(document.createTextNode(' VIP (sem turma)'));
 card.appendChild(vipLabel);
 
-var lblDias=document.createElement('label');lblDias.textContent='Dias e horários (marque um ou mais por dia)';card.appendChild(lblDias);
+var lblDias=document.createElement('label');lblDias.className='lbl-prof';
+lblDias.innerHTML='Dias e horários (marque um ou mais por dia) <button type="button" class="btn-link" title="Aplicar este mesmo horário aos colegas do bloco — útil em turma fechada de 2 aulas seguidas">aplicar à turma</button>';
+card.appendChild(lblDias);
 var schedule={};(MATRIC_AULAS[m.livro]||[]).forEach(function(x){(schedule[x.dia]=schedule[x.dia]||[]).push(x.horario)});
 var editor=criarEditorHoras(schedule,function(){atualizarPreviewDeb()});
 card.appendChild(editor);
+lblDias.querySelector('button').onclick=function(){horaLoteAbrir(m,editor)};
 
 var lblProf=document.createElement('label');lblProf.className='lbl-prof';
 lblProf.innerHTML='Professores <button type="button" class="btn-link" title="Aplicar estes professores aos colegas do mesmo dia e horário">aplicar à turma</button>';
@@ -1046,6 +1055,49 @@ del.onclick=function(){if(confirm('Remover '+m.nome+' desta turma? As aulas dele
 var tx=document.createElement('span');tx.innerHTML='<b>'+escBloco(m.nome)+'</b> ('+escBloco(m.id)+') · '+escBloco(m.dias.join('+'))+(m.divergente?' · <span class="tx-perigo">⚠️ livro diferente: '+escBloco(m.livros.join(', '))+' — considere ajustar</span>':'');
 d.appendChild(del);d.appendChild(tx);box.appendChild(d)})})}
 function tuExcluir(){if(!tuSel)return;if(!confirm('Excluir a turma '+tuSel.id+'? As aulas não são apagadas (a turma é deduzida).'))return;run('excluirTurma',[tuSel.id],function(){msg('Turma excluída.');run('getTurmas',[],function(x){TURMAS=x;if(DOM)DOM.turmas=x});tuNova()})}
+
+/* ===== horário em lote =====
+   Turma fechada (Conn) costuma ter o mesmo padrão de horas para todo mundo — o italiano de sábado
+   é 10h às 12h, ou seja DUAS aulas por aluno. Monta-se o horário de um e replica para o bloco.
+   Mesma filosofia do lote de professores: nunca aplica sozinho, sempre por escolha explícita. */
+var HLOTE={itens:[],colegas:[]};
+function horaLoteAbrir(m,editor){
+if(!alSel){msg('Escolha um aluno primeiro.',true);return}
+var itens=lerItensEditor(editor);
+if(!itens.length){msg('Marque ao menos um dia/horário antes de aplicar à turma.',true);return}
+HLOTE={itens:itens,colegas:[],livro:m.livro};
+$('hlote-corpo').innerHTML='<div style="color:var(--tx2);font-size:12px">Procurando colegas deste horário...</div>';
+$('hlote-dialog').show();
+run('getColegasDeHorario',[{idMatricula:alSel.id,itens:itens}],function(cs){HLOTE.colegas=cs;horaLoteRender()})}
+function horaLoteRender(){
+var alvo=HLOTE.itens.map(function(i){return i.dia.slice(0,3)+' '+i.horario}).join(', ');
+var h='<div class="info" style="margin:0 0 10px">Aplicando o horário <b>'+escBloco(alvo)+'</b> ('+HLOTE.itens.length+' aula(s) por aluno) aos marcados.'
++'<br><small>Cada aluno mantém o próprio livro e os próprios professores. Quem tem horário diferente vem desmarcado — aplicar substitui o horário dele.</small></div>';
+if(!HLOTE.colegas.length){h+='<div class="lote-vazio">Nenhum colega encontrado neste horário.</div>';$('hlote-corpo').innerHTML=h;return}
+h+='<div class="lote-slot">';
+HLOTE.colegas.forEach(function(c,i){
+var atual=c.horarioAtual.map(function(x){return x.dia.slice(0,3)+' '+x.horario}).join(', ')||'sem horário';
+/* pré-marca o próprio aluno e quem tem horário COMPATÍVEL (subconjunto do proposto). Quem faz
+   outro horário fica desmarcado: aplicar substituiria a agenda dele, e isso tem de ser deliberado */
+var compat=c.horarioAtual.every(function(x){return HLOTE.itens.some(function(it){return it.dia===x.dia&&it.horario===x.horario})});
+var marcar=c.ehOAluno||(compat&&!c.igual);
+h+='<label class="lote-linha'+(c.ehOAluno?' eu':'')+((!compat&&!c.ehOAluno)?' outro':'')+'">'
++'<input type="checkbox" data-i="'+i+'"'+(marcar?' checked':'')+(c.igual&&!c.ehOAluno?' disabled':'')+'>'
++'<span><b>'+escBloco(c.nome||c.id)+'</b>'+(c.ehOAluno?' <small>(este aluno)</small>':'')
++'<small>'+escBloco(c.livro||'sem livro')+' · '+escBloco(atual)+'</small></span>'
++(c.igual?'<span class="lote-ok">já está</span>':((!compat&&!c.ehOAluno)?'<span class="lote-alerta">horário diferente</span>':''))+'</label>'});
+$('hlote-corpo').innerHTML=h+'</div>';
+}
+function horaLoteAplicar(){
+var alunos=[];
+$('hlote-corpo').querySelectorAll('input[type=checkbox]:checked').forEach(function(cb){
+var c=HLOTE.colegas[+cb.dataset.i];alunos.push({id:c.id,livro:c.livro,nome:c.nome})});
+if(!alunos.length){msg('Marque ao menos um aluno.',true);return}
+run('aplicarHorarioEmLote',[{itens:HLOTE.itens,alunos:alunos}],function(r){
+$('hlote-dialog').hide();
+msg('Horário aplicado a '+r.alunos+' aluno(s) — '+r.aulas+' aula(s) no total.');
+if(r.avisos&&r.avisos.length)msg('⚠️ '+r.avisos.join(' · '),true);
+recarregarMatriculas()})}
 
 /* ===== vínculo de professores em lote =====
    Quem faz o mesmo dia+hora costuma ter os mesmos professores, mas nem sempre (atendimento

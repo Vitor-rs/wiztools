@@ -263,7 +263,47 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
 .lc-legenda i.ent{background:#34a853}.lc-legenda i.sai{background:#c5221f}
 
 /* ===== abas do lançador (Check-in | Presencas hoje) ===== */
-.lc-abas{display:flex;gap:4px;margin-bottom:14px;border-bottom:1px solid var(--borda)}
+.lc-abas{display:flex;gap:4px;margin-bottom:14px;border-bottom:1px solid var(--borda);align-items:center}
+/* empurra a legenda para o canto direito, aproveitando o vazio da linha das abas */
+.lc-leg-wrap{margin-left:auto;position:relative;padding-bottom:6px}
+/* header do lançador colado no topo: busca, navegação de dia, seletor de hora e abas ficam
+   sempre à mão; só a lista de blocos rola. O -14px compensa o padding da aba. */
+.lc-fixo{position:sticky;top:0;z-index:20;background:var(--fundo);
+  margin:-14px -18px 0;padding:14px 18px 0}
+.lc-fixo .lc-abas{margin-bottom:0}
+/* voltar ao topo: aparece só depois de rolar; pulinho discreto para ser notado sem chamar atenção */
+#ao-topo{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(10px);
+  width:38px;height:38px;border-radius:50%;border:1px solid var(--borda);background:#fff;color:var(--marca);
+  display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:35;
+  box-shadow:0 3px 12px rgba(7,29,73,.14);opacity:0;visibility:hidden;
+  transition:opacity .18s ease,transform .18s ease,visibility 0s .18s,box-shadow .18s ease}
+#ao-topo.on{opacity:1;visibility:visible;transform:translateX(-50%) translateY(0);
+  transition:opacity .18s ease,transform .18s ease,box-shadow .18s ease;animation:pulinho 2.8s ease-in-out infinite}
+#ao-topo:hover{box-shadow:0 4px 16px rgba(7,29,73,.26);border-color:var(--azul-borda);animation:none}
+@keyframes pulinho{0%,88%,100%{transform:translateX(-50%) translateY(0)}94%{transform:translateX(-50%) translateY(-3px)}}
+@media (prefers-reduced-motion:reduce){#ao-topo.on{animation:none}}
+.lc-leg-bt{display:inline-flex;align-items:center;gap:6px;background:#fff;border:1px solid var(--borda);
+  border-radius:8px;padding:5px 11px;cursor:pointer;font-size:12px;color:var(--tx2);font-weight:600}
+.lc-leg-bt:hover{border-color:var(--azul-borda);color:var(--marca)}
+.lc-leg-bt[aria-expanded="true"]{border-color:var(--marca);color:var(--marca);background:var(--marca-cl)}
+.lc-leg-bt .ic{display:flex;color:var(--azul-esc)}
+/* balão: abre da direita para a ESQUERDA, com uma expansãozinha rápida */
+.lc-leg-pop{position:absolute;top:calc(100% + 6px);right:0;width:330px;background:#fff;
+  border:1px solid var(--borda);border-radius:10px;box-shadow:0 6px 24px rgba(7,29,73,.16);
+  padding:12px 14px;z-index:40;transform-origin:top right;
+  opacity:0;visibility:hidden;transform:scale(.94) translateX(8px);
+  transition:opacity .13s ease-out,transform .13s ease-out,visibility 0s .13s}
+.lc-leg-pop.on{opacity:1;visibility:visible;transform:none;transition:opacity .13s ease-out,transform .13s ease-out}
+.lc-leg-item{display:flex;gap:9px;align-items:flex-start;padding:6px 0}
+.lc-leg-item+.lc-leg-item{border-top:1px solid #f0f1f2}
+.lc-leg-item b{display:block;font-size:12px;color:#202124}
+.lc-leg-item small{display:block;font-size:11px;color:var(--tx2);line-height:1.35;margin-top:1px}
+.lc-leg-am{flex-shrink:0;width:34px;height:20px;border-radius:5px;display:flex;align-items:center;
+  justify-content:center;font-size:10px;font-weight:700;margin-top:1px}
+.lc-leg-am.ent{background:#34a853;color:#fff}
+.lc-leg-am.sai{background:#c5221f;color:#fff}
+.lc-leg-am.off{background:#fffaf2;border:1px solid #f0e2cc}
+.lc-leg-am.num{background:#f4f5f6;border:1px solid var(--borda);color:#3c4043;font-size:11px}
 .lc-aba{background:none;border:0;border-bottom:2px solid transparent;padding:8px 16px;cursor:pointer;
   font-size:13px;font-weight:600;color:var(--tx2);margin-bottom:-1px}
 .lc-aba:hover{color:var(--marca)}
@@ -333,6 +373,7 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
 </head>
 <body>
 <div id="load"></div>
+<button type="button" id="ao-topo" title="Voltar ao topo" onclick="aoTopo()"></button>
 <div id="sidebar">
 <button class="on" onclick="aba('inicio',this)">Início</button>
 <button onclick="aba('presenca',this)">Presença</button>
@@ -460,6 +501,7 @@ Os horários da matriz costumam ser fixos e raramente mudam. Confirma que quer e
 </div>
 
 <div id="tab-presenca" class="tab">
+<div class="lc-fixo">
 <div class="lc-topo">
 <div class="lc-busca sug">
 <span class="lc-busca-ic"></span>
@@ -477,6 +519,16 @@ Os horários da matriz costumam ser fixos e raramente mudam. Confirma que quer e
 <div class="lc-abas">
 <button type="button" class="lc-aba on" data-aba="checkin" onclick="lcAba('checkin')">Check-in</button>
 <button type="button" class="lc-aba" data-aba="hoje" onclick="lcAba('hoje')">Presenças hoje <span id="lc-aba-n"></span></button>
+<div class="lc-leg-wrap">
+<button type="button" id="lc-leg-bt" class="lc-leg-bt" onclick="lcLegendaToggle(event)" aria-expanded="false"><span class="ic"></span>Legenda</button>
+<div id="lc-leg-pop" class="lc-leg-pop" role="dialog" aria-label="Legenda do lançador">
+<div class="lc-leg-item"><span class="lc-leg-am ent">→</span><div><b>Entrada</b><small>Clique para registrar a hora; clique de novo para desfazer.</small></div></div>
+<div class="lc-leg-item"><span class="lc-leg-am sai">←</span><div><b>Saída</b><small>Só fica disponível depois da entrada.</small></div></div>
+<div class="lc-leg-item"><span class="lc-leg-am off"></span><div><b>Coluna apagada</b><small>Não é o dia e horário regular do aluno — reposição. Continua lançável.</small></div></div>
+<div class="lc-leg-item"><span class="lc-leg-am num">28</span><div><b>Número do dia</b><small>Clique para marcar a coluna inteira como não aula (feriado, férias).</small></div></div>
+</div>
+</div>
+</div>
 </div>
 <div id="lc-blocos"></div>
 <div id="lc-hoje" style="display:none"></div>
@@ -534,6 +586,12 @@ var DOM=null,ALUNOS=[],TURMAS=[];
 var alSel=null,tuSel=null,tuTags;
 var MATRICULAS=[],MATRIC_AULAS={};
 function $(id){return document.getElementById(id)}
+function aoTopo(){window.scrollTo({top:0,behavior:'smooth'})}
+function aoTopoAtualiza(){var b=document.getElementById('ao-topo');if(!b)return;
+var rolavel=document.documentElement.scrollHeight-window.innerHeight;
+b.classList.toggle('on',window.scrollY>160&&rolavel>120)}
+window.addEventListener('scroll',aoTopoAtualiza,{passive:true});
+window.addEventListener('resize',aoTopoAtualiza,{passive:true});
 var LOADN=0;function loadOn(){LOADN++;$('load').style.display='block'}
 function loadOff(){LOADN=Math.max(0,LOADN-1);if(!LOADN)$('load').style.display='none'}
 var DIRTY={};
@@ -556,6 +614,8 @@ function abaPor(n){var alvo=null;document.querySelectorAll('#sidebar button').fo
 function iconesEstaticos(){
 document.querySelectorAll('#al-salvar .btn-ic, #tu-salvar .btn-ic, #mat-salvar .btn-ic').forEach(function(el){el.innerHTML=icon('save',14)});
 document.querySelectorAll('#btn-imprimir .btn-ic').forEach(function(el){el.innerHTML=icon('printer',14)});
+document.querySelectorAll('#lc-leg-bt .ic').forEach(function(el){el.innerHTML=icon('info',14)});
+var topo=document.getElementById('ao-topo');if(topo)topo.innerHTML=icon('arrow-up',18);
 document.querySelectorAll('.lc-busca-ic').forEach(function(el){el.innerHTML=icon('search',15)});
 }
 
@@ -969,6 +1029,23 @@ LC_DATA=isoLocal(d);LC_HORA=null;lcCarregar()}
    reenviava LC_HORA (a hora antiga), o servidor devolvia a mesma e o select voltava sozinho */
 function lcHora(h){LC_HORA=h||null;lcCarregar()}
 function lcHoje(){LC_DATA=null;LC_HORA=null;lcCarregar()}
+/* popover da legenda: abre à esquerda do botão, fecha no próprio botão, clicando fora ou com Esc */
+function lcLegendaToggle(ev){
+if(ev)ev.stopPropagation();
+var pop=$('lc-leg-pop'),bt=$('lc-leg-bt');
+var abrir=!pop.classList.contains('on');
+pop.classList.toggle('on',abrir);bt.setAttribute('aria-expanded',abrir?'true':'false');
+}
+document.addEventListener('click',function(e){
+var pop=$('lc-leg-pop');if(!pop||!pop.classList.contains('on'))return;
+if(pop.contains(e.target)||$('lc-leg-bt').contains(e.target))return;  // clique dentro não fecha
+pop.classList.remove('on');$('lc-leg-bt').setAttribute('aria-expanded','false');
+});
+document.addEventListener('keydown',function(e){
+if(e.key!=='Escape')return;var pop=$('lc-leg-pop');
+if(pop&&pop.classList.contains('on')){pop.classList.remove('on');$('lc-leg-bt').setAttribute('aria-expanded','false')}
+});
+
 /* duas abas: Check-in (a grade da semana) e Presenças hoje (quem já passou, em ordem de chegada) */
 var LC_ABA='checkin';
 function lcAba(n){LC_ABA=n;
@@ -1045,11 +1122,8 @@ td.appendChild(lcCelula(al,c,card));
 tr.appendChild(td)});
 tbody.appendChild(tr)});
 tb.appendChild(tbody);wrap.appendChild(tb);card.appendChild(wrap);
-var leg=document.createElement('div');leg.className='lc-legenda';
-leg.innerHTML='<i class="ent"></i>entrada <i class="sai"></i>saída &nbsp;·&nbsp; clique para registrar a hora, clique de novo para desfazer'
-+' &nbsp;·&nbsp; clique no número do dia para marcar a coluna inteira como não aula'
-+' &nbsp;·&nbsp; colunas hachuradas não são o dia regular do aluno (reposição).';
-card.appendChild(leg);
+/* a legenda saiu daqui: repetida em cada bloco virava textão. Agora é o popover "Legenda",
+   no canto direito da linha das abas (ver lcLegendaToggle). */
 lcResumo(card,b);
 return card;
 }

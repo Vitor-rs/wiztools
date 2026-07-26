@@ -273,7 +273,13 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
 .lc-tabela.semana tbody td.hl-col{--shL:inset 1px 0 0 var(--marca);--shR:inset -1px 0 0 var(--marca)}
 /* o nome ganha peso e a cor da marca — o realce que diz "é esta a linha" */
 .lc-tabela.semana tbody tr.hl .lc-nome{font-weight:700;color:var(--marca);letter-spacing:.005em}
-.lc-tabela.semana thead th.hl-col{color:var(--marca)}
+/* os DOIS cabeçalhos da coluna (nome do dia e número) entram no crosshair: sem isso a linha
+   vertical começava só no corpo da tabela e o realce ficava cortado no topo */
+.lc-tabela.semana thead th{--shT:0 0 0 transparent;--shB:0 0 0 transparent;--shL:0 0 0 transparent;--shR:0 0 0 transparent;
+  box-shadow:var(--shT),var(--shB),var(--shL),var(--shR)}
+.lc-tabela.semana thead th.hl-col{color:var(--marca);font-weight:700;
+  --shL:inset 1px 0 0 var(--marca);--shR:inset -1px 0 0 var(--marca)}
+.lc-tabela.semana thead th.lc-dia.hl-col{--shT:inset 0 1px 0 var(--marca);background:var(--marca-cl)} /* fecha o topo */
 .lc-tabela.semana thead th.lc-num.hl-col{background:var(--marca-cl)}
 .lc-cel{text-align:center;padding:3px !important;width:62px;min-width:62px}
 .lc-cel.hoje{background:rgba(51,170,227,.07)}

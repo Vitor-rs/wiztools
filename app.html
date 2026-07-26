@@ -369,6 +369,21 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
 .lc-cel.off .lc-ponto{opacity:.26}
 .lc-cel.off:hover .lc-ponto{opacity:1}
 
+.lbl-prof{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.lbl-prof .btn-link{text-transform:none;letter-spacing:0;font-weight:600}
+.lote-slot{border:1px solid var(--borda);border-radius:10px;padding:8px 10px;margin-bottom:8px}
+.lote-slot>b{font-size:12px;color:var(--marca);display:block;margin-bottom:4px}
+.lote-vazio{font-size:12px;color:var(--tx3)}
+.lote-linha{display:flex;align-items:center;gap:8px;padding:5px 4px;border-radius:6px;cursor:pointer;
+  text-transform:none;font-weight:400;margin:0;font-size:12px}
+.lote-linha:hover{background:var(--cz)}
+.lote-linha.eu{background:var(--azul-cl)}
+.lote-linha input{width:auto;flex-shrink:0}
+.lote-linha small{display:block;color:var(--tx2);font-size:11px}
+.lote-ok{margin-left:auto;font-size:10px;color:var(--ok);font-weight:700;flex-shrink:0}
+.lote-alerta{margin-left:auto;font-size:10px;color:#8a5a00;background:#fff4e5;border:1px solid #f0e2cc;
+  border-radius:8px;padding:1px 6px;font-weight:700;flex-shrink:0}
+.lote-linha.outro{background:#fffaf2}
 #lc-dialog-corpo .mat-linha{display:flex;justify-content:space-between;align-items:center;gap:12px;
   border:1px solid #e6e8ea;border-radius:10px;padding:10px 12px;margin-bottom:8px}
 #lc-dialog-corpo .mat-linha b{font-size:13px}
@@ -400,6 +415,7 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
 <button onclick="aba('alunos',this)">Alunos</button>
 <button onclick="aba('turmas',this)">Turmas</button>
 <button onclick="aba('horarios',this)">Horários</button>
+<button onclick="aba('professores',this)">Professores</button>
 <button onclick="aba('impressao',this)">Impressão</button>
 <button onclick="aba('backup',this)">Backup</button>
 </div>
@@ -553,6 +569,12 @@ Os horários da matriz costumam ser fixos e raramente mudam. Confirma que quer e
 <div id="lc-hoje" style="display:none"></div>
 </div>
 
+<sl-dialog id="lote-dialog" label="Aplicar professores à turma">
+<div id="lote-corpo"></div>
+<sl-button slot="footer" onclick="document.getElementById('lote-dialog').hide()">Cancelar</sl-button>
+<sl-button slot="footer" variant="primary" onclick="loteAplicar()">Aplicar aos marcados</sl-button>
+</sl-dialog>
+
 <sl-dialog id="lc-dialog" label="Lançar presença">
 <div id="lc-dialog-corpo"></div>
 <sl-button slot="footer" onclick="document.getElementById('lc-dialog').hide()">Fechar</sl-button>
@@ -563,6 +585,22 @@ Os horários da matriz costumam ser fixos e raramente mudam. Confirma que quer e
 <div class="visao-filtros">Clique nas pílulas para filtrar a tabela (contagem ao lado de cada opção); os cabeçalhos ordenam.</div>
 <div id="filtros-inicio"></div>
 <div id="grade-geral"></div>
+</div>
+
+<div id="tab-professores" class="tab duasCols">
+<div class="form-col">
+<h3 id="pf-titulo">Novo professor</h3>
+<div style="font-size:12px;color:var(--tx2);margin-bottom:8px">O nome curto é o que aparece nas pílulas e nas fichas impressas; o completo fica no cadastro.</div>
+<label>Nome curto</label><input id="pf-nome" placeholder="Ex.: Maria Cl." maxlength="20">
+<label>Nome completo</label><input id="pf-completo" placeholder="Ex.: Maria Clara Feldkircher de Oliveira">
+<button class="acao" id="pf-salvar" onclick="profSalvar()"><span class="btn-ic"></span><span class="btn-txt">Salvar</span></button>
+<button class="acao perigo" id="pf-excluir" style="display:none" onclick="profExcluir()">Excluir</button>
+<button class="acao sec" onclick="profNovo()">Limpar</button>
+</div>
+<div class="matriculas-col">
+<h3>Professores cadastrados</h3>
+<div id="pf-lista"></div>
+</div>
 </div>
 
 <div id="tab-impressao" class="tab">
@@ -626,7 +664,7 @@ function aba(n,btn){document.querySelectorAll('.tab').forEach(function(t){t.clas
 if(n==='horarios')run('getMatriz',[],function(m){MAT=m;matRender();dirty('mat',false);cbMontar()});
 /* Presença sempre reabre no "agora" (lcHoje zera data+hora): se a recepcionista espiou outro
    horário e trocou de aba, ao voltar ela vê de novo a turma que está em aula neste momento */
-if(n==='inicio')renderHome();if(n==='dashboard')renderDashboard();if(n==='presenca')lcHoje();if(n==='backup')renderBackup()}
+if(n==='inicio')renderHome();if(n==='dashboard')renderDashboard();if(n==='professores')profCarregar();if(n==='presenca')lcHoje();if(n==='backup')renderBackup()}
 /* acha o botão pelo próprio onclick em vez de um mapa de índices — assim adicionar/reordenar abas no
    sidebar não quebra a navegação por código (o mapa fixo já saiu de sincronia uma vez) */
 function abaPor(n){var alvo=null;document.querySelectorAll('#sidebar button').forEach(function(b){if(String(b.getAttribute('onclick')).indexOf("'"+n+"'")>=0)alvo=b});if(alvo)aba(n,alvo)}
@@ -657,15 +695,18 @@ inp.addEventListener('blur',function(){setTimeout(function(){ul.style.display='n
    cont pode ser um id (string) ou um elemento já anexado ao DOM (cartões de matrícula dinâmicos). */
 function tagWidget(cont,onChange){
 var el=(typeof cont==='string')?$(cont):cont,sel=[];
+/* dispara 'change' no container: é o que o listener de dirty escuta. Escolher na lista de
+   sugestões não gera evento nativo, então o botão Salvar ficava travado desabilitado. */
+function avisou(){el.dispatchEvent(new Event('change',{bubbles:true}));if(onChange)onChange()}
 var inp=document.createElement('input');inp.placeholder='Digite e Enter...';
 var ul=document.createElement('div');ul.className='lista';
 el.appendChild(inp);el.appendChild(ul);
-function draw(){el.querySelectorAll('.pill').forEach(function(p){p.remove()});sel.slice().reverse().forEach(function(nome){var p=document.createElement('span');p.className='pill';p.textContent=nome+' ';var x=document.createElement('b');x.textContent='×';x.onclick=function(){sel=sel.filter(function(s){return s!==nome});draw();if(onChange)onChange()};p.appendChild(x);el.insertBefore(p,el.firstChild)})}
-function sugest(){var q=norm(inp.value);var itens=(DOM?DOM.professores:[]).filter(function(p){return sel.indexOf(p.nome)<0&&(q===''||norm(p.nome+' '+p.nomeCompleto).indexOf(q)>=0)});ul.innerHTML='';itens.forEach(function(p){var d=document.createElement('div');d.textContent=p.nome+' — '+p.nomeCompleto;d.onmousedown=function(ev){ev.preventDefault();sel.push(p.nome);inp.value='';draw();ul.style.display='none';if(onChange)onChange()};ul.appendChild(d)});ul.style.display=itens.length?'block':'none'}
+function draw(){el.querySelectorAll('.pill').forEach(function(p){p.remove()});sel.slice().reverse().forEach(function(nome){var p=document.createElement('span');p.className='pill';p.textContent=nome+' ';var x=document.createElement('b');x.textContent='×';x.onclick=function(){sel=sel.filter(function(s){return s!==nome});draw();avisou()};p.appendChild(x);el.insertBefore(p,el.firstChild)})}
+function sugest(){var q=norm(inp.value);var itens=(DOM?DOM.professores:[]).filter(function(p){return sel.indexOf(p.nome)<0&&(q===''||norm(p.nome+' '+p.nomeCompleto).indexOf(q)>=0)});ul.innerHTML='';itens.forEach(function(p){var d=document.createElement('div');d.textContent=p.nome+' — '+p.nomeCompleto;d.onmousedown=function(ev){ev.preventDefault();sel.push(p.nome);inp.value='';draw();ul.style.display='none';avisou()};ul.appendChild(d)});ul.style.display=itens.length?'block':'none'}
 inp.addEventListener('input',sugest);inp.addEventListener('focus',sugest);
 inp.addEventListener('blur',function(){setTimeout(function(){ul.style.display='none'},150)});
-inp.addEventListener('keydown',function(e){if(e.key==='Enter'&&inp.value.trim()){sel.push(inp.value.trim());inp.value='';draw();ul.style.display='none';e.preventDefault();if(onChange)onChange()}});
-return{get:function(){return sel.slice()},set:function(v){sel=v.slice();draw()}}
+inp.addEventListener('keydown',function(e){if(e.key==='Enter'&&inp.value.trim()){sel.push(inp.value.trim());inp.value='';draw();ul.style.display='none';e.preventDefault();avisou()}});
+return{get:function(){return sel.slice()},set:function(v){sel=v.slice();draw()}}  /* set() não avisa: é carga do formulário, não edição */
 }
 
 var ALUNOS_OK=false;
@@ -804,8 +845,11 @@ var schedule={};(MATRIC_AULAS[m.livro]||[]).forEach(function(x){(schedule[x.dia]
 var editor=criarEditorHoras(schedule,function(){atualizarPreviewDeb()});
 card.appendChild(editor);
 
-var lblProf=document.createElement('label');lblProf.textContent='Professores';card.appendChild(lblProf);
+var lblProf=document.createElement('label');lblProf.className='lbl-prof';
+lblProf.innerHTML='Professores <button type="button" class="btn-link" title="Aplicar estes professores aos colegas do mesmo dia e horário">aplicar à turma</button>';
+card.appendChild(lblProf);
 var profsBox=document.createElement('div');profsBox.className='tags';card.appendChild(profsBox);
+lblProf.querySelector('button').onclick=function(){loteAbrir(m,profsWidget.get(),editor)};
 var profsIniciais=[];(MATRIC_AULAS[m.livro]||[]).forEach(function(x){(x.professores||[]).forEach(function(p){if(profsIniciais.indexOf(p)<0)profsIniciais.push(p)})});
 var profsWidget=tagWidget(profsBox,function(){atualizarPreviewDeb()});
 profsWidget.set(profsIniciais);
@@ -974,6 +1018,98 @@ del.onclick=function(){if(confirm('Remover '+m.nome+' desta turma? As aulas dele
 var tx=document.createElement('span');tx.innerHTML='<b>'+escBloco(m.nome)+'</b> ('+escBloco(m.id)+') · '+escBloco(m.dias.join('+'))+(m.divergente?' · <span class="tx-perigo">⚠️ livro diferente: '+escBloco(m.livros.join(', '))+' — considere ajustar</span>':'');
 d.appendChild(del);d.appendChild(tx);box.appendChild(d)})})}
 function tuExcluir(){if(!tuSel)return;if(!confirm('Excluir a turma '+tuSel.id+'? As aulas não são apagadas (a turma é deduzida).'))return;run('excluirTurma',[tuSel.id],function(){msg('Turma excluída.');run('getTurmas',[],function(x){TURMAS=x;if(DOM)DOM.turmas=x});tuNova()})}
+
+/* ===== vínculo de professores em lote =====
+   Quem faz o mesmo dia+hora costuma ter os mesmos professores, mas nem sempre (atendimento
+   individual existe). Então nunca aplicamos em cascata sozinhos: mostramos os colegas do slot,
+   já marcados, e a recepção decide quem entra. */
+var LOTE={profs:[],slots:[]};
+function loteAbrir(m,profs,editor){
+if(!alSel){msg('Escolha um aluno primeiro.',true);return}
+if(!profs.length){msg('Escolha ao menos um professor antes de aplicar à turma.',true);return}
+var itens=lerItensEditor(editor);
+if(!itens.length){msg('Marque ao menos um dia/horário no editor acima.',true);return}
+LOTE={profs:profs,slots:[],livro:m.livro};
+var pend=itens.length;
+$('lote-corpo').innerHTML='<div style="color:var(--tx2);font-size:12px">Carregando colegas...</div>';
+$('lote-dialog').show();
+itens.forEach(function(it){
+run('getColegasDoSlot',[{dia:it.dia,hora:it.horario,idMatricula:alSel.id}],function(cs){
+LOTE.slots.push({dia:it.dia,hora:it.horario,colegas:cs});
+if(--pend===0)loteRender()})})}
+function loteRender(){
+var alvo=LOTE.profs.join(', ');
+var h='<div class="info" style="margin:0 0 10px">Aplicando <b>'+escBloco(alvo)+'</b> aos alunos marcados. Quem ficar desmarcado mantém os professores atuais.<br><small>Quem já tem outro professor vem desmarcado — marque só se quiser realmente substituir.</small></div>';
+LOTE.slots.sort(function(a,b){return (a.dia+a.hora).localeCompare(b.dia+b.hora)});
+LOTE.slots.forEach(function(sl,i){
+h+='<div class="lote-slot"><b>'+escBloco(sl.dia)+' · '+escBloco(sl.hora)+'</b>';
+if(!sl.colegas.length){h+='<div class="lote-vazio">Nenhum aluno neste horário.</div></div>';return}
+sl.colegas.forEach(function(c,j){
+var igual=LOTE.profs.length===c.professores.length&&LOTE.profs.every(function(p){return c.professores.indexOf(p)>=0});
+var temOutro=c.professores.length&&!igual;   // já tem professor DIFERENTE
+/* pré-marca só o próprio aluno e quem está sem professor. Quem já tem outro professor fica
+   desmarcado de propósito: aplicar em lote sobrescreve, e atendimento individual é legítimo
+   (mãe e filho com um professor só, aluno de reforço etc.) — a recepção marca se quiser. */
+var marcar=c.ehOAluno||(!c.professores.length);
+h+='<label class="lote-linha'+(c.ehOAluno?' eu':'')+(temOutro?' outro':'')+'">'
++'<input type="checkbox" data-s="'+i+'" data-c="'+j+'"'+(marcar?' checked':'')+(igual?' disabled':'')+'>'
++'<span><b>'+escBloco(c.nome)+'</b>'+(c.ehOAluno?' <small>(este aluno)</small>':'')
++'<small>'+escBloco(c.livro)+' · '+(c.professores.length?escBloco(c.professores.join(', ')):'sem professor')+'</small></span>'
++(igual?'<span class="lote-ok">já está</span>':(temOutro?'<span class="lote-alerta">outro professor</span>':''))+'</label>'});
+h+='</div>'});
+$('lote-corpo').innerHTML=h;
+}
+function loteAplicar(){
+var marcados={};
+$('lote-corpo').querySelectorAll('input[type=checkbox]:checked').forEach(function(cb){
+var sl=LOTE.slots[+cb.dataset.s];(marcados[cb.dataset.s]=marcados[cb.dataset.s]||[]).push(sl.colegas[+cb.dataset.c].id)});
+var chaves=Object.keys(marcados);
+if(!chaves.length){msg('Marque ao menos um aluno.',true);return}
+var pend=chaves.length,totAlunos=0;
+chaves.forEach(function(k){var sl=LOTE.slots[+k];
+run('aplicarProfessoresNoSlot',[{dia:sl.dia,hora:sl.hora,professores:LOTE.profs,alunos:marcados[k]}],function(r){
+totAlunos+=r.alunos;
+if(--pend===0){$('lote-dialog').hide();
+msg('Professores aplicados a '+totAlunos+' aluno(s).');recarregarMatriculas()}})})}
+
+/* ===== PROFESSORES (CRUD) ===== */
+var PROFS=[],pfSel=null;
+function profCarregar(){run('getFuncionarios',[],function(fs){PROFS=fs;profRender()})}
+function profRender(){
+var box=$('pf-lista');box.innerHTML='';
+if(!PROFS.length){box.innerHTML='<div class="matriculas-vazio">Nenhum professor cadastrado ainda.</div>';return}
+PROFS.forEach(function(f){
+var card=document.createElement('div');card.className='matricula-card';card.style.cursor='pointer';
+card.onclick=function(){profEditar(f)};
+card.innerHTML='<div class="cabecalho"><h4>'+escBloco(f.nome)+'</h4>'
++(pfSel&&pfSel.id===f.id?'<span class="badge b-on">editando</span>':'')+'</div>'
++'<div style="font-size:12px;color:var(--tx2)">'+escBloco(f.nomeCompleto)+'</div>'
++'<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">'
++'<span class="lc-pp">'+f.alunos+' aluno(s)</span>'
++'<span class="lc-pd">'+f.aulas+' aula(s)</span>'
++(f.turmas?'<span class="lc-pd">'+f.turmas+' turma(s)</span>':'')+'</div>';
+box.appendChild(card)});
+}
+function profEditar(f){pfSel=f;$('pf-titulo').textContent='Editar: '+f.nome;
+$('pf-nome').value=f.nome;$('pf-completo').value=f.nomeCompleto;
+$('pf-excluir').style.display='inline-block';profRender()}
+function profNovo(){pfSel=null;$('pf-titulo').textContent='Novo professor';
+$('pf-nome').value='';$('pf-completo').value='';$('pf-excluir').style.display='none';profRender()}
+function profSalvar(){
+var d={id:pfSel?pfSel.id:null,nome:$('pf-nome').value,nomeCompleto:$('pf-completo').value};
+if(!d.nome.trim()||!d.nomeCompleto.trim()){msg('Preencha o nome curto e o completo.',true);return}
+run('salvarFuncionario',[d],function(r){msg(r.criado?'Professor cadastrado.':'Professor atualizado.');
+profNovo();profCarregar();
+run('getDominios',[],function(dom){DOM=dom;TURMAS=dom.turmas})})}  // atualiza as sugestões das pílulas
+function profExcluir(){if(!pfSel)return;
+run('excluirFuncionario',[{id:pfSel.id}],function(r){
+if(r.precisaConfirmar){
+if(!confirm('"'+r.nome+'" está vinculado a '+r.aulas+' aula(s) e '+r.turmas+' turma(s). Excluir mesmo assim? Os vínculos serão desfeitos — os alunos e as turmas permanecem.'))return;
+run('excluirFuncionario',[{id:pfSel.id,forcar:true}],function(r2){
+msg('Professor excluído ('+r2.aulas+' vínculo(s) de aula desfeito(s)).');profNovo();profCarregar();
+run('getDominios',[],function(dom){DOM=dom;TURMAS=dom.turmas})});return}
+msg('Professor excluído.');profNovo();profCarregar();
+run('getDominios',[],function(dom){DOM=dom;TURMAS=dom.turmas})})}
 
 /* ===== IMPRESSÃO ===== */
 /* a ficha sai JÁ preenchida com o que foi lançado na aba Presença — é o que permite reimprimir no

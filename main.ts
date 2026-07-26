@@ -708,6 +708,73 @@ const api: Record<string, (a: any) => unknown> = {
     return { id: alu.id_matricula, nome: alu.nome, situacao: alu.situacao, status: alu.status, matriculas };
   },
 
+  /* ===== funcionários / professores (CRUD da aba Professores) ===== */
+  getFuncionarios: () => A("SELECT * FROM funcionarios ORDER BY nome").map(f => ({
+    id: f.id, nome: f.nome, nomeCompleto: f.nome_completo,
+    // quantos vínculos existem — a exclusão precisa avisar antes de desfazer trabalho
+    aulas: G("SELECT COUNT(*) n FROM aula_professor WHERE funcionario_id=?", f.id).n,
+    turmas: G("SELECT COUNT(*) n FROM turma_professor WHERE funcionario_id=?", f.id).n,
+    alunos: G(`SELECT COUNT(DISTINCT a.id_matricula) n FROM aula_professor ap
+               JOIN aulas a ON a.id=ap.aula_id WHERE ap.funcionario_id=?`, f.id).n,
+  })),
+  salvarFuncionario({ id, nome, nomeCompleto }: any) {
+    const curto = String(nome || "").trim(), completo = String(nomeCompleto || "").trim();
+    if (!curto || !completo) throw new Error("Informe o nome curto e o nome completo.");
+    const dono = G("SELECT id FROM funcionarios WHERE nome=?", curto);
+    if (dono && dono.id !== id) throw new Error("Já existe um funcionário com o nome curto \"" + curto + "\".");
+    if (id) {
+      if (!G("SELECT 1 FROM funcionarios WHERE id=?", id)) throw new Error("Funcionário não encontrado.");
+      R("UPDATE funcionarios SET nome=?, nome_completo=? WHERE id=?", curto, completo, id);
+      return { ok: true, id, criado: false };
+    }
+    // id sequencial FP001, FP002... continuando de onde parou
+    const ult = G("SELECT id FROM funcionarios WHERE id GLOB 'FP[0-9][0-9][0-9]' ORDER BY id DESC LIMIT 1")?.id;
+    const novo = "FP" + ("00" + ((ult ? parseInt(ult.slice(2), 10) : 0) + 1)).slice(-3);
+    R("INSERT INTO funcionarios VALUES (?,?,?)", novo, completo, curto);
+    return { ok: true, id: novo, criado: true };
+  },
+  excluirFuncionario({ id, forcar }: any) {
+    const f = G("SELECT * FROM funcionarios WHERE id=?", id);
+    if (!f) throw new Error("Funcionário não encontrado.");
+    const aulas = G("SELECT COUNT(*) n FROM aula_professor WHERE funcionario_id=?", id).n;
+    const turmas = G("SELECT COUNT(*) n FROM turma_professor WHERE funcionario_id=?", id).n;
+    if ((aulas || turmas) && !forcar) return { ok: false, precisaConfirmar: true, aulas, turmas, nome: f.nome };
+    R("DELETE FROM aula_professor WHERE funcionario_id=?", id);   // FK sem cascade: desvincula antes
+    R("DELETE FROM turma_professor WHERE funcionario_id=?", id);
+    R("DELETE FROM funcionarios WHERE id=?", id);
+    return { ok: true, aulas, turmas };
+  },
+
+  /* ===== vínculo de professores em lote =====
+     Quem está no mesmo dia+hora (o "bloco") normalmente tem os mesmos professores. Em vez de
+     vincular aluno por aluno, o app oferece aplicar ao slot inteiro — mas sempre por escolha
+     explícita, porque atendimento individual existe (ex.: mãe e filho só com um professor). */
+  getColegasDoSlot({ dia, hora, idMatricula }: any) {
+    if (!dia || !hora) throw new Error("Informe dia e hora.");
+    return A(`SELECT a.id, a.id_matricula, a.livro, al.nome FROM aulas a
+              JOIN alunos al ON al.id_matricula=a.id_matricula
+              WHERE a.dia=? AND a.hora=? ORDER BY al.nome`, dia, hora)
+      .map(r => ({ idAula: r.id, id: r.id_matricula, nome: r.nome, livro: r.livro,
+        professores: A(`SELECT f.nome FROM aula_professor ap JOIN funcionarios f ON f.id=ap.funcionario_id
+                        WHERE ap.aula_id=?`, r.id).map((x: any) => x.nome),
+        ehOAluno: r.id_matricula === idMatricula }));
+  },
+  /* aplica os professores às aulas escolhidas. `alunos` = lista de id_matricula; sem ela, aplica
+     a todos do slot. Substitui o vínculo daquele slot (não acumula). */
+  aplicarProfessoresNoSlot({ dia, hora, professores, alunos }: any) {
+    if (!dia || !hora) throw new Error("Informe dia e hora.");
+    const fids = idsDosProfs(professores || []);
+    if (!fids.length) throw new Error("Escolha ao menos um professor.");
+    const alvo = new Set((alunos || []).map(String));
+    const aulas = A("SELECT id, id_matricula FROM aulas WHERE dia=? AND hora=?", dia, hora)
+      .filter(r => !alvo.size || alvo.has(String(r.id_matricula)));
+    for (const a of aulas) {
+      R("DELETE FROM aula_professor WHERE aula_id=?", a.id);
+      fids.forEach(f => R("INSERT INTO aula_professor VALUES (?,?)", a.id, f));
+    }
+    return { ok: true, aulasAtualizadas: aulas.length, alunos: new Set(aulas.map(a => a.id_matricula)).size };
+  },
+
   /* ===== backup (aba Backup) ===== */
   getBackupInfo() {
     const listar = (dir: string | null) => {

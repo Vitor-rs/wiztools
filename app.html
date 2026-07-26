@@ -237,6 +237,15 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
 .lc-tabela{border-collapse:separate;border-spacing:0;width:100%;font-size:13px}
 .lc-tabela th,.lc-tabela td{border-bottom:1px solid #f0f1f2;padding:0}
 .lc-th-aluno{width:310px;min-width:310px;max-width:310px}
+.lc-tabela.semana{width:auto;table-layout:fixed}
+.lc-tabela.semana .c-est{width:98px;min-width:98px;max-width:98px}
+.lc-tabela.semana .c-prof{width:116px;min-width:116px;max-width:116px}
+.lc-tabela.semana .c-dias{width:116px;min-width:116px;max-width:116px}
+.lc-tabela.semana .lc-cel,.lc-tabela.semana .lc-dia,.lc-tabela.semana .lc-num{width:60px;min-width:60px;max-width:60px}
+/* conteúdo que passar do limite quebra dentro da célula em vez de alargar a coluna */
+.lc-tabela.semana .lc-prof,.lc-tabela.semana .lc-dias-pil{white-space:normal}
+.lc-tabela.semana .lc-estagio{white-space:normal;overflow:hidden}
+.lc-tabela.semana .lc-livro{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .lc-tabela thead th{background:#fbfbfa;font-weight:600;color:#5f6368;font-size:11px;text-transform:uppercase;
   letter-spacing:.03em;padding:8px 10px;text-align:left;white-space:nowrap;border-bottom:1px solid #e6e8ea}
 .lc-tabela thead th.lc-dia{text-align:center;padding:6px 0;width:34px;min-width:34px;font-size:10px;color:#80868b}
@@ -331,10 +340,11 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
 
 /* ===== ponto: entrada (verde) e saida (vermelho) por celula ===== */
 .lc-ponto{display:flex;flex-direction:column;gap:2px;align-items:stretch}
-.lc-bt{display:flex;align-items:center;justify-content:center;gap:3px;border-radius:5px;cursor:pointer;
-  font-size:10px;padding:2px 4px;min-height:16px;line-height:1;transition:background .1s,border-color .1s,opacity .1s}
+.lc-bt{display:flex;align-items:center;justify-content:center;gap:4px;border-radius:5px;cursor:pointer;
+  font-size:10px;padding:3px 4px;min-height:22px;line-height:1;transition:background .1s,border-color .1s,opacity .1s}
 .lc-bt b{font-weight:700;font-variant-numeric:tabular-nums}
-.lc-seta{font-size:9px;opacity:.9}
+.lc-seta{display:flex;align-items:center;opacity:.85}
+.lc-seta svg{display:block}
 .lc-bt.ent{border:1px solid #bfe0c8;background:#f2faf4;color:#2d9147}
 .lc-bt.ent:hover{background:#e2f4e8;border-color:#8fd0a6}
 .lc-bt.ent.on{background:#34a853;border-color:#2d9147;color:#fff}
@@ -1098,11 +1108,11 @@ head.innerHTML='<div class="lc-head-esq"><span class="lc-hora-badge">'+escBloco(
 +'<div class="lc-resumo"></div>';
 card.appendChild(head);
 var wrap=document.createElement('div');wrap.className='lc-wrap';
-var tb=document.createElement('table');tb.className='lc-tabela';
+var tb=document.createElement('table');tb.className='lc-tabela semana';
 /* colunas = a SEMANA corrente (Seg→Sáb). Cabeçalho em dois níveis: nome do dia em cima,
    número do dia embaixo (a ficha IMPRESSA continua com as 12 colunas do mês — visão diferente). */
-var h1='<tr><th class="lc-th-aluno" rowspan="2">Aluno</th><th rowspan="2">Estágio<small>Modalidade</small></th>'
-+'<th rowspan="2">Professor</th><th rowspan="2">Dias</th>';
+var h1='<tr><th class="lc-th-aluno" rowspan="2">Aluno</th><th class="c-est" rowspan="2">Estágio<small>Modalidade</small></th>'
++'<th class="c-prof" rowspan="2">Professor</th><th class="c-dias" rowspan="2">Dias</th>';
 var h2='<tr>';
 LC.semana.forEach(function(c,i){
 h1+='<th class="lc-dia'+(c.hoje?' hoje':'')+'">'+escBloco(c.curto)+'</th>';
@@ -1151,13 +1161,13 @@ m.onclick=function(){lcGravarStatus(al,c,null,card,function(n){p=n;redesenha()})
 box.appendChild(m);return}
 var ent=document.createElement('button');ent.type='button';
 ent.className='lc-bt ent'+(p&&p.entrada?' on':'');
-ent.innerHTML=(p&&p.entrada?'<b>'+escBloco(p.entrada)+'</b>':'')+'<span class="lc-seta">→</span>';
+ent.innerHTML=(p&&p.entrada?'<b>'+escBloco(p.entrada)+'</b>':'')+'<span class="lc-seta">'+icon('log-in',13)+'</span>';
 ent.title=p&&p.entrada?'Entrada '+p.entrada+' — clique para desfazer':'Registrar entrada';
 ent.onclick=function(){lcPonto(al,c,'entrada',!!(p&&p.entrada),card,function(n){p=n;redesenha()})};
 box.appendChild(ent);
 var sai=document.createElement('button');sai.type='button';
 sai.className='lc-bt sai'+(p&&p.saida?' on':'')+((p&&p.entrada)?'':' inerte');
-sai.innerHTML=(p&&p.saida?'<b>'+escBloco(p.saida)+'</b>':'')+'<span class="lc-seta">←</span>';
+sai.innerHTML=(p&&p.saida?'<b>'+escBloco(p.saida)+'</b>':'')+'<span class="lc-seta">'+icon('log-out',13)+'</span>';
 sai.title=!p||!p.entrada?'Registre a entrada primeiro':(p.saida?'Saída '+p.saida+' — clique para desfazer':'Registrar saída');
 sai.onclick=function(){if(!p||!p.entrada){msg('Registre a entrada primeiro.',true);return}
 lcPonto(al,c,'saida',!!p.saida,card,function(n){p=n;redesenha()})};

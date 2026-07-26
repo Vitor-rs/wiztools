@@ -259,6 +259,22 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
 .lc-nome{font-weight:600;color:#202124;position:sticky;left:0;background:#fff;z-index:1;width:310px;min-width:310px;max-width:310px;
   box-shadow:1px 0 0 #f0f1f2}
 .lc-tabela tbody tr:hover .lc-nome{background:#fafbfc}
+
+/* crosshair da tabela de presença: a LINHA sob o mouse ganha borda azul nos 4 lados e a COLUNA do
+   dia ganha bordas laterais. Tudo via box-shadow inset composto em variáveis — assim linha e coluna
+   somam na mesma célula sem uma apagar a outra, e nada é empurrado (borda de verdade mudaria o
+   tamanho da célula e sacudiria a tabela inteira a cada movimento do mouse). */
+.lc-tabela.semana tbody td{--shT:0 0 0 transparent;--shB:0 0 0 transparent;--shL:0 0 0 transparent;--shR:0 0 0 transparent;
+  box-shadow:var(--shT),var(--shB),var(--shL),var(--shR)}
+.lc-tabela.semana tbody td.lc-nome{--shR:1px 0 0 #f0f1f2}          /* separador da coluna fixa: preservado */
+.lc-tabela.semana tbody tr.hl td{--shT:inset 0 1px 0 var(--marca);--shB:inset 0 -1px 0 var(--marca)}
+.lc-tabela.semana tbody tr.hl td:first-child{--shL:inset 1px 0 0 var(--marca)}
+.lc-tabela.semana tbody tr.hl td:last-child{--shR:inset -1px 0 0 var(--marca)}
+.lc-tabela.semana tbody td.hl-col{--shL:inset 1px 0 0 var(--marca);--shR:inset -1px 0 0 var(--marca)}
+/* o nome ganha peso e a cor da marca — o realce que diz "é esta a linha" */
+.lc-tabela.semana tbody tr.hl .lc-nome{font-weight:700;color:var(--marca);letter-spacing:.005em}
+.lc-tabela.semana thead th.hl-col{color:var(--marca)}
+.lc-tabela.semana thead th.lc-num.hl-col{background:var(--marca-cl)}
 .lc-cel{text-align:center;padding:3px !important;width:62px;min-width:62px}
 .lc-cel.hoje{background:rgba(51,170,227,.07)}
 .lc-tog{width:26px;height:26px;border-radius:50%;border:1.5px dashed #d4d7db;background:transparent;cursor:pointer;
@@ -1262,7 +1278,7 @@ var h1='<tr><th class="lc-th-aluno" rowspan="2">Aluno</th><th class="c-est" rows
 +'<th class="c-prof" rowspan="2">Professor</th><th class="c-dias" rowspan="2">Dias</th>';
 var h2='<tr>';
 LC.semana.forEach(function(c,i){
-h1+='<th class="lc-dia'+(c.hoje?' hoje':'')+'">'+escBloco(c.curto)+'</th>';
+h1+='<th class="lc-dia'+(c.hoje?' hoje':'')+'" data-col="'+i+'">'+escBloco(c.curto)+'</th>';
 h2+='<th class="lc-num'+(c.hoje?' hoje':'')+'" data-col="'+i+'" title="Clique para marcar o dia inteiro como não aula (feriado/férias)">'+c.numero+'</th>'});
 tb.innerHTML='<thead>'+h1+'</tr>'+h2+'</tr></thead>';
 tb.querySelectorAll('thead .lc-num').forEach(function(th){
@@ -1278,21 +1294,42 @@ tr.innerHTML='<td class="lc-nome">'+escBloco(al.nome)+'</td>'
 +'<td class="lc-estagio"><span class="lc-livro">'+escBloco(al.livro)+'</span><small>'+escBloco(mod)+'</small></td>'
 +'<td class="lc-prof">'+((al.profs&&al.profs.length)?al.profs.map(function(p){return '<span class="lc-pp">'+escBloco(p)+'</span>'}).join(''):'<span class="lc-vazio-cel">—</span>')+'</td>'
 +'<td class="lc-dias-pil">'+(pilulas||'<span class="lc-vazio-cel">—</span>')+'</td>';
-LC.semana.forEach(function(c){
+LC.semana.forEach(function(c,ic){
 var td=document.createElement('td');
 var regular=al.regular[c.data];
 /* off-day (dia que não é o do aluno) fica hachurado e apagado, mas continua clicável:
    reposição/anteposição acontece e precisa poder ser lançada */
 td.className='lc-cel'+(c.hoje?' hoje':'')+(regular?'':' off');
+td.dataset.col=ic;                       // usado pelo crosshair
 td.appendChild(lcCelula(al,c,card));
 tr.appendChild(td)});
 tbody.appendChild(tr)});
-tb.appendChild(tbody);wrap.appendChild(tb);card.appendChild(wrap);
+tb.appendChild(tbody);lcCrosshair(tb);wrap.appendChild(tb);card.appendChild(wrap);
 /* a legenda saiu daqui: repetida em cada bloco virava textão. Agora é o popover "Legenda",
    no canto direito da linha das abas (ver lcLegendaToggle). */
 lcResumo(card,b);
 return card;
 }
+/* crosshair da tabela: destaca a linha do aluno e a coluna do dia sob o ponteiro.
+   Índices montados uma vez e cada eixo com estado próprio — andar na horizontal só repinta a
+   coluna, andar na vertical só repinta a linha (mesmo padrão da grade de horários do aluno). */
+function lcCrosshair(tb){
+var porCol={};
+tb.querySelectorAll('td[data-col],thead th[data-col]').forEach(function(el){
+(porCol[el.dataset.col]=porCol[el.dataset.col]||[]).push(el)});
+var linhaAtiva=null,colAtiva=null;
+function cruzar(tr,col){
+if(tr!==linhaAtiva){if(linhaAtiva)linhaAtiva.classList.remove('hl');if(tr)tr.classList.add('hl');linhaAtiva=tr}
+if(col!==colAtiva){
+(porCol[colAtiva]||[]).forEach(function(e){e.classList.remove('hl-col')});
+(porCol[col]||[]).forEach(function(e){e.classList.add('hl-col')});colAtiva=col}}
+tb.addEventListener('mouseover',function(e){
+var td=e.target.closest('td,th');if(!td||!tb.contains(td))return;
+var tr=td.closest('tbody tr');
+cruzar(tr||null,td.dataset.col!==undefined?td.dataset.col:null)});
+tb.addEventListener('mouseleave',function(){cruzar(null,null)});
+}
+
 /* célula de um dia: botão de entrada (verde) + botão de saída (vermelho), como no protótipo.
    Sem lançamento → só o botão de entrada, apagado. Com entrada → aparece o de saída. */
 function lcCelula(al,c,card){

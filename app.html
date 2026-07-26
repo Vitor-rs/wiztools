@@ -219,6 +219,7 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
 .lc-nav select{width:auto;padding:7px 10px;border-radius:8px;border:1px solid #dcdfe3;font-size:12px}
 .lc-vazio{border:1px dashed #d4d7db;border-radius:12px;padding:34px;text-align:center;color:#80868b;font-size:13px;background:#fafbfc}
 
+.lc-card.compacto{width:fit-content;max-width:100%}  /* o bloco acompanha a largura da tabela */
 .lc-card{border:1px solid var(--azul-borda);border-radius:12px;background:#fff;margin-bottom:18px;overflow:hidden;
   box-shadow:0 1px 3px rgba(0,0,0,.04)}
 .lc-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;
@@ -345,6 +346,7 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
 .lc-bt b{font-weight:700;font-variant-numeric:tabular-nums}
 .lc-seta{display:flex;align-items:center;opacity:.85}
 .lc-seta svg{display:block}
+.lc-bt.sai .lc-seta svg{transform:scaleX(-1)}  /* espelha: saída aponta para o lado contrário da entrada */
 .lc-bt.ent{border:1px solid #bfe0c8;background:#f2faf4;color:#2d9147}
 .lc-bt.ent:hover{background:#e2f4e8;border-color:#8fd0a6}
 .lc-bt.ent.on{background:#34a853;border-color:#2d9147;color:#fff}
@@ -1099,7 +1101,7 @@ if(!LC.blocos.length){box.innerHTML='<div class="lc-vazio">Nenhuma turma neste d
 LC.blocos.forEach(function(b){box.appendChild(lcCard(b))});
 }
 function lcCard(b){
-var card=document.createElement('div');card.className='lc-card';
+var card=document.createElement('div');card.className='lc-card compacto';
 var chipCls=b.tipoKey==='Kids'?'mod-Kids':(b.mod==='Conn'?'mod-Conn':'mod-Inter');
 var head=document.createElement('div');head.className='lc-head';
 head.innerHTML='<div class="lc-head-esq"><span class="lc-hora-badge">'+escBloco(b.hora+' – '+b.fim)+'</span>'

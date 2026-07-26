@@ -243,7 +243,7 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
 .lc-nome{font-weight:600;color:#202124;position:sticky;left:0;background:#fff;z-index:1;min-width:190px;
   box-shadow:1px 0 0 #f0f1f2}
 .lc-tabela tbody tr:hover .lc-nome{background:#fafbfc}
-.lc-cel{text-align:center;padding:2px !important;width:34px;min-width:34px}
+.lc-cel{text-align:center;padding:3px !important;width:62px;min-width:62px}
 .lc-cel.hoje{background:rgba(51,170,227,.07)}
 .lc-tog{width:26px;height:26px;border-radius:50%;border:1.5px dashed #d4d7db;background:transparent;cursor:pointer;
   display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:transparent;
@@ -258,9 +258,55 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
 .lc-tabela thead th.off{background:#fff4e5;color:#8a5a00}
 .lc-tabela td.lc-cel.off{background:#fffaf2}
 .lc-legenda{font-size:11px;color:#80868b;padding:8px 16px;border-top:1px solid #f0f1f2;background:#fbfbfa}
-.lc-legenda i{display:inline-flex;width:14px;height:14px;border-radius:50%;vertical-align:-2px;margin:0 3px 0 10px}
-.lc-legenda i.p{background:#34a853}.lc-legenda i.f{background:#fdecec;border:1.5px solid #e88}
-.lc-legenda i.v{border:1.5px dashed #d4d7db}.lc-legenda i.n{background:#f1f3f4;border:1.5px solid #d4d7db}
+.lc-legenda i{display:inline-flex;width:14px;height:14px;border-radius:4px;vertical-align:-3px;margin:0 3px 0 10px}
+.lc-legenda i.ent{background:#34a853}.lc-legenda i.sai{background:#c5221f}
+
+/* ===== abas do lançador (Check-in | Presencas hoje) ===== */
+.lc-abas{display:flex;gap:4px;margin-bottom:14px;border-bottom:1px solid var(--borda)}
+.lc-aba{background:none;border:0;border-bottom:2px solid transparent;padding:8px 16px;cursor:pointer;
+  font-size:13px;font-weight:600;color:var(--tx2);margin-bottom:-1px}
+.lc-aba:hover{color:var(--marca)}
+.lc-aba.on{color:var(--marca);border-bottom-color:var(--marca)}
+.lc-aba span{font-weight:400;color:var(--tx3)}
+
+/* ===== estagio (livro + modalidade), professor e dias como pilulas ===== */
+.lc-tabela th small{display:block;font-weight:400;text-transform:none;letter-spacing:0;color:var(--tx3);font-size:10px}
+.lc-estagio{line-height:1.25}
+.lc-livro{display:inline-block;background:var(--marca);color:#fff;border-radius:10px;padding:1px 9px;font-size:11px;font-weight:600}
+.lc-estagio small{display:block;color:var(--tx2);font-size:11px;font-style:italic;margin-top:2px}
+.lc-pp{display:inline-block;background:var(--azul-cl);border:1px solid var(--azul-borda);color:var(--azul-esc);
+  border-radius:10px;padding:0 8px;font-size:11px;font-weight:600;margin:1px 2px 1px 0}
+.lc-pd{display:inline-block;background:var(--marca-cl);border:1px solid #C3CFE6;color:var(--marca);
+  border-radius:10px;padding:0 7px;font-size:11px;font-weight:600;margin:1px 2px 1px 0}
+.lc-pd b{font-weight:800}
+.lc-vazio-cel{color:#c4c9ce}
+
+/* ===== ponto: entrada (verde) e saida (vermelho) por celula ===== */
+.lc-ponto{display:flex;flex-direction:column;gap:2px;align-items:stretch}
+.lc-bt{display:flex;align-items:center;justify-content:center;gap:3px;border-radius:5px;cursor:pointer;
+  font-size:10px;padding:2px 4px;min-height:16px;line-height:1;transition:background .1s,border-color .1s,opacity .1s}
+.lc-bt b{font-weight:700;font-variant-numeric:tabular-nums}
+.lc-seta{font-size:9px;opacity:.9}
+.lc-bt.ent{border:1px solid #bfe0c8;background:#f2faf4;color:#2d9147}
+.lc-bt.ent:hover{background:#e2f4e8;border-color:#8fd0a6}
+.lc-bt.ent.on{background:#34a853;border-color:#2d9147;color:#fff}
+.lc-bt.sai{border:1px solid #f0cfcf;background:#fdf5f5;color:#c5221f}
+.lc-bt.sai:hover{background:#fbe9e9;border-color:#e88}
+.lc-bt.sai.on{background:#c5221f;border-color:#a81b19;color:#fff}
+.lc-bt.inerte{opacity:.32}
+.lc-bt.inerte:hover{opacity:.55}
+.lc-marca{width:100%;border-radius:5px;cursor:pointer;font-size:11px;font-weight:700;padding:3px 4px;line-height:1}
+.lc-marca.f{background:#fdecec;border:1px solid #e88;color:#c5221f}
+.lc-marca.n{background:#f1f3f4;border:1px solid #d4d7db;color:var(--tx3)}
+.lc-hora-tag{display:inline-block;border-radius:5px;padding:1px 8px;font-size:11px;font-weight:700;font-variant-numeric:tabular-nums}
+.lc-hora-tag.ent{background:#34a853;color:#fff}
+.lc-hora-tag.sai{background:#c5221f;color:#fff}
+
+/* off-day: nao e o dia regular do aluno. Hachura diagonal fininha + conteudo apagado — some
+   visualmente sem impedir o lancamento (reposicao/anteposicao acontece e precisa ser lancavel) */
+.lc-cel.off{background-image:repeating-linear-gradient(45deg,rgba(7,29,73,.055) 0 1px,transparent 1px 6px)}
+.lc-cel.off .lc-ponto{opacity:.38}
+.lc-cel.off:hover .lc-ponto{opacity:1}
 
 #lc-dialog-corpo .mat-linha{display:flex;justify-content:space-between;align-items:center;gap:12px;
   border:1px solid #e6e8ea;border-radius:10px;padding:10px 12px;margin-bottom:8px}
@@ -426,7 +472,12 @@ Os horários da matriz costumam ser fixos e raramente mudam. Confirma que quer e
 <select id="lc-hora" onchange="lcHora(this.value)"></select>
 </div>
 </div>
+<div class="lc-abas">
+<button type="button" class="lc-aba on" data-aba="checkin" onclick="lcAba('checkin')">Check-in</button>
+<button type="button" class="lc-aba" data-aba="hoje" onclick="lcAba('hoje')">Presenças hoje <span id="lc-aba-n"></span></button>
+</div>
 <div id="lc-blocos"></div>
+<div id="lc-hoje" style="display:none"></div>
 </div>
 
 <sl-dialog id="lc-dialog" label="Lançar presença">
@@ -916,6 +967,29 @@ LC_DATA=isoLocal(d);LC_HORA=null;lcCarregar()}
    reenviava LC_HORA (a hora antiga), o servidor devolvia a mesma e o select voltava sozinho */
 function lcHora(h){LC_HORA=h||null;lcCarregar()}
 function lcHoje(){LC_DATA=null;LC_HORA=null;lcCarregar()}
+/* duas abas: Check-in (a grade da semana) e Presenças hoje (quem já passou, em ordem de chegada) */
+var LC_ABA='checkin';
+function lcAba(n){LC_ABA=n;
+document.querySelectorAll('.lc-aba').forEach(function(b){b.classList.toggle('on',b.dataset.aba===n)});
+$('lc-blocos').style.display=n==='checkin'?'':'none';
+$('lc-hoje').style.display=n==='hoje'?'':'none';
+if(n==='hoje')lcRenderHoje()}
+function lcRenderHoje(){
+run('getPresencasHoje',[{data:LC?LC.data:null}],function(r){
+$('lc-aba-n').textContent=r.total?'('+r.total+')':'';
+var box=$('lc-hoje');
+if(!r.total){box.innerHTML='<div class="lc-vazio">Ninguém registrado ainda neste dia.<br><small>Os check-ins feitos na aba ao lado aparecem aqui, em ordem de chegada.</small></div>';return}
+var h='<div class="lc-card"><div class="lc-head"><div class="lc-head-esq"><h4>Presenças de '+escBloco(dataExtenso(r.data).replace(/ de \d{4}$/,''))+'</h4>'
++'<span class="lc-chip">'+r.total+' aluno(s)</span></div><div class="lc-resumo"><b>'+r.linhas.filter(function(l){return l.presente}).length+'</b> ainda na escola</div></div>'
++'<div class="lc-wrap"><table class="lc-tabela"><thead><tr><th class="lc-th-aluno">Aluno</th><th>Estágio</th><th>Entrada</th><th>Saída</th><th>Situação</th></tr></thead><tbody>';
+r.linhas.forEach(function(l){
+h+='<tr><td class="lc-nome">'+escBloco(l.nome)+'</td>'
++'<td class="lc-estagio"><span class="lc-livro">'+escBloco(l.livro)+'</span><small>'+escBloco((l.vip?l.modalidade+' Vip':l.modalidade)||'')+'</small></td>'
++'<td><span class="lc-hora-tag ent">'+escBloco(l.entrada)+'</span></td>'
++'<td>'+(l.saida?'<span class="lc-hora-tag sai">'+escBloco(l.saida)+'</span>':'<span class="lc-vazio-cel">—</span>')+'</td>'
++'<td>'+(l.presente?'<span class="badge b-on">na escola</span>':'<span class="badge b-off">saiu</span>')+'</td></tr>'});
+box.innerHTML=h+'</tbody></table></div></div>';
+})}
 function lcRender(){
 $('lc-data-txt').textContent=dataExtenso(LC.data).replace(/ de \d{4}$/,'');
 $('lc-data-sub').textContent=LC.ehHoje?'hoje':'';
@@ -937,43 +1011,93 @@ head.innerHTML='<div class="lc-head-esq"><span class="lc-hora-badge">'+escBloco(
 card.appendChild(head);
 var wrap=document.createElement('div');wrap.className='lc-wrap';
 var tb=document.createElement('table');tb.className='lc-tabela';
-/* dois cabeçalhos, como na ficha impressa: dia da semana em cima, número do dia do mês embaixo */
-var h1='<tr><th class="lc-th-aluno" rowspan="2">Aluno</th><th rowspan="2">Livro</th><th rowspan="2">Dias</th><th rowspan="2">Aula</th>';
+/* colunas = a SEMANA corrente (Seg→Sáb). Cabeçalho em dois níveis: nome do dia em cima,
+   número do dia embaixo (a ficha IMPRESSA continua com as 12 colunas do mês — visão diferente). */
+var h1='<tr><th class="lc-th-aluno" rowspan="2">Aluno</th><th rowspan="2">Estágio<small>Modalidade</small></th>'
++'<th rowspan="2">Professor</th><th rowspan="2">Dias</th>';
 var h2='<tr>';
-/* colunas são POR BLOCO: além dos dias regulares do grupo, entram as datas de reposição/
-   anteposição já lançadas para os alunos deste bloco (off-day, marcado com ·) */
-b.colunas.forEach(function(c,i){h1+='<th class="lc-dia'+(c.hoje?' hoje':'')+(c.foraDoGrupo?' off':'')+'"'
-+(c.foraDoGrupo?' title="'+escBloco(c.curto)+' — fora do dia regular (reposição/anteposição)"':'')+'>'+escBloco(c.codigo)+(c.foraDoGrupo?'·':'')+'</th>';
-h2+='<th class="lc-num'+(c.hoje?' hoje':'')+(c.foraDoGrupo?' off':'')+'" data-col="'+i+'" title="Clique para marcar o dia inteiro como não aula (feriado/férias)">'+c.numero+'</th>'});
+LC.semana.forEach(function(c,i){
+h1+='<th class="lc-dia'+(c.hoje?' hoje':'')+'">'+escBloco(c.curto)+'</th>';
+h2+='<th class="lc-num'+(c.hoje?' hoje':'')+'" data-col="'+i+'" title="Clique para marcar o dia inteiro como não aula (feriado/férias)">'+c.numero+'</th>'});
 tb.innerHTML='<thead>'+h1+'</tr>'+h2+'</tr></thead>';
 tb.querySelectorAll('thead .lc-num').forEach(function(th){
-th.onclick=function(){lcColunaNaoAula(b,b.colunas[+th.dataset.col],card)}});
+th.onclick=function(){lcColunaNaoAula(b,LC.semana[+th.dataset.col],card)}});
 var tbody=document.createElement('tbody');
 b.alunos.forEach(function(al){
 var tr=document.createElement('tr');
-var tipoCel=b.vip?(b.mod+' Vip'):(b.tipoKey==='Kids'?'Conn':b.mod);
-tr.innerHTML='<td class="lc-nome">'+escBloco(al.nome)+'</td><td>'+escBloco(al.livro)+'</td><td>'+escBloco(al.dias)+'</td><td>'+escBloco(tipoCel)+'</td>';
-b.colunas.forEach(function(c){
-var td=document.createElement('td');td.className='lc-cel'+(c.hoje?' hoje':'')+(c.foraDoGrupo?' off':'');
-var bt=document.createElement('button');bt.type='button';
-lcPintar(bt,al.presencas[c.data]||null,al.nome,c);
-bt.onclick=function(){lcToggle(bt,al,c.data,card)};
-td.appendChild(bt);tr.appendChild(td)});
+/* Estágio: livro em pílula em cima, modalidade embaixo (mesma célula) — como no protótipo */
+var mod=(al.vip?al.modalidade+' Vip':al.modalidade)+(al.tipoEncontro==='Online'?' · Online':'');
+var pilulas=al.diasPilulas.map(function(p){
+return '<span class="lc-pd" title="'+escBloco(p.curto)+(p.aulas>1?' — '+p.aulas+' aulas':'')+'">'+escBloco(p.codigo)+(p.aulas>1?' <b>'+p.aulas+'</b>':'')+'</span>'}).join('');
+tr.innerHTML='<td class="lc-nome">'+escBloco(al.nome)+'</td>'
++'<td class="lc-estagio"><span class="lc-livro">'+escBloco(al.livro)+'</span><small>'+escBloco(mod)+'</small></td>'
++'<td class="lc-prof">'+((al.profs&&al.profs.length)?al.profs.map(function(p){return '<span class="lc-pp">'+escBloco(p)+'</span>'}).join(''):'<span class="lc-vazio-cel">—</span>')+'</td>'
++'<td class="lc-dias-pil">'+(pilulas||'<span class="lc-vazio-cel">—</span>')+'</td>';
+LC.semana.forEach(function(c){
+var td=document.createElement('td');
+var regular=al.regular[c.data];
+/* off-day (dia que não é o do aluno) fica hachurado e apagado, mas continua clicável:
+   reposição/anteposição acontece e precisa poder ser lançada */
+td.className='lc-cel'+(c.hoje?' hoje':'')+(regular?'':' off');
+td.appendChild(lcCelula(al,c,card));
+tr.appendChild(td)});
 tbody.appendChild(tr)});
 tb.appendChild(tbody);wrap.appendChild(tb);card.appendChild(wrap);
 var leg=document.createElement('div');leg.className='lc-legenda';
-leg.innerHTML='Clique na célula para alternar:<i class="v"></i>não lançado<i class="p"></i>presente<i class="f"></i>falta<i class="n"></i>não aula'
-+' &nbsp;·&nbsp; clique no número do dia para marcar a coluna inteira como não aula.'
-+(b.colunas.some(function(c){return c.foraDoGrupo})?' &nbsp;·&nbsp; colunas em laranja (·) são reposição/anteposição, fora do dia regular.':'');
+leg.innerHTML='<i class="ent"></i>entrada <i class="sai"></i>saída &nbsp;·&nbsp; clique para registrar a hora, clique de novo para desfazer'
++' &nbsp;·&nbsp; clique no número do dia para marcar a coluna inteira como não aula'
++' &nbsp;·&nbsp; colunas hachuradas não são o dia regular do aluno (reposição).';
 card.appendChild(leg);
 lcResumo(card,b);
 return card;
 }
+/* célula de um dia: botão de entrada (verde) + botão de saída (vermelho), como no protótipo.
+   Sem lançamento → só o botão de entrada, apagado. Com entrada → aparece o de saída. */
+function lcCelula(al,c,card){
+var box=document.createElement('div');box.className='lc-ponto';
+var p=al.pontos[c.data]||null;
+function redesenha(){
+box.innerHTML='';
+var st=p?p.status:null;
+if(st==='F'||st==='N'){ // falta / não aula: sem ponto, só o marcador
+var m=document.createElement('button');m.type='button';m.className='lc-marca '+st.toLowerCase();
+m.textContent=st==='F'?'✕':'–';m.title=(st==='F'?'Falta':'Não aula')+' — clique para limpar';
+m.onclick=function(){lcGravarStatus(al,c,null,card,function(n){p=n;redesenha()})};
+box.appendChild(m);return}
+var ent=document.createElement('button');ent.type='button';
+ent.className='lc-bt ent'+(p&&p.entrada?' on':'');
+ent.innerHTML=(p&&p.entrada?'<b>'+escBloco(p.entrada)+'</b>':'')+'<span class="lc-seta">→</span>';
+ent.title=p&&p.entrada?'Entrada '+p.entrada+' — clique para desfazer':'Registrar entrada';
+ent.onclick=function(){lcPonto(al,c,'entrada',!!(p&&p.entrada),card,function(n){p=n;redesenha()})};
+box.appendChild(ent);
+var sai=document.createElement('button');sai.type='button';
+sai.className='lc-bt sai'+(p&&p.saida?' on':'')+((p&&p.entrada)?'':' inerte');
+sai.innerHTML=(p&&p.saida?'<b>'+escBloco(p.saida)+'</b>':'')+'<span class="lc-seta">←</span>';
+sai.title=!p||!p.entrada?'Registre a entrada primeiro':(p.saida?'Saída '+p.saida+' — clique para desfazer':'Registrar saída');
+sai.onclick=function(){if(!p||!p.entrada){msg('Registre a entrada primeiro.',true);return}
+lcPonto(al,c,'saida',!!p.saida,card,function(n){p=n;redesenha()})};
+box.appendChild(sai);
+}
+redesenha();return box;
+}
+function lcPonto(al,c,tipo,desfazer,card,ok){
+run('registrarPonto',[{idMatricula:al.id,livro:al.livro,data:c.data,tipo:tipo,limpar:desfazer}],function(r){
+var novo=r.status?{status:r.status,entrada:r.entrada,saida:r.saida}:null;
+al.pontos[c.data]=novo;ok(novo);
+var b=LC.blocos.filter(function(x){return x.alunos.indexOf(al)>=0})[0];
+if(b&&card)lcResumo(card,b);
+if(LC_ABA==='hoje')lcRenderHoje()})}
+function lcGravarStatus(al,c,status,card,ok){
+run('lancarPresenca',[{idMatricula:al.id,livro:al.livro,data:c.data,status:status}],function(){
+var novo=status?{status:status,entrada:null,saida:null}:null;
+al.pontos[c.data]=novo;ok(novo);
+var b=LC.blocos.filter(function(x){return x.alunos.indexOf(al)>=0})[0];
+if(b&&card)lcResumo(card,b)})}
 function lcResumo(card,b){ // "3 de 7 lançados hoje" — só a coluna de hoje interessa no dia a dia
-var hoje=b.colunas.filter(function(c){return c.hoje})[0];
+var hoje=LC.semana.filter(function(c){return c.hoje})[0];
 var el=card.querySelector('.lc-resumo');
 if(!hoje){el.textContent=b.alunos.length+' aluno(s)';return}
-var n=b.alunos.filter(function(a){return a.presencas[hoje.data]}).length;
+var n=b.alunos.filter(function(a){return a.pontos[hoje.data]}).length;
 el.innerHTML='<b>'+n+'</b> de '+b.alunos.length+' lançado(s) hoje';
 }
 var LC_ROTULO={P:'presente',F:'falta',N:'não aula'};
@@ -995,7 +1119,7 @@ if(b&&card)lcResumo(card,b);
 })}
 /* coluna inteira como "não aula" (feriado/férias): clicar no número do dia no cabeçalho */
 function lcColunaNaoAula(b,c,card){
-var todosN=b.alunos.every(function(a){return a.presencas[c.data]==='N'});
+var todosN=b.alunos.every(function(a){var x=a.pontos[c.data];return x&&x.status==='N'});
 var novo=todosN?null:'N';
 if(!confirm(todosN?'Desmarcar "não aula" do dia '+c.numero+' para os '+b.alunos.length+' aluno(s) deste bloco?'
 :'Marcar o dia '+c.numero+' como NÃO AULA (feriado/férias) para os '+b.alunos.length+' aluno(s) deste bloco?'))return;

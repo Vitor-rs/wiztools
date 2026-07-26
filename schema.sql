@@ -57,9 +57,9 @@ CREATE TABLE turmas (                  -- turma = SALA (professora+dias+horário
 CREATE TABLE aluno_livro (             -- matrícula do aluno num livro: fonte da verdade de
   id_matricula TEXT NOT NULL REFERENCES alunos(id_matricula) ON DELETE CASCADE,  -- modalidade/VIP/tipo de encontro (não a turma)
   livro TEXT NOT NULL REFERENCES livros(nome),
-  modalidade TEXT NOT NULL,            -- Conn | Inter
-  vip INTEGER NOT NULL DEFAULT 0,      -- VIP = sem turma (nunca casa com turma — regra aplicada no app)
-  tipo_encontro TEXT NOT NULL DEFAULT 'Presencial', -- Presencial | Online
+  modalidade TEXT NOT NULL CHECK (modalidade IN ('Conn','Inter','On')),
+  vip INTEGER NOT NULL DEFAULT 0 CHECK (vip IN (0,1)), -- VIP = sem turma (regra aplicada no app)
+  tipo_encontro TEXT NOT NULL DEFAULT 'Presencial' CHECK (tipo_encontro IN ('Presencial','Online')),
   PRIMARY KEY (id_matricula, livro)
 );
 CREATE TABLE turma_dia (               -- era o texto 'Terça+Quinta' — normalizado
@@ -91,8 +91,13 @@ CREATE TABLE aula_professor (
 CREATE TABLE IF NOT EXISTS presenca (  -- lançador de presença: 1 linha = aluno × livro × DIA
   id_matricula TEXT NOT NULL REFERENCES alunos(id_matricula) ON DELETE CASCADE,
   livro TEXT NOT NULL,                 -- texto solto de propósito: trocar de livro não apaga frequência
-  data TEXT NOT NULL,                  -- 'AAAA-MM-DD' (a hora não entra: presença vale para o dia)
-  status TEXT NOT NULL,                -- 'P' presente | 'F' falta | 'N' não aula (feriado/férias: não conta pra nada)
+  data TEXT NOT NULL CHECK (data GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]'),
+  status TEXT NOT NULL CHECK (status IN ('P','F','N')), -- Presente | Falta | Não aula (não conta pra nada)
+  entrada TEXT CHECK (entrada IS NULL OR entrada GLOB '[0-2][0-9]:[0-5][0-9]'), -- check-in na recepção
+  saida   TEXT CHECK (saida   IS NULL OR saida   GLOB '[0-2][0-9]:[0-5][0-9]'), -- check-out
+  CHECK (saida IS NULL OR entrada IS NOT NULL),  -- não existe saída sem entrada
+  CHECK (saida IS NULL OR saida >= entrada),     -- saída nunca antes da entrada
+  CHECK (status='P' OR entrada IS NULL),         -- só quem esteve presente tem ponto
   PRIMARY KEY (id_matricula, livro, data)
 );
 CREATE TABLE aluno_situacao_historico (  -- linha do tempo manual: quando o aluno entrou em cada situação
@@ -101,6 +106,18 @@ CREATE TABLE aluno_situacao_historico (  -- linha do tempo manual: quando o alun
   situacao TEXT NOT NULL REFERENCES situacoes(situacao),
   data TEXT NOT NULL                     -- 'AAAA-MM-DD', digitada manualmente pela recepção
 );
+
+/* ===== índices ===== (o banco nasceu sem nenhum: toda consulta era varredura de tabela) */
+CREATE INDEX IF NOT EXISTS ix_aulas_matricula ON aulas(id_matricula);
+CREATE INDEX IF NOT EXISTS ix_aulas_dia_hora ON aulas(dia, hora);
+CREATE INDEX IF NOT EXISTS ix_aulas_livro ON aulas(id_matricula, livro);
+CREATE INDEX IF NOT EXISTS ix_presenca_data ON presenca(data);
+CREATE INDEX IF NOT EXISTS ix_presenca_matricula ON presenca(id_matricula);
+CREATE INDEX IF NOT EXISTS ix_aula_prof_func ON aula_professor(funcionario_id);
+CREATE INDEX IF NOT EXISTS ix_turma_dia_dia ON turma_dia(dia);
+CREATE INDEX IF NOT EXISTS ix_aluno_livro_livro ON aluno_livro(livro);
+CREATE INDEX IF NOT EXISTS ix_hist_matricula ON aluno_situacao_historico(id_matricula);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_hist_unico ON aluno_situacao_historico(id_matricula, situacao, data);
 
 /* ===== derivados (as fórmulas da planilha viram VIEWs) ===== */
 CREATE VIEW v_alunos AS                -- Status derivado da situação

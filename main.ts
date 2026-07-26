@@ -20,6 +20,30 @@ const A = (sql: string, ...p: any[]) => db.prepare(sql).all(...p) as any[];
 const G = (sql: string, ...p: any[]) => db.prepare(sql).get(...p) as any;
 const R = (sql: string, ...p: any[]) => db.prepare(sql).run(...p);
 
+/* migrações aditivas idempotentes: rodam a cada subida e são seguras num banco já em uso
+   (a recepção só recebe código novo — o wizard.db dela nunca é recriado). */
+function colunas(tabela: string) { return A(`PRAGMA table_info(${tabela})`).map(c => c.name); }
+function addColuna(tabela: string, coluna: string, def: string) {
+  if (!colunas(tabela).includes(coluna)) { R(`ALTER TABLE ${tabela} ADD COLUMN ${coluna} ${def}`); console.log("migração: " + tabela + "." + coluna + " criada"); }
+}
+addColuna("presenca", "entrada", "TEXT"); // 'HH:MM' — check-in feito na recepção
+addColuna("presenca", "saida", "TEXT");   // 'HH:MM' — check-out
+/* índices: o banco nasceu sem nenhum, então toda consulta era varredura de tabela. Com o histórico
+   de presença crescendo todo dia, isso passa a doer — CREATE IF NOT EXISTS é idempotente. */
+for (const ix of [
+  "CREATE INDEX IF NOT EXISTS ix_aulas_matricula ON aulas(id_matricula)",
+  "CREATE INDEX IF NOT EXISTS ix_aulas_dia_hora ON aulas(dia, hora)",
+  "CREATE INDEX IF NOT EXISTS ix_aulas_livro ON aulas(id_matricula, livro)",
+  "CREATE INDEX IF NOT EXISTS ix_presenca_data ON presenca(data)",
+  "CREATE INDEX IF NOT EXISTS ix_presenca_matricula ON presenca(id_matricula)",
+  "CREATE INDEX IF NOT EXISTS ix_aula_prof_func ON aula_professor(funcionario_id)",
+  "CREATE INDEX IF NOT EXISTS ix_turma_dia_dia ON turma_dia(dia)",
+  "CREATE INDEX IF NOT EXISTS ix_aluno_livro_livro ON aluno_livro(livro)",
+  "CREATE INDEX IF NOT EXISTS ix_hist_matricula ON aluno_situacao_historico(id_matricula)",
+]) db.exec(ix);
+try { db.exec("CREATE UNIQUE INDEX IF NOT EXISTS ux_hist_unico ON aluno_situacao_historico(id_matricula, situacao, data)"); }
+catch { console.warn("aviso: há registros de situação duplicados (mesmo aluno/situação/data) — índice único não aplicado"); }
+
 if (Deno.args.includes("--init")) {
   db.exec(await Deno.readTextFile(PASTA + "schema.sql"));
   db.exec("PRAGMA foreign_keys = OFF;"); // seed.sql grava aulas antes de aluno_livro existir; a migração abaixo preenche
@@ -269,6 +293,15 @@ function indicePresencas(ini: string, fim: string) {
   const idx: Record<string, Record<string, string>> = {};
   A("SELECT * FROM presenca WHERE data BETWEEN ? AND ?", ini, fim)
     .forEach(p => (idx[p.id_matricula + "|" + p.livro] ||= {})[p.data] = p.status);
+  return idx;
+}
+/* igual ao anterior, mas com o registro completo (status + entrada + saída) — usado só pelo
+   lançador; a impressão continua no índice de status puro, que é tudo de que ela precisa */
+function indicePontos(ini: string, fim: string) {
+  const idx: Record<string, Record<string, any>> = {};
+  A("SELECT * FROM presenca WHERE data BETWEEN ? AND ?", ini, fim)
+    .forEach(p => (idx[p.id_matricula + "|" + p.livro] ||= {})[p.data] =
+      { status: p.status, entrada: p.entrada || null, saida: p.saida || null });
   return idx;
 }
 
@@ -540,12 +573,13 @@ const api: Record<string, (a: any) => unknown> = {
      Mesmos blocos da impressão (montarBlocos), só que com as colunas do mês já preenchidas com o
      que foi lançado. Sem `hora`, escolhe o bloco da hora atual; se não houver nada rodando agora,
      devolve o bloco mais próximo do horário (a recepção quase sempre lança no meio da aula). */
+  /* Lançador (check-in): as colunas são a SEMANA CORRENTE (Segunda→Sábado), não o mês.
+     A ficha impressa continua com as 12 colunas do mês — são visões diferentes do mesmo dado. */
   getLancador({ data, hora }: any = {}) {
     const dInfo: Record<string, any> = {}; A("SELECT * FROM dias").forEach(r => dInfo[r.nome] = r);
     const agora = new Date();
     const ref = data ? new Date(data + "T12:00:00") : agora; // meio-dia: imune a fuso/horário de verão
     const dia = NOMES_DIA[ref.getDay()];
-    const grupo = grupoDoDia(dia);
 
     const doDia = montarBlocos([dia]);
     const horas = [...new Set(doDia.map((b: any) => b.hora))].sort();
@@ -557,10 +591,78 @@ const api: Record<string, (a: any) => unknown> = {
     }
     const blocos = doDia.filter((b: any) => b.hora === horaSel);
 
-    return { data: dataISO(ref), dia, diaCurto: dInfo[dia]?.curto || dia, hora: horaSel, horas, grupo,
-      blocos: blocosComColunas(blocos, ref, grupo, true), ehHoje: dataISO(ref) === dataISO(agora) };
+    // semana da data de referência: segunda → sábado (domingo não é dia letivo)
+    const seg = new Date(ref); seg.setDate(seg.getDate() - ((seg.getDay() + 6) % 7));
+    const hojeISO = dataISO(agora);
+    const semana = Array.from({ length: 6 }, (_, i) => {
+      const d = new Date(seg); d.setDate(seg.getDate() + i);
+      const nome = NOMES_DIA[d.getDay()];
+      return { data: dataISO(d), dia: nome, codigo: dInfo[nome]?.codigo || nome,
+        curto: dInfo[nome]?.curto || nome, numero: d.getDate(), hoje: dataISO(d) === hojeISO };
+    });
+
+    // dias regulares do aluno (com nº de aulas) — define on-day/off-day e as pílulas de "Dias"
+    const regulares: Record<string, Record<string, number>> = {};
+    for (const r of A("SELECT id_matricula, livro, dia, COUNT(*) n FROM aulas GROUP BY 1,2,3"))
+      (regulares[r.id_matricula + "|" + r.livro] ||= {})[r.dia] = r.n;
+
+    const idx = indicePontos(semana[0].data, semana[5].data);
+    const comAlunos = blocos.map((b: any) => ({ ...b, alunos: b.alunos.map((al: any) => {
+      const chave = al.id + "|" + al.livro;
+      const reg = regulares[chave] || {};
+      const mat = getMatricula(al.id, al.livro);
+      return { ...al,
+        modalidade: mat?.modalidade || b.mod, vip: mat?.vip === 1,
+        tipoEncontro: mat?.tipo_encontro || "Presencial",
+        // pílulas: um item por dia regular, com a contagem de aulas dentro
+        diasPilulas: Object.keys(reg).map(d => dInfo[d]).filter(Boolean)
+          .sort((p: any, q: any) => p.ordem - q.ordem)
+          .map((d: any) => ({ codigo: d.codigo, curto: d.curto, aulas: reg[d.nome] })),
+        regular: Object.fromEntries(semana.map(s => [s.data, !!reg[s.dia]])), // false = off-day (hachurado)
+        pontos: Object.fromEntries(semana.map(s => [s.data, idx[chave]?.[s.data] || null])),
+      };
+    }) }));
+
+    return { data: dataISO(ref), dia, diaCurto: dInfo[dia]?.curto || dia, hora: horaSel, horas,
+      semana, blocos: comAlunos, ehHoje: dataISO(ref) === hojeISO,
+      agora: ("0" + agora.getHours()).slice(-2) + ":" + ("0" + agora.getMinutes()).slice(-2) };
   },
   lancarPresenca: (p: any) => gravarPresenca(p),
+  /* check-in / check-out: grava a hora do relógio da recepção. Entrada implica presença ('P');
+     limpar a entrada zera o lançamento do dia (volta a "não lançado"). */
+  registrarPonto({ idMatricula, livro, data, tipo, hora, limpar }: any) {
+    if (!idMatricula || !livro || !data || !tipo) throw new Error("Dados incompletos para registrar o ponto.");
+    if (tipo !== "entrada" && tipo !== "saida") throw new Error("Tipo inválido: use entrada ou saida.");
+    const agora = new Date();
+    const hhmm = hora || ("0" + agora.getHours()).slice(-2) + ":" + ("0" + agora.getMinutes()).slice(-2);
+    const atual = G("SELECT * FROM presenca WHERE id_matricula=? AND livro=? AND data=?", idMatricula, livro, data);
+    if (limpar) {
+      if (tipo === "saida") { R("UPDATE presenca SET saida=NULL WHERE id_matricula=? AND livro=? AND data=?", idMatricula, livro, data); return { ok: true, entrada: atual?.entrada || null, saida: null, status: atual?.status || null }; }
+      R("DELETE FROM presenca WHERE id_matricula=? AND livro=? AND data=?", idMatricula, livro, data);
+      return { ok: true, entrada: null, saida: null, status: null };
+    }
+    if (tipo === "entrada") {
+      R(`INSERT INTO presenca (id_matricula,livro,data,status,entrada) VALUES (?,?,?,'P',?)
+         ON CONFLICT(id_matricula,livro,data) DO UPDATE SET status='P', entrada=excluded.entrada`,
+        idMatricula, livro, data, hhmm);
+      return { ok: true, entrada: hhmm, saida: atual?.saida || null, status: "P" };
+    }
+    if (!atual?.entrada) throw new Error("Registre a entrada antes da saída."); // CHECK do banco também barra
+    if (hhmm < atual.entrada) throw new Error("A saída (" + hhmm + ") não pode ser antes da entrada (" + atual.entrada + ").");
+    R("UPDATE presenca SET saida=? WHERE id_matricula=? AND livro=? AND data=?", hhmm, idMatricula, livro, data);
+    return { ok: true, entrada: atual.entrada, saida: hhmm, status: "P" };
+  },
+  /* aba "Presenças hoje": quem já passou pela recepção, em ordem cronológica de entrada */
+  getPresencasHoje({ data }: any = {}) {
+    const alvo = data || dataISO(new Date());
+    const linhas = A(`SELECT p.*, a.nome FROM presenca p JOIN alunos a ON a.id_matricula=p.id_matricula
+      WHERE p.data=? AND p.status='P' AND p.entrada IS NOT NULL ORDER BY p.entrada, a.nome`, alvo);
+    return { data: alvo, total: linhas.length, linhas: linhas.map(l => {
+      const mat = getMatricula(l.id_matricula, l.livro);
+      return { id: l.id_matricula, nome: l.nome, livro: l.livro, entrada: l.entrada, saida: l.saida,
+        modalidade: mat?.modalidade || null, vip: mat?.vip === 1, presente: !l.saida };
+    }) };
+  },
   /* lote: marcar a coluna inteira de uma data (feriado/férias = 'N' para todo mundo do bloco) */
   lancarPresencaLote({ itens }: any) {
     if (!Array.isArray(itens)) throw new Error("Nada para lançar.");

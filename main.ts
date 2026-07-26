@@ -601,10 +601,16 @@ const api: Record<string, (a: any) => unknown> = {
         curto: dInfo[nome]?.curto || nome, numero: d.getDate(), hoje: dataISO(d) === hojeISO };
     });
 
-    // dias regulares do aluno (com nº de aulas) — define on-day/off-day e as pílulas de "Dias"
+    // dias regulares do aluno (com nº de aulas) — alimenta as pílulas de "Dias"
     const regulares: Record<string, Record<string, number>> = {};
     for (const r of A("SELECT id_matricula, livro, dia, COUNT(*) n FROM aulas GROUP BY 1,2,3"))
       (regulares[r.id_matricula + "|" + r.livro] ||= {})[r.dia] = r.n;
+    /* on-day/off-day considera dia E HORA: o bloco é de um horário específico, então quem faz
+       segunda 14h não é "da segunda" num bloco das 18h — a coluna sai apagada mesmo tendo aula
+       naquele dia em outro horário. Lançar continua permitido (reposição). */
+    const regularesNaHora: Record<string, Set<string>> = {};
+    if (horaSel) for (const r of A("SELECT DISTINCT id_matricula, livro, dia FROM aulas WHERE hora=?", horaSel))
+      (regularesNaHora[r.id_matricula + "|" + r.livro] ||= new Set()).add(r.dia);
 
     const idx = indicePontos(semana[0].data, semana[5].data);
     const comAlunos = blocos.map((b: any) => ({ ...b, alunos: b.alunos.map((al: any) => {
@@ -618,7 +624,7 @@ const api: Record<string, (a: any) => unknown> = {
         diasPilulas: Object.keys(reg).map(d => dInfo[d]).filter(Boolean)
           .sort((p: any, q: any) => p.ordem - q.ordem)
           .map((d: any) => ({ codigo: d.codigo, curto: d.curto, aulas: reg[d.nome] })),
-        regular: Object.fromEntries(semana.map(s => [s.data, !!reg[s.dia]])), // false = off-day (hachurado)
+        regular: Object.fromEntries(semana.map(s => [s.data, !!regularesNaHora[chave]?.has(s.dia)])), // false = off-day (apagado)
         pontos: Object.fromEntries(semana.map(s => [s.data, idx[chave]?.[s.data] || null])),
       };
     }) }));

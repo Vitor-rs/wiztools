@@ -231,6 +231,7 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
 .lc-wrap{overflow-x:auto}
 .lc-tabela{border-collapse:separate;border-spacing:0;width:100%;font-size:13px}
 .lc-tabela th,.lc-tabela td{border-bottom:1px solid #f0f1f2;padding:0}
+.lc-th-aluno{width:310px;min-width:310px;max-width:310px}
 .lc-tabela thead th{background:#fbfbfa;font-weight:600;color:#5f6368;font-size:11px;text-transform:uppercase;
   letter-spacing:.03em;padding:8px 10px;text-align:left;white-space:nowrap;border-bottom:1px solid #e6e8ea}
 .lc-tabela thead th.lc-dia{text-align:center;padding:6px 0;width:34px;min-width:34px;font-size:10px;color:#80868b}
@@ -240,7 +241,7 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
 .lc-tabela tbody tr:hover{background:#fafbfc}
 .lc-tabela tbody tr:last-child td{border-bottom:0}
 .lc-tabela td{padding:7px 10px;color:#3c4043;white-space:nowrap}
-.lc-nome{font-weight:600;color:#202124;position:sticky;left:0;background:#fff;z-index:1;min-width:190px;
+.lc-nome{font-weight:600;color:#202124;position:sticky;left:0;background:#fff;z-index:1;width:310px;min-width:310px;max-width:310px;
   box-shadow:1px 0 0 #f0f1f2}
 .lc-tabela tbody tr:hover .lc-nome{background:#fafbfc}
 .lc-cel{text-align:center;padding:3px !important;width:62px;min-width:62px}
@@ -278,7 +279,7 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
   border-radius:10px;padding:0 8px;font-size:11px;font-weight:600;margin:1px 2px 1px 0}
 .lc-pd{display:inline-block;background:var(--marca-cl);border:1px solid #C3CFE6;color:var(--marca);
   border-radius:10px;padding:0 7px;font-size:11px;font-weight:600;margin:1px 2px 1px 0}
-.lc-pd b{font-weight:800}
+.lc-pd b{font-weight:700;font-size:10px}  /* (2 au) — um ponto menor que o dia */
 .lc-vazio-cel{color:#c4c9ce}
 
 /* ===== ponto: entrada (verde) e saida (vermelho) por celula ===== */
@@ -304,8 +305,9 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
 
 /* off-day: nao e o dia regular do aluno. Hachura diagonal fininha + conteudo apagado — some
    visualmente sem impedir o lancamento (reposicao/anteposicao acontece e precisa ser lancavel) */
-.lc-cel.off{background-image:repeating-linear-gradient(45deg,rgba(7,29,73,.055) 0 1px,transparent 1px 6px)}
-.lc-cel.off .lc-ponto{opacity:.38}
+/* o amarelo do off-day vem de .lc-cel.off mais abaixo (#fffaf2); aqui só apagamos o CONTEÚDO,
+   para a coluna "sumir" sem perder a cor nem deixar de ser clicável (reposição acontece) */
+.lc-cel.off .lc-ponto{opacity:.26}
 .lc-cel.off:hover .lc-ponto{opacity:1}
 
 #lc-dialog-corpo .mat-linha{display:flex;justify-content:space-between;align-items:center;gap:12px;
@@ -1028,7 +1030,7 @@ var tr=document.createElement('tr');
 /* Estágio: livro em pílula em cima, modalidade embaixo (mesma célula) — como no protótipo */
 var mod=(al.vip?al.modalidade+' Vip':al.modalidade)+(al.tipoEncontro==='Online'?' · Online':'');
 var pilulas=al.diasPilulas.map(function(p){
-return '<span class="lc-pd" title="'+escBloco(p.curto)+(p.aulas>1?' — '+p.aulas+' aulas':'')+'">'+escBloco(p.codigo)+(p.aulas>1?' <b>'+p.aulas+'</b>':'')+'</span>'}).join('');
+return '<span class="lc-pd" title="'+escBloco(p.curto)+(p.aulas>1?' — '+p.aulas+' aulas':'')+'">'+escBloco(p.codigo)+(p.aulas>1?' <b>('+p.aulas+' au)</b>':'')+'</span>'}).join('');
 tr.innerHTML='<td class="lc-nome">'+escBloco(al.nome)+'</td>'
 +'<td class="lc-estagio"><span class="lc-livro">'+escBloco(al.livro)+'</span><small>'+escBloco(mod)+'</small></td>'
 +'<td class="lc-prof">'+((al.profs&&al.profs.length)?al.profs.map(function(p){return '<span class="lc-pp">'+escBloco(p)+'</span>'}).join(''):'<span class="lc-vazio-cel">—</span>')+'</td>'

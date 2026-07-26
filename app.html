@@ -203,10 +203,15 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
 .lc-busca-ic{position:absolute;left:11px;color:#9aa0a6;display:flex;pointer-events:none}
 .lc-busca input{padding:10px 12px 10px 34px;border:1px solid #dcdfe3;border-radius:10px;font-size:13px;background:#fff}
 .lc-nav{display:flex;align-items:center;gap:8px}
-.lc-navbtn{width:32px;height:32px;border:1px solid #dcdfe3;background:#fff;border-radius:8px;cursor:pointer;
-  font-size:17px;line-height:1;color:#5f6368;display:flex;align-items:center;justify-content:center}
-.lc-navbtn:hover{background:#f1f3f4;border-color:#c4c9ce}
-.lc-data{min-width:130px;text-align:center;line-height:1.2}
+.lc-navbtn{width:36px;height:36px;border:1px solid var(--borda);background:#fff;border-radius:9px;cursor:pointer;
+  line-height:1;color:var(--tx2);display:flex;align-items:center;justify-content:center;
+  transition:background .12s,border-color .12s,color .12s}
+.lc-navbtn:hover{background:var(--marca-cl);border-color:var(--azul-borda);color:var(--marca)}
+.lc-navbtn:active{transform:scale(.94)}
+/* largura FIXA: o texto varia de 116px ("sábado, 28 de abril") a 192px ("segunda-feira, 28 de
+   novembro") e empurrava a seta seguinte, o botão Hoje e o seletor de hora a cada troca de dia */
+.lc-data{width:212px;min-width:212px;max-width:212px;text-align:center;line-height:1.2}
+.lc-data b{display:block;white-space:nowrap}  /* nunca quebra em duas linhas, mesmo se a fonte variar */
 .lc-data b{font-size:13px;color:#202124;text-transform:capitalize}
 .lc-data small{display:block;font-size:11px;color:#80868b}
 .lc-hoje{border:1px solid #dcdfe3;background:#fff;border-radius:8px;padding:7px 12px;cursor:pointer;font-size:12px;color:#5f6368}
@@ -271,6 +276,8 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
 .lc-fixo{position:sticky;top:0;z-index:20;background:var(--fundo);
   margin:-14px -18px 0;padding:14px 18px 0}
 .lc-fixo .lc-abas{margin-bottom:0}
+/* o header é sticky e encostava no primeiro bloco: respiro igual ao que separa os blocos entre si */
+#lc-blocos,#lc-hoje{padding-top:18px}
 /* voltar ao topo: aparece só depois de rolar; pulinho discreto para ser notado sem chamar atenção */
 #ao-topo{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(10px);
   width:38px;height:38px;border-radius:50%;border:1px solid var(--borda);background:#fff;color:var(--marca);
@@ -509,9 +516,9 @@ Os horários da matriz costumam ser fixos e raramente mudam. Confirma que quer e
 <div class="lista" id="lc-sug"></div>
 </div>
 <div class="lc-nav">
-<button type="button" class="lc-navbtn" onclick="lcDia(-1)" title="Dia anterior">‹</button>
+<button type="button" class="lc-navbtn" id="lc-ant" onclick="lcDia(-1)" title="Dia anterior"></button>
 <div class="lc-data"><b id="lc-data-txt">—</b><small id="lc-data-sub"></small></div>
-<button type="button" class="lc-navbtn" onclick="lcDia(1)" title="Próximo dia">›</button>
+<button type="button" class="lc-navbtn" id="lc-prox" onclick="lcDia(1)" title="Próximo dia"></button>
 <button type="button" class="lc-hoje" onclick="lcHoje()">Hoje</button>
 <select id="lc-hora" onchange="lcHora(this.value)"></select>
 </div>
@@ -616,6 +623,8 @@ document.querySelectorAll('#al-salvar .btn-ic, #tu-salvar .btn-ic, #mat-salvar .
 document.querySelectorAll('#btn-imprimir .btn-ic').forEach(function(el){el.innerHTML=icon('printer',14)});
 document.querySelectorAll('#lc-leg-bt .ic').forEach(function(el){el.innerHTML=icon('info',14)});
 var topo=document.getElementById('ao-topo');if(topo)topo.innerHTML=icon('arrow-up',18);
+var ant=document.getElementById('lc-ant');if(ant)ant.innerHTML=icon('chevron-left',20);
+var prox=document.getElementById('lc-prox');if(prox)prox.innerHTML=icon('chevron-right',20);
 document.querySelectorAll('.lc-busca-ic').forEach(function(el){el.innerHTML=icon('search',15)});
 }
 

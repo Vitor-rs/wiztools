@@ -22,12 +22,20 @@ const R = (sql: string, ...p: any[]) => db.prepare(sql).run(...p);
 
 /* migrações aditivas idempotentes: rodam a cada subida e são seguras num banco já em uso
    (a recepção só recebe código novo — o wizard.db dela nunca é recriado). */
-function colunas(tabela: string) { return A(`PRAGMA table_info(${tabela})`).map(c => c.name); }
+/* table_xinfo (e não table_info): colunas GERADAS não aparecem em table_info, então a migração
+   tentava recriá-las a cada subida e o servidor morria com "duplicate column name". */
+function colunas(tabela: string) { return A(`PRAGMA table_xinfo(${tabela})`).map(c => c.name); }
 function addColuna(tabela: string, coluna: string, def: string) {
   if (!colunas(tabela).includes(coluna)) { R(`ALTER TABLE ${tabela} ADD COLUMN ${coluna} ${def}`); console.log("migração: " + tabela + "." + coluna + " criada"); }
 }
 addColuna("presenca", "entrada", "TEXT"); // 'HH:MM' — check-in feito na recepção
 addColuna("presenca", "saida", "TEXT");   // 'HH:MM' — check-out
+/* duração da aula em minutos: coluna GERADA, o SQLite calcula a partir de entrada/saída.
+   Não é campo gravado de propósito — assim nunca fica dessincronizado de um ajuste de horário. */
+addColuna("presenca", "minutos", `INTEGER GENERATED ALWAYS AS (
+  CASE WHEN entrada IS NOT NULL AND saida IS NOT NULL THEN
+    (CAST(substr(saida,1,2) AS INTEGER)*60 + CAST(substr(saida,4,2) AS INTEGER))
+  - (CAST(substr(entrada,1,2) AS INTEGER)*60 + CAST(substr(entrada,4,2) AS INTEGER)) END) VIRTUAL`);
 /* índices: o banco nasceu sem nenhum, então toda consulta era varredura de tabela. Com o histórico
    de presença crescendo todo dia, isso passa a doer — CREATE IF NOT EXISTS é idempotente. */
 for (const ix of [
@@ -301,7 +309,7 @@ function indicePontos(ini: string, fim: string) {
   const idx: Record<string, Record<string, any>> = {};
   A("SELECT * FROM presenca WHERE data BETWEEN ? AND ?", ini, fim)
     .forEach(p => (idx[p.id_matricula + "|" + p.livro] ||= {})[p.data] =
-      { status: p.status, entrada: p.entrada || null, saida: p.saida || null });
+      { status: p.status, entrada: p.entrada || null, saida: p.saida || null, minutos: p.minutos ?? null });
   return idx;
 }
 
@@ -345,6 +353,11 @@ function blocosComColunas(blocos: any[], ref: Date, grupo: string[], incluirGrup
     return { ...b, colunas, alunos: b.alunos.map((al: any) => ({ ...al, presencas: idx[al.id + "|" + al.livro] || {} })) };
   });
 }
+
+/* abaixo disso a saída provavelmente foi clique errado — a aula da Wizard tem 1h */
+const AULA_CURTA_MIN = 20;
+const emMinutos = (hhmm: string) => parseInt(hhmm.slice(0, 2), 10) * 60 + parseInt(hhmm.slice(3, 5), 10);
+const minutosEntre = (ini: string, fim: string) => emMinutos(fim) - emMinutos(ini);
 
 /* status vazio/null apaga o lançamento (volta a "não preenchido") */
 function gravarPresenca({ idMatricula, livro, data, status }: any) {
@@ -636,7 +649,7 @@ const api: Record<string, (a: any) => unknown> = {
   lancarPresenca: (p: any) => gravarPresenca(p),
   /* check-in / check-out: grava a hora do relógio da recepção. Entrada implica presença ('P');
      limpar a entrada zera o lançamento do dia (volta a "não lançado"). */
-  registrarPonto({ idMatricula, livro, data, tipo, hora, limpar }: any) {
+  registrarPonto({ idMatricula, livro, data, tipo, hora, limpar, confirmado }: any) {
     if (!idMatricula || !livro || !data || !tipo) throw new Error("Dados incompletos para registrar o ponto.");
     if (tipo !== "entrada" && tipo !== "saida") throw new Error("Tipo inválido: use entrada ou saida.");
     const agora = new Date();
@@ -655,19 +668,28 @@ const api: Record<string, (a: any) => unknown> = {
     }
     if (!atual?.entrada) throw new Error("Registre a entrada antes da saída."); // CHECK do banco também barra
     if (hhmm < atual.entrada) throw new Error("A saída (" + hhmm + ") não pode ser antes da entrada (" + atual.entrada + ").");
+    /* saída cedo demais é quase sempre clique errado (o funcionário aperta saída logo após a
+       entrada). Não bloqueia — só devolve o aviso para a tela confirmar, porque sair mais cedo
+       de verdade acontece (aluno passou mal, foi buscado antes). */
+    const dur = minutosEntre(atual.entrada, hhmm);
+    if (dur < AULA_CURTA_MIN && !confirmado)
+      return { ok: false, precisaConfirmar: true, minutos: dur, entrada: atual.entrada, saida: hhmm,
+        aviso: "Só " + dur + " minuto(s) desde a entrada (" + atual.entrada + ")." };
     R("UPDATE presenca SET saida=? WHERE id_matricula=? AND livro=? AND data=?", hhmm, idMatricula, livro, data);
-    return { ok: true, entrada: atual.entrada, saida: hhmm, status: "P" };
+    return { ok: true, entrada: atual.entrada, saida: hhmm, status: "P", minutos: dur };
   },
   /* aba "Presenças hoje": quem já passou pela recepção, em ordem cronológica de entrada */
   getPresencasHoje({ data }: any = {}) {
     const alvo = data || dataISO(new Date());
     const linhas = A(`SELECT p.*, a.nome FROM presenca p JOIN alunos a ON a.id_matricula=p.id_matricula
       WHERE p.data=? AND p.status='P' AND p.entrada IS NOT NULL ORDER BY p.entrada, a.nome`, alvo);
-    return { data: alvo, total: linhas.length, linhas: linhas.map(l => {
+    const linhasOut = linhas.map(l => {
       const mat = getMatricula(l.id_matricula, l.livro);
       return { id: l.id_matricula, nome: l.nome, livro: l.livro, entrada: l.entrada, saida: l.saida,
-        modalidade: mat?.modalidade || null, vip: mat?.vip === 1, presente: !l.saida };
-    }) };
+        minutos: l.minutos ?? null, modalidade: mat?.modalidade || null, vip: mat?.vip === 1, presente: !l.saida };
+    });
+    return { data: alvo, total: linhasOut.length, linhas: linhasOut,
+      minutosTotais: linhasOut.reduce((t, l) => t + (l.minutos || 0), 0) };
   },
   /* lote: marcar a coluna inteira de uma data (feriado/férias = 'N' para todo mundo do bloco) */
   lancarPresencaLote({ itens }: any) {
@@ -682,12 +704,15 @@ const api: Record<string, (a: any) => unknown> = {
     const linhas = A("SELECT * FROM presenca WHERE id_matricula=? ORDER BY data DESC, livro", idMatricula).map(l => {
       const d = new Date(l.data + "T12:00:00");
       return { data: l.data, livro: l.livro, status: l.status, numero: d.getDate(),
+        entrada: l.entrada || null, saida: l.saida || null, minutos: l.minutos ?? null,
         diaCurto: dInfo[NOMES_DIA[d.getDay()]]?.curto || "", mes: MESES_PT[d.getMonth()] };
     });
     const r = { P: 0, F: 0, N: 0 };
     linhas.forEach(l => { if (l.status in r) (r as any)[l.status]++; });
     const base = r.P + r.F; // não aula não entra na conta
-    return { linhas, resumo: { ...r, total: linhas.length, aproveitamento: base ? Math.round(r.P * 100 / base) : null } };
+    const minutos = linhas.reduce((t, l) => t + (l.minutos || 0), 0);   // tempo de aula efetivamente cumprido
+    return { linhas, resumo: { ...r, total: linhas.length, aproveitamento: base ? Math.round(r.P * 100 / base) : null,
+      minutos, comPonto: linhas.filter(l => l.minutos != null).length } };
   },
   /* busca rápida: tudo que a janelinha de lançar precisa saber sobre o aluno naquele dia —
      inclusive o horário PRÓPRIO dele (a presença é do dia; a hora exibida é só informativa) */
@@ -873,8 +898,13 @@ Deno.serve({ port: 8420 }, async (req) => {
     : arquivo.endsWith(".ico") ? "image/x-icon"
     : arquivo.endsWith(".svg") ? "image/svg+xml"
     : "text/plain; charset=utf-8";
-  /* readFile (binário) sempre — readTextFile decodificaria PNG/ICO como UTF-8 e corromperia os bytes */
-  try { return new Response(await Deno.readFile(PASTA + arquivo), { headers: { "content-type": tipo } }); }
+  /* readFile (binário) sempre — readTextFile decodificaria PNG/ICO como UTF-8 e corromperia os bytes.
+     no-store no HTML/JS/CSS: depois de um `git pull` na recepção o navegador precisa pegar a versão
+     nova, e não a do cache (já aconteceu de a tela rodar código antigo depois de atualizar). */
+  const volatil = /\.(html|js|css|webmanifest)$/.test(arquivo) && !arquivo.startsWith("resources/vendor/");
+  const cabecalhos: Record<string, string> = { "content-type": tipo };
+  if (volatil) cabecalhos["cache-control"] = "no-store, must-revalidate";
+  try { return new Response(await Deno.readFile(PASTA + arquivo), { headers: cabecalhos }); }
   catch { return new Response("não encontrado", { status: 404 }); }
 });
 console.log("Wizard local em http://localhost:8420  (painel único: Alunos, Turmas, Horários e Impressão)");

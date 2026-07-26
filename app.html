@@ -361,6 +361,10 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
 .lc-hora-tag{display:inline-block;border-radius:5px;padding:1px 8px;font-size:11px;font-weight:700;font-variant-numeric:tabular-nums}
 .lc-hora-tag.ent{background:#34a853;color:#fff}
 .lc-hora-tag.sai{background:#c5221f;color:#fff}
+.lc-dur{font-variant-numeric:tabular-nums;font-weight:700;color:var(--marca);font-size:11px}
+.lc-dur.curta{color:#8a5a00;background:#fff4e5;border:1px solid #f0e2cc;border-radius:6px;padding:0 5px}
+.freq-kpi.t b{color:var(--marca)}
+.freq-kpi small{display:block;font-size:10px;color:var(--tx3)}
 
 /* off-day: nao e o dia regular do aluno. Hachura diagonal fininha + conteudo apagado — some
    visualmente sem impedir o lancamento (reposicao/anteposicao acontece e precisa ser lancavel) */
@@ -930,7 +934,8 @@ var res=document.createElement('div');res.className='freq-resumo';
 res.innerHTML='<div class="freq-kpi p"><b>'+r.resumo.P+'</b>presenças</div>'
 +'<div class="freq-kpi f"><b>'+r.resumo.F+'</b>faltas</div>'
 +'<div class="freq-kpi n"><b>'+r.resumo.N+'</b>não aula</div>'
-+'<div class="freq-kpi"><b>'+(r.resumo.aproveitamento===null?'—':r.resumo.aproveitamento+'%')+'</b>aproveitamento</div>';
++'<div class="freq-kpi"><b>'+(r.resumo.aproveitamento===null?'—':r.resumo.aproveitamento+'%')+'</b>aproveitamento</div>'
++'<div class="freq-kpi t"><b>'+(r.resumo.minutos?escBloco(fmtDur(r.resumo.minutos)):'—')+'</b>de aula<small>'+r.resumo.comPonto+' com ponto</small></div>';
 box.appendChild(res);
 if(!r.linhas.length){var v=document.createElement('div');v.style.cssText='color:var(--tx3);font-size:12px;padding:4px 0';
 v.textContent='Nada lançado ainda — use a aba Presença.';box.appendChild(v);return}
@@ -939,7 +944,8 @@ r.linhas.forEach(function(l){
 var row=document.createElement('div');row.className='hist-linha';
 var tx=document.createElement('span');
 tx.innerHTML='<span class="st '+l.status+'">'+(l.status==='P'?'P':l.status==='F'?'F':'—')+'</span> '
-+'<b>'+l.numero+'</b> '+escBloco(l.diaCurto)+' · '+escBloco(l.mes.slice(0,3))+' <small style="color:var(--tx3)">'+escBloco(l.livro)+'</small>';
++'<b>'+l.numero+'</b> '+escBloco(l.diaCurto)+' · '+escBloco(l.mes.slice(0,3))+' <small style="color:var(--tx3)">'+escBloco(l.livro)+'</small>'
++(l.minutos!=null?' <span class="lc-dur'+(l.minutos<20?' curta':'')+'">'+escBloco(fmtDur(l.minutos))+'</span>':'');
 var del=document.createElement('button');del.type='button';del.className='remover';del.textContent='✕';del.title='Remover este lançamento';
 del.onclick=function(){if(!confirm('Remover o lançamento de '+l.numero+'/'+l.data.slice(5,7)+' ('+l.livro+')?'))return;
 run('lancarPresenca',[{idMatricula:alSel.id,livro:l.livro,data:l.data,status:null}],function(){msg('Lançamento removido.');freqCarregar()})};
@@ -1216,13 +1222,16 @@ $('lc-aba-n').textContent=r.total?'('+r.total+')':'';
 var box=$('lc-hoje');
 if(!r.total){box.innerHTML='<div class="lc-vazio">Ninguém registrado ainda neste dia.<br><small>Os check-ins feitos na aba ao lado aparecem aqui, em ordem de chegada.</small></div>';return}
 var h='<div class="lc-card"><div class="lc-head"><div class="lc-head-esq"><h4>Presenças de '+escBloco(dataExtenso(r.data).replace(/ de \d{4}$/,''))+'</h4>'
-+'<span class="lc-chip">'+r.total+' aluno(s)</span></div><div class="lc-resumo"><b>'+r.linhas.filter(function(l){return l.presente}).length+'</b> ainda na escola</div></div>'
-+'<div class="lc-wrap"><table class="lc-tabela"><thead><tr><th class="lc-th-aluno">Aluno</th><th>Estágio</th><th>Entrada</th><th>Saída</th><th>Situação</th></tr></thead><tbody>';
++'<span class="lc-chip">'+r.total+' aluno(s)</span>'
++(r.minutosTotais?'<span class="lc-chip">'+escBloco(fmtDur(r.minutosTotais))+' de aula no dia</span>':'')
++'</div><div class="lc-resumo"><b>'+r.linhas.filter(function(l){return l.presente}).length+'</b> ainda na escola</div></div>'
++'<div class="lc-wrap"><table class="lc-tabela"><thead><tr><th class="lc-th-aluno">Aluno</th><th>Estágio</th><th>Entrada</th><th>Saída</th><th>Duração</th><th>Situação</th></tr></thead><tbody>';
 r.linhas.forEach(function(l){
 h+='<tr><td class="lc-nome">'+escBloco(l.nome)+'</td>'
 +'<td class="lc-estagio"><span class="lc-livro">'+escBloco(l.livro)+'</span><small>'+escBloco((l.vip?l.modalidade+' Vip':l.modalidade)||'')+'</small></td>'
 +'<td><span class="lc-hora-tag ent">'+escBloco(l.entrada)+'</span></td>'
 +'<td>'+(l.saida?'<span class="lc-hora-tag sai">'+escBloco(l.saida)+'</span>':'<span class="lc-vazio-cel">—</span>')+'</td>'
++'<td>'+(l.minutos!=null?'<b class="lc-dur'+(l.minutos<20?' curta':'')+'">'+escBloco(fmtDur(l.minutos))+'</b>':'<span class="lc-vazio-cel">—</span>')+'</td>'
 +'<td>'+(l.presente?'<span class="badge b-on">na escola</span>':'<span class="badge b-off">saiu</span>')+'</td></tr>'});
 box.innerHTML=h+'</tbody></table></div></div>';
 })}
@@ -1306,16 +1315,24 @@ box.appendChild(ent);
 var sai=document.createElement('button');sai.type='button';
 sai.className='lc-bt sai'+(p&&p.saida?' on':'')+((p&&p.entrada)?'':' inerte');
 sai.innerHTML=(p&&p.saida?'<b>'+escBloco(p.saida)+'</b>':'')+'<span class="lc-seta">'+icon('log-out',13)+'</span>';
-sai.title=!p||!p.entrada?'Registre a entrada primeiro':(p.saida?'Saída '+p.saida+' — clique para desfazer':'Registrar saída');
+sai.title=!p||!p.entrada?'Registre a entrada primeiro':(p.saida?'Saída '+p.saida+(p.minutos!=null?' · '+fmtDur(p.minutos)+' de aula':'')+' — clique para desfazer':'Registrar saída');
 sai.onclick=function(){if(!p||!p.entrada){msg('Registre a entrada primeiro.',true);return}
 lcPonto(al,c,'saida',!!p.saida,card,function(n){p=n;redesenha()})};
 box.appendChild(sai);
 }
 redesenha();return box;
 }
-function lcPonto(al,c,tipo,desfazer,card,ok){
-run('registrarPonto',[{idMatricula:al.id,livro:al.livro,data:c.data,tipo:tipo,limpar:desfazer}],function(r){
-var novo=r.status?{status:r.status,entrada:r.entrada,saida:r.saida}:null;
+/* duração em texto curto: 55min, 1h, 1h 5min */
+function fmtDur(min){if(min==null)return '';var h=Math.floor(min/60),m=min%60;
+return h?(h+'h'+(m?' '+m+'min':'')):(m+'min')}
+function lcPonto(al,c,tipo,desfazer,card,ok,confirmado){
+run('registrarPonto',[{idMatricula:al.id,livro:al.livro,data:c.data,tipo:tipo,limpar:desfazer,confirmado:!!confirmado}],function(r){
+/* saída poucos minutos depois da entrada quase sempre é clique errado — confirma antes de gravar */
+if(r.precisaConfirmar){
+if(confirm(al.nome+'\n\n'+r.aviso+'\n\nUma aula dura cerca de 1 hora. Registrar a saída às '+r.saida+' mesmo assim?'))
+lcPonto(al,c,tipo,desfazer,card,ok,true);
+return}
+var novo=r.status?{status:r.status,entrada:r.entrada,saida:r.saida,minutos:(r.minutos!==undefined?r.minutos:null)}:null;
 al.pontos[c.data]=novo;ok(novo);
 var b=LC.blocos.filter(function(x){return x.alunos.indexOf(al)>=0})[0];
 if(b&&card)lcResumo(card,b);

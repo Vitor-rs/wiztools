@@ -95,6 +95,7 @@ CREATE TABLE IF NOT EXISTS presenca (  -- lançador de presença: 1 linha = alun
   status TEXT NOT NULL CHECK (status IN ('P','F','N')), -- Presente | Falta | Não aula (não conta pra nada)
   entrada TEXT CHECK (entrada IS NULL OR entrada GLOB '[0-2][0-9]:[0-5][0-9]'), -- check-in na recepção
   saida   TEXT CHECK (saida   IS NULL OR saida   GLOB '[0-2][0-9]:[0-5][0-9]'), -- check-out
+  aulas_feitas INTEGER,                -- lições cumpridas no dia (NULL = todas as previstas)
   minutos INTEGER GENERATED ALWAYS AS (   -- duração da aula: derivada, nunca dessincroniza
     CASE WHEN entrada IS NOT NULL AND saida IS NOT NULL THEN
       (CAST(substr(saida,1,2) AS INTEGER)*60 + CAST(substr(saida,4,2) AS INTEGER))
@@ -103,6 +104,16 @@ CREATE TABLE IF NOT EXISTS presenca (  -- lançador de presença: 1 linha = alun
   CHECK (saida IS NULL OR saida >= entrada),     -- saída nunca antes da entrada
   CHECK (status='P' OR entrada IS NULL),         -- só quem esteve presente tem ponto
   PRIMARY KEY (id_matricula, livro, data)
+);
+CREATE TABLE IF NOT EXISTS diario (    -- trilha de auditoria append-only dos lançamentos de presença
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  momento TEXT NOT NULL,               -- 'AAAA-MM-DD HH:MM:SS' do relógio da recepção
+  id_matricula TEXT NOT NULL,
+  livro TEXT,
+  data TEXT,                           -- o dia letivo a que o lançamento se refere
+  tipo TEXT NOT NULL,                  -- entrada | saida | status | aulas | limpeza
+  valor TEXT,
+  detalhe TEXT
 );
 CREATE TABLE aluno_situacao_historico (  -- linha do tempo manual: quando o aluno entrou em cada situação
   id INTEGER PRIMARY KEY AUTOINCREMENT,

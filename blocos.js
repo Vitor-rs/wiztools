@@ -39,7 +39,17 @@ function colgroupFicha() {
 }
 /* marca impressa a partir do que foi lançado no app: P presente, X falta, – não aula
    (não aula não conta como presença nem falta; em branco = ainda não lançado, preenche à mão) */
-function marcaImpressa(st) { return st === 'P' ? 'P' : st === 'F' ? 'X' : st === 'N' ? '–' : ''; }
+/* P = veio e cumpriu todas as lições do dia. Se o dia tem 2 lições e o aluno fez só 1, o P sai
+   com o número de lições em sobrescrito (P¹) — sem isso a folha induz que ele fez as duas.
+   X (falta) e – (não aula) não precisam de ressalva: já são definitivos. */
+function marcaImpressa(p) {
+  if (!p) return '';
+  var st = p.status || p;                       // aceita o objeto novo e a string antiga
+  if (st === 'F') return 'X';
+  if (st === 'N') return '–';
+  if (st !== 'P') return '';
+  return p.parcial ? 'P<sup>' + p.feitas + '</sup>' : 'P';
+}
 
 /* banda de título da página (ex.: SEGUNDAS e QUARTAS · JULHO): borda completa na largura da
    tabela, altura fixa, repetida no topo de cada folha impressa via thead da tabela externa. */
@@ -82,8 +92,9 @@ function blocoHTML(b, opts) {
     var tipoCel = b.vip ? (b.mod + ' Vip') : (b.tipoKey === 'Kids' ? 'Conn' : b.mod);
     h += '<tr' + (a.pendente ? ' class="pendente"' : '') + '><td class="nome">' + escBloco(a.nome) + '</td><td>' + escBloco(a.dias) + '</td><td>' + escBloco(a.livro) + '</td><td class="aula">' + escBloco(tipoCel) + '</td>';
     for (var k4 = 0; k4 < COLUNAS_FICHA; k4++) {  // marca já lançada no app (reimpressão não perde o que foi preenchido)
-      var st = (cols[k4] && a.presencas) ? a.presencas[cols[k4].data] : null;
-      h += '<td class="marca' + (st ? ' m-' + st : '') + '">' + marcaImpressa(st) + '</td>';
+      var p = (cols[k4] && a.presencas) ? a.presencas[cols[k4].data] : null;
+      var st = p ? (p.status || p) : null;
+      h += '<td class="marca' + (st ? ' m-' + st : '') + (p && p.parcial ? ' parcial' : '') + '">' + marcaImpressa(p) + '</td>';
     }
     h += '<td>' + escBloco((a.profs || []).join(', ') || (b.profs || []).join(', ')) + '</td></tr>';
   });

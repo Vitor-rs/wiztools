@@ -41,6 +41,8 @@ tbody.bloco td.marca { font-weight: bold; font-size: 11pt; }
 tbody.bloco td.marca.m-P { color: #1a6b3c; }
 tbody.bloco td.marca.m-F { color: #b3261e; }
 tbody.bloco td.marca.m-N { color: #888; font-weight: normal; }
+/* presença parcial: "P²" com o nº de lições cumpridas em sobrescrito menor */
+tbody.bloco td.marca sup { font-size: 7pt; font-weight: bold; margin-left: .5px; }
 
 /* prévia ao vivo: mesma tabela, em miniatura, embutida nos formulários */
 table.ficha.compacta { font-size: 85%; }

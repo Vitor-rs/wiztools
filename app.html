@@ -361,6 +361,10 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
 .lc-leg-am.ent{background:#34a853;color:#fff}
 .lc-leg-am.sai{background:#c5221f;color:#fff}
 .lc-leg-am.falta{background:#fdecec;border:1px solid #e88;color:#c5221f}
+.lc-leg-am.parcial{background:var(--marca);color:#fff}
+.lc-parcial{position:absolute;top:-4px;right:-4px;min-width:13px;height:13px;border-radius:7px;
+  background:var(--marca);color:#fff;font-size:9px;font-weight:700;line-height:13px;text-align:center;padding:0 2px}
+.lc-bt.ent{position:relative}
 .lc-leg-am.off{background:#fffaf2;border:1px solid #f0e2cc}
 .lc-leg-am.num{background:#f4f5f6;border:1px solid var(--borda);color:#3c4043;font-size:11px}
 .lc-aba{background:none;border:0;border-bottom:2px solid transparent;padding:8px 16px;cursor:pointer;
@@ -605,6 +609,7 @@ Os horários da matriz costumam ser fixos e raramente mudam. Confirma que quer e
 <div id="lc-leg-pop" class="lc-leg-pop" role="dialog" aria-label="Legenda do lançador">
 <div class="lc-leg-item"><span class="lc-leg-am ent">→</span><div><b>Entrada</b><small>Clique para registrar a hora; clique de novo para desfazer.</small></div></div>
 <div class="lc-leg-item"><span class="lc-leg-am sai">←</span><div><b>Saída</b><small>Só fica disponível depois da entrada.</small></div></div>
+<div class="lc-leg-item"><span class="lc-leg-am parcial">1</span><div><b>Presença parcial</b><small>Quando o dia tem 2 lições e o aluno cumpre só uma, o app pergunta quantas foram — a falta é da LIÇÃO, não do dia. Na ficha impressa sai como P com o número em sobrescrito.</small></div></div>
 <div class="lc-leg-item"><span class="lc-leg-am falta">✕</span><div><b>Falta</b><small>Dois cliques no botão de saída, com confirmação. Nada é marcado como falta automaticamente: a presença vale para o dia, então quem falta de manhã e vem à tarde continua presente.</small></div></div>
 <div class="lc-leg-item"><span class="lc-leg-am off"></span><div><b>Coluna apagada</b><small>Não é o dia e horário regular do aluno — reposição. Continua lançável.</small></div></div>
 <div class="lc-leg-item"><span class="lc-leg-am num">28</span><div><b>Número do dia</b><small>Clique para marcar a coluna inteira como não aula (feriado, férias).</small></div></div>
@@ -1431,14 +1436,16 @@ m.onclick=function(){lcGravarStatus(al,c,null,card,function(n){p=n;redesenha()})
 box.appendChild(m);return}
 var ent=document.createElement('button');ent.type='button';
 ent.className='lc-bt ent'+(p&&p.entrada?' on':'');
-ent.innerHTML=(p&&p.entrada?'<b>'+escBloco(p.entrada)+'</b>':'')+'<span class="lc-seta">'+icon('log-in',13)+'</span>';
+ent.innerHTML=(p&&p.entrada?'<b>'+escBloco(p.entrada)+'</b>':'')+'<span class="lc-seta">'+icon('log-in',13)+'</span>'
++(p&&p.aulasFeitas!=null?'<span class="lc-parcial" title="cumpriu '+p.aulasFeitas+' lição(ões) das previstas no dia">'+p.aulasFeitas+'</span>':'');
 ent.title=p&&p.entrada?'Entrada '+p.entrada+' — clique para desfazer':'Registrar entrada';
 ent.onclick=function(){lcPonto(al,c,'entrada',!!(p&&p.entrada),card,function(n){p=n;redesenha()})};
 box.appendChild(ent);
 var sai=document.createElement('button');sai.type='button';
 sai.className='lc-bt sai'+(p&&p.saida?' on':'')+((p&&p.entrada)?'':' inerte');
 sai.innerHTML=(p&&p.saida?'<b>'+escBloco(p.saida)+'</b>':'')+'<span class="lc-seta">'+icon('log-out',13)+'</span>';
-sai.title=!p||!p.entrada?'Registre a entrada primeiro':(p.saida?'Saída '+p.saida+(p.minutos!=null?' · '+fmtDur(p.minutos)+' de aula':'')+' — clique para desfazer':'Registrar saída');
+sai.title=!p||!p.entrada?'Registre a entrada primeiro':(p.saida?'Saída '+p.saida+(p.minutos!=null?' · '+fmtDur(p.minutos)+' de aula':'')
++(p.aulasFeitas!=null?' · '+p.aulasFeitas+' lição(ões) cumprida(s)':'')+' — clique para desfazer':'Registrar saída');
 /* clique simples = saída; DUPLO clique = falta. O clique é adiado ~230ms para o duplo poder
    cancelá-lo — sem isso o duplo clique gravava e desfazia a saída antes de perguntar da falta. */
 var tCli=null;
@@ -1466,6 +1473,21 @@ run('registrarPonto',[{idMatricula:al.id,livro:al.livro,data:c.data,tipo:tipo,li
 if(r.precisaConfirmar){
 if(confirm(al.nome+'\n\n'+r.aviso+'\n\nUma aula dura cerca de 1 hora. Registrar a saída às '+r.saida+' mesmo assim?'))
 lcPonto(al,c,tipo,desfazer,card,ok,true);
+return}
+/* saiu antes de dar tempo das lições do dia: a falta é da AULA, então perguntamos quantas ele
+   cumpriu em vez de assumir presença cheia (o "P" da ficha sairia induzindo que fez todas). */
+if(r.precisaAulas){
+var q=prompt(al.nome+'\n\n'+r.aviso+'\n\nQuantas lições ele fez? (1 a '+r.previstas+')', String(r.sugestao));
+if(q===null)return;
+var n=parseInt(q,10);
+if(!(n>=1&&n<=r.previstas)){msg('Informe um número de 1 a '+r.previstas+'.',true);return}
+run('registrarPonto',[{idMatricula:al.id,livro:al.livro,data:c.data,tipo:tipo,limpar:desfazer,confirmado:true,aulasFeitas:n}],function(r2){
+var nv={status:r2.status,entrada:r2.entrada,saida:r2.saida,minutos:(r2.minutos!==undefined?r2.minutos:null),aulasFeitas:r2.aulasFeitas,previstas:r2.previstas};
+al.pontos[c.data]=nv;ok(nv);
+msg(n+' de '+r.previstas+' lição(ões) registrada(s) para '+al.nome+'.');
+var b2=LC.blocos.filter(function(x){return x.alunos.indexOf(al)>=0})[0];
+if(b2&&card)lcResumo(card,b2);
+if(LC_ABA==='hoje')lcRenderHoje()});
 return}
 var novo=r.status?{status:r.status,entrada:r.entrada,saida:r.saida,minutos:(r.minutos!==undefined?r.minutos:null)}:null;
 al.pontos[c.data]=novo;ok(novo);

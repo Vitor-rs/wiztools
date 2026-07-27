@@ -139,8 +139,23 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
 .hist-linha{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #eee;font-size:12px}
 .hist-linha .remover{background:none;border:0;color:var(--tx3);cursor:pointer;font-size:14px;padding:0 4px}
 .hist-linha .remover:hover{color:var(--perigo)}
-.hist-add{display:flex;gap:4px;margin-top:8px}
-.hist-add select{flex:1.4}
+.hist-add{display:flex;gap:5px;margin-top:8px;align-items:center}
+/* o select precisa caber "Rematriculado" inteiro; o campo de data tem largura própria, sem esticar */
+.hist-add select{flex:1;min-width:0}
+.hist-add input[type=date]{width:120px;flex:none;padding:6px 7px}
+
+/* ===== situações: cada uma com sua cor =====
+   Verde claro para matriculado e verde forte para rematriculado (o rematriculado é o aluno que
+   renovou — vale mais). Encerrado terminou o livro: roxo→verde, conquista. Trancado é pausa que
+   volta: laranja de atenção. Evadido parou e não voltou: vermelho. Cancelado: grafite neutro. */
+.sit{display:inline-block;border-radius:10px;padding:1px 9px;font-size:11px;font-weight:700;line-height:17px;
+  border:1px solid transparent}
+.sit-matriculado{background:#e6f5ea;color:#1e7e34;border-color:#bfe0c8}
+.sit-rematriculado{background:#1e7e34;color:#fff;border-color:#186429}
+.sit-encerrado{background:linear-gradient(100deg,#6b4fa3,#26754a);color:#fff;border-color:#5a4390} /* verde fechado: no tom claro o branco caía para 4.0 de contraste */
+.sit-trancado{background:#fff4e5;color:#8a5a00;border-color:#f0d9b5}
+.sit-evadido{background:#fdecec;color:#c5221f;border-color:#f0cfcf}
+.sit-cancelado{background:#eceef0;color:#3c4043;border-color:#d4d7db}
 
 .horarios-cols{display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap}
 .mat-lock-bar{display:flex;align-items:center;gap:10px;margin-bottom:12px;padding:8px 12px;background:var(--cz);border-radius:8px}
@@ -942,11 +957,15 @@ function histFechar(){HIST_ABERTO=false;$('hist-corpo').style.display='none';$('
 function histToggle(){if(!alSel){msg('Escolha um aluno primeiro.',true);return}
 HIST_ABERTO=!HIST_ABERTO;$('hist-corpo').style.display=HIST_ABERTO?'block':'none';$('hist-toggle').textContent=(HIST_ABERTO?'▾':'▸')+' Histórico de situação';
 if(HIST_ABERTO)run('getHistoricoAluno',[alSel.id],function(hs){histRender(hs)})}
+/* "Rematriculado" -> "sit-rematriculado": sem acento e em minúsculas, para virar classe CSS */
+function classeSit(s){return 'sit-'+norm(s).replace(/[^a-z]/g,'')}
+function dataCurta(iso){var p=String(iso).split('-');return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:iso}
 function histRender(hs){
 var box=$('hist-corpo');box.innerHTML='';
 if(!hs.length){var v=document.createElement('div');v.style.cssText='color:var(--tx3);font-size:12px;padding:4px 0';v.textContent='Nenhum registro ainda.';box.appendChild(v)}
 hs.forEach(function(h){var row=document.createElement('div');row.className='hist-linha';
-var txt=document.createElement('span');txt.innerHTML='<b>'+h.situacao+'</b> — '+h.data;
+var txt=document.createElement('span');
+txt.innerHTML='<span class="sit '+classeSit(h.situacao)+'">'+escBloco(h.situacao)+'</span> <small style="color:var(--tx2)">'+escBloco(dataCurta(h.data))+'</small>';
 var del=document.createElement('button');del.type='button';del.className='remover';del.textContent='✕';del.title='Remover registro';
 del.onclick=function(){run('excluirHistoricoAluno',[h.id],function(){run('getHistoricoAluno',[alSel.id],function(hs2){histRender(hs2)})})};
 row.appendChild(txt);row.appendChild(del);box.appendChild(row)});

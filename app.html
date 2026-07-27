@@ -1705,6 +1705,9 @@ redesenha();return box;
 }
 function lcTrocarStatus(sel,al,c,card,p,ok){
 var novo=sel.value||null;
+/* sair de uma falta já lançada (para branco, presença ou não-aula) exige confirmação — mesma
+   guarda do ✕ na aba da sala, para a falta não sumir por um clique errado no dropdown */
+if(p&&p.status==='F'&&novo!=='F'&&!lcConfirmaDesfazerFalta(al,c,novo)){sel.value='F';return}
 /* falta e não-aula apagam o ponto (o banco não admite hora sem presença). Se quem registrou foi o
    professor, a recepção precisa ver o que vai perder ANTES de confirmar. */
 if(novo!=='P'&&p&&p.entrada){
@@ -1726,8 +1729,10 @@ box.innerHTML='';
 var st=p?p.status:null;
 if(st==='F'||st==='N'){ // falta / não aula: sem ponto, só o marcador
 var m=document.createElement('button');m.type='button';m.className='lc-marca '+st.toLowerCase();
-m.textContent=st==='F'?'✕':'–';m.title=(st==='F'?'Falta':'Não aula')+' — clique para limpar';
-m.onclick=function(){lcGravarStatus(al,c,null,card,function(n){p=n;redesenha()})};
+m.textContent=st==='F'?'✕':'–';m.title=(st==='F'?'Falta — clique para desfazer (pede confirmação)':'Não aula — clique para limpar');
+m.onclick=function(){
+if(st==='F'&&!lcConfirmaDesfazerFalta(al,c,null))return;
+lcGravarStatus(al,c,null,card,function(n){p=n;redesenha()})};
 box.appendChild(m);return}
 var ent=document.createElement('button');ent.type='button';
 ent.className='lc-bt ent'+(p&&p.entrada?' on':'');
@@ -1843,6 +1848,18 @@ var n=b.alunos.filter(function(a){return a.pontos[hoje.data]}).length;
 el.innerHTML='<b>'+n+'</b> de '+b.alunos.length+' lançado(s) hoje';
 }
 var LC_ROTULO={P:'presente',F:'falta',N:'não aula'};
+/* Desfazer FALTA pede confirmação, nas duas telas e na busca rápida. A falta costuma ser lançada
+   depois que o dia já fechou (alguém conferindo o que ficou em aberto), e sumia com um clique só —
+   um deslize apagava registro que ninguém repara que sumiu, ao contrário de uma falta a mais, que
+   o aluno reclama. Não vale para "não aula": feriado errado é evidente e sem consequência. */
+function lcConfirmaDesfazerFalta(al,c,destino){
+/* na grade vem a coluna ('Seg 27'); na busca rápida só a data ISO, que vira dd/mm para ler igual */
+var qdo=(c&&c.curto)?c.curto+' '+c.numero:(c&&c.data?c.data.slice(8,10)+'/'+c.data.slice(5,7):'');
+var oQue=destino===null?'A falta será apagada e o dia fica em branco.'
+:destino==='P'?'A falta passa a valer como PRESENÇA.'
+:'A falta passa a valer como NÃO AULA (feriado, férias, aula cancelada).';
+return confirm('Desfazer a falta de '+al.nome+(qdo?' em '+qdo:'')+'?\n\n'+oQue);
+}
 function lcPintar(bt,st,nome,c){
 bt.className='lc-tog'+(st?' '+st.toLowerCase():'');
 bt.textContent=st==='F'?'✕':st==='N'?'–':'';
@@ -1892,6 +1909,11 @@ else msg('Não foi possível abrir a janela — recarregue a página (F5).',true
 })}
 function lcDialogLancar(i,status){
 var m=LC_INFO.matriculas[i];if(!m)return;
+/* terceira porta para desfazer falta (busca rápida): mesma confirmação das outras duas, senão
+   sobraria um caminho em que a falta some sem perguntar nada */
+/* mesma data que a gravação abaixo usa: sem o fallback, entrar pela busca sem ter aberto a grade
+   deixava a pergunta sem dia nenhum */
+if(m.status==='F'&&status!=='F'&&!lcConfirmaDesfazerFalta({nome:LC_INFO.nome},{data:LC?LC.data:isoLocal(new Date())},status))return;
 run('lancarPresenca',[{idMatricula:LC_INFO.id,livro:m.livro,data:LC?LC.data:isoLocal(new Date()),status:status}],function(){
 m.status=status;
 msg(status==='P'?'Presença lançada: '+LC_INFO.nome+' ('+m.livro+').':status==='F'?'Falta lançada: '+LC_INFO.nome+' ('+m.livro+').':status==='N'?'Marcado como não aula: '+LC_INFO.nome+' ('+m.livro+').':'Lançamento removido.');

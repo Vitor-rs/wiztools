@@ -48,7 +48,13 @@ function marcaImpressa(p) {
   if (st === 'F') return 'X';
   if (st === 'N') return '–';
   if (st !== 'P') return '';
-  return p.parcial ? 'P<sup>' + p.feitas + '</sup>' : 'P';
+  if (!p.parcial) return 'P';                   // cumpriu todas as lições do dia
+  /* presença parcial: diz QUAL lição foi cumprida, não só quantas — faltar a 1ª e fazer a 2ª é
+     diferente de fazer a 1ª e sair. Só o ordinal em sobrescrito: "P 1ªau" mede 30px numa célula
+     de 17px e sairia cortado na folha; o rodapé da ficha traz a legenda do que P¹ significa. */
+  var ord = (p.ordinais && p.ordinais.length) ? p.ordinais : (p.feitas ? [p.feitas] : []);
+  if (!ord.length) return 'P';
+  return 'P<sup>' + ord.join(',') + '</sup>';
 }
 
 /* banda de título da página (ex.: SEGUNDAS e QUARTAS · JULHO): borda completa na largura da
@@ -109,5 +115,15 @@ function tabelaFichaHTML(blocos, titulos, opts) {
   if (titulos) h += '<thead><tr><td>' + bandaPagina(titulos, opts.mesNome) + '</td></tr></thead>';
   h += '<tbody>';
   (blocos || []).forEach(function (b) { h += '<tr><td>' + blocoHTML(b, opts) + '</td></tr>'; });
+  /* legenda só aparece se a folha tiver alguma presença parcial — não polui as fichas comuns */
+  var temParcial = (blocos || []).some(function (b) {
+    return (b.alunos || []).some(function (a) {
+      return Object.keys(a.presencas || {}).some(function (d) { return a.presencas[d] && a.presencas[d].parcial; });
+    });
+  });
+  if (temParcial && !opts.compacto)
+    h += '<tr><td><div class="ficha-legenda">P = presente nas lições do dia &nbsp;·&nbsp; '
+       + 'P<sup>1</sup> = presente só na 1ª lição &nbsp;·&nbsp; P<sup>2</sup> = só na 2ª &nbsp;·&nbsp; '
+       + 'X = falta &nbsp;·&nbsp; – = não houve aula</div></td></tr>';
   return h + '</tbody></table>';
 }

@@ -621,6 +621,12 @@ Os horários da matriz costumam ser fixos e raramente mudam. Confirma que quer e
 <div id="lc-hoje" style="display:none"></div>
 </div>
 
+<sl-dialog id="licoes-dialog" label="Quais lições ele fez?">
+<div id="licoes-corpo"></div>
+<sl-button slot="footer" onclick="document.getElementById('licoes-dialog').hide()">Cancelar</sl-button>
+<sl-button slot="footer" variant="primary" onclick="lcLicoesConfirmar()">Registrar saída</sl-button>
+</sl-dialog>
+
 <sl-dialog id="hlote-dialog" label="Aplicar horário à turma">
 <div id="hlote-corpo"></div>
 <sl-button slot="footer" onclick="document.getElementById('hlote-dialog').hide()">Cancelar</sl-button>
@@ -1437,7 +1443,8 @@ box.appendChild(m);return}
 var ent=document.createElement('button');ent.type='button';
 ent.className='lc-bt ent'+(p&&p.entrada?' on':'');
 ent.innerHTML=(p&&p.entrada?'<b>'+escBloco(p.entrada)+'</b>':'')+'<span class="lc-seta">'+icon('log-in',13)+'</span>'
-+(p&&p.aulasFeitas!=null?'<span class="lc-parcial" title="cumpriu '+p.aulasFeitas+' lição(ões) das previstas no dia">'+p.aulasFeitas+'</span>':'');
++(p&&p.ordinais&&p.ordinais.length&&p.previstas>p.ordinais.length
+   ?'<span class="lc-parcial" title="cumpriu a '+p.ordinais.join('ª e a ')+'ª lição de '+p.previstas+'">'+p.ordinais.join('')+'ª</span>':'');
 ent.title=p&&p.entrada?'Entrada '+p.entrada+' — clique para desfazer':'Registrar entrada';
 ent.onclick=function(){lcPonto(al,c,'entrada',!!(p&&p.entrada),card,function(n){p=n;redesenha()})};
 box.appendChild(ent);
@@ -1464,6 +1471,35 @@ box.appendChild(sai);
 }
 redesenha();return box;
 }
+/* Qual lição o aluno cumpriu — não só quantas. Faltar a 1ª e fazer a 2ª é diferente de fazer a
+   1ª e sair, e a ficha impressa precisa dizer qual (P 1ªau / P 2ªau). */
+var LIC={};
+function lcLicoesAbrir(al,c,r,card,ok){
+LIC={al:al,c:c,r:r,card:card,ok:ok};
+var h='<div class="info" style="margin:0 0 10px"><b>'+escBloco(al.nome)+'</b><br>'+escBloco(r.aviso)
++'<br><small>Marque as lições que ele realmente cumpriu. A sugestão vem do horário em que esteve na escola.</small></div>';
+r.licoesDoDia.forEach(function(hora,i){
+var fim=('0'+(parseInt(hora,10)+1)).slice(-2)+':00';
+var sug=r.sugestao.indexOf(hora)>=0;
+h+='<label class="lote-linha'+(sug?' eu':'')+'"><input type="checkbox" value="'+hora+'"'+(sug?' checked':'')+'>'
++'<span><b>'+(i+1)+'ª lição</b><small>'+escBloco(hora+' às '+fim)+'</small></span>'
++(sug?'<span class="lote-ok">sugerida</span>':'')+'</label>'});
+$('licoes-corpo').innerHTML=h;
+$('licoes-dialog').show()}
+function lcLicoesConfirmar(){
+var sel=[];$('licoes-corpo').querySelectorAll('input:checked').forEach(function(cb){sel.push(cb.value)});
+if(!sel.length){msg('Marque ao menos uma lição — se ele não fez nenhuma, use o duplo clique para lançar falta.',true);return}
+var al=LIC.al,c=LIC.c;
+run('registrarPonto',[{idMatricula:al.id,livro:al.livro,data:c.data,tipo:'saida',confirmado:true,licoes:sel}],function(r2){
+$('licoes-dialog').hide();
+var nv={status:r2.status,entrada:r2.entrada,saida:r2.saida,minutos:(r2.minutos!==undefined?r2.minutos:null),
+  aulasFeitas:r2.aulasFeitas,licoes:r2.licoes,previstas:r2.previstas};
+al.pontos[c.data]=nv;LIC.ok(nv);
+msg(sel.length+' de '+LIC.r.previstas+' lição(ões) registrada(s) para '+al.nome+'.');
+var b2=LC.blocos.filter(function(x){return x.alunos.indexOf(al)>=0})[0];
+if(b2&&LIC.card)lcResumo(LIC.card,b2);
+if(LC_ABA==='hoje')lcRenderHoje()})}
+
 /* duração em texto curto: 55min, 1h, 1h 5min */
 function fmtDur(min){if(min==null)return '';var h=Math.floor(min/60),m=min%60;
 return h?(h+'h'+(m?' '+m+'min':'')):(m+'min')}
@@ -1476,19 +1512,7 @@ lcPonto(al,c,tipo,desfazer,card,ok,true);
 return}
 /* saiu antes de dar tempo das lições do dia: a falta é da AULA, então perguntamos quantas ele
    cumpriu em vez de assumir presença cheia (o "P" da ficha sairia induzindo que fez todas). */
-if(r.precisaAulas){
-var q=prompt(al.nome+'\n\n'+r.aviso+'\n\nQuantas lições ele fez? (1 a '+r.previstas+')', String(r.sugestao));
-if(q===null)return;
-var n=parseInt(q,10);
-if(!(n>=1&&n<=r.previstas)){msg('Informe um número de 1 a '+r.previstas+'.',true);return}
-run('registrarPonto',[{idMatricula:al.id,livro:al.livro,data:c.data,tipo:tipo,limpar:desfazer,confirmado:true,aulasFeitas:n}],function(r2){
-var nv={status:r2.status,entrada:r2.entrada,saida:r2.saida,minutos:(r2.minutos!==undefined?r2.minutos:null),aulasFeitas:r2.aulasFeitas,previstas:r2.previstas};
-al.pontos[c.data]=nv;ok(nv);
-msg(n+' de '+r.previstas+' lição(ões) registrada(s) para '+al.nome+'.');
-var b2=LC.blocos.filter(function(x){return x.alunos.indexOf(al)>=0})[0];
-if(b2&&card)lcResumo(card,b2);
-if(LC_ABA==='hoje')lcRenderHoje()});
-return}
+if(r.precisaAulas){lcLicoesAbrir(al,c,r,card,ok);return}
 var novo=r.status?{status:r.status,entrada:r.entrada,saida:r.saida,minutos:(r.minutos!==undefined?r.minutos:null)}:null;
 al.pontos[c.data]=novo;ok(novo);
 var b=LC.blocos.filter(function(x){return x.alunos.indexOf(al)>=0})[0];

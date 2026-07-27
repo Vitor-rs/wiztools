@@ -41,8 +41,13 @@ tbody.bloco td.marca { font-weight: bold; font-size: 11pt; }
 tbody.bloco td.marca.m-P { color: #1a6b3c; }
 tbody.bloco td.marca.m-F { color: #b3261e; }
 tbody.bloco td.marca.m-N { color: #888; font-weight: normal; }
-/* presença parcial: "P²" com o nº de lições cumpridas em sobrescrito menor */
-tbody.bloco td.marca sup { font-size: 7pt; font-weight: bold; margin-left: .5px; }
+/* presença parcial: P com o ordinal da lição em sobrescrito (P¹ = só a 1ª, P² = só a 2ª).
+   A célula tem ~1cm: "P 1ªau" mediria quase o dobro e sairia cortado, por isso o rodapé da
+   folha traz a legenda por extenso. */
+tbody.bloco td.marca sup { font-size: 6pt; font-weight: bold; vertical-align: super; line-height: 0; }
+.ficha-legenda { font-family: Calibri, Arial, sans-serif; font-size: 8pt; color: #333;
+  padding: 4px 2px 0; border-top: 1px solid #999; margin-top: 2px; }
+.ficha-legenda sup { font-size: 6pt; font-weight: bold; }
 
 /* prévia ao vivo: mesma tabela, em miniatura, embutida nos formulários */
 table.ficha.compacta { font-size: 85%; }

@@ -36,6 +36,10 @@ addColuna("presenca", "saida", "TEXT");   // 'HH:MM' — check-out
    normal). Quem faz 2 aulas seguidas e sai depois da primeira fica com 1 — a falta é da AULA, não
    do dia, e a ficha impressa precisa distinguir "veio e fez tudo" de "veio e fez metade". */
 addColuna("presenca", "aulas_feitas", "INTEGER");
+/* licoes: QUAIS lições foram cumpridas, como lista de horas ('11:00' ou '10:00,11:00'). Saber
+   apenas a quantidade não basta — faltar a 1ª e fazer a 2ª é diferente de fazer a 1ª e sair, e a
+   ficha precisa dizer qual. É a fonte da verdade; aulas_feitas guarda a contagem correspondente. */
+addColuna("presenca", "licoes", "TEXT");
 /* diário: trilha de auditoria append-only. Cada lançamento vira uma linha com id próprio, para
    responder "quem marcou o quê e quando" mesmo depois de o registro atual ser alterado. */
 db.exec(`CREATE TABLE IF NOT EXISTS diario (
@@ -318,27 +322,45 @@ const COLUNAS_FICHA = 12; // colunas estreitas do template impresso — número 
 /* índice da ficha impressa. Cada data traz o status E se a presença foi PARCIAL: quem tem 2 lições
    no dia e cumpriu 1 não pode sair como "P" limpo, senão a folha induz que fez as duas. */
 function indicePresencas(ini: string, fim: string) {
-  const previstas: Record<string, number> = {};
-  A("SELECT id_matricula, livro, dia, COUNT(*) n FROM aulas GROUP BY 1,2,3")
-    .forEach(r => previstas[r.id_matricula + "|" + r.livro + "|" + r.dia] = r.n);
+  /* horas das lições de cada aluno×livro×dia, em ordem: transformam a hora gravada em ORDINAL
+     (1ª, 2ª), que é o que a ficha mostra ao lado do P */
+  const horas: Record<string, string[]> = {};
+  A("SELECT id_matricula, livro, dia, hora FROM aulas ORDER BY hora")
+    .forEach(r => (horas[r.id_matricula + "|" + r.livro + "|" + r.dia] ||= []).push(r.hora));
   const idx: Record<string, Record<string, any>> = {};
   A("SELECT * FROM presenca WHERE data BETWEEN ? AND ?", ini, fim).forEach(p => {
     const dia = NOMES_DIA[new Date(p.data + "T12:00:00").getDay()];
-    const prev = previstas[p.id_matricula + "|" + p.livro + "|" + dia] || 1;
-    const feitas = p.aulas_feitas ?? null;
-    (idx[p.id_matricula + "|" + p.livro] ||= {})[p.data] =
-      { status: p.status, feitas, previstas: prev, parcial: prev > 1 && feitas != null && feitas < prev };
+    const lst = horas[p.id_matricula + "|" + p.livro + "|" + dia] || [];
+    const prev = lst.length || 1;
+    const cumpridas: string[] = p.licoes ? String(p.licoes).split(",") : [];
+    const feitas = p.aulas_feitas ?? (cumpridas.length || null);
+    (idx[p.id_matricula + "|" + p.livro] ||= {})[p.data] = {
+      status: p.status, feitas, previstas: prev,
+      parcial: prev > 1 && feitas != null && feitas < prev,
+      // ordinais das lições cumpridas: [2] quando faltou a primeira e fez a segunda
+      ordinais: cumpridas.map(h => lst.indexOf(h) + 1).filter(n => n > 0).sort((a, b) => a - b),
+    };
   });
   return idx;
 }
 /* igual ao anterior, mas com o registro completo (status + entrada + saída) — usado só pelo
    lançador; a impressão continua no índice de status puro, que é tudo de que ela precisa */
 function indicePontos(ini: string, fim: string) {
+  const horas: Record<string, string[]> = {};
+  A("SELECT id_matricula, livro, dia, hora FROM aulas ORDER BY hora")
+    .forEach(r => (horas[r.id_matricula + "|" + r.livro + "|" + r.dia] ||= []).push(r.hora));
   const idx: Record<string, Record<string, any>> = {};
-  A("SELECT * FROM presenca WHERE data BETWEEN ? AND ?", ini, fim)
-    .forEach(p => (idx[p.id_matricula + "|" + p.livro] ||= {})[p.data] =
-      { status: p.status, entrada: p.entrada || null, saida: p.saida || null, minutos: p.minutos ?? null,
-        aulasFeitas: p.aulas_feitas ?? null });
+  A("SELECT * FROM presenca WHERE data BETWEEN ? AND ?", ini, fim).forEach(p => {
+    const dia = NOMES_DIA[new Date(p.data + "T12:00:00").getDay()];
+    const lst = horas[p.id_matricula + "|" + p.livro + "|" + dia] || [];
+    const cumpridas: string[] = p.licoes ? String(p.licoes).split(",") : [];
+    (idx[p.id_matricula + "|" + p.livro] ||= {})[p.data] = {
+      status: p.status, entrada: p.entrada || null, saida: p.saida || null, minutos: p.minutos ?? null,
+      aulasFeitas: p.aulas_feitas ?? null, previstas: lst.length || 1,
+      // ordinais prontos para a tela: [2] = fez só a segunda lição
+      ordinais: cumpridas.map(h => lst.indexOf(h) + 1).filter(n => n > 0).sort((a, b) => a - b),
+    };
+  });
   return idx;
 }
 
@@ -389,10 +411,14 @@ const AULA_CURTA_MIN = 20;
    mas 1h15 já é aceito (acontece de vencerem duas lições em menos tempo). Abaixo disso o app
    pergunta quantas lições ele fez de verdade, em vez de assumir. */
 const TOLERANCIA_MIN = 45;
-const aulasPrevistas = (idMatricula: string, livro: string, data: string) => {
+/* as lições daquele dia, em ordem: são elas que o app oferece para a recepção marcar quais o
+   aluno cumpriu (a 1ª, a 2ª, ou ambas) */
+const licoesDoDia = (idMatricula: string, livro: string, data: string): string[] => {
   const dia = NOMES_DIA[new Date(data + "T12:00:00").getDay()];
-  return G("SELECT COUNT(*) n FROM aulas WHERE id_matricula=? AND livro=? AND dia=?", idMatricula, livro, dia).n as number;
+  return A("SELECT hora FROM aulas WHERE id_matricula=? AND livro=? AND dia=? ORDER BY hora",
+    idMatricula, livro, dia).map(r => r.hora);
 };
+const aulasPrevistas = (idMatricula: string, livro: string, data: string) => licoesDoDia(idMatricula, livro, data).length;
 const anotar = (id_matricula: string, livro: string | null, data: string | null, tipo: string, valor?: string | null, detalhe?: string | null) => {
   const a = new Date();
   const momento = dataISO(a) + " " + ("0" + a.getHours()).slice(-2) + ":" + ("0" + a.getMinutes()).slice(-2) + ":" + ("0" + a.getSeconds()).slice(-2);
@@ -422,7 +448,8 @@ function gravarPresenca({ idMatricula, livro, data, status }: any) {
        status  = excluded.status,
        entrada = CASE WHEN excluded.status = 'P' THEN presenca.entrada ELSE NULL END,
        saida   = CASE WHEN excluded.status = 'P' THEN presenca.saida   ELSE NULL END,
-       aulas_feitas = CASE WHEN excluded.status = 'P' THEN presenca.aulas_feitas ELSE NULL END`,
+       aulas_feitas = CASE WHEN excluded.status = 'P' THEN presenca.aulas_feitas ELSE NULL END,
+       licoes       = CASE WHEN excluded.status = 'P' THEN presenca.licoes       ELSE NULL END`,
     idMatricula, livro, data, status);
   anotar(idMatricula, livro, data, "status", status);
   return { ok: true, status };
@@ -708,14 +735,14 @@ const api: Record<string, (a: any) => unknown> = {
   lancarPresenca: (p: any) => gravarPresenca(p),
   /* check-in / check-out: grava a hora do relógio da recepção. Entrada implica presença ('P');
      limpar a entrada zera o lançamento do dia (volta a "não lançado"). */
-  registrarPonto({ idMatricula, livro, data, tipo, hora, limpar, confirmado, aulasFeitas }: any) {
+  registrarPonto({ idMatricula, livro, data, tipo, hora, limpar, confirmado, licoes }: any) {
     if (!idMatricula || !livro || !data || !tipo) throw new Error("Dados incompletos para registrar o ponto.");
     if (tipo !== "entrada" && tipo !== "saida") throw new Error("Tipo inválido: use entrada ou saida.");
     const agora = new Date();
     const hhmm = hora || ("0" + agora.getHours()).slice(-2) + ":" + ("0" + agora.getMinutes()).slice(-2);
     const atual = G("SELECT * FROM presenca WHERE id_matricula=? AND livro=? AND data=?", idMatricula, livro, data);
     if (limpar) {
-      if (tipo === "saida") { R("UPDATE presenca SET saida=NULL, aulas_feitas=NULL WHERE id_matricula=? AND livro=? AND data=?", idMatricula, livro, data);
+      if (tipo === "saida") { R("UPDATE presenca SET saida=NULL, aulas_feitas=NULL, licoes=NULL WHERE id_matricula=? AND livro=? AND data=?", idMatricula, livro, data);
         anotar(idMatricula, livro, data, "limpeza", null, "saída desfeita"); return { ok: true, entrada: atual?.entrada || null, saida: null, status: atual?.status || null }; }
       R("DELETE FROM presenca WHERE id_matricula=? AND livro=? AND data=?", idMatricula, livro, data);
       anotar(idMatricula, livro, data, "limpeza", null, "lançamento do dia removido");
@@ -739,19 +766,26 @@ const api: Record<string, (a: any) => unknown> = {
         aviso: "Só " + dur + " minuto(s) desde a entrada (" + atual.entrada + ")." };
     /* saiu antes de dar tempo de cumprir todas as lições do dia: a falta é da AULA, então em vez
        de assumir presença cheia o app pergunta quantas lições ele fez. */
-    const previstas = aulasPrevistas(idMatricula, livro, data);
-    if (previstas > 1 && aulasFeitas == null && dur < previstas * 60 - TOLERANCIA_MIN && !confirmado) {
-      const cabem = Math.max(1, Math.floor((dur + TOLERANCIA_MIN) / 60));
-      return { ok: false, precisaAulas: true, previstas, sugestao: Math.min(cabem, previstas),
-        minutos: dur, entrada: atual.entrada, saida: hhmm,
+    const doDia = licoesDoDia(idMatricula, livro, data), previstas = doDia.length;
+    if (previstas > 1 && licoes == null && dur < previstas * 60 - TOLERANCIA_MIN && !confirmado) {
+      /* sugere pelas horas que a permanência de fato cobriu: quem entrou às 11h num dia de 10h+11h
+         provavelmente perdeu a primeira, não a segunda — o palpite parte do relógio, não do total */
+      const sug = doDia.filter(h => {
+        const ini = emMinutos(h), fim = ini + 60, ent = emMinutos(atual.entrada), sai = emMinutos(hhmm);
+        return Math.min(fim, sai) - Math.max(ini, ent) >= 30;   // ficou pelo menos metade da lição
+      });
+      return { ok: false, precisaAulas: true, previstas, licoesDoDia: doDia,
+        sugestao: sug.length ? sug : [doDia[0]], minutos: dur, entrada: atual.entrada, saida: hhmm,
         aviso: fmtMin(dur) + " desde a entrada (" + atual.entrada + "), mas o dia tem " + previstas + " lições." };
     }
-    R("UPDATE presenca SET saida=?, aulas_feitas=COALESCE(?, aulas_feitas) WHERE id_matricula=? AND livro=? AND data=?",
-      hhmm, aulasFeitas ?? null, idMatricula, livro, data);
-    anotar(idMatricula, livro, data, "saida", hhmm, aulasFeitas != null ? aulasFeitas + " de " + previstas + " lição(ões)" : null);
+    const lst = Array.isArray(licoes) && licoes.length ? doDia.filter(h => licoes.includes(h)) : null;
+    R("UPDATE presenca SET saida=?, licoes=COALESCE(?, licoes), aulas_feitas=COALESCE(?, aulas_feitas) WHERE id_matricula=? AND livro=? AND data=?",
+      hhmm, lst ? lst.join(",") : null, lst ? lst.length : null, idMatricula, livro, data);
+    const grav = G("SELECT licoes, aulas_feitas a FROM presenca WHERE id_matricula=? AND livro=? AND data=?", idMatricula, livro, data);
+    anotar(idMatricula, livro, data, "saida", hhmm,
+      lst ? "lições cumpridas: " + lst.join(", ") + " (de " + previstas + ")" : null);
     return { ok: true, entrada: atual.entrada, saida: hhmm, status: "P", minutos: dur,
-      aulasFeitas: aulasFeitas ?? G("SELECT aulas_feitas a FROM presenca WHERE id_matricula=? AND livro=? AND data=?", idMatricula, livro, data)?.a ?? null,
-      previstas };
+      licoes: grav?.licoes ? String(grav.licoes).split(",") : null, aulasFeitas: grav?.a ?? null, previstas };
   },
   /* aba "Presenças hoje": quem já passou pela recepção, em ordem cronológica de entrada */
   getPresencasHoje({ data }: any = {}) {

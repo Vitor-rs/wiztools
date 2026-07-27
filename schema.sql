@@ -95,7 +95,8 @@ CREATE TABLE IF NOT EXISTS presenca (  -- lançador de presença: 1 linha = alun
   status TEXT NOT NULL CHECK (status IN ('P','F','N')), -- Presente | Falta | Não aula (não conta pra nada)
   entrada TEXT CHECK (entrada IS NULL OR entrada GLOB '[0-2][0-9]:[0-5][0-9]'), -- check-in na recepção
   saida   TEXT CHECK (saida   IS NULL OR saida   GLOB '[0-2][0-9]:[0-5][0-9]'), -- check-out
-  aulas_feitas INTEGER,                -- lições cumpridas no dia (NULL = todas as previstas)
+  aulas_feitas INTEGER,                -- quantas lições cumpridas no dia (NULL = todas as previstas)
+  licoes TEXT,                         -- QUAIS lições, por hora: '11:00' ou '10:00,11:00'
   minutos INTEGER GENERATED ALWAYS AS (   -- duração da aula: derivada, nunca dessincroniza
     CASE WHEN entrada IS NOT NULL AND saida IS NOT NULL THEN
       (CAST(substr(saida,1,2) AS INTEGER)*60 + CAST(substr(saida,4,2) AS INTEGER))

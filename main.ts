@@ -5,20 +5,49 @@ import { DatabaseSync } from "node:sqlite";
 
 const PASTA = new URL(".", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
 const db = new DatabaseSync(PASTA + "wizard.db");
-db.exec("CREATE TABLE IF NOT EXISTS config (chave TEXT PRIMARY KEY, valor TEXT NOT NULL)"); // migração aditiva (preferências, ex.: pasta de backup)
-/* presença: 1 linha = aluno × livro × DIA (a hora não entra — regra da recepção: se o aluno vem
-   fora do horário dele, a presença vale para o dia, no horário próprio dele). `livro` é texto solto
-   de propósito (sem FK pra aluno_livro): trocar de livro não pode apagar histórico de frequência. */
-db.exec(`CREATE TABLE IF NOT EXISTS presenca (
-  id_matricula TEXT NOT NULL REFERENCES alunos(id_matricula) ON DELETE CASCADE,
-  livro TEXT NOT NULL,
-  data TEXT NOT NULL,                  -- 'AAAA-MM-DD'
-  status TEXT NOT NULL,                -- 'P' presente | 'F' falta | 'N' não aula (feriado/férias/aula cancelada: não conta pra nada)
-  PRIMARY KEY (id_matricula, livro, data)
-)`);
 const A = (sql: string, ...p: any[]) => db.prepare(sql).all(...p) as any[];
 const G = (sql: string, ...p: any[]) => db.prepare(sql).get(...p) as any;
 const R = (sql: string, ...p: any[]) => db.prepare(sql).run(...p);
+
+/* Banco novo, a partir do schema + dados de partida. Vem ANTES das migrações de subida de propósito:
+   elas pressupõem as tabelas do schema.sql já existindo, e num arquivo recém-nascido o índice em
+   `aulas` morria com "no such table: main.aulas" — ou seja, instalar numa máquina nova não funcionava.
+   Nada se perde na troca de ordem: o schema.sql já nasce com tudo que as migrações aplicariam. */
+if (Deno.args.includes("--init")) {
+  db.exec(await Deno.readTextFile(PASTA + "schema.sql"));
+  db.exec("PRAGMA foreign_keys = OFF;"); // seed.sql grava aulas antes de aluno_livro existir; a migração abaixo preenche
+  db.exec(await Deno.readTextFile(PASTA + "seed.sql"));
+  db.exec("PRAGMA foreign_keys = ON;");
+  migrarAlunoLivro();
+  console.log("wizard.db criado com schema + dados.");
+  Deno.exit(0);
+}
+
+db.exec("CREATE TABLE IF NOT EXISTS config (chave TEXT PRIMARY KEY, valor TEXT NOT NULL)"); // migração aditiva (preferências, ex.: pasta de backup)
+/* presença: 1 linha = aluno × livro × DIA (a hora não entra — regra da recepção: se o aluno vem
+   fora do horário dele, a presença vale para o dia, no horário próprio dele). `livro` é texto solto
+   de propósito (sem FK pra aluno_livro): trocar de livro não pode apagar histórico de frequência.
+   Lançamento em data FUTURA é legítimo: aluno que avisa que vai viajar tem a falta lançada adiantada.
+   O corpo é const porque serve a dois usos que NUNCA podem divergir: criar a tabela num banco novo e
+   reconstruí-la (reconstruirTabela, mais abaixo) num banco que nasceu antes destas regras. */
+const CORPO_PRESENCA = `
+  id_matricula TEXT NOT NULL REFERENCES alunos(id_matricula) ON DELETE CASCADE,
+  livro TEXT NOT NULL,                 -- texto solto de propósito: trocar de livro não apaga frequência
+  data TEXT NOT NULL CHECK (data GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]'), -- 'AAAA-MM-DD'
+  status TEXT NOT NULL CHECK (status IN ('P','F','N')), -- Presente | Falta | Não aula (não conta pra nada)
+  entrada TEXT CHECK (entrada IS NULL OR entrada GLOB '[0-2][0-9]:[0-5][0-9]'), -- check-in na recepção
+  saida   TEXT CHECK (saida   IS NULL OR saida   GLOB '[0-2][0-9]:[0-5][0-9]'), -- check-out
+  aulas_feitas INTEGER,                -- quantas lições cumpridas no dia (NULL = todas as previstas)
+  licoes TEXT,                         -- QUAIS lições, por hora: '11:00' ou '10:00,11:00'
+  minutos INTEGER GENERATED ALWAYS AS (   -- duração da aula: derivada, nunca dessincroniza
+    CASE WHEN entrada IS NOT NULL AND saida IS NOT NULL THEN
+      (CAST(substr(saida,1,2) AS INTEGER)*60 + CAST(substr(saida,4,2) AS INTEGER))
+    - (CAST(substr(entrada,1,2) AS INTEGER)*60 + CAST(substr(entrada,4,2) AS INTEGER)) END) VIRTUAL,
+  CHECK (saida IS NULL OR entrada IS NOT NULL),  -- não existe saída sem entrada
+  CHECK (saida IS NULL OR saida >= entrada),     -- saída nunca antes da entrada
+  CHECK (status='P' OR entrada IS NULL),         -- só quem esteve presente tem ponto
+  PRIMARY KEY (id_matricula, livro, data)`;
+db.exec(`CREATE TABLE IF NOT EXISTS presenca (${CORPO_PRESENCA})`);
 
 /* migrações aditivas idempotentes: rodam a cada subida e são seguras num banco já em uso
    (a recepção só recebe código novo — o wizard.db dela nunca é recriado). */
@@ -58,8 +87,82 @@ addColuna("presenca", "minutos", `INTEGER GENERATED ALWAYS AS (
   CASE WHEN entrada IS NOT NULL AND saida IS NOT NULL THEN
     (CAST(substr(saida,1,2) AS INTEGER)*60 + CAST(substr(saida,4,2) AS INTEGER))
   - (CAST(substr(entrada,1,2) AS INTEGER)*60 + CAST(substr(entrada,4,2) AS INTEGER)) END) VIRTUAL`);
+/* ===== reconstrução de tabela: a única forma de acrescentar CHECK a uma tabela que já existe =====
+   ALTER TABLE ADD COLUMN não sabe acrescentar regra de tabela. Como a `presenca` da recepção nasceu
+   do CREATE TABLE lá de cima, que na época não tinha CHECK nenhum, as regras de domínio existiam só
+   no app — e regra que só existe no app é contornável por qualquer escrita que não passe por ele.
+   Aqui elas passam a existir no BANCO. Procedimento oficial do SQLite (lang_altertable.html,
+   "Making Other Kinds Of Table Schema Changes"), na ordem que ele manda. */
+let copiaFeita = false;
+function copiaDeSeguranca() { // VACUUM INTO: cópia consistente mesmo com o banco aberto (não é cópia de arquivo)
+  if (copiaFeita) return;
+  const destino = PASTA + "wizard-antes-checks-" + new Date().toISOString().replace(/[T:]/g, "-").slice(0, 19) + ".db";
+  db.exec(`VACUUM INTO '${destino.replace(/'/g, "''")}'`);
+  console.log("migração: cópia de segurança em " + destino);
+  copiaFeita = true;
+}
+/* Idempotente pela `marca`: um trecho do DDL que só existe depois que as regras foram aplicadas.
+   Num banco já correto não faz absolutamente nada — nem a cópia de segurança. */
+function reconstruirTabela(tabela: string, marca: string, corpo: string) {
+  const atual = G("SELECT sql FROM sqlite_master WHERE type='table' AND name=?", tabela)?.sql as string | undefined;
+  if (!atual || atual.includes(marca)) return; // tabela ainda não existe, ou já tem as regras
+  const gravaveis = (t: string) => A(`PRAGMA table_xinfo(${t})`).filter(c => c.hidden === 0).map(c => c.name); // hidden 2/3 = GERADA: não se escreve nela
+  copiaDeSeguranca();
+  db.exec("PRAGMA foreign_keys = OFF");      // fora da transação: dentro dela o PRAGMA é ignorado em silêncio
+  db.exec("PRAGMA legacy_alter_table = ON"); // rename "burro": impede o SQLite de reescrever as FKs de quem aponta pra cá
+  db.exec("BEGIN");
+  try {
+    db.exec(`CREATE TABLE ${tabela}_novo (${corpo})`);
+    const novas = gravaveis(`${tabela}_novo`);
+    const cols = gravaveis(tabela).filter(c => novas.includes(c)).join(", ");
+    db.exec(`INSERT INTO ${tabela}_novo (${cols}) SELECT ${cols} FROM ${tabela}`);
+    const antes = G(`SELECT COUNT(*) c FROM ${tabela}`).c, depois = G(`SELECT COUNT(*) c FROM ${tabela}_novo`).c;
+    if (antes !== depois) throw new Error(`copiou ${depois} de ${antes} linha(s)`);
+    db.exec(`DROP TABLE ${tabela}`);
+    db.exec(`ALTER TABLE ${tabela}_novo RENAME TO ${tabela}`);
+    const fk = A("PRAGMA foreign_key_check");
+    if (fk.length) throw new Error(`${fk.length} violação(ões) de chave estrangeira`);
+    db.exec("COMMIT");
+    console.log(`migração: ${tabela} reconstruída com as regras no banco (${depois} linha(s) preservada(s))`);
+  } catch (e) {
+    db.exec("ROLLBACK");
+    /* Diagnóstico, só no caminho de erro: repassa linha a linha numa tabela TEMP com as regras novas
+       para dizer QUAIS registros o banco recusa. Sem isso sobra "CHECK constraint failed", que não dá
+       para agir — achar a linha errada na mão fica inviável assim que a tabela cresce. */
+    const ruins: string[] = [];
+    try {
+      db.exec(`CREATE TEMP TABLE _diag (${corpo})`);
+      const novas = A("PRAGMA temp.table_xinfo(_diag)").filter(c => c.hidden === 0).map(c => c.name);
+      const cols = gravaveis(tabela).filter(c => novas.includes(c));
+      const lista = cols.join(", "), coringas = cols.map(() => "?").join(",");
+      for (const linha of A(`SELECT ${lista} FROM ${tabela}`)) {
+        try { R(`INSERT INTO _diag (${lista}) VALUES (${coringas})`, ...cols.map(c => linha[c])); }
+        catch { if (ruins.length < 5) ruins.push(JSON.stringify(linha)); }
+      }
+      db.exec("DROP TABLE _diag");
+    } catch { /* o diagnóstico é bônus: se ele próprio falhar, o erro original ainda é reportado */ }
+    throw new Error(`${tabela}: ${(e as Error).message}` + (ruins.length ? ` — corrija: ${ruins.join(" | ")}` : ""));
+  } finally {
+    db.exec("PRAGMA legacy_alter_table = OFF");
+    db.exec("PRAGMA foreign_keys = ON");
+  }
+}
+/* Falha aqui NÃO pode derrubar o servidor: recepção sem app é pior que recepção sem CHECK por mais um
+   dia (a validação do app segue de pé). A transação já garantiu que o banco ficou como estava. */
+try {
+  reconstruirTabela("presenca", "status='P' OR entrada IS NULL", CORPO_PRESENCA);
+  reconstruirTabela("aluno_livro", "modalidade IN ('Conn','Inter','On')", `
+  id_matricula TEXT NOT NULL REFERENCES alunos(id_matricula) ON DELETE CASCADE,
+  livro TEXT NOT NULL REFERENCES livros(nome),
+  modalidade TEXT NOT NULL CHECK (modalidade IN ('Conn','Inter','On')),
+  vip INTEGER NOT NULL DEFAULT 0 CHECK (vip IN (0,1)), -- VIP = sem turma (regra aplicada no app)
+  tipo_encontro TEXT NOT NULL DEFAULT 'Presencial' CHECK (tipo_encontro IN ('Presencial','Online')),
+  PRIMARY KEY (id_matricula, livro)`);
+} catch (e) { console.warn("aviso: regras de domínio não aplicadas ao banco (o app segue validando) — " + (e as Error).message); }
+
 /* índices: o banco nasceu sem nenhum, então toda consulta era varredura de tabela. Com o histórico
-   de presença crescendo todo dia, isso passa a doer — CREATE IF NOT EXISTS é idempotente. */
+   de presença crescendo todo dia, isso passa a doer — CREATE IF NOT EXISTS é idempotente.
+   (Vêm depois da reconstrução de propósito: DROP TABLE leva junto os índices da tabela.) */
 for (const ix of [
   "CREATE INDEX IF NOT EXISTS ix_aulas_matricula ON aulas(id_matricula)",
   "CREATE INDEX IF NOT EXISTS ix_aulas_dia_hora ON aulas(dia, hora)",
@@ -74,16 +177,6 @@ for (const ix of [
 try { db.exec("CREATE UNIQUE INDEX IF NOT EXISTS ux_hist_unico ON aluno_situacao_historico(id_matricula, situacao, data)"); }
 catch { console.warn("aviso: há registros de situação duplicados (mesmo aluno/situação/data) — índice único não aplicado"); }
 
-if (Deno.args.includes("--init")) {
-  db.exec(await Deno.readTextFile(PASTA + "schema.sql"));
-  db.exec("PRAGMA foreign_keys = OFF;"); // seed.sql grava aulas antes de aluno_livro existir; a migração abaixo preenche
-  db.exec(await Deno.readTextFile(PASTA + "seed.sql"));
-  db.exec("PRAGMA foreign_keys = ON;");
-  migrarAlunoLivro();
-  console.log("wizard.db criado com schema + dados.");
-  Deno.exit(0);
-}
-
 /* migração idempotente: pré-existência de aluno_livro pra cada (id_matricula,livro) hoje em aulas —
    modalidade/vip inferidos da turma casada (se houver) ou do tipo_padrao do livro (vip=0, avulso) */
 function migrarAlunoLivro() {
@@ -96,7 +189,7 @@ function migrarAlunoLivro() {
     const turma = linha ? A("SELECT t.* FROM turmas t JOIN turma_dia td ON td.turma_id=t.id WHERE td.dia=? AND t.hora_inicio=? AND t.status='Ativa' AND (t.livro=? OR t.livro IS NULL)", linha.dia, linha.hora, p.livro)
       .find((t: any) => { const tp = A("SELECT f.nome FROM turma_professor tp JOIN funcionarios f ON f.id=tp.funcionario_id WHERE tp.turma_id=?", t.id).map((x: any) => x.nome); return !tp.length || !profs.length || tp.some((x: string) => profs.includes(x)); }) : undefined;
     const mod = turma ? "Conn" : (lv?.tipo_padrao || "Conn");
-    R("INSERT INTO aluno_livro VALUES (?,?,?,?,?)", p.id_matricula, p.livro, mod, 0, "Presencial");
+    R("INSERT INTO aluno_livro (id_matricula, livro, modalidade, vip, tipo_encontro) VALUES (?,?,?,?,?)", p.id_matricula, p.livro, mod, 0, "Presencial");
   }
   if (pares.length) console.log("aluno_livro: " + pares.length + " matrícula(s) migrada(s) a partir de aulas existentes.");
 }
@@ -203,7 +296,7 @@ function garantirMatricula(idMatricula: string, livro: string, origemLivro?: str
   if (G("SELECT 1 FROM aluno_livro WHERE id_matricula=? AND livro=?", idMatricula, livro)) return;
   const base = origemLivro ? getMatricula(idMatricula, origemLivro) : null;
   const lv = G("SELECT * FROM livros WHERE nome=?", livro);
-  R("INSERT INTO aluno_livro VALUES (?,?,?,?,?)", idMatricula, livro, base?.modalidade || lv?.tipo_padrao || "Conn", base?.vip || 0, base?.tipo_encontro || "Presencial");
+  R("INSERT INTO aluno_livro (id_matricula, livro, modalidade, vip, tipo_encontro) VALUES (?,?,?,?,?)", idMatricula, livro, base?.modalidade || lv?.tipo_padrao || "Conn", base?.vip || 0, base?.tipo_encontro || "Presencial");
 }
 /* remove a matrícula antiga se não sobrou nenhuma aula nela — sem isso, uma troca de livro (cascata de
    turma ou trocarLivroAluno) deixava um livro "fantasma" vazio na ficha do aluno (aluno só guarda o
@@ -439,10 +532,6 @@ function gravarPresenca({ idMatricula, livro, data, status }: any) {
      ("table presenca has 6 columns but 4 values were supplied") — marcar falta/não aula parou
      de funcionar em silêncio. Falta e não-aula também zeram o ponto: quem não veio não tem
      entrada nem saída (é o que o CHECK do banco cobra). */
-  /* colunas explícitas: a tabela ganhou entrada/saida e o VALUES posicional passou a quebrar
-     ("table presenca has 6 columns but 4 values were supplied") — marcar falta/não aula parou
-     de funcionar em silêncio. Falta e não-aula zeram o ponto: quem não veio não tem entrada
-     nem saída, que é o que o CHECK do banco cobra. */
   R(`INSERT INTO presenca (id_matricula, livro, data, status) VALUES (?,?,?,?)
      ON CONFLICT(id_matricula, livro, data) DO UPDATE SET
        status  = excluded.status,
@@ -452,7 +541,11 @@ function gravarPresenca({ idMatricula, livro, data, status }: any) {
        licoes       = CASE WHEN excluded.status = 'P' THEN presenca.licoes       ELSE NULL END`,
     idMatricula, livro, data, status);
   anotar(idMatricula, livro, data, "status", status);
-  return { ok: true, status };
+  /* devolve o registro como ficou: marcar 'P' PRESERVA a entrada/saída que o professor lançou na
+     sala, e a tela da recepção precisa mostrar essa hora em vez de supor que zerou. */
+  const g = G("SELECT entrada, saida, minutos, aulas_feitas FROM presenca WHERE id_matricula=? AND livro=? AND data=?", idMatricula, livro, data);
+  return { ok: true, status, entrada: g?.entrada ?? null, saida: g?.saida ?? null,
+    minutos: g?.minutos ?? null, aulasFeitas: g?.aulas_feitas ?? null };
 }
 
 /* ===== API (mesmo contrato do painel GAS) ===== */
@@ -490,7 +583,7 @@ const api: Record<string, (a: any) => unknown> = {
     if (lv.tipo_fixo === 1) mod = lv.tipo_padrao; // TOTS/L. Kids: modalidade travada
     const existe = G("SELECT 1 FROM aluno_livro WHERE id_matricula=? AND livro=?", idMatricula, livro);
     existe ? R("UPDATE aluno_livro SET modalidade=?,vip=?,tipo_encontro=? WHERE id_matricula=? AND livro=?", mod, vip ? 1 : 0, tipoEncontro || "Presencial", idMatricula, livro)
-           : R("INSERT INTO aluno_livro VALUES (?,?,?,?,?)", idMatricula, livro, mod, vip ? 1 : 0, tipoEncontro || "Presencial");
+           : R("INSERT INTO aluno_livro (id_matricula, livro, modalidade, vip, tipo_encontro) VALUES (?,?,?,?,?)", idMatricula, livro, mod, vip ? 1 : 0, tipoEncontro || "Presencial");
     return { ok: true, criado: !existe, modalidade: mod };
   },
   excluirMatricula({ idMatricula, livro }: any) {
@@ -509,7 +602,7 @@ const api: Record<string, (a: any) => unknown> = {
     const lvNovo = G("SELECT * FROM livros WHERE nome=?", livroNovo); if (!lvNovo) throw new Error("Livro inválido: " + livroNovo);
     let mod = antiga.modalidade;
     if (lvNovo.tipo_fixo === 1) mod = lvNovo.tipo_padrao; // TOTS/L. Kids: modalidade travada
-    R("INSERT INTO aluno_livro VALUES (?,?,?,?,?)", idMatricula, livroNovo, mod, antiga.vip, antiga.tipo_encontro);
+    R("INSERT INTO aluno_livro (id_matricula, livro, modalidade, vip, tipo_encontro) VALUES (?,?,?,?,?)", idMatricula, livroNovo, mod, antiga.vip, antiga.tipo_encontro);
     const aulasMovidas = R("UPDATE aulas SET livro=? WHERE id_matricula=? AND livro=?", livroNovo, idMatricula, livroAntigo).changes;
     R("DELETE FROM aluno_livro WHERE id_matricula=? AND livro=?", idMatricula, livroAntigo);
     return { ok: true, aulasMovidas, modalidade: mod };
@@ -733,13 +826,21 @@ const api: Record<string, (a: any) => unknown> = {
       agora: ("0" + agora.getHours()).slice(-2) + ":" + ("0" + agora.getMinutes()).slice(-2) };
   },
   lancarPresenca: (p: any) => gravarPresenca(p),
+  /* Só o mapa de lançamentos do intervalo, sem remontar blocos: as duas telas (recepção e sala de
+     aula) rodam em MÁQUINAS diferentes sobre a mesma linha de `presenca`, então cada uma precisa
+     enxergar o que a outra acabou de lançar sem recarregar a página inteira. */
+  getPontosSemana: ({ ini, fim }: any) => {
+    if (!ini || !fim) throw new Error("Informe o intervalo (ini e fim).");
+    return indicePontos(ini, fim);
+  },
   /* check-in / check-out: grava a hora do relógio da recepção. Entrada implica presença ('P');
      limpar a entrada zera o lançamento do dia (volta a "não lançado"). */
   registrarPonto({ idMatricula, livro, data, tipo, hora, limpar, confirmado, licoes }: any) {
     if (!idMatricula || !livro || !data || !tipo) throw new Error("Dados incompletos para registrar o ponto.");
     if (tipo !== "entrada" && tipo !== "saida") throw new Error("Tipo inválido: use entrada ou saida.");
     const agora = new Date();
-    const hhmm = hora || ("0" + agora.getHours()).slice(-2) + ":" + ("0" + agora.getMinutes()).slice(-2);
+    const relogio = ("0" + agora.getHours()).slice(-2) + ":" + ("0" + agora.getMinutes()).slice(-2);
+    const hhmm = hora || relogio;
     const atual = G("SELECT * FROM presenca WHERE id_matricula=? AND livro=? AND data=?", idMatricula, livro, data);
     if (limpar) {
       if (tipo === "saida") { R("UPDATE presenca SET saida=NULL, aulas_feitas=NULL, licoes=NULL WHERE id_matricula=? AND livro=? AND data=?", idMatricula, livro, data);
@@ -748,7 +849,20 @@ const api: Record<string, (a: any) => unknown> = {
       anotar(idMatricula, livro, data, "limpeza", null, "lançamento do dia removido");
       return { ok: true, entrada: null, saida: null, status: null };
     }
+    /* A hora pode vir digitada (edição do ponto na célula), então aqui ela é dado de fora e precisa
+       ser conferida — o CHECK do banco pega '99:99', mas não pega '25:00' virando lixo silencioso,
+       nem ponto no futuro. Ponto é carimbo de relógio: ninguém entrou num horário que não chegou.
+       Vale só para entrada/saída — FALTA em data futura continua livre (aluno que avisa viagem),
+       porque isso é lancarPresenca, não passa por aqui. Limpar também escapa: desfazer é sempre
+       permitido, senão um ponto errado ficaria preso. */
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(hhmm)) throw new Error("Horário inválido: use HH:MM, entre 00:00 e 23:59.");
+    const hojeISO = dataISO(agora);
+    if (data > hojeISO) throw new Error("Não dá para registrar ponto em " + data + ": esse dia ainda não chegou.");
+    if (data === hojeISO && hhmm > relogio) throw new Error("São " + relogio + " agora — não dá para registrar " + hhmm + ", que ainda não chegou.");
     if (tipo === "entrada") {
+      /* editar a entrada para depois da saída já gravada viraria "CHECK constraint failed" cru na
+         tela — a regra é a mesma, só dita em português */
+      if (atual?.saida && hhmm > atual.saida) throw new Error("A entrada (" + hhmm + ") não pode ser depois da saída (" + atual.saida + ").");
       R(`INSERT INTO presenca (id_matricula,livro,data,status,entrada) VALUES (?,?,?,'P',?)
          ON CONFLICT(id_matricula,livro,data) DO UPDATE SET status='P', entrada=excluded.entrada`,
         idMatricula, livro, data, hhmm);

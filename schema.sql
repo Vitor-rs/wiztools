@@ -88,7 +88,10 @@ CREATE TABLE aula_professor (
   funcionario_id TEXT NOT NULL REFERENCES funcionarios(id),
   PRIMARY KEY (aula_id, funcionario_id)
 );
-CREATE TABLE IF NOT EXISTS presenca (  -- lançador de presença: 1 linha = aluno × livro × DIA
+/* lançador de presença: 1 linha = aluno × livro × DIA.
+   Data FUTURA é lançamento válido e não deve ganhar CHECK: aluno que avisa que vai viajar tem a falta
+   das próximas semanas lançada de uma vez (caso real: aluna de português que só volta dia 5). */
+CREATE TABLE IF NOT EXISTS presenca (
   id_matricula TEXT NOT NULL REFERENCES alunos(id_matricula) ON DELETE CASCADE,
   livro TEXT NOT NULL,                 -- texto solto de propósito: trocar de livro não apaga frequência
   data TEXT NOT NULL CHECK (data GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]'),
@@ -129,6 +132,8 @@ CREATE INDEX IF NOT EXISTS ix_aulas_dia_hora ON aulas(dia, hora);
 CREATE INDEX IF NOT EXISTS ix_aulas_livro ON aulas(id_matricula, livro);
 CREATE INDEX IF NOT EXISTS ix_presenca_data ON presenca(data);
 CREATE INDEX IF NOT EXISTS ix_presenca_matricula ON presenca(id_matricula);
+CREATE INDEX IF NOT EXISTS ix_diario_matricula ON diario(id_matricula, data);
+CREATE INDEX IF NOT EXISTS ix_diario_momento ON diario(momento);
 CREATE INDEX IF NOT EXISTS ix_aula_prof_func ON aula_professor(funcionario_id);
 CREATE INDEX IF NOT EXISTS ix_turma_dia_dia ON turma_dia(dia);
 CREATE INDEX IF NOT EXISTS ix_aluno_livro_livro ON aluno_livro(livro);

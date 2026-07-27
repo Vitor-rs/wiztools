@@ -364,7 +364,19 @@ function gravarPresenca({ idMatricula, livro, data, status }: any) {
   if (!idMatricula || !livro || !data) throw new Error("Dados incompletos para lançar presença.");
   if (!status) { R("DELETE FROM presenca WHERE id_matricula=? AND livro=? AND data=?", idMatricula, livro, data); return { ok: true, status: null }; }
   if (!["P", "F", "N"].includes(status)) throw new Error("Status inválido: use P (presente), F (falta) ou N (não aula).");
-  R("INSERT INTO presenca VALUES (?,?,?,?) ON CONFLICT(id_matricula,livro,data) DO UPDATE SET status=excluded.status",
+  /* colunas explícitas: a tabela ganhou entrada/saida e o VALUES posicional passou a quebrar
+     ("table presenca has 6 columns but 4 values were supplied") — marcar falta/não aula parou
+     de funcionar em silêncio. Falta e não-aula também zeram o ponto: quem não veio não tem
+     entrada nem saída (é o que o CHECK do banco cobra). */
+  /* colunas explícitas: a tabela ganhou entrada/saida e o VALUES posicional passou a quebrar
+     ("table presenca has 6 columns but 4 values were supplied") — marcar falta/não aula parou
+     de funcionar em silêncio. Falta e não-aula zeram o ponto: quem não veio não tem entrada
+     nem saída, que é o que o CHECK do banco cobra. */
+  R(`INSERT INTO presenca (id_matricula, livro, data, status) VALUES (?,?,?,?)
+     ON CONFLICT(id_matricula, livro, data) DO UPDATE SET
+       status  = excluded.status,
+       entrada = CASE WHEN excluded.status = 'P' THEN presenca.entrada ELSE NULL END,
+       saida   = CASE WHEN excluded.status = 'P' THEN presenca.saida   ELSE NULL END`,
     idMatricula, livro, data, status);
   return { ok: true, status };
 }

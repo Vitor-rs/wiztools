@@ -345,6 +345,7 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
   justify-content:center;font-size:10px;font-weight:700;margin-top:1px}
 .lc-leg-am.ent{background:#34a853;color:#fff}
 .lc-leg-am.sai{background:#c5221f;color:#fff}
+.lc-leg-am.falta{background:#fdecec;border:1px solid #e88;color:#c5221f}
 .lc-leg-am.off{background:#fffaf2;border:1px solid #f0e2cc}
 .lc-leg-am.num{background:#f4f5f6;border:1px solid var(--borda);color:#3c4043;font-size:11px}
 .lc-aba{background:none;border:0;border-bottom:2px solid transparent;padding:8px 16px;cursor:pointer;
@@ -589,6 +590,7 @@ Os horários da matriz costumam ser fixos e raramente mudam. Confirma que quer e
 <div id="lc-leg-pop" class="lc-leg-pop" role="dialog" aria-label="Legenda do lançador">
 <div class="lc-leg-item"><span class="lc-leg-am ent">→</span><div><b>Entrada</b><small>Clique para registrar a hora; clique de novo para desfazer.</small></div></div>
 <div class="lc-leg-item"><span class="lc-leg-am sai">←</span><div><b>Saída</b><small>Só fica disponível depois da entrada.</small></div></div>
+<div class="lc-leg-item"><span class="lc-leg-am falta">✕</span><div><b>Falta</b><small>Dois cliques no botão de saída, com confirmação. Nada é marcado como falta automaticamente: a presença vale para o dia, então quem falta de manhã e vem à tarde continua presente.</small></div></div>
 <div class="lc-leg-item"><span class="lc-leg-am off"></span><div><b>Coluna apagada</b><small>Não é o dia e horário regular do aluno — reposição. Continua lançável.</small></div></div>
 <div class="lc-leg-item"><span class="lc-leg-am num">28</span><div><b>Número do dia</b><small>Clique para marcar a coluna inteira como não aula (feriado, férias).</small></div></div>
 </div>
@@ -1418,8 +1420,20 @@ var sai=document.createElement('button');sai.type='button';
 sai.className='lc-bt sai'+(p&&p.saida?' on':'')+((p&&p.entrada)?'':' inerte');
 sai.innerHTML=(p&&p.saida?'<b>'+escBloco(p.saida)+'</b>':'')+'<span class="lc-seta">'+icon('log-out',13)+'</span>';
 sai.title=!p||!p.entrada?'Registre a entrada primeiro':(p.saida?'Saída '+p.saida+(p.minutos!=null?' · '+fmtDur(p.minutos)+' de aula':'')+' — clique para desfazer':'Registrar saída');
-sai.onclick=function(){if(!p||!p.entrada){msg('Registre a entrada primeiro.',true);return}
-lcPonto(al,c,'saida',!!p.saida,card,function(n){p=n;redesenha()})};
+/* clique simples = saída; DUPLO clique = falta. O clique é adiado ~230ms para o duplo poder
+   cancelá-lo — sem isso o duplo clique gravava e desfazia a saída antes de perguntar da falta. */
+var tCli=null;
+sai.onclick=function(){
+if(tCli){clearTimeout(tCli);tCli=null;return}   // segundo clique: quem trata é o dblclick
+tCli=setTimeout(function(){tCli=null;
+if(!p||!p.entrada){msg('Registre a entrada primeiro — ou dê dois cliques aqui para marcar falta.',true);return}
+lcPonto(al,c,'saida',!!p.saida,card,function(n){p=n;redesenha()})},230)};
+sai.ondblclick=function(e){e.preventDefault();
+if(tCli){clearTimeout(tCli);tCli=null}
+var qdo=c.curto?c.curto+' '+c.numero:c.data;
+if(!confirm('Marcar FALTA de '+al.nome+' em '+qdo+'?'+(p&&p.entrada?'\n\nO ponto registrado ('+p.entrada+(p.saida?' às '+p.saida:'')+') será apagado.':'')))return;
+lcGravarStatus(al,c,'F',card,function(n){p=n;redesenha()})};
+sai.title+=' · dois cliques marcam falta';
 box.appendChild(sai);
 }
 redesenha();return box;

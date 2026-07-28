@@ -44,6 +44,51 @@ deno run -A main.ts --init →  cria wizard.db do zero (SÓ na primeira vez — 
   gravada de forma portável (relativa à raiz do OneDrive), então funciona igual no notebook e na
   recepção mesmo com usuários do Windows diferentes — não é preciso configurar em cada máquina.
 
+## As três máquinas da escola (rede 192.168.3.x)
+
+O banco vive **num lugar só**: o Dell da recepção. Os notebooks não rodam servidor nem têm cópia
+do banco — se cada um tivesse a sua, a presença lançada na sala nunca chegaria à recepção.
+
+| Máquina | Nome do Windows | IP | Papel no app | Atalho |
+|---|---|---|---|---|
+| Dell 24 All-in-One | `WIZARD-DESKTOP-` | `.121` (cabo) / `.122` (Wi-Fi) | **Entrada Recep** (dropdown P/✕/–) | `criar-atalho.ps1` |
+| Notebook Asus | `ASUS-WIZARD-NAV` | `.6` | **Presença** (entrada/saída) | `criar-atalho-sala.ps1` |
+| Notebook Samsung | `DESKTOP-QC59NKL` | `.65` | **Presença** (entrada/saída) | `criar-atalho-sala.ps1` |
+
+Quem decide o papel é o **IP de quem abre a tela** (lista `ESTACOES` no `main.ts`), não a máquina
+que serve — todos falam com o mesmo servidor, então usar o hostname faria todo mundo virar "Dell".
+A aba que não é da estação some da barra lateral. No rodapé da barra aparece qual estação é;
+em amarelo quando o IP não está cadastrado.
+
+Máquina desconhecida (IP novo do DHCP, celular) entra como **sala**, que é o perfil mais restrito.
+Para forçar em fase de teste: `?papel=sala`, `?papel=recepcao` ou `?papel=auto` na URL — fica
+gravado naquela máquina.
+
+### Instalar na recepção (Dell) — é quem manda
+
+1. Passos 1 a 6 da seção acima (é a máquina que roda o servidor e guarda o banco).
+2. Liberar a porta no firewall, **uma vez**, num PowerShell como administrador:
+   ```
+   netsh advfirewall firewall add rule name="Wizard 8420" dir=in action=allow protocol=TCP localport=8420
+   ```
+3. Reservar o IP do Dell no roteador (IP fixo). Com DHCP, o endereço pode trocar e os notebooks
+   perdem o servidor.
+
+### Instalar nos notebooks (Asus e Samsung)
+
+1. Instalar só o **Git** (não precisa de Deno: o notebook não roda servidor).
+2. `git clone https://github.com/Vitor-rs/wiztools.git C:\wiztools`
+3. Rodar `criar-atalho-sala.ps1` uma vez → cria o atalho **"Wizard Sala"**.
+4. Se o IP do Dell mudar, editar a linha `SERVIDOR` no `iniciar-sala.vbs`.
+
+O Dell precisa estar **ligado e com o Wizard aberto** para os notebooks funcionarem.
+
+### Tempo real
+
+As telas conversam por WebSocket: lançou na sala, a recepção vê na hora, e vice-versa. Se a
+conexão cair, o navegador reconecta sozinho e ainda há uma verificação a cada 15s como rede de
+segurança.
+
 ## Fluxo de trabalho
 
 - O **desktop da recepção** tem o único `wizard.db` que vale (produção). Dados são editados lá.
@@ -68,5 +113,7 @@ deno run -A main.ts --init →  cria wizard.db do zero (SÓ na primeira vez — 
 | `resources/print.css` | layout A4 paisagem das fichas |
 | `schema.sql` / `seed.sql` | estrutura do banco / carga inicial histórica |
 | `iniciar.bat` | inicia mostrando a janela do servidor — uso manual/desenvolvimento |
-| `iniciar-app.vbs` | inicia SEM nenhuma janela — é para onde aponta o atalho de produção |
-| `criar-atalho.ps1` | roda uma vez em cada máquina pra criar o atalho da área de trabalho |
+| `iniciar-app.vbs` | RECEPÇÃO: sobe o servidor sem janela nenhuma — atalho de produção do Dell |
+| `iniciar-sala.vbs` | NOTEBOOKS: só abre a tela apontando para o Dell (não sobe servidor) |
+| `criar-atalho.ps1` | roda uma vez no Dell pra criar o atalho "Wizard Recepção" |
+| `criar-atalho-sala.ps1` | roda uma vez em cada notebook pra criar o atalho "Wizard Sala" |

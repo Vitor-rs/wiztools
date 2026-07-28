@@ -83,6 +83,25 @@ db.exec(`CREATE TABLE IF NOT EXISTS diario (
 )`);
 db.exec("CREATE INDEX IF NOT EXISTS ix_diario_matricula ON diario(id_matricula, data)");
 db.exec("CREATE INDEX IF NOT EXISTS ix_diario_momento ON diario(momento)");
+/* Encontro AVULSO: aluno que vem num dia/hora fora da agenda dele (reposição, anteposição, reforço,
+   preparação). `aulas` é a agenda FIXA — dia da semana, toda semana — e não sabe falar de UMA data,
+   então é isto que faz o aluno brotar no bloco daquela hora nas duas telas de lançamento.
+   Dois fluxos, mesma tabela: lançado na hora junto com a presença, ou lançado ANTES pela recepção
+   ("fulano vem às 15h"), aí sem presença até alguém confirmar que ele chegou. Previsto que não veio
+   fica em branco e não vira falta sozinho — falta é sempre lançamento humano. */
+db.exec(`CREATE TABLE IF NOT EXISTS encontro_avulso (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id_matricula TEXT NOT NULL REFERENCES alunos(id_matricula) ON DELETE CASCADE,
+  livro TEXT NOT NULL,                 -- texto solto, como em presenca: trocar de livro não apaga histórico
+  data TEXT NOT NULL CHECK (data GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]'),
+  hora TEXT NOT NULL CHECK (hora GLOB '[0-2][0-9]:[0-5][0-9]'),
+  motivo TEXT NOT NULL CHECK (motivo IN ('Reposição','Anteposição','Reforço','Preparação','Outro')),
+  observacao TEXT,
+  momento TEXT NOT NULL,
+  UNIQUE (id_matricula, livro, data, hora)
+)`);
+db.exec("CREATE INDEX IF NOT EXISTS ix_avulso_data ON encontro_avulso(data, hora)");
+db.exec("CREATE INDEX IF NOT EXISTS ix_avulso_matricula ON encontro_avulso(id_matricula)");
 addColuna("presenca", "minutos", `INTEGER GENERATED ALWAYS AS (
   CASE WHEN entrada IS NOT NULL AND saida IS NOT NULL THEN
     (CAST(substr(saida,1,2) AS INTEGER)*60 + CAST(substr(saida,4,2) AS INTEGER))
@@ -323,14 +342,16 @@ function datasDoMes(ref: Date, dias: string[]) {
   return out;
 }
 
-type Linha = { id_matricula: string; nomeAluno: string; dia: string; hora: string; livro: string; profs: string[]; pendente?: boolean; matPendente?: { modalidade: string; vip: boolean } };
+type Linha = { id_matricula: string; nomeAluno: string; dia: string; hora: string; livro: string; profs: string[]; pendente?: boolean; matPendente?: { modalidade: string; vip: boolean }; avulso?: { motivo: string; observacao: string | null } };
 
 /* mescla horas contíguas do MESMO aluno+dia+livro+professores num único registro com contagem de
    aulas (ex.: 07:00 + 08:00 seguidas = 1 registro "2 aulas", horaFim = +2h) — cobre o caso de 2 lições
    no mesmo dia (ex.: espanhol de segunda 7h-9h) sem exigir que isso seja modelado como turma. */
 function mesclarHoras(linhas: Linha[]): (Linha & { aulas: number })[] {
   const porGrupo: Record<string, Linha[]> = {};
-  for (const l of linhas) (porGrupo[l.id_matricula + "|" + l.dia + "|" + l.livro + "|" + l.profs.slice().sort().join(",")] ||= []).push(l);
+  /* avulso entra na chave: um encontro fora da agenda não pode ser somado a uma aula regular
+     contígua e virar "2 au" — são coisas diferentes, e o avulso precisa da própria linha */
+  for (const l of linhas) (porGrupo[l.id_matricula + "|" + l.dia + "|" + l.livro + "|" + (l.avulso ? "A" : "R") + "|" + l.profs.slice().sort().join(",")] ||= []).push(l);
   const resultado: (Linha & { aulas: number })[] = [];
   for (const grupo of Object.values(porGrupo)) {
     grupo.sort((a, b) => a.hora < b.hora ? -1 : a.hora > b.hora ? 1 : 0);
@@ -347,6 +368,7 @@ function mesclarHoras(linhas: Linha[]): (Linha & { aulas: number })[] {
 function montarBlocos(
   dias: string[],
   alunoOverlay?: { idMatricula: string; livro: string; itens: { idMatricula: string; nome: string; livro: string; professores: string[]; dia: string; hora: string }[]; modalidade?: string; vip?: boolean },
+  dataAvulsos?: string, // data específica: traz também quem vem fora da agenda (só o lançador usa)
 ) {
   const prio: Record<string, number> = {}; A("SELECT * FROM prioridade").forEach(r => prio[r.tipo] = r.prioridade);
   const dInfo: Record<string, any> = {}; A("SELECT * FROM dias").forEach(r => dInfo[r.nome] = r);
@@ -367,11 +389,30 @@ function montarBlocos(
     for (const it of alunoOverlay.itens)
       linhas.push({ id_matricula: it.idMatricula, nomeAluno: it.nome, dia: it.dia, hora: it.hora, livro: it.livro, profs: it.professores, pendente: true, matPendente });
   }
+  /* Encontros avulsos da DATA pedida. Só o lançador informa a data — a ficha impressa chama sem ela
+     e continua saindo exatamente igual (lá o aluno de reposição já aparece na ficha do horário
+     REGULAR dele, com a coluna do dia em que veio; são duas visões diferentes e não se misturam). */
+  if (dataAvulsos) {
+    const diaSemana = NOMES_DIA[new Date(dataAvulsos + "T12:00:00").getDay()];
+    if (dias.includes(diaSemana)) {
+      for (const e of A(`SELECT e.*, al.nome nomeAluno FROM encontro_avulso e
+        JOIN alunos al ON al.id_matricula=e.id_matricula
+        JOIN v_alunos v ON v.id_matricula=e.id_matricula
+        WHERE e.data=? AND v.status='Ativado'`, dataAvulsos)) {
+        /* se ele JÁ tem aula regular nessa hora, então é o horário dele mesmo: nada a acrescentar
+           (evita linha duplicada quando alguém lança avulso por engano no próprio slot) */
+        if (linhas.some(l => l.id_matricula === e.id_matricula && l.dia === diaSemana && l.hora === e.hora && l.livro === e.livro)) continue;
+        linhas.push({ id_matricula: e.id_matricula, nomeAluno: e.nomeAluno, dia: diaSemana, hora: e.hora,
+          livro: e.livro, profs: [], avulso: { motivo: e.motivo, observacao: e.observacao ?? null } });
+      }
+    }
+  }
 
   const mesclados = mesclarHoras(linhas);
   /* dias completos da semana por aluno×livro (com contagem de aulas por dia) — alimenta a coluna Dias */
   const diasLivro: Record<string, Record<string, number>> = {};
   for (const a of mesclados) {
+    if (a.avulso) continue; // a coluna Dias mostra a agenda FIXA: uma reposição não vira dia do aluno
     const k = a.id_matricula + "|" + a.livro;
     (diasLivro[k] ||= {})[a.dia] = Math.max(diasLivro[k][a.dia] || 0, a.aulas);
   }
@@ -391,8 +432,9 @@ function montarBlocos(
     const chave = (!vip && mod === "Inter") ? "I|" + a.hora : t ? "T|" + t.id + "|" + a.hora : "A|" + tipoKey + "|" + a.livro + "|" + a.hora + "|" + a.profs.join("/");
     const b = blocos[chave] ||= { hora: a.hora, fim: t ? t.horaFim : fimIndividual,
       turmaId: t ? t.id : null, tipoKey, mod, vip, diasTurma: t ? t.blocoDias.split("+").map((x: string) => dInfo[x]?.curto || x) : [], alunos: {}, profs: [] };
-    const al = b.alunos[a.id_matricula + "|" + a.livro] ||= { id: a.id_matricula, nome: a.nomeAluno, livro: a.livro, profs: [], pendente: false };
+    const al = b.alunos[a.id_matricula + "|" + a.livro] ||= { id: a.id_matricula, nome: a.nomeAluno, livro: a.livro, profs: [], pendente: false, avulso: a.avulso || null };
     if (a.pendente) al.pendente = true;
+    if (!a.avulso) al.avulso = null; // linha regular manda: se ele tem aula fixa aqui, não é avulso
     a.profs.forEach(p => { if (!b.profs.includes(p)) b.profs.push(p); if (!al.profs.includes(p)) al.profs.push(p); });
   }
   const lista = Object.values(blocos).map((b: any) => ({ ...b,
@@ -773,7 +815,9 @@ const api: Record<string, (a: any) => unknown> = {
     const ref = data ? new Date(data + "T12:00:00") : agora; // meio-dia: imune a fuso/horário de verão
     const dia = NOMES_DIA[ref.getDay()];
 
-    const doDia = montarBlocos([dia]);
+    /* a data entra aqui para trazer também quem vem FORA da agenda naquele dia (reposição, aluno
+       previsto pela recepção). A ficha impressa chama montarBlocos sem data e não muda. */
+    const doDia = montarBlocos([dia], undefined, dataISO(ref));
     const horas = [...new Set(doDia.map((b: any) => b.hora))].sort();
     let horaSel = hora || null;
     if (!horaSel && horas.length) { // hora atual, ou a mais próxima dela
@@ -951,9 +995,65 @@ const api: Record<string, (a: any) => unknown> = {
         dias: dias.map(d => dInfo[d]?.codigo || d),
         horarioNoDia: diaData ? [...new Set(aulas.filter((a: any) => a.dia === diaData).map((a: any) => a.hora))].sort() : [],
         ehDiaDele: diaData ? dias.includes(diaData) : false,
-        status: G("SELECT status FROM presenca WHERE id_matricula=? AND livro=? AND data=?", idMatricula, m.livro, data)?.status || null };
+        status: G("SELECT status FROM presenca WHERE id_matricula=? AND livro=? AND data=?", idMatricula, m.livro, data)?.status || null,
+        /* encontros avulsos já registrados nesse dia: a janelinha mostra para não duplicar e
+           permitir desmarcar quem foi anunciado e acabou não vindo */
+        avulsos: data ? A("SELECT id, hora, motivo, observacao FROM encontro_avulso WHERE id_matricula=? AND livro=? AND data=? ORDER BY hora",
+          idMatricula, m.livro, data) : [] };
     });
-    return { id: alu.id_matricula, nome: alu.nome, situacao: alu.situacao, status: alu.status, matriculas };
+    /* Horas oferecidas no seletor do encontro avulso: a matriz de horários UNIDA às horas que de fato
+       têm aula nesse dia. Só a matriz não bastava — existem aulas em horas que foram desativadas na
+       matriz depois (o app preserva esses slots de propósito), e o resultado era não conseguir
+       marcar o avulso justamente na hora que está aberta na tela. */
+    const horasDoDia = diaData ? [...new Set([
+      ...A("SELECT hora FROM horario_ativo WHERE dia=? AND ativo=1", diaData).map(r => r.hora),
+      ...A("SELECT DISTINCT hora FROM aulas WHERE dia=?", diaData).map(r => r.hora),
+    ])].sort() : [];
+    return { id: alu.id_matricula, nome: alu.nome, situacao: alu.situacao, status: alu.status, matriculas, data: data || null, horasDoDia };
+  },
+  /* ===== encontro avulso: o aluno vem fora da agenda dele =====
+     Dois usos, uma gravação só. comPresenca=true é o lançamento MOMENTÂNEO (ele está aqui na
+     frente); false é o PRÉVIO, quando a recepção soube pelo WhatsApp que ele vem às 15h — aí não
+     existe presença nenhuma ainda, só a linha aparecendo na grade para o professor já contar com ele. */
+  lancarAvulso({ idMatricula, livro, data, hora, motivo, observacao, comPresenca }: any) {
+    if (!idMatricula || !livro || !data || !hora) throw new Error("Informe aluno, livro, data e hora.");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(data))) throw new Error("Data inválida.");
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(String(hora))) throw new Error("Hora inválida: use HH:MM.");
+    const MOTIVOS = ["Reposição", "Anteposição", "Reforço", "Preparação", "Outro"];
+    if (!MOTIVOS.includes(motivo)) throw new Error("Escolha o motivo do encontro.");
+    if (!G("SELECT 1 FROM aluno_livro WHERE id_matricula=? AND livro=?", idMatricula, livro))
+      throw new Error("O aluno não tem matrícula em " + livro + ".");
+    const obs = (observacao || "").trim() || null;
+    R(`INSERT INTO encontro_avulso (id_matricula, livro, data, hora, motivo, observacao, momento)
+       VALUES (?,?,?,?,?,?,datetime('now','localtime'))
+       ON CONFLICT(id_matricula, livro, data, hora) DO UPDATE SET
+         motivo=excluded.motivo, observacao=excluded.observacao, momento=excluded.momento`,
+      idMatricula, livro, data, hora, motivo, obs);
+    anotar(idMatricula, livro, data, "avulso", hora, motivo + (obs ? " — " + obs : ""));
+    const presenca = comPresenca ? gravarPresenca({ idMatricula, livro, data, status: "P" }) : null;
+    return { ok: true, hora, motivo, observacao: obs, presenca };
+  },
+  removerAvulso({ id }: any) {
+    const e = G("SELECT * FROM encontro_avulso WHERE id=?", id);
+    if (!e) throw new Error("Encontro não encontrado.");
+    R("DELETE FROM encontro_avulso WHERE id=?", id);
+    anotar(e.id_matricula, e.livro, e.data, "limpeza", e.hora, "encontro avulso removido");
+    return { ok: true };
+  },
+  /* histórico do aluno: os encontros fora da agenda, com o que já foi lançado em cada um.
+     Inclui o previsto que nunca virou presença — é justamente o que interessa saber depois. */
+  getAvulsosAluno({ idMatricula }: any) {
+    const dInfo: Record<string, any> = {}; A("SELECT * FROM dias").forEach(r => dInfo[r.nome] = r);
+    return A(`SELECT e.*, p.status, p.entrada, p.saida, p.minutos
+      FROM encontro_avulso e
+      LEFT JOIN presenca p ON p.id_matricula=e.id_matricula AND p.livro=e.livro AND p.data=e.data
+      WHERE e.id_matricula=? ORDER BY e.data DESC, e.hora`, idMatricula).map(e => {
+      const d = new Date(e.data + "T12:00:00");
+      return { id: e.id, data: e.data, hora: e.hora, livro: e.livro, motivo: e.motivo,
+        observacao: e.observacao || null, momento: e.momento,
+        diaCurto: dInfo[NOMES_DIA[d.getDay()]]?.curto || "", numero: d.getDate(),
+        status: e.status || null, entrada: e.entrada || null, saida: e.saida || null, minutos: e.minutos ?? null };
+    });
   },
 
   /* ===== horário em lote =====
@@ -1158,15 +1258,60 @@ const api: Record<string, (a: any) => unknown> = {
 };
 
 /* ===== servidor ===== */
-Deno.serve({ port: 8420 }, async (req) => {
+/* ===== estações da escola =====
+   O banco vive num lugar só: o Dell da recepção. Os notebooks NÃO rodam servidor nem têm cópia do
+   banco — eles abrem o navegador apontando para o Dell, e por isso o servidor escuta em 0.0.0.0
+   (só localhost deixaria a rede de fora). Como todos falam com o MESMO servidor, o papel de cada
+   estação não pode vir do hostname da máquina que serve: vem do IP de QUEM PEDE.
+   IPs conforme o inventário das três máquinas (rede 192.168.3.x). */
+const ESTACOES: Record<string, { nome: string; papel: "recepcao" | "sala" }> = {
+  "192.168.3.121": { nome: "Recepção — Dell (cabo)", papel: "recepcao" },
+  "192.168.3.122": { nome: "Recepção — Dell (Wi-Fi)", papel: "recepcao" },
+  "192.168.3.6": { nome: "Notebook Asus", papel: "sala" },
+  "192.168.3.65": { nome: "Notebook Samsung", papel: "sala" },
+};
+/* quem abre no próprio servidor é a recepção (o Dell olhando para si mesmo). Uma máquina
+   desconhecida — celular, notebook novo, IP trocado pelo DHCP — entra como sala, que é o perfil
+   mais restrito: lança entrada/saída e não mexe no status. */
+function estacaoDoIP(ip: string) {
+  if (ESTACOES[ip]) return { ip, ...ESTACOES[ip], conhecida: true };
+  const local = ip === "127.0.0.1" || ip === "::1" || ip === "::ffff:127.0.0.1";
+  return { ip, nome: local ? "Esta máquina (servidor)" : "Estação não cadastrada", papel: local ? "recepcao" : "sala", conhecida: local };
+}
+
+/* ===== avisos em tempo real (WebSocket) =====
+   Substitui a espera do polling: quando a recepção lança, a sala vê na hora, e vice-versa. O
+   polling de 15s continua no cliente como rede de segurança, para o caso de a conexão cair. */
+const clientesWS = new Set<WebSocket>();
+function avisarTodos(evento: string) {
+  const msg = JSON.stringify({ evento, momento: Date.now() });
+  for (const ws of [...clientesWS]) {
+    try { if (ws.readyState === WebSocket.OPEN) ws.send(msg); else clientesWS.delete(ws); }
+    catch { clientesWS.delete(ws); }
+  }
+}
+
+Deno.serve({ port: 8420, hostname: "0.0.0.0" }, async (req, info) => {
   const url = new URL(req.url);
+  const ip = (info?.remoteAddr as Deno.NetAddr | undefined)?.hostname ?? "127.0.0.1";
+  if (url.pathname === "/ws") {
+    const { socket, response } = Deno.upgradeWebSocket(req);
+    socket.onopen = () => clientesWS.add(socket);
+    socket.onclose = () => clientesWS.delete(socket);
+    socket.onerror = () => clientesWS.delete(socket);
+    return response;
+  }
+  if (url.pathname === "/api/getEstacao") return Response.json(estacaoDoIP(ip));
   if (url.pathname.startsWith("/api/")) {
     try {
       const fn = url.pathname.slice(5);
       if (!api[fn]) throw new Error("Função desconhecida: " + fn);
       const args = req.method === "POST" ? await req.json() : Object.fromEntries(url.searchParams);
       if (fn === "fichas" && typeof (args as any).dias === "string") (args as any).dias = (args as any).dias.split(",");
-      return Response.json(api[fn](args));
+      const resposta = api[fn](args);
+      /* qualquer função que NÃO seja consulta mudou algo: avisa as outras estações na hora */
+      if (!/^(get|preview|info)/.test(fn)) avisarTodos(fn);
+      return Response.json(resposta);
     } catch (e) { return Response.json({ erro: (e as Error).message }, { status: 400 }); }
   }
   const arquivo = url.pathname === "/" ? "app.html" : decodeURIComponent(url.pathname.slice(1));
@@ -1189,3 +1334,12 @@ Deno.serve({ port: 8420 }, async (req) => {
   catch { return new Response("não encontrado", { status: 404 }); }
 });
 console.log("Wizard local em http://localhost:8420  (painel único: Alunos, Turmas, Horários e Impressão)");
+/* endereços por onde os notebooks alcançam esta máquina — a recepção precisa saber qual digitar
+   nos outros computadores, e o IP do Wi-Fi muda de vez em quando */
+try {
+  for (const [nome, faixas] of Object.entries(Deno.networkInterfaces().reduce((m: Record<string, string[]>, i) => {
+    if (i.family === "IPv4" && i.address !== "127.0.0.1") (m[i.name] ||= []).push(i.address);
+    return m;
+  }, {}))) console.log(`   na rede (${nome}): http://${faixas.join(" / ")}:8420`);
+} catch { /* sem permissão de rede: não é essencial */ }
+

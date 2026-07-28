@@ -50,7 +50,8 @@
   --sl-color-primary-600:#071D49;--sl-color-primary-500:#1A3A7A;--sl-color-primary-300:#8FA5CC;--sl-input-border-radius-medium:8px;--sl-border-radius-medium:8px}
 *{box-sizing:border-box;font-family:"Segoe UI",system-ui,-apple-system,Arial,Helvetica,sans-serif}
 body{margin:0;color:#202124;font-size:13px;display:flex;min-height:100vh;background:var(--fundo)}
-#sidebar{width:168px;flex-shrink:0;background:#fff;border-right:2px solid var(--v);position:sticky;top:0;align-self:flex-start;height:100vh;overflow-y:auto;padding-top:8px}
+/* flex-column para a etiqueta da estação poder descer até o rodapé (margin-top:auto) */
+#sidebar{width:168px;flex-shrink:0;background:#fff;border-right:2px solid var(--v);position:sticky;top:0;align-self:flex-start;height:100vh;overflow-y:auto;padding-top:8px;display:flex;flex-direction:column}
 #sidebar button{display:block;width:100%;text-align:left;border:0;background:none;padding:12px 16px;cursor:pointer;font-weight:bold;color:var(--tx2);border-left:3px solid transparent;font-size:13px}
 #sidebar button.on{color:var(--v);background:var(--cz);border-left-color:var(--v)}
 #sidebar button:hover{background:var(--cz)}
@@ -462,6 +463,32 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
 .lc-leg-am.st.n{background:#eceff1;border:1px solid #cfd4d8;color:#5f6368}
 .lc-leg-am.st.vazio{background:#fff;border:1px solid var(--borda)}
 .lc-leg-am.aguarda{background:#f2faf4;border:2px solid #34a853;color:#2d9147}
+
+.av-motivo{font-size:10px;font-weight:700;background:#f1f3f4;border-radius:8px;padding:1px 7px;color:var(--tx2)}
+/* alerta ao lado do nome: este aluno não é deste horário, veio de reposição/reforço/etc */
+.lc-av{display:inline-flex;vertical-align:-2px;margin-left:5px;color:#b26a00;cursor:help}
+.lc-av svg{display:block}
+
+/* qual máquina é esta, no pé da barra lateral — some da vista, mas responde "por que esta tela
+   está diferente da outra?" sem precisar abrir o código */
+.estacao-tag{margin-top:auto;font-size:10px;font-weight:600;color:var(--tx3);
+  padding:9px 14px;line-height:1.35;cursor:help;border-top:1px solid var(--borda)}
+.estacao-tag.desconhecida{color:#8a5a00;background:#fdf6e3}
+
+/* ===== encontro avulso (janelinha da busca) ===== */
+.av-cx{margin:6px 0 12px;padding:8px 10px;border:1px dashed var(--borda);border-radius:6px;background:#fbfbfa}
+.av-tit{font-size:11px;font-weight:700;color:var(--tx2);margin-bottom:6px}
+.av-linha{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end}
+.av-linha label{display:flex;flex-direction:column;gap:2px;font-size:10px;color:var(--tx3);font-weight:600}
+.av-linha select,.av-linha input{font-size:12px;padding:3px 6px;border:1px solid var(--borda);border-radius:4px;background:#fff}
+.av-linha .av-obs{flex:1;min-width:120px}
+.av-linha .av-obs input{width:100%}
+.av-acoes{display:flex;gap:6px;margin-top:8px}
+.av-lista{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}
+.av-tag{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;background:#fff;
+  border:1px solid var(--borda);border-radius:10px;padding:2px 4px 2px 9px;color:var(--tx2)}
+.av-tag button{border:0;background:none;cursor:pointer;color:#c5221f;font-size:11px;line-height:1;padding:2px 3px;border-radius:50%}
+.av-tag button:hover{background:#fce8e6}
 .lc-marca{width:100%;border-radius:5px;cursor:pointer;font-size:11px;font-weight:700;padding:3px 4px;line-height:1}
 .lc-marca.f{background:#fdecec;border:1px solid #e88;color:#c5221f}
 .lc-marca.n{background:#f1f3f4;border:1px solid #d4d7db;color:var(--tx3)}
@@ -530,6 +557,7 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
 <button onclick="aba('professores',this)">Professores</button>
 <button onclick="aba('impressao',this)">Impressão</button>
 <button onclick="aba('backup',this)">Backup</button>
+<div id="estacao-tag" class="estacao-tag"></div>
 </div>
 <div id="conteudo">
 
@@ -1106,8 +1134,12 @@ function freqToggle(){if(!alSel){msg('Escolha um aluno primeiro.',true);return}
 FREQ_ABERTO=!FREQ_ABERTO;$('freq-corpo').style.display=FREQ_ABERTO?'block':'none';
 $('freq-toggle').textContent=(FREQ_ABERTO?'▾':'▸')+' Frequência (presenças e faltas)';
 if(FREQ_ABERTO)freqCarregar()}
-function freqCarregar(){run('getFrequenciaAluno',[{idMatricula:alSel.id}],freqRender)}
-function freqRender(r){
+/* frequência + encontros fora da agenda: as duas coisas contam a mesma história (quando o aluno
+   veio), então moram no mesmo lugar em vez de virar mais um accordion */
+function freqCarregar(){var id=alSel.id;
+run('getFrequenciaAluno',[{idMatricula:id}],function(r){
+run('getAvulsosAluno',[{idMatricula:id}],function(av){freqRender(r,av)})})}
+function freqRender(r,avulsos){
 var box=$('freq-corpo');box.innerHTML='';
 var res=document.createElement('div');res.className='freq-resumo';
 res.innerHTML='<div class="freq-kpi p"><b>'+r.resumo.P+'</b>presenças</div>'
@@ -1128,6 +1160,36 @@ tx.innerHTML='<span class="st '+l.status+'">'+(l.status==='P'?'P':l.status==='F'
 var del=document.createElement('button');del.type='button';del.className='remover';del.textContent='✕';del.title='Remover este lançamento';
 del.onclick=function(){if(!confirm('Remover o lançamento de '+l.numero+'/'+l.data.slice(5,7)+' ('+l.livro+')?'))return;
 run('lancarPresenca',[{idMatricula:alSel.id,livro:l.livro,data:l.data,status:null}],function(){msg('Lançamento removido.');freqCarregar()})};
+row.appendChild(tx);row.appendChild(del);lista.appendChild(row)});
+box.appendChild(lista);
+freqAvulsos(box,avulsos);
+}
+/* Encontros fora da agenda, com o motivo que a recepção registrou. Aparece aqui e NÃO nas duas telas
+   de lançamento (lá o motivo fica no tooltip do alerta) — a grade é para lançar, não para ler
+   histórico. Inclui o previsto que nunca virou presença: é justamente o que interessa saber depois. */
+function freqAvulsos(box,avulsos){
+if(!avulsos||!avulsos.length)return;
+var t=document.createElement('div');
+t.style.cssText='font-size:11px;font-weight:700;color:var(--tx2);margin:12px 0 6px';
+t.textContent='Fora do horário fixo ('+avulsos.length+')';
+box.appendChild(t);
+var lista=document.createElement('div');lista.className='freq-lista';
+avulsos.forEach(function(a){
+var row=document.createElement('div');row.className='hist-linha';
+var veio=a.status==='P';
+var tx=document.createElement('span');
+tx.innerHTML='<b>'+a.numero+'</b> '+escBloco(a.diaCurto)+' · <b>'+escBloco(a.hora)+'</b> '
++'<span class="av-motivo">'+escBloco(a.motivo)+'</span> '
++'<small style="color:var(--tx3)">'+escBloco(a.livro)+'</small>'
++(veio?' <span class="lc-hora-tag ent">'+escBloco(a.entrada||'presente')+'</span>'
+      +(a.minutos!=null?' <span class="lc-dur'+(a.minutos<20?' curta':'')+'">'+escBloco(fmtDur(a.minutos))+'</span>':'')
+ :a.status==='F'?' <span class="badge b-off">faltou</span>'
+ :' <span class="badge b-emaula">não confirmado</span>')
++(a.observacao?'<br><small style="color:var(--tx3)">'+escBloco(a.observacao)+'</small>':'');
+var del=document.createElement('button');del.type='button';del.className='remover';del.textContent='✕';
+del.title='Remover este encontro (a presença lançada não é apagada)';
+del.onclick=function(){if(!confirm('Remover o encontro de '+a.numero+'/'+a.data.slice(5,7)+' às '+a.hora+' ('+a.motivo+')?'))return;
+run('removerAvulso',[{id:a.id}],function(){msg('Encontro removido.');freqCarregar()})};
 row.appendChild(tx);row.appendChild(del);lista.appendChild(row)});
 box.appendChild(lista);
 }
@@ -1400,6 +1462,38 @@ var n=(r.blocos||[]).reduce(function(s,b){return s+b.alunos.length},0);
 $('home-cta-sub').textContent=r.hora?(r.hora+' · '+n+' aluno(s) na sala'):'nenhuma aula hoje';
 })}
 
+/* ===== estação: qual das duas telas de lançamento esta máquina usa =====
+   O banco mora só no Dell da recepção; os notebooks abrem o navegador apontando para ele. Como
+   todos falam com o mesmo servidor, quem decide o papel é o IP de quem pediu (ver ESTACOES no
+   main.ts): Dell → Entrada Recep (dropdown), Asus e Samsung → Presença (entrada/saída).
+   A aba que não é da máquina some da barra lateral e do Início — não é segurança, é tirar da
+   frente o que aquela estação não usa. Fase de teste, sem login: dá para forçar o outro papel
+   com ?papel=sala ou ?papel=recepcao na URL, que fica gravado nesta máquina. */
+var ESTACAO=null;
+function aplicarEstacao(){
+var forcado=null;
+try{
+var q=new URLSearchParams(location.search).get('papel');
+if(q==='sala'||q==='recepcao'){localStorage.setItem('wiz_papel',q);forcado=q}
+else if(q==='auto')localStorage.removeItem('wiz_papel');
+else forcado=localStorage.getItem('wiz_papel');
+}catch(e){/* navegador sem localStorage: segue no automático */}
+run('getEstacao',[],function(e){
+ESTACAO=e;if(forcado)ESTACAO.papel=forcado;ESTACAO.forcado=!!forcado;
+var aba=ESTACAO.papel==='recepcao'?'recepcao':'presenca';
+var outra=aba==='recepcao'?'presenca':'recepcao';
+document.querySelectorAll('#sidebar button').forEach(function(b){
+if(String(b.getAttribute('onclick')).indexOf("'"+outra+"'")>=0)b.style.display='none'});
+/* o Início monta os cards a partir de PAGINAS: tira de lá a página que esta estação não usa */
+for(var i=PAGINAS.length-1;i>=0;i--)if(PAGINAS[i].aba===outra)PAGINAS.splice(i,1);
+$('home-cards').innerHTML='';renderHome();
+var el=$('estacao-tag');
+if(el){el.textContent=ESTACAO.nome+(ESTACAO.forcado?' · forçado':'');
+el.title='IP '+ESTACAO.ip+' · lançamento por '+(ESTACAO.papel==='recepcao'?'dropdown de status (recepção)':'entrada e saída (sala de aula)')
++(ESTACAO.conhecida?'':' · máquina não cadastrada em ESTACOES (main.ts)')+'\nTrocar nesta máquina: acrescente ?papel=sala, ?papel=recepcao ou ?papel=auto na URL.';
+el.className='estacao-tag'+(ESTACAO.conhecida?'':' desconhecida')}
+})}
+
 /* ===== PRESENÇA (lançador) =====
    Dois lançadores sobre a MESMA linha de `presenca`, um por aba:
      'sala'  (aba Presença)      → professor: botões de entrada/saída. Mede o tempo REAL de aula,
@@ -1478,9 +1572,27 @@ recalcular.forEach(function(r){lcResumo(r.card,r.bloco)}); // "3 de 7 lançados 
 }
 window.addEventListener('focus',function(){if(lcNaAbaDeLancamento())lcSincronizar()});
 document.addEventListener('visibilitychange',function(){if(!document.hidden&&lcNaAbaDeLancamento())lcSincronizar()});
+/* rede de segurança: com o WebSocket de pé isto quase nunca acha novidade, mas cobre queda de
+   conexão, Wi-Fi oscilando e notebook que voltou do suspender */
 LC_TIMER=setInterval(function(){
 if(document.hidden||!lcNaAbaDeLancamento())return;         // janela escondida não consulta o servidor
 lcSincronizar()},15000);
+/* ===== tempo real =====
+   O servidor avisa toda vez que alguém grava algo, então a sala vê o lançamento da recepção na
+   hora (e vice-versa) em vez de esperar o próximo ciclo. Reconecta sozinho se a rede cair — o
+   notebook vive de Wi-Fi e o servidor pode ser reiniciado no meio do dia. */
+var LC_WS=null,LC_WS_ESPERA=1000;
+function lcConectarWS(){
+try{
+LC_WS=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws');
+}catch(e){return}
+LC_WS.onopen=function(){LC_WS_ESPERA=1000};
+LC_WS.onmessage=function(){if(lcNaAbaDeLancamento())lcSincronizar()};
+LC_WS.onclose=function(){                                  // espera crescente até 30s, sem martelar
+LC_WS=null;setTimeout(lcConectarWS,LC_WS_ESPERA);LC_WS_ESPERA=Math.min(LC_WS_ESPERA*2,30000)};
+LC_WS.onerror=function(){try{LC_WS.close()}catch(e){}};
+}
+lcConectarWS();
 
 /* duas abas: Check-in (a grade da semana) e Presenças hoje (quem já passou, em ordem de chegada) */
 var LC_ABA='checkin';
@@ -1552,7 +1664,12 @@ var tr=document.createElement('tr');
 var mod=(al.vip?al.modalidade+' Vip':al.modalidade)+(al.tipoEncontro==='Online'?' · Online':'');
 var pilulas=al.diasPilulas.map(function(p){
 return '<span class="lc-pd" title="'+escBloco(p.curto)+(p.aulas>1?' — '+p.aulas+' aulas':'')+'">'+escBloco(p.codigo)+(p.aulas>1?' <b>('+p.aulas+' au)</b>':'')+'</span>'}).join('');
-tr.innerHTML='<td class="lc-nome">'+escBloco(al.nome)+'</td>'
+/* aluno fora da agenda dele: um ícone depois do nome, dizendo por que ele está nesta hora.
+   A estrutura da tabela não muda — ele só se acrescenta como mais uma linha do bloco. */
+var marcaAv=al.avulso?'<span class="lc-av" title="'+escBloco('Fora do horário dele — '+al.avulso.motivo
++(al.avulso.observacao?': '+al.avulso.observacao:'')+'. O horário fixo continua sendo '+(al.dias||'sem agenda')+'.')
++'">'+icon('triangle-alert',12)+'</span>':'';
+tr.innerHTML='<td class="lc-nome">'+escBloco(al.nome)+marcaAv+'</td>'
 +'<td class="lc-estagio"><span class="lc-livro">'+escBloco(al.livro)+'</span><small>'+escBloco(mod)+'</small></td>'
 +'<td class="lc-prof">'+((al.profs&&al.profs.length)?al.profs.map(function(p){return '<span class="lc-pp">'+escBloco(p)+'</span>'}).join(''):'<span class="lc-vazio-cel">—</span>')+'</td>'
 +'<td class="lc-dias-pil">'+(pilulas||'<span class="lc-vazio-cel">—</span>')+'</td>';
@@ -1884,6 +2001,49 @@ if(!confirm(todosN?'Desmarcar "não aula" do dia '+c.numero+' para os '+b.alunos
 :'Marcar o dia '+c.numero+' como NÃO AULA (feriado/férias) para os '+b.alunos.length+' aluno(s) deste bloco?'))return;
 run('lancarPresencaLote',[{itens:b.alunos.map(function(a){return {idMatricula:a.id,livro:a.livro,data:c.data,status:novo}})}],
 function(){msg(todosN?'Dia '+c.numero+' desmarcado.':'Dia '+c.numero+' marcado como não aula.');lcCarregar()})}
+/* ===== encontro avulso: o aluno vem fora da agenda dele =====
+   Dois usos no mesmo painel: MOMENTÂNEO (ele já está aqui — grava a presença junto) e PRÉVIO (a
+   recepção soube que ele vem às 15h — não grava presença nenhuma, só faz a linha aparecer na grade
+   para o professor já contar com ele). Nos dois casos o aluno passa a existir nas DUAS telas: o que
+   manda é quem lançou primeiro. A hora não é o horário exato da chegada — é o BLOCO em que ele
+   entra; quem diz a hora real é o ponto de entrada/saída. */
+var LC_MOTIVOS=['Reposição','Anteposição','Reforço','Preparação','Outro'];
+function lcAvulsoPainel(m,i,inf){
+var horas=inf.horasDoDia||[];
+/* pré-preenchido com a hora aberta na tela: no caso comum (aluno na frente dela) é só confirmar */
+var sug=(LC&&LC.hora)||(horas.length?horas[0]:'');
+var h='<div class="av-cx"><div class="av-tit">Veio (ou vem) fora do horário dele?</div><div class="av-linha">'
++'<label>Hora<select id="av-hora-'+i+'">'
++(horas.length?horas.map(function(x){return '<option value="'+escBloco(x)+'"'+(x===sug?' selected':'')+'>'+escBloco(x)+'</option>'}).join('')
+:'<option value="">sem horário ativo neste dia</option>')+'</select></label>'
++'<label>Motivo<select id="av-motivo-'+i+'">'+LC_MOTIVOS.map(function(x){return '<option>'+escBloco(x)+'</option>'}).join('')+'</select></label>'
++'<label class="av-obs">Observação<input id="av-obs-'+i+'" placeholder="opcional" autocomplete="off"></label>'
++'</div><div class="av-acoes">'
++'<button class="bt p" onclick="lcAvulsoLancar('+i+',true)" title="Ele já está aqui: registra o encontro e marca presença">Está aqui agora</button>'
++'<button class="bt" onclick="lcAvulsoLancar('+i+',false)" title="Ainda não chegou: só faz aparecer na grade daquela hora, sem lançar presença">Só avisar que vem</button>'
++'</div>';
+if(m.avulsos&&m.avulsos.length){
+h+='<div class="av-lista">'+m.avulsos.map(function(a){
+return '<span class="av-tag" title="'+escBloco(a.motivo+(a.observacao?' — '+a.observacao:''))+'">'+escBloco(a.hora+' · '+a.motivo)
++'<button onclick="lcAvulsoRemover('+a.id+')" title="Remover este encontro">✕</button></span>'}).join('')+'</div>';
+}
+return h+'</div>';
+}
+function lcAvulsoLancar(i,comPresenca){
+var m=LC_INFO.matriculas[i];if(!m)return;
+var hora=$('av-hora-'+i).value;
+if(!hora){msg('Escolha a hora do encontro.',true);return}
+run('lancarAvulso',[{idMatricula:LC_INFO.id,livro:m.livro,data:LC_INFO.data||(LC?LC.data:isoLocal(new Date())),
+hora:hora,motivo:$('av-motivo-'+i).value,observacao:$('av-obs-'+i).value,comPresenca:!!comPresenca}],function(){
+msg(comPresenca?LC_INFO.nome+' lançado às '+hora+' — presença marcada.'
+:LC_INFO.nome+' aparece agora no bloco das '+hora+'. A presença fica em branco até ele chegar.');
+lcAbrirDialog(LC_INFO.id); // redesenha a janelinha com o encontro já listado
+lcCarregar();              // e faz o aluno brotar na grade das duas telas
+})}
+function lcAvulsoRemover(id){
+if(!confirm('Remover este encontro fora do horário?\n\nA linha do aluno some do bloco daquela hora. Presença já lançada não é apagada.'))return;
+run('removerAvulso',[{id:id}],function(){msg('Encontro removido.');lcAbrirDialog(LC_INFO.id);lcCarregar()})}
+
 /* busca rápida: qualquer aluno, mesmo fora do horário — a presença é do DIA, então cai no
    horário próprio dele (regra da recepção) */
 function lcAbrirDialog(id){
@@ -1901,7 +2061,8 @@ h+='<div class="mat-linha"><div><b>'+escBloco(m.livro)+'</b><small>'+escBloco(m.
 +'<div class="acoes"><button class="bt p'+(m.status==='P'?' on':'')+'" onclick="lcDialogLancar('+i+',\'P\')">Presente</button>'
 +'<button class="bt f'+(m.status==='F'?' on':'')+'" onclick="lcDialogLancar('+i+',\'F\')">Falta</button>'
 +'<button class="bt n'+(m.status==='N'?' on':'')+'" onclick="lcDialogLancar('+i+',\'N\')" title="Feriado, férias ou aula cancelada — não conta como presença nem falta">Não aula</button>'
-+'<button class="bt" onclick="lcDialogLancar('+i+',null)">Limpar</button></div></div>'});
++'<button class="bt" onclick="lcDialogLancar('+i+',null)">Limpar</button></div></div>'
++lcAvulsoPainel(m,i,inf)});
 $('lc-dialog-corpo').innerHTML=h;
 var dlg=$('lc-dialog');
 if(dlg&&typeof dlg.show==='function')dlg.show();
@@ -2036,6 +2197,7 @@ init();
 el.addEventListener('click',function(e){if(e.target&&e.target.tagName==='B'&&e.target.parentElement&&String(e.target.parentElement.className).indexOf('pill')>=0)dirty(par[1],true)})});
 bindBuscas();
 iconesEstaticos();matAtualizarLock();renderHome(); // Início é a aba visível na abertura
+aplicarEstacao();
 setTimeout(function(){['al','tu','mat'].forEach(function(s){dirty(s,false)})},0);
 setTimeout(function(){if(!DOM)msg('Os domínios não carregaram — o servidor local está rodando? (deno run -A main.ts) Recarregue a página.',true)},4000);
 </script>

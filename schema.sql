@@ -119,6 +119,24 @@ CREATE TABLE IF NOT EXISTS diario (    -- trilha de auditoria append-only dos la
   valor TEXT,
   detalhe TEXT
 );
+/* Encontro AVULSO: o aluno vem num dia/hora que não é o da agenda dele (reposição, anteposição,
+   reforço, preparação). É o que faz ele aparecer no bloco daquela hora nas duas telas de lançamento
+   — `aulas` é a agenda FIXA (dia da semana, toda semana) e não sabe falar de uma data só.
+   Serve aos dois fluxos: lançado na hora, junto com a presença, ou lançado ANTES pela recepção
+   ("fulano vem às 15h"), aí sem presença nenhuma até alguém confirmar que ele chegou.
+   Não vira falta sozinho: previsto que não veio fica em branco, e falta é sempre lançamento humano.
+   `livro` é texto solto de propósito, como em presenca: trocar de livro não apaga o histórico. */
+CREATE TABLE IF NOT EXISTS encontro_avulso (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id_matricula TEXT NOT NULL REFERENCES alunos(id_matricula) ON DELETE CASCADE,
+  livro TEXT NOT NULL,
+  data TEXT NOT NULL CHECK (data GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]'),
+  hora TEXT NOT NULL CHECK (hora GLOB '[0-2][0-9]:[0-5][0-9]'),
+  motivo TEXT NOT NULL CHECK (motivo IN ('Reposição','Anteposição','Reforço','Preparação','Outro')),
+  observacao TEXT,
+  momento TEXT NOT NULL,               -- quando a recepção registrou (relógio da máquina)
+  UNIQUE (id_matricula, livro, data, hora)
+);
 CREATE TABLE aluno_situacao_historico (  -- linha do tempo manual: quando o aluno entrou em cada situação
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   id_matricula TEXT NOT NULL REFERENCES alunos(id_matricula) ON DELETE CASCADE,
@@ -134,6 +152,8 @@ CREATE INDEX IF NOT EXISTS ix_presenca_data ON presenca(data);
 CREATE INDEX IF NOT EXISTS ix_presenca_matricula ON presenca(id_matricula);
 CREATE INDEX IF NOT EXISTS ix_diario_matricula ON diario(id_matricula, data);
 CREATE INDEX IF NOT EXISTS ix_diario_momento ON diario(momento);
+CREATE INDEX IF NOT EXISTS ix_avulso_data ON encontro_avulso(data, hora);
+CREATE INDEX IF NOT EXISTS ix_avulso_matricula ON encontro_avulso(id_matricula);
 CREATE INDEX IF NOT EXISTS ix_aula_prof_func ON aula_professor(funcionario_id);
 CREATE INDEX IF NOT EXISTS ix_turma_dia_dia ON turma_dia(dia);
 CREATE INDEX IF NOT EXISTS ix_aluno_livro_livro ON aluno_livro(livro);

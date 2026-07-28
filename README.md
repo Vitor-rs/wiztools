@@ -64,21 +64,25 @@ Máquina desconhecida (IP novo do DHCP, celular) entra como **sala**, que é o p
 Para forçar em fase de teste: `?papel=sala`, `?papel=recepcao` ou `?papel=auto` na URL — fica
 gravado naquela máquina.
 
+> **Política de execução:** o Dell e o Samsung recusam rodar `.ps1` clicado direto. Por isso cada
+> script tem um `.bat` de dois cliques ao lado, que chama o PowerShell com
+> `-ExecutionPolicy Bypass`. Esse bypass vale **só para aquela execução** — a configuração da
+> máquina não é alterada e continua protegida para todo o resto. Use sempre os `.bat`.
+
 ### Instalar na recepção (Dell) — é quem manda
 
 1. Passos 1 a 6 da seção acima (é a máquina que roda o servidor e guarda o banco).
-2. Liberar a porta no firewall, **uma vez**, num PowerShell como administrador:
-   ```
-   netsh advfirewall firewall add rule name="Wizard 8420" dir=in action=allow protocol=TCP localport=8420
-   ```
-3. Reservar o IP do Dell no roteador (IP fixo). Com DHCP, o endereço pode trocar e os notebooks
+2. `liberar-firewall.bat` → **botão direito → Executar como administrador**, uma vez. Abre a porta
+   8420 para a rede local; sem isso o Dell só responde a si mesmo e os notebooks não conectam.
+3. `criar-atalho.bat` → cria o atalho **"Wizard Recepção"**.
+4. Reservar o IP do Dell no roteador (IP fixo). Com DHCP o endereço pode trocar e os notebooks
    perdem o servidor.
 
 ### Instalar nos notebooks (Asus e Samsung)
 
 1. Instalar só o **Git** (não precisa de Deno: o notebook não roda servidor).
 2. `git clone https://github.com/Vitor-rs/wiztools.git C:\wiztools`
-3. Rodar `criar-atalho-sala.ps1` uma vez → cria o atalho **"Wizard Sala"**.
+3. `criar-atalho-sala.bat` → cria o atalho **"Wizard Sala"**.
 4. Se o IP do Dell mudar, editar a linha `SERVIDOR` no `iniciar-sala.vbs`.
 
 O Dell precisa estar **ligado e com o Wizard aberto** para os notebooks funcionarem.
@@ -115,5 +119,6 @@ segurança.
 | `iniciar.bat` | inicia mostrando a janela do servidor — uso manual/desenvolvimento |
 | `iniciar-app.vbs` | RECEPÇÃO: sobe o servidor sem janela nenhuma — atalho de produção do Dell |
 | `iniciar-sala.vbs` | NOTEBOOKS: só abre a tela apontando para o Dell (não sobe servidor) |
-| `criar-atalho.ps1` | roda uma vez no Dell pra criar o atalho "Wizard Recepção" |
-| `criar-atalho-sala.ps1` | roda uma vez em cada notebook pra criar o atalho "Wizard Sala" |
+| `criar-atalho.bat` / `.ps1` | roda uma vez no Dell pra criar o atalho "Wizard Recepção" |
+| `criar-atalho-sala.bat` / `.ps1` | roda uma vez em cada notebook pra criar o atalho "Wizard Sala" |
+| `liberar-firewall.bat` | roda uma vez no Dell, como admin: abre a porta 8420 para a rede |

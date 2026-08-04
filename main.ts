@@ -885,38 +885,49 @@ const api: Record<string, (a: any) => unknown> = {
     }
     const blocos = doDia.filter((b: any) => b.hora === horaSel);
 
-    /* ===== ARRASTO: quem não veio no bloco anterior aparece no seguinte =====
-       Aluno com aula mais cedo HOJE e nenhum lançamento (nem P, nem F, nem N) não some da tela: ele
-       reaparece empilhado no bloco aberto, até alguém decidir alguma coisa — ou até o fecho do dia
-       lançar a falta (ver aplicarFaltasAutomaticas). A agenda dele NÃO muda: isto é exibição.
-       Só HOJE. Em dia passado o fecho já resolveu, e em dia futuro nada aconteceu ainda para
-       arrastar. `arrastadoDe` guarda a hora de origem, que é o que a tela mostra na pílula. */
+    /* ===== ARRASTO: o bloco aberto recebe quem veio dos horários anteriores de HOJE =====
+       Dois motivos diferentes para um aluno de bloco anterior continuar aparecendo, e cada um vira
+       um grupo com divisória própria na tela:
+
+       EM AULA (`emAulaDe`) — entrou e ninguém registrou a saída. A aula dele atravessou a virada da
+       hora: quem entrou 13h37 continua em aula às 14h05, e some do bloco das 13h se a tela só
+       mostrar o horário. Ele acompanha os blocos seguintes até a saída ser lançada.
+       SEM LANÇAMENTO (`arrastadoDe`) — ninguém tocou: nem presença, nem falta, nem não-aula. Segue
+       empilhado até alguém decidir, ou até o fecho do dia lançar a falta.
+
+       Quem já tem falta, não-aula ou saída registrada NÃO é arrastado: aquele aluno está resolvido.
+       A agenda não muda em nenhum caso — isto é exibição.
+       Só HOJE: em dia passado o fecho já resolveu, em dia futuro não há o que arrastar. */
     if (dataISO(ref) === dataISO(agora) && horaSel && blocos.length) {
-      const semLancamento = (id: string, livro: string) =>
-        !G("SELECT 1 FROM presenca WHERE id_matricula=? AND livro=? AND data=?", id, livro, dataISO(ref));
       const jaNoBloco = new Set<string>();
       blocos.forEach((b: any) => b.alunos.forEach((al: any) => jaNoBloco.add(al.id + "|" + al.livro)));
-      const atrasados: any[] = [];
+      const emAula: any[] = [], atrasados: any[] = [];
       for (const b of doDia) {
         if (b.hora >= horaSel) continue;
         for (const al of b.alunos) {
           const k = al.id + "|" + al.livro;
           if (jaNoBloco.has(k)) continue;          // ele também tem aula neste horário: não é arrasto
-          if (!semLancamento(al.id, al.livro)) continue;
-          jaNoBloco.add(k);                        // some de uma vez só, mesmo faltando em 3 blocos
-          atrasados.push({ ...al, arrastadoDe: b.hora });
+          const p = G("SELECT status, entrada, saida FROM presenca WHERE id_matricula=? AND livro=? AND data=?",
+            al.id, al.livro, dataISO(ref));
+          if (p && !(p.status === "P" && p.entrada && !p.saida)) continue;   // resolvido: sai da tela
+          jaNoBloco.add(k);                        // some de uma vez só, mesmo vindo de 3 blocos atrás
+          if (p) emAula.push({ ...al, emAulaDe: b.hora });
+          else   atrasados.push({ ...al, arrastadoDe: b.hora });
         }
       }
-      /* todos vão para o PRIMEIRO bloco da hora: eles são um grupo à parte, com divisória própria,
-         e espalhá-los entre blocos irmãos só faria a régua de leitura pular de tabela em tabela.
-         Ordem PRÓPRIA, e pedagógica como a de cima: livro (Kids 2 antes de Kids 4...) e depois nome.
-         Não herda a ordem de chegada, senão o grupo mudaria de arrumação a cada hora que passa. */
-      if (atrasados.length) {
+      /* todos vão para o PRIMEIRO bloco da hora: são grupos à parte, com divisória própria, e
+         espalhá-los entre blocos irmãos só faria a régua de leitura pular de tabela em tabela.
+         Ordem PRÓPRIA e pedagógica dentro de cada grupo: livro (Kids 2 antes de Kids 4...) e depois
+         nome. Não herda a ordem de chegada, senão o grupo se rearrumaria a cada hora que passa.
+         EM AULA vem antes de SEM LANÇAMENTO: quem está na sala agora pede ação mais cedo do que
+         quem talvez nem venha. */
+      if (emAula.length || atrasados.length) {
         const ordemLivro: Record<string, number> = {};
         A("SELECT nome, ordem FROM livros").forEach(r => ordemLivro[r.nome] = r.ordem);
-        atrasados.sort((p, q) => (ordemLivro[p.livro] ?? 999) - (ordemLivro[q.livro] ?? 999)
-          || String(p.nome).localeCompare(String(q.nome), "pt"));
-        blocos[0] = { ...blocos[0], alunos: [...blocos[0].alunos, ...atrasados] };
+        const porLivro = (p: any, q: any) => (ordemLivro[p.livro] ?? 999) - (ordemLivro[q.livro] ?? 999)
+          || String(p.nome).localeCompare(String(q.nome), "pt");
+        emAula.sort(porLivro); atrasados.sort(porLivro);
+        blocos[0] = { ...blocos[0], alunos: [...blocos[0].alunos, ...emAula, ...atrasados] };
       }
     }
 

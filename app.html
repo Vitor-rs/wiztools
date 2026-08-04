@@ -284,10 +284,25 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
 .lc-tabela.semana .lc-livro{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .lc-tabela thead th{background:#fbfbfa;font-weight:600;color:#5f6368;font-size:11px;text-transform:uppercase;
   letter-spacing:.03em;padding:8px 10px;text-align:left;white-space:nowrap;border-bottom:1px solid #e6e8ea}
-.lc-tabela thead th.lc-dia{text-align:center;padding:6px 0;width:34px;min-width:34px;font-size:10px;color:#80868b}
-.lc-tabela thead th.lc-num{text-align:center;padding:4px 0;width:34px;min-width:34px;font-size:12px;
-  text-transform:none;letter-spacing:0;color:#3c4043;background:#f4f5f6;font-weight:700}
-.lc-tabela thead th.hoje{background:var(--sel);color:var(--sel-tx)}
+/* ===== cabeçalho dos dias na RECEPÇÃO =====
+   Mesma tipografia das abas da sala — numeral grande em cima, dia do mês em bolha embaixo — para
+   as duas telas se lerem como a mesma ferramenta. A estrutura continua sendo o cabeçalho DUPLO:
+   a recepção edita a semana inteira de uma vez, então não há dia "aberto" como na sala; o papel de
+   dia em destaque cabe a HOJE, e é ele que fica azul e ganha a bolha cheia.
+   Os paddings são medidos, não estimados: 35 + 33 = 68px, exatamente a altura do cabeçalho da
+   sala (linha das abas + faixa das cinco colunas). É isso que faz as duas telas assentarem. */
+.lc-tabela thead th.lc-dia{text-align:center;padding:10px 0 5px;width:34px;min-width:34px;
+  font-size:19px;font-weight:800;letter-spacing:-1px;line-height:1;color:#a7b0ba;
+  text-transform:none;transition:color .15s}
+/* SÁB no MESMO corpo dos numerais, como na sala — só o espacejamento fecha, porque são três
+   letras no lugar de um dígito */
+.lc-tabela thead th.lc-dia.palavra{font-size:19px;letter-spacing:-2.2px}
+.lc-tabela thead th.lc-num{text-align:center;padding:0 0 12px;width:34px;min-width:34px;
+  text-transform:none;letter-spacing:0;line-height:1;background:none}
+/* o realce de HOJE substitui o fundo tingido que havia antes: cor no numeral e bolha cheia no dia
+   do mês, exatamente como a aba aberta da sala */
+.lc-tabela thead th.lc-dia.hoje{color:#1B3D85}
+.lc-tabela thead th.lc-num.hoje .lc-dia-bolha{background:#1B3D85;color:#fff;font-weight:700}
 .lc-tabela tbody tr:hover{background:#fafbfc}
 .lc-tabela tbody tr:last-child td{border-bottom:0}
 .lc-tabela td{padding:7px 10px;color:#3c4043;white-space:nowrap}
@@ -299,8 +314,15 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
    dia ganha bordas laterais. Tudo via box-shadow inset composto em variáveis — assim linha e coluna
    somam na mesma célula sem uma apagar a outra, e nada é empurrado (borda de verdade mudaria o
    tamanho da célula e sacudiria a tabela inteira a cada movimento do mouse). */
-.lc-tabela.semana tbody td{--shT:0 0 0 transparent;--shB:0 0 0 transparent;--shL:0 0 0 transparent;--shR:0 0 0 transparent;
-  box-shadow:var(--shT),var(--shB),var(--shL),var(--shR)}
+/* `--shDiv` é um QUINTO slot, só da divisória do arrasto. Ela precisava de slot próprio porque
+   também mora na borda de cima: disputando `--shT` com o crosshair, uma apagava a outra — e como
+   as duas regras têm a mesma especificidade, quem vencia era a que estava mais abaixo no arquivo.
+   Resultado: a linha logo abaixo da divisória não acendia o realce horizontal.
+   Vem por ÚLTIMO na composição, ou seja, é pintada por baixo: passando o mouse ali, o traço da
+   marca cobre 1px da divisória e os dois continuam legíveis. */
+.lc-tabela.semana tbody td{--shT:0 0 0 transparent;--shB:0 0 0 transparent;--shL:0 0 0 transparent;
+  --shR:0 0 0 transparent;--shDiv:0 0 0 transparent;
+  box-shadow:var(--shT),var(--shB),var(--shL),var(--shR),var(--shDiv)}
 .lc-tabela.semana tbody td.lc-nome{--shR:1px 0 0 #f0f1f2}          /* separador da coluna fixa: preservado */
 .lc-tabela.semana tbody tr.hl td{--shT:inset 0 1px 0 var(--marca);--shB:inset 0 -1px 0 var(--marca)}
 .lc-tabela.semana tbody tr.hl td:first-child{--shL:inset 1px 0 0 var(--marca)}
@@ -325,8 +347,11 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
 .lc-tog.p{background:#34a853;border:1.5px solid #2d9147;color:#fff}
 .lc-tog.f{background:#fdecec;border:1.5px solid #e88;color:#c5221f}
 .lc-tog.n{background:#f1f3f4;border:1.5px solid #d4d7db;color:#80868b} /* não aula: feriado/férias */
+/* o dia do mês é clicável (marca a coluna inteira como não aula); o hover acende a BOLHA, não o
+   cabeçalho todo — com o fundo cinza de antes, a bolha de hoje sumia dentro dele */
 .lc-tabela thead th.lc-num{cursor:pointer}
-.lc-tabela thead th.lc-num:hover{background:#e6e8ea}
+.lc-tabela thead th.lc-num:hover .lc-dia-bolha{background:#e6e8ea;color:var(--tx2)}
+.lc-tabela thead th.lc-num.hoje:hover .lc-dia-bolha{background:#15305f;color:#fff}
 /* off-day: dia que não é o regular do aluno (reposição/anteposição lançada) */
 .lc-tabela thead th.off{background:#fff4e5;color:#8a5a00}
 .lc-tabela td.lc-cel.off{background:#fffaf2}
@@ -468,8 +493,13 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
 @keyframes lc-pulsa{0%,100%{box-shadow:0 0 0 1px rgba(255,255,255,.75)}50%{box-shadow:0 0 0 4px rgba(255,255,255,.25)}}
 @media (prefers-reduced-motion:reduce){.lc-seta.edit:hover{animation:none;box-shadow:0 0 0 2px rgba(255,255,255,.75)}}
 .lc-bt.editando{cursor:default}
+/* propriedades separadas: `font:700 11px/1.4 inherit` é atalho INVÁLIDO (`inherit` não vale como
+   família dentro dele) e o navegador descartava a declaração inteira — o campo de editar a hora
+   vinha nos 13,3px padrão do <input>, estourando os 40px de largura. Mesmo defeito que já foi
+   corrigido em .lc-pil e .lc-acao; este era o último. */
 .lc-hora-in{width:40px;border:0;border-radius:3px;padding:1px 2px;background:#fff;color:#202124;
-  font:700 11px/1.4 inherit;font-variant-numeric:tabular-nums;text-align:center;outline:2px solid rgba(255,255,255,.9)}
+  font-family:inherit;font-weight:700;font-size:11px;line-height:1.4;
+  font-variant-numeric:tabular-nums;text-align:center;outline:2px solid rgba(255,255,255,.9)}
 /* dica flutuante: um elemento só, reaproveitado, em position:fixed — dentro da tabela ela seria
    recortada pelo overflow-x do .lc-wrap. */
 .lc-dica{position:fixed;z-index:60;background:#202124;color:#fff;font-size:11px;font-weight:600;
@@ -537,8 +567,9 @@ th.lc-dia-aba:focus-visible{outline:2px solid var(--azul);outline-offset:-2px}
   font-size:19px;line-height:1;font-weight:800;letter-spacing:-1px;
   color:#a7b0ba;transition:color .15s}
 /* line-height:0 e deslocamento próprio: assim o sobrescrito não entra na conta da altura da linha */
-.lc-dia-bola sup{font-size:.5em;font-weight:700;letter-spacing:0;margin-left:.5px;
-  line-height:0;vertical-align:baseline;position:relative;top:-.48em}
+/* o mesmo sobrescrito serve as duas telas: aba da sala e cabeçalho da recepção */
+.lc-dia-bola sup,.lc-tabela thead th.lc-dia sup{font-size:.5em;font-weight:700;letter-spacing:0;
+  margin-left:.5px;line-height:0;vertical-align:baseline;position:relative;top:-.48em}
 /* sábado no MESMO corpo dos numerais (19px, como ele pediu). Só o espacejamento fecha e ele
    encosta na borda: são TRÊS letras no lugar de um dígito dentro de 94px fixos, e a bolha do dia
    do mês está no centro. Medido: 32,3px de "SÁB" contra os 34px onde a bolha começa. */
@@ -584,20 +615,31 @@ th.lc-dia-aba.on .lc-dia-bolha{background:#1B3D85;color:#fff;font-weight:700}
    amarra a aba do dia ao quadro debaixo dela (ver th.lc-dia-aba.on). Os 5 headers são irmãos de
    flex, então as 5 bordas se emendam numa linha só de ponta a ponta.
    padding-top vai a 6px porque a borda soma 1: os 7px de folga do topo continuam iguais. */
+/* grid `auto 1fr auto` e não flex: assim a bolinha fica presa na ponta esquerda, o contador na
+   direita, e o título ocupa sozinho o meio — centrado entre os dois, sem nunca esbarrar neles. */
 .lc-est-h{padding:6px 8px 7px;border-top:1px dashed rgba(31,127,176,.3);
-  border-left:1px solid rgba(31,127,176,.28);display:flex;align-items:center;
-  gap:6px;line-height:1.15;background:transparent}
+  border-left:1px solid rgba(31,127,176,.28);display:grid;grid-template-columns:auto 1fr auto;
+  align-items:center;gap:6px;line-height:1.15;background:transparent}
 .lc-est-h:first-child,.lc-slot:first-child{border-left:0}
-.lc-est-h .pt{width:7px;height:7px;border-radius:50%;flex:0 0 auto;background:var(--tx3)}
-/* as bolinhas do cabeçalho seguem a troca: recepção âmbar, em aula azul */
-.lc-est-h .pt.recep{background:#e0a21b}.lc-est-h .pt.aula{background:var(--azul)}
-.lc-est-h .pt.feita{background:#2d9147}.lc-est-h .pt.falta{background:#c5221f}
+/* UMA variável por coluna serve a bolinha E o realce do contador — assim os dois nunca se separam.
+   `--pt` é a cor viva da bolinha; `--pt-forte` é a mesma cor fechada o bastante para aguentar
+   texto branco por cima (o azul e o verde vivos dão menos de 4,5:1 e o número sairia ilegível). */
+.lc-est-h{--pt:var(--tx3);--pt-forte:var(--tx3)}
+.lc-est-h.recep{--pt:#e0a21b;--pt-forte:#8a6200}
+.lc-est-h.aula{--pt:var(--azul);--pt-forte:#1c7099}   /* #1f7fb0 dava 4,45:1 — raspava o mínimo */
+.lc-est-h.feita{--pt:#2d9147;--pt-forte:#1f6b34}
+.lc-est-h.falta{--pt:#c5221f;--pt-forte:#c5221f}
+/* raio 3,5 → 5,25px (+50%), como ele pediu */
+.lc-est-h .pt{width:10.5px;height:10.5px;border-radius:50%;flex:0 0 auto;background:var(--pt)}
 .lc-est-h .rot{font-size:10px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;
-  color:var(--tx2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.lc-est-h .n{margin-left:auto;font-size:10px;font-weight:700;color:var(--tx3);background:var(--cz);
+  text-align:center;color:var(--tx2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lc-est-h .n{font-size:10px;font-weight:700;color:var(--tx3);background:var(--cz);
   border:1px solid var(--borda);border-radius:5px;padding:1px 6px;font-variant-numeric:tabular-nums;
-  transition:background .3s,color .3s}
-.lc-est-h .n.mudou{background:var(--azul);color:#fff;border-color:var(--azul)}
+  transition:background .3s,color .3s,border-color .3s}
+/* o contador pisca na COR DA PRÓPRIA COLUNA: some a dúvida de qual contador mexeu quando dois
+   mudam no mesmo lançamento (sai de "A vir" e entra em "Recepção" — os dois piscam, cada um na
+   sua cor, e a leitura é imediata). */
+.lc-est-h .n.mudou{background:var(--pt-forte);color:#fff;border-color:var(--pt-forte)}
 /* "Não aula" saiu do canto do quadro de estados e subiu para o cabeçalho do bloco: lá embaixo era
    um ícone solto de 12px que ninguém achava, e a ação é do BLOCO inteiro, não de uma coluna.
    Ganhou rótulo junto — ícone sozinho num cabeçalho é adivinhação. */
@@ -802,18 +844,28 @@ td.lc-est-cel{padding:0!important;border-left:1px solid var(--aba-bd);border-rig
    assim ela cai exatamente na junta entre o último aluno do horário e o primeiro dos atrasados.
    `box-shadow` inset e não `border-top`: borda de verdade engordaria a linha em 1px e a régua de
    48px que segura todo o quadro (e a nitidez das cordas) iria junto. */
-.lc-tabela.kanban tbody tr.arrastado-1 td{box-shadow:inset 0 1px 0 rgba(51,170,227,.55)}
-/* a coluna do nome desenha o separador vertical com box-shadow (`1px 0 0 #f0f1f2`), e a divisória
-   acima apagava esse separador na primeira linha arrastada — box-shadow não soma, substitui.
-   As duas sombras precisam vir juntas na MESMA declaração. */
-.lc-tabela.kanban tbody tr.arrastado-1 td.lc-nome{
-  box-shadow:inset 0 1px 0 rgba(51,170,227,.55),1px 0 0 #f0f1f2}
+/* Vale nas DUAS telas: o arrasto vem do servidor (getLancador), então a sala e a recepção recebem
+   a mesma lista de atrasados e marcam as mesmas linhas — o algoritmo é um só, as duas pontas
+   enxergam o mesmo. Só o jeito de desenhar a divisória muda de tabela para tabela. */
+/* UMA regra para as duas telas. As duas tabelas carregam `.semana` (a da sala é
+   `lc-tabela semana kanban`), e é `.lc-tabela.semana tbody td` que compõe as sombras do crosshair.
+   A divisória entra pelo slot próprio `--shDiv`, nunca por `box-shadow` direto nem roubando
+   `--shT`: nos dois casos ela apagava o realce da linha e, na coluna do nome, o separador vertical.
+   2px e opaca, não 1px translúcida: a tabela já é feita de linhas cinza-claras de 1px, e a
+   divisória se perdia no meio delas. Ela tem de se ler como CORTE. */
+/* DOIS grupos, uma peça só: o que muda entre eles é a COR, declarada em três variáveis. Azul para
+   quem não veio (espera), laranja para quem ainda está em aula (atenção — pede ação agora). */
+.lc-tabela.semana tbody tr.arrastado-1 td,
+.lc-tabela.semana tbody tr.emaula-1 td{--shDiv:inset 0 2px 0 var(--div)}
+.lc-tabela tbody tr.arrastado-1,.lc-tabela tbody tr.emaula-1{
+  --div:#33AAE3;--div-bg:#eaf6fd;--div-bd:#7FC0E2;--div-tx:#1f7fb0}
+.lc-tabela tbody tr.emaula-1{--div:#E8940C;--div-bg:#fdf3e3;--div-bd:#E8B45C;--div-tx:#8a5a00}
 /* a pílula monta na junta: nasce um pouco para fora, à esquerda, e entra na tabela — é o mesmo
    gesto dos elos da corda, para as duas marcas do quadro se lerem como da mesma família */
-.lc-tabela.kanban tbody tr.arrastado-1 .lc-nome{position:relative}
+.lc-tabela tbody tr.arrastado-1 .lc-nome,.lc-tabela tbody tr.emaula-1 .lc-nome{position:relative}
 .lc-arrasto{position:absolute;left:-6px;top:-9px;z-index:2;display:inline-flex;align-items:center;
   gap:4px;height:18px;padding:0 8px 0 6px;border-radius:9px;
-  background:#eaf6fd;border:1px solid #7FC0E2;color:#1f7fb0;
+  background:var(--div-bg);border:1px solid var(--div-bd);color:var(--div-tx);
   font-family:inherit;font-weight:700;font-size:9.5px;line-height:1;white-space:nowrap;cursor:help}
 .lc-arrasto .ic{display:flex}
 .lc-arrasto .ic svg{display:block;width:11px;height:11px}
@@ -1320,6 +1372,11 @@ Os horários da matriz costumam ser fixos e raramente mudam. Confirma que quer e
 <div class="lc-abas" id="rc-abas">
 <button type="button" class="lc-aba on" data-aba="checkin" onclick="lcAba('checkin')">Lançamento</button>
 <button type="button" class="lc-aba" data-aba="hoje" onclick="lcAba('hoje')">Presenças hoje <span id="rc-aba-n"></span></button>
+<div class="lc-modo" id="rc-modo" role="group" aria-label="Como os blocos se comportam">
+<button type="button" data-modo="0" title="Livre: os blocos ficam sempre abertos, um embaixo do outro.">Livre</button>
+<button type="button" data-modo="1" title="Sanfona: só um bloco aberto por vez — clicar no cabeçalho de um fecha o que estava aberto.">Sanfona</button>
+<span class="lc-modo-cursor" aria-hidden="true"></span>
+</div>
 <div class="lc-leg-wrap">
 <button type="button" id="rc-leg-bt" class="lc-leg-bt" onclick="lcLegendaToggle(event)" aria-expanded="false"><span class="ic"></span>Legenda</button>
 <div id="rc-leg-pop" class="lc-leg-pop" role="dialog" aria-label="Legenda do lançamento da recepção">
@@ -2104,7 +2161,13 @@ function isoLocal(d){return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)
    não era a selecionada. Mesmo padrão do PREV_SEQ das prévias. */
 var LC_SEQ=0;
 function lcCarregar(){var seq=++LC_SEQ;
-run('getLancador',[{data:LC_DATA,hora:LC_HORA}],function(r){if(seq!==LC_SEQ)return;LC=r;LC_DATA=r.data;LC_HORA=r.hora;lcRender()})}
+run('getLancador',[{data:LC_DATA,hora:LC_HORA}],function(r){if(seq!==LC_SEQ)return;
+/* O grupo "ainda em aula" é da SALA. A recepção responde uma pergunta só — veio ou não veio — e
+   aluno em aula já foi respondido; ali ele seria linha a mais para rolar sem nada a decidir.
+   O corte é aqui, e não no desenho, para que o "X de Y lançados" e o índice de sincronização
+   contem a mesma lista que a tela mostra. */
+if(LCM==='recep')r.blocos.forEach(function(b){b.alunos=b.alunos.filter(function(a){return !a.emAulaDe})});
+LC=r;LC_DATA=r.data;LC_HORA=r.hora;lcRender()})}
 function lcDia(delta){var d=new Date((LC_DATA||isoLocal(new Date()))+'T12:00:00');d.setDate(d.getDate()+delta);
 LC_DATA=isoLocal(d);LC_HORA=null;lcCarregar()}
 /* trocar a hora no seletor: precisa GRAVAR a escolha antes de recarregar — sem isso lcCarregar()
@@ -2195,10 +2258,13 @@ lcConectarWS();
    propósito: quem tivesse "Rolagem" gravado voltaria num modo que não existe mais.) */
 var LC_MODO=0;
 try{LC_MODO=Math.min(1,Math.max(0,+(localStorage.getItem('lc-modo2')||0)||0))}catch(e){}
-function lcCards(){return [].slice.call(document.querySelectorAll('#lc-blocos .lc-card'))}
+/* `lcEl('blocos')` e não `#lc-blocos` fixo: as duas telas têm o seletor e cada uma manda apenas nos
+   blocos DELA (lc- na sala, rc- na recepção). Com o id fixo, mexer no seletor da recepção mandava
+   nos cartões da sala. */
+function lcCards(){var b=lcEl('blocos');return b?[].slice.call(b.querySelectorAll('.lc-card')):[]}
 function lcModo(n){
 LC_MODO=n;try{localStorage.setItem('lc-modo2',n)}catch(e){}
-var cx=document.getElementById('lc-modo');if(!cx)return;
+var cx=lcEl('modo');if(!cx)return;
 var bts=cx.querySelectorAll('button');
 bts.forEach(function(b,i){b.setAttribute('aria-pressed',String(i===n))});
 /* o cursor mede o botão ativo em vez de usar 50% fixo: os dois rótulos têm larguras diferentes */
@@ -2240,6 +2306,10 @@ var h='<div class="lc-card"><div class="lc-head"><div class="lc-head-esq"><h4>Pr
 +(r.minutosTotais?'<span class="lc-chip">'+escBloco(fmtDur(r.minutosTotais))+' de aula no dia</span>':'')
 +'</div><div class="lc-resumo"><b>'+r.linhas.filter(function(l){return l.presente}).length+'</b> ainda em aula</div></div>'
 +'<div class="lc-wrap"><table class="lc-tabela"><thead><tr><th class="lc-th-aluno">Aluno</th><th>Estágio</th><th>Entrada</th><th>Saída</th><th>Duração</th><th>Situação</th></tr></thead><tbody>';
+/* quem ainda está em aula sobe: é a lista de quem PODE precisar de ação agora. Quem já saiu virou
+   registro. Dentro de cada grupo a ordem de chegada do servidor é preservada — `sort` do JS é
+   estável, então basta comparar o grupo e devolver 0 para o resto. */
+r.linhas.sort(function(x,y){return (y.presente?1:0)-(x.presente?1:0)});
 r.linhas.forEach(function(l){
 h+='<tr><td class="lc-nome">'+escBloco(l.nome)+'</td>'
 +'<td class="lc-estagio"><span class="lc-livro">'+escBloco(l.livro)+'</span><small>'+escBloco((l.vip?l.modalidade+' Vip':l.modalidade)||'')+'</small></td>'
@@ -2264,9 +2334,10 @@ var box=lcEl('blocos');box.innerHTML='';LC_CELULAS=[];
 if(!LC.blocos.length){box.innerHTML='<div class="lc-vazio">Nenhuma turma neste dia/horário.<br><small>Use as setas para trocar de dia ou escolha outro horário acima.</small></div>';return}
 LC.blocos.forEach(function(b){box.appendChild(lcCard(b))});
 /* onclick e não addEventListener: lcRender roda a cada troca de dia/hora e um listener por
-   render iria empilhando. O seletor só existe na tela da sala. */
-var cx=document.getElementById('lc-modo');
-if(cx&&LCM==='sala'){
+   render iria empilhando. Vale nas duas telas — cada uma tem o seu seletor, e o modo escolhido é
+   o mesmo nas duas (uma preferência só, gravada no navegador). */
+var cx=lcEl('modo');
+if(cx){
 cx.querySelectorAll('button').forEach(function(bt){bt.onclick=function(){lcModo(+bt.dataset.modo)}});
 lcModo(LC_MODO);
 }
@@ -2296,12 +2367,15 @@ return 'recep';
 /* onde o marcador de cada estado mora (não-aula divide a última coluna com falta: os dois são
    "fora do fluxo de aula", e criar uma sexta coluna só para feriado não pagaria a largura) */
 function lcColunaDe(est){ return est==='naoaula'?'falta':est }
-/* "2ª" vira um numeral grande com o ª sobrescrito — o dígito é o que identifica a aba, e o ª
-   sozinho não carrega informação nenhuma. "Sáb" não tem numeral e entra como palavra. */
+/* "2ª" vira um numeral grande com o ª sobrescrito — o dígito é o que identifica o dia, e o ª
+   sozinho não carrega informação nenhuma. "Sáb" não tem numeral e entra como palavra.
+   Devolve só o MIOLO, e não o elemento pronto: as duas telas embrulham de jeitos diferentes (na
+   sala vai dentro de um span posicionado; na recepção vai direto no <th>), mas a regra de o que
+   é numeral e o que é palavra é uma só. */
 function lcCodigoDia(cod){
 var m=/^\s*(\d+)\s*[ªa]?\s*$/i.exec(cod||'');
-return m?'<span class="lc-dia-bola">'+m[1]+'<sup>ª</sup></span>'
-        :'<span class="lc-dia-bola palavra">'+escBloco((cod||'').toUpperCase())+'</span>';
+return m?{html:m[1]+'<sup>ª</sup>',palavra:false}
+        :{html:escBloco((cod||'').toUpperCase()),palavra:true};
 }
 /* próximo passo do fluxo — é ele que decide em qual coluna o botão de avanço aparece */
 var LC_PROX={avir:'aula',recep:'aula',aula:'feita'};
@@ -2362,10 +2436,11 @@ if(LCM==='sala'){
 tb.className='lc-tabela semana kanban';
 var abas='';
 LC.semana.forEach(function(c,i){
+var cd=lcCodigoDia(c.codigo||c.curto);
 abas+='<th class="lc-dia-aba'+(c.data===LC.data?' on':'')+(c.hoje?' eh-hoje':'')+'" data-dia="'+escBloco(c.data)+'"'
 +' role="tab" aria-selected="'+(c.data===LC.data)+'" tabindex="0"'
 +' title="'+escBloco(c.dia+', dia '+c.numero+(c.hoje?' — hoje':''))+'">'
-+'<span class="lc-dia-cx">'+lcCodigoDia(c.codigo||c.curto)
++'<span class="lc-dia-cx"><span class="lc-dia-bola'+(cd.palavra?' palavra':'')+'">'+cd.html+'</span>'
 +'<span class="lc-dia-num"><span class="lc-dia-bolha">'+c.numero+'</span></span></span></th>'});
 tb.innerHTML='<thead><tr>'+meta+abas+'</tr>'
 +'<tr><th class="lc-faixa" colspan="'+LC.semana.length+'"></th></tr></thead>';
@@ -2379,14 +2454,21 @@ tb.querySelector('.lc-faixa').appendChild(lcFaixaEstados(b,card));
 }else{
 var h1='<tr>'+meta, h2='<tr>';
 LC.semana.forEach(function(c,i){
-h1+='<th class="lc-dia'+(c.hoje?' hoje':'')+'" data-col="'+i+'">'+escBloco(c.curto)+'</th>';
-h2+='<th class="lc-num'+(c.hoje?' hoje':'')+'" data-col="'+i+'" title="Clique para marcar o dia inteiro como não aula (feriado/férias)">'+c.numero+'</th>'});
+/* mesma leitura das abas da sala: numeral grande em cima, dia do mês em bolha embaixo. Aqui o
+   cabeçalho continua DUPLO (a recepção não tem abas de dia — ela edita a semana inteira de uma
+   vez), então o que muda é só a tipografia, não a estrutura. */
+var cd=lcCodigoDia(c.codigo||c.curto);
+h1+='<th class="lc-dia'+(cd.palavra?' palavra':'')+(c.hoje?' hoje':'')+'" data-col="'+i+'"'
++' title="'+escBloco(c.dia+(c.hoje?' — hoje':''))+'">'+cd.html+'</th>';
+h2+='<th class="lc-num'+(c.hoje?' hoje':'')+'" data-col="'+i+'" title="Clique para marcar o dia inteiro como não aula (feriado/férias)">'
++'<span class="lc-dia-bolha">'+c.numero+'</span></th>'});
 tb.innerHTML='<thead>'+h1+'</tr>'+h2+'</tr></thead>';
 tb.querySelectorAll('thead .lc-num').forEach(function(th){
 th.onclick=function(){lcColunaNaoAula(b,LC.semana[+th.dataset.col],card)}});
 }
 var tbody=document.createElement('tbody');
-var primeiroArrastado=true;   // só a primeira linha arrastada desenha a divisória e a pílula
+/* só a PRIMEIRA linha de cada grupo desenha a divisória e a pílula (ver .arrastado-1/.emaula-1) */
+var primeiroArrastado=true,primeiroEmAula=true;
 b.alunos.forEach(function(al){
 var tr=document.createElement('tr');
 /* Estágio: livro em pílula em cima, modalidade embaixo (mesma célula) — como no protótipo */
@@ -2398,20 +2480,29 @@ return '<span class="lc-pd" title="'+escBloco(p.curto)+(p.aulas>1?' — '+p.aula
 var marcaAv=al.avulso?'<span class="lc-av" title="'+escBloco('Fora do horário dele — '+al.avulso.motivo
 +(al.avulso.observacao?': '+al.avulso.observacao:'')+'. O horário fixo continua sendo '+(al.dias||'sem agenda')+'.')
 +'">'+icon('triangle-alert',16)+'</span>':'';
-/* primeiro arrastado da lista: é ele que carrega a divisória e a pílula (ver .arrastado-1 no CSS) */
-if(al.arrastadoDe){tr.className='arrastado'+(primeiroArrastado?' arrastado-1':'');primeiroArrastado=false}
+/* os dois grupos arrastados, cada um com a sua divisória (ver .arrastado-1/.emaula-1 no CSS) */
+if(al.emAulaDe){tr.className='emaula'+(primeiroEmAula?' emaula-1':'');primeiroEmAula=false}
+else if(al.arrastadoDe){tr.className='arrastado'+(primeiroArrastado?' arrastado-1':'');primeiroArrastado=false}
 tr.innerHTML='<td class="lc-nome"><span class="lc-nome-in">'+escBloco(al.nome)+marcaAv+'</span></td>'
 +'<td class="lc-estagio"><span class="lc-livro">'+escBloco(al.livro)+'</span><small>'+escBloco(mod)+'</small></td>'
 +'<td class="lc-prof">'+((al.profs&&al.profs.length)?al.profs.map(function(p){return '<span class="lc-pp">'+escBloco(p)+'</span>'}).join(''):'<span class="lc-vazio-cel">—</span>')+'</td>'
 +'<td class="lc-dias-pil">'+(pilulas||'<span class="lc-vazio-cel">—</span>')+'</td>';
-/* a pílula da divisória vive na célula do nome da PRIMEIRA linha arrastada, montada na junta */
-if(tr.classList.contains('arrastado-1')){
+/* a pílula da divisória vive na célula do nome da PRIMEIRA linha de cada grupo, montada na junta.
+   Os dois ícones são os mesmos, com a ORDEM invertida entre os grupos: relógio na frente para quem
+   está em aula (o que corre é o tempo dele), alerta na frente para quem não veio (o que pesa é a
+   pendência). Mesma família, leitura diferente à distância. */
+if(tr.classList.contains('emaula-1')||tr.classList.contains('arrastado-1')){
+var emAula=tr.classList.contains('emaula-1');
 var pa=document.createElement('span');pa.className='lc-arrasto';
-pa.innerHTML='<span class="ic alerta">'+icon('triangle-alert',11)+'</span>'
-+'<span class="ic relogio">'+icon('clock',11)+'</span>não vieram antes';
-pa.title='Estes alunos tinham aula mais cedo hoje e ninguém lançou nada por eles. '
-+'Ficam aqui, empilhados, até alguém decidir — a agenda deles não mudou. '
-+'Se o dia terminar assim, a falta é lançada no fecho.';
+var alerta='<span class="ic alerta">'+icon('triangle-alert',11)+'</span>';
+var relogio='<span class="ic relogio">'+icon('clock',11)+'</span>';
+pa.innerHTML=emAula?relogio+alerta+'ainda em aula':alerta+relogio+'não vieram antes';
+pa.title=emAula
+ ?'Estes alunos entraram num horário anterior e ninguém registrou a saída. Continuam aparecendo '
+ +'nos blocos seguintes até a saída ser lançada — a aula deles atravessou a virada da hora.'
+ :'Estes alunos tinham aula mais cedo hoje e ninguém lançou nada por eles. '
+ +'Ficam aqui, empilhados, até alguém decidir — a agenda deles não mudou. '
+ +'Se o dia terminar assim, a falta é lançada no fecho.';
 tr.querySelector('.lc-nome').appendChild(pa);
 }
 if(LCM==='sala'){
@@ -2449,7 +2540,9 @@ return card;
 function lcFaixaEstados(b,card){
 var g=document.createElement('div');g.className='lc-est-grade';
 LC_EST.forEach(function(e){
-var h=document.createElement('div');h.className='lc-est-h';h.title=e.t;
+/* a classe do estado vai no HEADER, não só na bolinha: é dela que saem --pt e --pt-forte, e é o
+   que faz o contador piscar na cor da coluna (ver .lc-est-h no CSS) */
+var h=document.createElement('div');h.className='lc-est-h '+e.k;h.title=e.t;
 h.innerHTML='<span class="pt '+e.k+'"></span><span class="rot">'+escBloco(e.r)+'</span>'
 +'<span class="n" data-est="'+e.k+'">0</span>';
 g.appendChild(h)});

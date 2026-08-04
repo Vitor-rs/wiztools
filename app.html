@@ -338,6 +338,50 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
 .lc-abas{display:flex;gap:4px;margin-bottom:14px;border-bottom:1px solid var(--borda);align-items:center}
 /* empurra a legenda para o canto direito, aproveitando o vazio da linha das abas */
 .lc-leg-wrap{margin-left:auto;position:relative;padding-bottom:6px}
+/* ===== o seletor de comportamento dos blocos (Livre · Sanfona) =====
+   Segmentado de duas posições, à esquerda da Legenda. O cursor é um retângulo que DESLIZA por
+   trás do rótulo em vez de cada botão acender e apagar — é o que faz a troca parecer um
+   movimento só, e não duas luzes piscando. */
+.lc-modo{position:relative;display:inline-flex;align-items:center;margin-left:auto;
+  background:var(--cz);border:1px solid var(--borda);border-radius:20px;padding:2px}
+.lc-modo+.lc-leg-wrap{margin-left:8px}
+.lc-modo button{position:relative;z-index:1;border:0;background:none;cursor:pointer;
+  font-family:inherit;font-weight:600;font-size:10.5px;line-height:1;color:var(--tx3);
+  padding:5px 11px;border-radius:18px;transition:color .22s ease}
+.lc-modo button[aria-pressed="true"]{color:#fff}
+.lc-modo button:focus-visible{outline:2px solid var(--azul);outline-offset:1px}
+.lc-modo-cursor{position:absolute;top:2px;bottom:2px;left:2px;width:0;border-radius:18px;
+  background:var(--marca);box-shadow:0 1px 3px rgba(7,29,73,.28);
+  transition:left .28s cubic-bezier(.22,1,.36,1),width .28s cubic-bezier(.22,1,.36,1)}
+@media (prefers-reduced-motion:reduce){.lc-modo-cursor{transition:none}}
+
+/* ===== a sanfona dos blocos =====
+   grid-template-rows 1fr→0fr e não max-height: com max-height a curva de aceleração é uma mentira
+   (o valor é sempre maior que o conteúdo, então a animação corre rápido e para seca no fim). Com o
+   grid o navegador interpola a altura REAL, e o recolhimento sai contínuo do começo ao fim.
+   O cartão já tem border-radius e overflow:hidden, então fechado ele vira sozinho uma régua de
+   quatro cantos redondos — nada a fazer ali. */
+.lc-sanfona{display:grid;grid-template-rows:1fr;
+  transition:grid-template-rows .34s cubic-bezier(.22,1,.36,1)}
+/* A TAMPA: um tom abaixo do cabeçalho, para o fecho parecer um encaixe e não uma emenda.
+   Acima dela, a linha fina que fecha o CONTEÚDO — a última linha de aluno não tinha borda de baixo
+   e a tabela terminava no ar. Azul da moldura do cartão: é a mesma peça se fechando. */
+.lc-sanfona-in{overflow:hidden;min-height:0;border-bottom:7px solid #f2f3f1}
+.lc-sanfona-in .lc-wrap{border-bottom:1px solid var(--azul-borda)}
+.lc-card.fechado .lc-sanfona{grid-template-rows:0fr}
+/* a linha do cabeçalho some junto: fechado, ele não separa nada — é a peça inteira */
+.lc-card .lc-head{transition:border-color .28s ease}
+.lc-card.fechado .lc-head{border-bottom-color:transparent}
+/* nos dois modos com sanfona o cabeçalho vira alvo de clique */
+.lc-card.sanfonavel .lc-head{cursor:pointer;user-select:none}
+.lc-card.sanfonavel .lc-head:hover{background:#f4f6f8}
+/* seta de estado, só quando a sanfona está em jogo */
+.lc-seta-sanfona{display:none;flex:0 0 auto;color:var(--tx3);
+  transition:transform .3s cubic-bezier(.22,1,.36,1)}
+.lc-card.sanfonavel .lc-seta-sanfona{display:flex}
+.lc-card.fechado .lc-seta-sanfona{transform:rotate(-90deg)}
+@media (prefers-reduced-motion:reduce){
+  .lc-sanfona,.lc-seta-sanfona{transition:none}}
 /* header do lançador colado no topo: busca, navegação de dia, seletor de hora e abas ficam
    sempre à mão; só a lista de blocos rola. O -14px compensa o padding da aba. */
 .lc-fixo{position:sticky;top:0;z-index:20;background:var(--fundo);
@@ -753,6 +797,48 @@ td.lc-est-cel{padding:0!important;border-left:1px solid var(--aba-bd);border-rig
 /* em em, não em px: o P¹ mora DENTRO da pílula e precisa acompanhá-la — fixo em 9px ele acabava
    maior que a própria duração ao lado, e sobrescrito maior que o texto fica errado */
 .lc-mc-sup{font-size:.85em;font-weight:800;vertical-align:super;letter-spacing:-.5px;margin-left:1px}
+/* ===== ARRASTO: a divisória de quem não veio nos blocos anteriores =====
+   A linha nasce na PRIMEIRA linha arrastada e sobe pelo topo dela, atravessando a tabela inteira —
+   assim ela cai exatamente na junta entre o último aluno do horário e o primeiro dos atrasados.
+   `box-shadow` inset e não `border-top`: borda de verdade engordaria a linha em 1px e a régua de
+   48px que segura todo o quadro (e a nitidez das cordas) iria junto. */
+.lc-tabela.kanban tbody tr.arrastado-1 td{box-shadow:inset 0 1px 0 rgba(51,170,227,.55)}
+/* a coluna do nome desenha o separador vertical com box-shadow (`1px 0 0 #f0f1f2`), e a divisória
+   acima apagava esse separador na primeira linha arrastada — box-shadow não soma, substitui.
+   As duas sombras precisam vir juntas na MESMA declaração. */
+.lc-tabela.kanban tbody tr.arrastado-1 td.lc-nome{
+  box-shadow:inset 0 1px 0 rgba(51,170,227,.55),1px 0 0 #f0f1f2}
+/* a pílula monta na junta: nasce um pouco para fora, à esquerda, e entra na tabela — é o mesmo
+   gesto dos elos da corda, para as duas marcas do quadro se lerem como da mesma família */
+.lc-tabela.kanban tbody tr.arrastado-1 .lc-nome{position:relative}
+.lc-arrasto{position:absolute;left:-6px;top:-9px;z-index:2;display:inline-flex;align-items:center;
+  gap:4px;height:18px;padding:0 8px 0 6px;border-radius:9px;
+  background:#eaf6fd;border:1px solid #7FC0E2;color:#1f7fb0;
+  font-family:inherit;font-weight:700;font-size:9.5px;line-height:1;white-space:nowrap;cursor:help}
+.lc-arrasto .ic{display:flex}
+.lc-arrasto .ic svg{display:block;width:11px;height:11px}
+/* o triângulo balança de leve e o relógio adianta um tiquinho — os dois em tempos diferentes, como
+   os elos da corda, para o par nunca bater junto */
+.lc-arrasto .alerta{animation:lc-bal 2.6s ease-in-out infinite;transform-origin:50% 80%}
+/* no relógio gira só o PONTEIRO (o 2º path do ícone); o mostrador fica parado, como no livro */
+.lc-arrasto .relogio path{transform-box:view-box;transform-origin:12px 12px;
+  animation:lc-tic 2s steps(2,jump-none) infinite}
+@keyframes lc-bal{0%,72%,100%{transform:rotate(0)}78%{transform:rotate(-9deg)}86%{transform:rotate(9deg)}92%{transform:rotate(-4deg)}}
+@keyframes lc-tic{to{transform:rotate(30deg)}}
+@media (prefers-reduced-motion:reduce){.lc-arrasto .alerta,.lc-arrasto .relogio path{animation:none}}
+
+/* ===== o "!" da falta que ninguém lançou =====
+   Canto inferior esquerdo do cartão de falta, pequeno. Ele não acusa o aluno — acusa a ORIGEM do
+   dado: esta falta veio do fecho do dia, não de alguém que olhou e decidiu. */
+.lc-auto{position:absolute;left:3px;bottom:2px;width:11px;height:11px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;border:0;padding:0;cursor:help;
+  background:#c5221f;color:#fff;font-family:inherit;font-weight:800;font-size:8px;line-height:1;
+  transition:transform .16s ease-out,box-shadow .16s ease-out}
+.lc-auto:hover,.lc-auto:focus-visible{transform:scale(1.25);box-shadow:0 0 0 3px rgba(197,34,31,.22);
+  animation:lc-auto-treme .4s ease-in-out}
+@keyframes lc-auto-treme{0%,100%{margin-left:0}25%{margin-left:-1.5px}75%{margin-left:1.5px}}
+@media (prefers-reduced-motion:reduce){.lc-auto:hover{animation:none}}
+
 /* ===== o cartão da RECEPÇÃO =====
    "Chegou" é o título deste cartão, como a hora é a dos outros — então encosta no topo. Sem
    pílula, o .cl vinha centrado e a palavra caía no meio do cartão.
@@ -1189,13 +1275,18 @@ Os horários da matriz costumam ser fixos e raramente mudam. Confirma que quer e
 <div class="lc-abas" id="lc-abas">
 <button type="button" class="lc-aba on" data-aba="checkin" onclick="lcAba('checkin')">Check-in</button>
 <button type="button" class="lc-aba" data-aba="hoje" onclick="lcAba('hoje')">Presenças hoje <span id="lc-aba-n"></span></button>
+<div class="lc-modo" id="lc-modo" role="group" aria-label="Como os blocos se comportam ao rolar">
+<button type="button" data-modo="0" title="Livre: os blocos ficam sempre abertos, um embaixo do outro.">Livre</button>
+<button type="button" data-modo="1" title="Sanfona: só um bloco aberto por vez — clicar no cabeçalho de um fecha o que estava aberto.">Sanfona</button>
+<span class="lc-modo-cursor" aria-hidden="true"></span>
+</div>
 <div class="lc-leg-wrap">
 <button type="button" id="lc-leg-bt" class="lc-leg-bt" onclick="lcLegendaToggle(event)" aria-expanded="false"><span class="ic"></span>Legenda</button>
 <div id="lc-leg-pop" class="lc-leg-pop" role="dialog" aria-label="Legenda do lançador">
 <div class="lc-leg-item"><span class="lc-leg-am ent">→</span><div><b>Entrada</b><small>Clique para registrar a hora; clique de novo para desfazer.</small></div></div>
 <div class="lc-leg-item"><span class="lc-leg-am sai">←</span><div><b>Saída</b><small>Só fica disponível depois da entrada.</small></div></div>
 <div class="lc-leg-item"><span class="lc-leg-am parcial">1</span><div><b>Presença parcial</b><small>Quando o dia tem 2 lições e o aluno cumpre só uma, o app pergunta quantas foram — a falta é da LIÇÃO, não do dia. Na ficha impressa sai como P com o número em sobrescrito.</small></div></div>
-<div class="lc-leg-item"><span class="lc-leg-am falta">✕</span><div><b>Falta</b><small>Dois cliques no botão de saída, com confirmação. Nada é marcado como falta automaticamente: a presença vale para o dia, então quem falta de manhã e vem à tarde continua presente.</small></div></div>
+<div class="lc-leg-item"><span class="lc-leg-am falta">✕</span><div><b>Falta</b><small>Dois cliques no botão de saída, com confirmação. A presença vale para o DIA: quem falta de manhã e vem à tarde continua presente — por isso o aluno sem lançamento é empurrado para o bloco seguinte em vez de levar falta na hora. Só no fecho do dia, se ninguém tiver lançado nada, a falta entra sozinha e vem marcada com um “!”.</small></div></div>
 <div class="lc-leg-item"><span class="lc-leg-am aguarda">→</span><div><b>Borda piscando</b><small>A recepção já marcou que o aluno veio, mas a entrada na sala ainda não foi registrada. Confirme quando ele entrar.</small></div></div>
 <div class="lc-leg-item"><span class="lc-leg-am off"></span><div><b>Coluna apagada</b><small>Não é o dia e horário regular do aluno — reposição. Continua lançável.</small></div></div>
 <div class="lc-leg-item"><span class="lc-leg-am num">28</span><div><b>Número do dia</b><small>Clique para marcar a coluna inteira como não aula (feriado, férias).</small></div></div>
@@ -2093,6 +2184,45 @@ LC_WS.onerror=function(){try{LC_WS.close()}catch(e){}};
 }
 lcConectarWS();
 
+/* ===== os dois modos de comportamento dos blocos =====
+   0 Livre   — os blocos ficam todos abertos, um embaixo do outro (padrão)
+   1 Sanfona — só um aberto por vez; clicar no cabeçalho de um fecha o que estava aberto
+   Terça e quinta chegam a ter três blocos por hora, cada um com dez alunos: rolar aquilo é perder
+   a régua de leitura. O modo fica gravado no navegador porque é preferência da pessoa, não do dia.
+   (Houve um terceiro modo, "Rolagem", que recolhia os blocos sozinho conforme a página descia.
+   Funcionava, mas exigia empilhamento sticky e um modelo de alturas para o fluxo não encolher —
+   complexidade demais para o ganho, e o Vitor mandou tirar. Chave nova no localStorage de
+   propósito: quem tivesse "Rolagem" gravado voltaria num modo que não existe mais.) */
+var LC_MODO=0;
+try{LC_MODO=Math.min(1,Math.max(0,+(localStorage.getItem('lc-modo2')||0)||0))}catch(e){}
+function lcCards(){return [].slice.call(document.querySelectorAll('#lc-blocos .lc-card'))}
+function lcModo(n){
+LC_MODO=n;try{localStorage.setItem('lc-modo2',n)}catch(e){}
+var cx=document.getElementById('lc-modo');if(!cx)return;
+var bts=cx.querySelectorAll('button');
+bts.forEach(function(b,i){b.setAttribute('aria-pressed',String(i===n))});
+/* o cursor mede o botão ativo em vez de usar 50% fixo: os dois rótulos têm larguras diferentes */
+var alvo=bts[n],cur=cx.querySelector('.lc-modo-cursor');
+if(alvo&&cur){cur.style.left=(alvo.offsetLeft)+'px';cur.style.width=alvo.offsetWidth+'px'}
+lcAplicarModo();
+}
+function lcAplicarModo(){
+var cards=lcCards();
+cards.forEach(function(c){c.classList.toggle('sanfonavel',LC_MODO===1)});
+if(LC_MODO===0){cards.forEach(function(c){c.classList.remove('fechado')});return}
+/* entra fechando tudo menos o primeiro: sanfona com tudo aberto não é sanfona */
+cards.forEach(function(c,i){c.classList.toggle('fechado',i>0)});
+}
+function lcSanfonaClique(card){
+var jaAberto=!card.classList.contains('fechado');
+lcCards().forEach(function(c){c.classList.add('fechado')});
+if(jaAberto)return;          // clicar no aberto fecha tudo; clicar num fechado abre só ele
+card.classList.remove('fechado');
+/* o cabeçalho pode ter subido para fora da vista quando os de cima fecharam */
+setTimeout(function(){var r=card.getBoundingClientRect();
+if(r.top<0)card.scrollIntoView({behavior:'smooth',block:'start'})},360);
+}
+
 /* duas abas: Check-in (a grade da semana) e Presenças hoje (quem já passou, em ordem de chegada) */
 var LC_ABA='checkin';
 function lcAba(n){LC_ABA=n;
@@ -2133,6 +2263,13 @@ else{sel.disabled=false;LC.horas.forEach(function(h){var o=document.createElemen
 var box=lcEl('blocos');box.innerHTML='';LC_CELULAS=[];
 if(!LC.blocos.length){box.innerHTML='<div class="lc-vazio">Nenhuma turma neste dia/horário.<br><small>Use as setas para trocar de dia ou escolha outro horário acima.</small></div>';return}
 LC.blocos.forEach(function(b){box.appendChild(lcCard(b))});
+/* onclick e não addEventListener: lcRender roda a cada troca de dia/hora e um listener por
+   render iria empilhando. O seletor só existe na tela da sala. */
+var cx=document.getElementById('lc-modo');
+if(cx&&LCM==='sala'){
+cx.querySelectorAll('button').forEach(function(bt){bt.onclick=function(){lcModo(+bt.dataset.modo)}});
+lcModo(LC_MODO);
+}
 }
 /* ===== fluxo de presença da SALA em 5 estados (a "tabela-Kanban") =====
    Os estados NÃO são coluna nova no banco: saem do que `presenca` já guarda. É a mesma linha que
@@ -2200,6 +2337,18 @@ fer.title='Marcar dias inteiros como não aula (feriado, férias, aula cancelada
 fer.onclick=function(ev){lcNaoAulaPainel(ev,b,card)};
 head.querySelector('.lc-head-dir').appendChild(fer);
 }
+/* a seta vive no cabeçalho e só aparece quando a sanfona está ligada (ver .lc-seta-sanfona) */
+head.querySelector('.lc-head-dir').insertAdjacentHTML('beforeend',
+  '<span class="lc-seta-sanfona">'+icon('chevron-down',15)+'</span>');
+head.onclick=function(ev){
+/* clique no botão "Não aula" não fecha o bloco — ele tem vida própria dentro do cabeçalho */
+if(ev.target.closest('.lc-feriado'))return;
+if(!card.classList.contains('sanfonavel'))return;
+lcSanfonaClique(card)};
+/* a tabela inteira mora dentro da sanfona; o cabeçalho fica de fora, que é o que sobra fechado */
+var sanf=document.createElement('div');sanf.className='lc-sanfona';
+var sanfIn=document.createElement('div');sanfIn.className='lc-sanfona-in';
+sanf.appendChild(sanfIn);
 var wrap=document.createElement('div');wrap.className='lc-wrap';
 var tb=document.createElement('table');tb.className='lc-tabela semana';
 /* colunas = a SEMANA corrente (Seg→Sáb). Cabeçalho em dois níveis: nome do dia em cima,
@@ -2237,6 +2386,7 @@ tb.querySelectorAll('thead .lc-num').forEach(function(th){
 th.onclick=function(){lcColunaNaoAula(b,LC.semana[+th.dataset.col],card)}});
 }
 var tbody=document.createElement('tbody');
+var primeiroArrastado=true;   // só a primeira linha arrastada desenha a divisória e a pílula
 b.alunos.forEach(function(al){
 var tr=document.createElement('tr');
 /* Estágio: livro em pílula em cima, modalidade embaixo (mesma célula) — como no protótipo */
@@ -2248,10 +2398,22 @@ return '<span class="lc-pd" title="'+escBloco(p.curto)+(p.aulas>1?' — '+p.aula
 var marcaAv=al.avulso?'<span class="lc-av" title="'+escBloco('Fora do horário dele — '+al.avulso.motivo
 +(al.avulso.observacao?': '+al.avulso.observacao:'')+'. O horário fixo continua sendo '+(al.dias||'sem agenda')+'.')
 +'">'+icon('triangle-alert',16)+'</span>':'';
+/* primeiro arrastado da lista: é ele que carrega a divisória e a pílula (ver .arrastado-1 no CSS) */
+if(al.arrastadoDe){tr.className='arrastado'+(primeiroArrastado?' arrastado-1':'');primeiroArrastado=false}
 tr.innerHTML='<td class="lc-nome"><span class="lc-nome-in">'+escBloco(al.nome)+marcaAv+'</span></td>'
 +'<td class="lc-estagio"><span class="lc-livro">'+escBloco(al.livro)+'</span><small>'+escBloco(mod)+'</small></td>'
 +'<td class="lc-prof">'+((al.profs&&al.profs.length)?al.profs.map(function(p){return '<span class="lc-pp">'+escBloco(p)+'</span>'}).join(''):'<span class="lc-vazio-cel">—</span>')+'</td>'
 +'<td class="lc-dias-pil">'+(pilulas||'<span class="lc-vazio-cel">—</span>')+'</td>';
+/* a pílula da divisória vive na célula do nome da PRIMEIRA linha arrastada, montada na junta */
+if(tr.classList.contains('arrastado-1')){
+var pa=document.createElement('span');pa.className='lc-arrasto';
+pa.innerHTML='<span class="ic alerta">'+icon('triangle-alert',11)+'</span>'
++'<span class="ic relogio">'+icon('clock',11)+'</span>não vieram antes';
+pa.title='Estes alunos tinham aula mais cedo hoje e ninguém lançou nada por eles. '
++'Ficam aqui, empilhados, até alguém decidir — a agenda deles não mudou. '
++'Se o dia terminar assim, a falta é lançada no fecho.';
+tr.querySelector('.lc-nome').appendChild(pa);
+}
 if(LCM==='sala'){
 /* uma célula só, com os 5 slots de estado do dia aberto */
 var c=LC.semana.filter(function(x){return x.data===LC.data})[0]||LC.semana[0];
@@ -2276,7 +2438,7 @@ td.appendChild(cel);
 tr.appendChild(td)});
 }
 tbody.appendChild(tr)});
-tb.appendChild(tbody);lcCrosshair(tb);wrap.appendChild(tb);card.appendChild(wrap);
+tb.appendChild(tbody);lcCrosshair(tb);wrap.appendChild(tb);sanfIn.appendChild(wrap);card.appendChild(sanf);
 /* a legenda saiu daqui: repetida em cada bloco virava textão. Agora é o popover "Legenda",
    no canto direito da linha das abas (ver lcLegendaToggle). */
 lcResumo(card,b);
@@ -2455,7 +2617,7 @@ baixo=(parcial?'<span class="lc-mc-sup">P'+p.ordinais.map(function(o){return '¹
 if(parcial) m.title=al.nome+' — cumpriu '+p.ordinais.length+' de '+p.previstas+' lições ('
   +p.ordinais.map(function(o){return o+'ª'}).join(' e ')+')';
 }
-if(est==='falta'){topo='falta';baixo='não veio'}
+if(est==='falta'){topo='falta';baixo=p&&p.auto?'ninguém lançou':'não veio'}
 /* topo e baixo já vêm escapados onde carregam dado do banco — aqui não se escapa de novo, senão
    o P¹ da lição parcial sairia como texto em vez de marcador */
 m.innerHTML='<span class="cl"><b>'+topo+'</b>'+(baixo!==null?'<small>'+baixo+'</small>':'')+'</span>';
@@ -2478,6 +2640,15 @@ cl.appendChild(pil);
 if(est==='aula'){
 var cr=document.createElement('span');cr.className='lc-cron';cr.innerHTML=LC_IC_LIVRO;
 cr.setAttribute('aria-hidden','true');m.appendChild(cr);
+}
+/* falta que veio do fecho do dia: um "!" no canto de baixo, dizendo que ninguém respondeu por ela.
+   Some sozinho assim que alguém tocar no lançamento — `gravarPresenca` zera o `auto`. */
+if(est==='falta'&&p&&p.auto){
+var au=document.createElement('span');au.className='lc-auto';au.textContent='!';
+au.setAttribute('tabindex','0');
+au.title='Falta automática: '+al.nome+' tinha aula neste dia e o dia terminou sem ninguém lançar '
++'presença, falta ou não-aula. Confirme ou desfaça pelo ⌄ ao lado.';
+m.appendChild(au);
 }
 var r=document.createElement('button');r.type='button';r.className='lc-mc-rev';r.innerHTML=SETA;
 r.title='Desfazer';r.setAttribute('aria-label','Desfazer lançamento de '+al.nome);

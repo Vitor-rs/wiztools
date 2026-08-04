@@ -39,6 +39,7 @@ const CORPO_PRESENCA = `
   saida   TEXT CHECK (saida   IS NULL OR saida   GLOB '[0-2][0-9]:[0-5][0-9]'), -- check-out
   aulas_feitas INTEGER,                -- quantas lições cumpridas no dia (NULL = todas as previstas)
   licoes TEXT,                         -- QUAIS lições, por hora: '11:00' ou '10:00,11:00'
+  auto INTEGER NOT NULL DEFAULT 0 CHECK (auto IN (0,1)), -- 1 = falta lançada pelo fecho do dia, não por gente
   minutos INTEGER GENERATED ALWAYS AS (   -- duração da aula: derivada, nunca dessincroniza
     CASE WHEN entrada IS NOT NULL AND saida IS NOT NULL THEN
       (CAST(substr(saida,1,2) AS INTEGER)*60 + CAST(substr(saida,4,2) AS INTEGER))
@@ -59,6 +60,10 @@ function addColuna(tabela: string, coluna: string, def: string) {
 }
 addColuna("presenca", "entrada", "TEXT"); // 'HH:MM' — check-in feito na recepção
 addColuna("presenca", "saida", "TEXT");   // 'HH:MM' — check-out
+/* marca a falta que o FECHO DO DIA lançou sozinho (ver aplicarFaltasAutomaticas). Serve para a tela
+   dizer "ninguém decidiu isto, o dia acabou e ninguém lançou nada" — uma falta digitada por gente e
+   uma falta por omissão valem a mesma coisa na frequência, mas não merecem a mesma confiança. */
+addColuna("presenca", "auto", "INTEGER NOT NULL DEFAULT 0");
 /* duração da aula em minutos: coluna GERADA, o SQLite calcula a partir de entrada/saída.
    Não é campo gravado de propósito — assim nunca fica dessincronizado de um ajuste de horário. */
 /* aulas_feitas: quantas LIÇÕES o aluno cumpriu no dia. NULL = cumpriu todas as previstas (o caso
@@ -492,6 +497,7 @@ function indicePontos(ini: string, fim: string) {
     (idx[p.id_matricula + "|" + p.livro] ||= {})[p.data] = {
       status: p.status, entrada: p.entrada || null, saida: p.saida || null, minutos: p.minutos ?? null,
       aulasFeitas: p.aulas_feitas ?? null, previstas: lst.length || 1,
+      auto: p.auto === 1,   // falta que o fecho do dia lançou: a tela marca com um "!"
       // ordinais prontos para a tela: [2] = fez só a segunda lição
       ordinais: cumpridas.map(h => lst.indexOf(h) + 1).filter(n => n > 0).sort((a, b) => a - b),
     };
@@ -580,7 +586,9 @@ function gravarPresenca({ idMatricula, livro, data, status }: any) {
        entrada = CASE WHEN excluded.status = 'P' THEN presenca.entrada ELSE NULL END,
        saida   = CASE WHEN excluded.status = 'P' THEN presenca.saida   ELSE NULL END,
        aulas_feitas = CASE WHEN excluded.status = 'P' THEN presenca.aulas_feitas ELSE NULL END,
-       licoes       = CASE WHEN excluded.status = 'P' THEN presenca.licoes       ELSE NULL END`,
+       licoes       = CASE WHEN excluded.status = 'P' THEN presenca.licoes       ELSE NULL END,
+       auto         = 0`,   /* gente mexeu: deixa de ser falta por omissão, mesmo que o valor
+                               não mude — o "!" some porque agora alguém respondeu por ela */
     idMatricula, livro, data, status);
   anotar(idMatricula, livro, data, "status", status);
   /* devolve o registro como ficou: marcar 'P' PRESERVA a entrada/saída que o professor lançou na
@@ -589,6 +597,56 @@ function gravarPresenca({ idMatricula, livro, data, status }: any) {
   return { ok: true, status, entrada: g?.entrada ?? null, saida: g?.saida ?? null,
     minutos: g?.minutos ?? null, aulasFeitas: g?.aulas_feitas ?? null };
 }
+
+/* ===== FECHO DO DIA: falta automática de quem ninguém tocou =====
+   Quem tinha aula e terminou o dia sem NADA lançado (nem presença, nem falta, nem não-aula) recebe
+   falta marcada `auto=1`. Isso inverte uma regra antiga da casa — "falta é sempre entrada humana" —
+   a pedido do Vitor, porque na prática o aluno somia da tela e a ficha do mês saía com buraco.
+
+   Três travas, porque isto escreve no banco da escola sozinho:
+
+   1. MARCA D'ÁGUA em `config`. Na PRIMEIRA subida ela é gravada como HOJE e nada é processado —
+      assim o recurso nunca lança falta retroativa em julho, que seriam milhares de linhas erradas.
+   2. JANELA de 7 dias. Servidor parado uma semana não volta despejando falta em duas semanas.
+   3. O dia precisa ter ao menos UM lançamento de qualquer aluno. Dia sem nenhum lançamento é
+      feriado, recesso ou dia em que ninguém usou o lançador — e aí falta automática é mentira.
+      Esta é a trava que mais importa: prefere-se não lançar do que lançar errado. */
+const JANELA_FECHO_DIAS = 7;
+function aplicarFaltasAutomaticas() {
+  const hoje = dataISO(new Date());
+  const marca = G("SELECT valor FROM config WHERE chave='faltas_auto_ate'")?.valor as string | undefined;
+  if (!marca) {   // primeira subida: só planta a marca, não mexe em nada do passado
+    R("INSERT INTO config VALUES ('faltas_auto_ate',?) ON CONFLICT(chave) DO UPDATE SET valor=excluded.valor", hoje);
+    console.log("fecho do dia: marca d'água plantada em " + hoje + " (nada retroativo será lançado)");
+    return;
+  }
+  if (marca >= hoje) return;
+  const limite = new Date(); limite.setDate(limite.getDate() - JANELA_FECHO_DIAS);
+  let d = new Date(marca + "T12:00:00"); d.setDate(d.getDate() + 1);
+  const ontem = new Date(); ontem.setDate(ontem.getDate() - 1);
+  let total = 0;
+  for (; dataISO(d) <= dataISO(ontem); d.setDate(d.getDate() + 1)) {
+    const dia = dataISO(d);
+    if (d < limite) continue;                                     // fora da janela: pula sem lançar
+    if (NOMES_DIA[d.getDay()] === "Domingo") continue;
+    if (!G("SELECT 1 FROM presenca WHERE data=? LIMIT 1", dia)) continue;   // dia sem movimento nenhum
+    const nomeDia = NOMES_DIA[d.getDay()];
+    const faltantes = A(`SELECT DISTINCT a.id_matricula, a.livro FROM aulas a
+       JOIN v_alunos v ON v.id_matricula=a.id_matricula
+       WHERE a.dia=? AND v.status='Ativado'
+         AND NOT EXISTS (SELECT 1 FROM presenca p
+              WHERE p.id_matricula=a.id_matricula AND p.livro=a.livro AND p.data=?)`, nomeDia, dia);
+    for (const f of faltantes) {
+      R("INSERT INTO presenca (id_matricula, livro, data, status, auto) VALUES (?,?,?,'F',1)",
+        f.id_matricula, f.livro, dia);
+      anotar(f.id_matricula, f.livro, dia, "status", "F", "falta automática: o dia fechou sem lançamento");
+      total++;
+    }
+  }
+  R("UPDATE config SET valor=? WHERE chave='faltas_auto_ate'", dataISO(ontem));
+  if (total) console.log("fecho do dia: " + total + " falta(s) automática(s) lançada(s) até " + dataISO(ontem));
+}
+try { aplicarFaltasAutomaticas(); } catch (e) { console.warn("fecho do dia falhou (segue o baile):", e); }
 
 /* ===== API (mesmo contrato do painel GAS) ===== */
 const api: Record<string, (a: any) => unknown> = {
@@ -826,6 +884,41 @@ const api: Record<string, (a: any) => unknown> = {
         : horas.reduce((m, h) => Math.abs(parseInt(h, 10) - agora.getHours()) < Math.abs(parseInt(m, 10) - agora.getHours()) ? h : m, horas[0]);
     }
     const blocos = doDia.filter((b: any) => b.hora === horaSel);
+
+    /* ===== ARRASTO: quem não veio no bloco anterior aparece no seguinte =====
+       Aluno com aula mais cedo HOJE e nenhum lançamento (nem P, nem F, nem N) não some da tela: ele
+       reaparece empilhado no bloco aberto, até alguém decidir alguma coisa — ou até o fecho do dia
+       lançar a falta (ver aplicarFaltasAutomaticas). A agenda dele NÃO muda: isto é exibição.
+       Só HOJE. Em dia passado o fecho já resolveu, e em dia futuro nada aconteceu ainda para
+       arrastar. `arrastadoDe` guarda a hora de origem, que é o que a tela mostra na pílula. */
+    if (dataISO(ref) === dataISO(agora) && horaSel && blocos.length) {
+      const semLancamento = (id: string, livro: string) =>
+        !G("SELECT 1 FROM presenca WHERE id_matricula=? AND livro=? AND data=?", id, livro, dataISO(ref));
+      const jaNoBloco = new Set<string>();
+      blocos.forEach((b: any) => b.alunos.forEach((al: any) => jaNoBloco.add(al.id + "|" + al.livro)));
+      const atrasados: any[] = [];
+      for (const b of doDia) {
+        if (b.hora >= horaSel) continue;
+        for (const al of b.alunos) {
+          const k = al.id + "|" + al.livro;
+          if (jaNoBloco.has(k)) continue;          // ele também tem aula neste horário: não é arrasto
+          if (!semLancamento(al.id, al.livro)) continue;
+          jaNoBloco.add(k);                        // some de uma vez só, mesmo faltando em 3 blocos
+          atrasados.push({ ...al, arrastadoDe: b.hora });
+        }
+      }
+      /* todos vão para o PRIMEIRO bloco da hora: eles são um grupo à parte, com divisória própria,
+         e espalhá-los entre blocos irmãos só faria a régua de leitura pular de tabela em tabela.
+         Ordem PRÓPRIA, e pedagógica como a de cima: livro (Kids 2 antes de Kids 4...) e depois nome.
+         Não herda a ordem de chegada, senão o grupo mudaria de arrumação a cada hora que passa. */
+      if (atrasados.length) {
+        const ordemLivro: Record<string, number> = {};
+        A("SELECT nome, ordem FROM livros").forEach(r => ordemLivro[r.nome] = r.ordem);
+        atrasados.sort((p, q) => (ordemLivro[p.livro] ?? 999) - (ordemLivro[q.livro] ?? 999)
+          || String(p.nome).localeCompare(String(q.nome), "pt"));
+        blocos[0] = { ...blocos[0], alunos: [...blocos[0].alunos, ...atrasados] };
+      }
+    }
 
     // semana da data de referência: segunda → sábado (domingo não é dia letivo)
     const seg = new Date(ref); seg.setDate(seg.getDate() - ((seg.getDay() + 6) % 7));

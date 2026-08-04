@@ -28,7 +28,9 @@ var LUCIDE = {
   search: '<path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/>',
   "list-checks": '<path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/><path d="M13 6h8"/><path d="M13 12h8"/><path d="M13 18h8"/>',
   /* arco aberto: girando por CSS vira o "em andamento" (ver .badge-ic.gira no app.html) */
-  "loader-circle": '<path d="M21 12a9 9 0 1 1-6.219-8.56"/>'
+  "loader-circle": '<path d="M21 12a9 9 0 1 1-6.219-8.56"/>',
+  /* mostrador + ponteiros em paths separados de propósito: o CSS gira só o segundo (ver .lc-arrasto) */
+  clock: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>'
 };
 function icon(name, size) {
   size = size || 16;

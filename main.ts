@@ -879,7 +879,7 @@ const api: Record<string, (a: any) => unknown> = {
   },
   /* check-in / check-out: grava a hora do relógio da recepção. Entrada implica presença ('P');
      limpar a entrada zera o lançamento do dia (volta a "não lançado"). */
-  registrarPonto({ idMatricula, livro, data, tipo, hora, limpar, confirmado, licoes }: any) {
+  registrarPonto({ idMatricula, livro, data, tipo, hora, limpar, manterPresenca, confirmado, licoes }: any) {
     if (!idMatricula || !livro || !data || !tipo) throw new Error("Dados incompletos para registrar o ponto.");
     if (tipo !== "entrada" && tipo !== "saida") throw new Error("Tipo inválido: use entrada ou saida.");
     const agora = new Date();
@@ -889,6 +889,19 @@ const api: Record<string, (a: any) => unknown> = {
     if (limpar) {
       if (tipo === "saida") { R("UPDATE presenca SET saida=NULL, aulas_feitas=NULL, licoes=NULL WHERE id_matricula=? AND livro=? AND data=?", idMatricula, livro, data);
         anotar(idMatricula, livro, data, "limpeza", null, "saída desfeita"); return { ok: true, entrada: atual?.entrada || null, saida: null, status: atual?.status || null }; }
+      /* Desfazer só a ENTRADA, MANTENDO a presença. É a reversão "não entrou ainda" do quadro da
+         sala: o aluno chegou à escola (a recepção lançou o P) mas não entrou na aula, então o
+         cartão tem de voltar para a coluna RECEPÇÃO — não para "A vir", que quer dizer que ninguém
+         viu esse aluno hoje. Sem isto a única limpeza possível era apagar a linha inteira, e era
+         exatamente isso que jogava o cartão para a primeira coluna.
+         A saída é zerada junto porque o banco não admite saída sem entrada (CHECK); na prática não
+         se perde nada, já que quem está "em aula" ainda não tem saída. */
+      if (manterPresenca && atual) {
+        R(`UPDATE presenca SET status='P', entrada=NULL, saida=NULL, aulas_feitas=NULL, licoes=NULL
+           WHERE id_matricula=? AND livro=? AND data=?`, idMatricula, livro, data);
+        anotar(idMatricula, livro, data, "limpeza", null, "entrada desfeita; presença mantida");
+        return { ok: true, entrada: null, saida: null, status: "P" };
+      }
       R("DELETE FROM presenca WHERE id_matricula=? AND livro=? AND data=?", idMatricula, livro, data);
       anotar(idMatricula, livro, data, "limpeza", null, "lançamento do dia removido");
       return { ok: true, entrada: null, saida: null, status: null };

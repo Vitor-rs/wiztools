@@ -54,6 +54,9 @@ body{margin:0;color:#202124;font-size:13px;display:flex;min-height:100vh;backgro
 #sidebar{width:168px;flex-shrink:0;background:#fff;border-right:2px solid var(--v);position:sticky;top:0;align-self:flex-start;height:100vh;overflow-y:auto;padding-top:8px;display:flex;flex-direction:column}
 #sidebar button{display:block;width:100%;text-align:left;border:0;background:none;padding:12px 16px;cursor:pointer;font-weight:bold;color:var(--tx2);border-left:3px solid transparent;font-size:13px}
 #sidebar button.on{color:var(--v);background:var(--cz);border-left-color:var(--v)}
+/* ponto discreto na aba que esta máquina normalmente usa — as duas continuam clicáveis */
+#sidebar button.desta-maquina::after{content:"";display:inline-block;width:5px;height:5px;
+  border-radius:50%;background:var(--azul);margin-left:6px;vertical-align:middle}
 #sidebar button:hover{background:var(--cz)}
 #conteudo{flex:1;min-width:0;padding-bottom:40px}
 label{display:block;margin:8px 0 2px;font-weight:600;font-size:11px;color:#555;text-transform:uppercase;letter-spacing:.02em}
@@ -445,6 +448,491 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
   50%{border-color:#34a853;box-shadow:inset 0 0 0 1px #34a853}}
 @media (prefers-reduced-motion:reduce){.lc-bt.ent.aguarda{animation:none;border-color:#34a853}}
 
+/* ===== SALA: tabela-Kanban (as colunas de dia viram abas; o quadro de estados fica embaixo) =====
+   Larguras vêm do CSS e não do conteúdo: trocar de dia não pode redimensionar coluna nenhuma. */
+/* As larguras precisam SOMAR algo que caiba, senão o table-layout:fixed redistribui tudo e as
+   colunas param de valer o que está escrito aqui. Soma: 220+100+92+76 + 6×94 = 1052px, e o
+   min-width garante isso mesmo em tela estreita (o container já rola quando precisa).
+   Em 1920px, que é a tela das três máquinas da escola, sobra folga. */
+.lc-tabela.kanban{table-layout:fixed;min-width:1052px}
+/* 5px de respiro vertical e não 7: é o que faz TODA linha do Kanban medir exatos 48px.
+   A coluna Estágio tem conteúdo de altura fracionária (pílula do livro + modalidade = 35,75px) e,
+   com 7px, era ela que mandava na linha: 49,75px umas, 48,75px outras. Linha fracionária faz cada
+   linha começar num subpixel diferente, e aí o filamento de 1px da corda rasteriza grosso numa e
+   fino na outra — mesmo CSS, resultados diferentes. Com 5px o conteúdo cabe nos 48px do quadro de
+   estados, que é inteiro, e todas as cordas caem na mesma posição de pixel. */
+.lc-tabela.kanban tbody td{padding-top:5px;padding-bottom:5px}
+.lc-tabela.kanban .lc-th-aluno{width:220px}
+.lc-tabela.kanban .c-est{width:100px}
+.lc-tabela.kanban .c-prof{width:92px}
+.lc-tabela.kanban .c-dias{width:76px}
+/* --- azuis da "pasta": a aba aberta e o quadro dela são a MESMA peça --- */
+:root{--aba-bg:#DDEEFA; --aba-bd:#1F7FB0}
+/* padding lateral de 2px: "SÁB" em 19px mede 32,3px e a bolha central começa perto dali — cada
+   pixel de padding a menos é um pixel de folga entre os dois. E borda DIREITA transparente nas
+   abas fechadas: a aberta ganha uma de verdade, e sem esta o conteúdo dela ficava 0,5px à esquerda
+   do das vizinhas — some no papel, aparece na tela. */
+.lc-tabela thead th.lc-dia-aba{width:94px;text-align:center;padding:5px 2px;cursor:pointer;
+  background:var(--cz);border-left:1px solid var(--borda);border-bottom:1px solid var(--aba-bd);
+  border-right:1px solid transparent;
+  color:var(--tx3);user-select:none;line-height:1;transition:background .13s,color .13s}
+/* hover da aba: só uma borda INTERNA, de leve. Sem trocar fundo nem cor do texto — a aba aberta já
+   se distingue pela cor, e mudar o fundo no hover fazia parecer que a aba tinha sido selecionada.
+   box-shadow inset e não border: borda de verdade mudaria a caixa e a aba pularia sob o mouse. */
+th.lc-dia-aba:hover{box-shadow:inset 0 0 0 1px rgba(31,127,176,.4)}
+th.lc-dia-aba:focus-visible{outline:2px solid var(--azul);outline-offset:-2px}
+/* Cabeçalho do dia em DOIS pesos, na mesma linha de 24px (a altura do cabeçalho não muda):
+   o numeral do dia da semana grande e encostado à ESQUERDA — é o que se lê de longe, correndo o
+   olho pelas abas — e o número do mês pequeno e CENTRADO, que é consulta, não navegação.
+   O círculo saiu: com o numeral neste corpo ele virava um selo apertado, e a cor sozinha já
+   distingue o dia aberto. */
+.lc-dia-cx{display:block;position:relative;height:24px}
+/* top:0/bottom:0 + align-items:center centram o numeral pela CAIXA, não pela linha de texto: com
+   line-height o `ª` sobrescrito esticava a linha para cima e empurrava o dígito para baixo. */
+.lc-dia-bola{position:absolute;left:1px;top:0;bottom:0;display:flex;align-items:center;
+  font-size:19px;line-height:1;font-weight:800;letter-spacing:-1px;
+  color:#a7b0ba;transition:color .15s}
+/* line-height:0 e deslocamento próprio: assim o sobrescrito não entra na conta da altura da linha */
+.lc-dia-bola sup{font-size:.5em;font-weight:700;letter-spacing:0;margin-left:.5px;
+  line-height:0;vertical-align:baseline;position:relative;top:-.48em}
+/* sábado no MESMO corpo dos numerais (19px, como ele pediu). Só o espacejamento fecha e ele
+   encosta na borda: são TRÊS letras no lugar de um dígito dentro de 94px fixos, e a bolha do dia
+   do mês está no centro. Medido: 32,3px de "SÁB" contra os 34px onde a bolha começa. */
+.lc-dia-bola.palavra{font-size:19px;letter-spacing:-2.2px;left:0}
+/* o dia do mês fica no centro do cabeçalho; quando o dia está aberto ele vira uma BOLHA cheia —
+   é o mesmo gesto de um calendário marcando a data selecionada */
+.lc-dia-num{display:flex;align-items:center;justify-content:center;height:24px}
+/* CENTRAGEM ÓPTICA do dígito, medida e não chutada: a caixa do texto tem 17px (ascent 14 +
+   descent 3 da Segoe UI) e é ela que o flex centra — mas a TINTA do dígito vai só do topo até a
+   linha de base (ascent 10, descent 0), então ficava 0,5px abaixo do centro do círculo. O 1px de
+   padding embaixo encolhe a área de centragem e devolve exatamente esse meio pixel.
+   padding lateral 0: com 3px de cada lado um dia de dois dígitos ("27" = 14,96px) não cabia nos
+   14px de área interna e o círculo virava elipse. */
+.lc-dia-bolha{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;
+  padding:0 0 1px;border-radius:50%;font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;
+  color:#a7b0ba;transition:background .15s,color .15s}
+th.lc-dia-aba.eh-hoje .lc-dia-bolha{color:var(--azul);font-weight:700}
+/* A ORELHA: fundo azul igual ao do quadro, borda acentuada em cima e nos lados, e NENHUMA
+   embaixo — é a abertura da borda que amarra visualmente a aba ao quadro que ela abre. */
+/* padding-top 3 e não 4: com a borda de 2px em cima, 2+3 dá os mesmos 5px de folga das abas
+   fechadas — com 4 o conteúdo da aba aberta descia 1px em relação às vizinhas */
+.lc-tabela thead th.lc-dia-aba.on{background:var(--aba-bg);border-bottom-color:transparent;
+  border-left:1px solid var(--aba-bd);border-right:1px solid var(--aba-bd);
+  border-top:2px solid var(--aba-bd);padding-top:3px}
+/* dia aberto: o azul da marca clareado um passo (#071D49 puro fica pesado demais num numeral
+   grande), e negrito nos dois números. Os fechados ficam esmaecidos — é a diferença de cor, e não
+   uma borda ou fundo, que diz qual dia está na tela. */
+th.lc-dia-aba.on .lc-dia-bola{color:#1B3D85}
+th.lc-dia-aba.on .lc-dia-bolha{background:#1B3D85;color:#fff;font-weight:700}
+/* o quadro herda o fundo e a moldura da aba: junto com a borda aberta acima, vira uma peça só.
+   Seletor com .lc-tabela porque `.lc-tabela thead th` já pinta o fundo de todo cabeçalho e é mais
+   específico que `th.lc-faixa` sozinho — sem isso o quadro ficava claro e a pasta não fechava. */
+.lc-tabela thead th.lc-faixa{padding:0!important;background:var(--aba-bg);
+  border-left:1px solid var(--aba-bd);border-right:1px solid var(--aba-bd);
+  border-bottom:1px solid var(--aba-bd)}
+/* minmax(0,1fr) e não 1fr: com 1fr a coluna não encolhe abaixo do conteúdo, então o cartão mais
+   largo (a hora de entrada e saída) alargava a coluna dele e as cinco ficavam desiguais */
+.lc-est-grade,.lc-est-linha{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));min-height:32px}
+.lc-est-grade{position:relative}
+/* os headers das 5 colunas herdam o azul da pasta em vez de pintar por cima dele */
+/* TETO da faixa de colunas: um tracejado de 1px, bem apagado, só para dizer que a faixa começa
+   ali. Tracejado e não sólido de propósito — sólido fecharia a "abertura" da pasta, que é o que
+   amarra a aba do dia ao quadro debaixo dela (ver th.lc-dia-aba.on). Os 5 headers são irmãos de
+   flex, então as 5 bordas se emendam numa linha só de ponta a ponta.
+   padding-top vai a 6px porque a borda soma 1: os 7px de folga do topo continuam iguais. */
+.lc-est-h{padding:6px 8px 7px;border-top:1px dashed rgba(31,127,176,.3);
+  border-left:1px solid rgba(31,127,176,.28);display:flex;align-items:center;
+  gap:6px;line-height:1.15;background:transparent}
+.lc-est-h:first-child,.lc-slot:first-child{border-left:0}
+.lc-est-h .pt{width:7px;height:7px;border-radius:50%;flex:0 0 auto;background:var(--tx3)}
+/* as bolinhas do cabeçalho seguem a troca: recepção âmbar, em aula azul */
+.lc-est-h .pt.recep{background:#e0a21b}.lc-est-h .pt.aula{background:var(--azul)}
+.lc-est-h .pt.feita{background:#2d9147}.lc-est-h .pt.falta{background:#c5221f}
+.lc-est-h .rot{font-size:10px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;
+  color:var(--tx2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lc-est-h .n{margin-left:auto;font-size:10px;font-weight:700;color:var(--tx3);background:var(--cz);
+  border:1px solid var(--borda);border-radius:5px;padding:1px 6px;font-variant-numeric:tabular-nums;
+  transition:background .3s,color .3s}
+.lc-est-h .n.mudou{background:var(--azul);color:#fff;border-color:var(--azul)}
+/* "Não aula" saiu do canto do quadro de estados e subiu para o cabeçalho do bloco: lá embaixo era
+   um ícone solto de 12px que ninguém achava, e a ação é do BLOCO inteiro, não de uma coluna.
+   Ganhou rótulo junto — ícone sozinho num cabeçalho é adivinhação. */
+.lc-feriado{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--borda);
+  background:#fff;color:var(--tx2);cursor:pointer;padding:4px 9px;border-radius:7px;
+  font-family:inherit;font-weight:600;font-size:11px;line-height:1;transition:.14s}
+.lc-feriado:hover{border-color:var(--azul);color:#1f7fb0;background:#eaf6fd}
+.lc-feriado:focus-visible{outline:2px solid var(--azul);outline-offset:1px}
+.lc-feriado .ic{display:flex}
+/* o gap separa a ação da estatística: são coisas de naturezas diferentes coladas no mesmo canto */
+.lc-head-dir{display:flex;align-items:center;gap:24px;flex-wrap:wrap}
+/* a janelinha dos dias — mesma casca do menu de reversão, só o corpo muda */
+.lc-menu.lc-pop-dias{min-width:0;padding:5px}
+.lc-menu.lc-pop-dias .tit{font-size:9.5px;text-transform:none;letter-spacing:0;padding:3px 5px 5px}
+.lc-pop-dias .dia{display:flex;align-items:center;gap:7px;margin:0;padding:5px 6px;border-radius:6px;
+  font-size:11.5px;font-weight:600;color:var(--tx);text-transform:none;letter-spacing:0;
+  white-space:nowrap;cursor:pointer}
+.lc-pop-dias .dia:hover{background:var(--cz)}
+.lc-pop-dias .dia input{margin:0;width:13px;height:13px;accent-color:var(--marca);cursor:pointer}
+.lc-pop-dias .dia .num{margin-left:auto;font-size:10px;color:var(--tx3);font-variant-numeric:tabular-nums}
+/* dia que já está marcado como não aula: entra pré-marcado e se anuncia */
+.lc-pop-dias .dia.jaN .num{color:#8a6200;font-weight:700}
+.lc-pop-dias .dia.hoje{color:var(--marca)}
+.lc-pop-dias .rod{display:flex;align-items:center;gap:7px;margin-top:3px;padding:3px 5px 0;
+  border-top:1px solid var(--borda)}
+.lc-pop-dias .ok{width:auto;background:var(--marca);color:#fff;font-weight:700;font-size:10.5px;
+  padding:5px 12px;border-radius:5px;text-align:center;margin-left:auto}
+.lc-pop-dias .ok:hover{background:var(--azul-esc,#1f7fb0)}
+/* a moldura da pasta desce pelo corpo: sem isso a região do dia terminaria no cabeçalho */
+td.lc-est-cel{padding:0!important;border-left:1px solid var(--aba-bd);border-right:1px solid var(--aba-bd)}
+/* 49px: era 48, e o pixel a mais vai TODO para baixo do cartão (ver o padding do .lc-slot).
+   Medido, o cartão sempre esteve simétrico — 2px em cima e 2px embaixo, em posição inteira, em
+   toda linha. O que desequilibra é óptico: em cima do cartão há a linha AZUL FORTE do rodapé dos
+   headers, e embaixo só o separador cinza-claro entre alunos. Com pesos tão diferentes, o mesmo
+   vão lê maior em cima. O pixel extra embaixo compensa isso. O cartão continua com 44px. */
+.lc-est-linha{min-height:49px}
+.lc-est-cel.off .lc-est-linha{background:repeating-linear-gradient(45deg,transparent,transparent 5px,
+  rgba(127,127,127,.05) 5px,rgba(127,127,127,.05) 10px)}
+/* respiro enxuto (era 5px 6px) + stretch: o cartão passa a ocupar quase toda a célula, ganhando
+   ~6px de largura e ~6px de altura sem que a linha mude de tamanho. É a largura que faltava para a
+   hora de entrada e saída caber com folga. */
+/* 2px em cima, 3px embaixo: a compensação óptica descrita em .lc-est-linha. A área interna
+   continua com 44px (49-2-3), então o cartão, o botão e a matemática da corda não mudam nada. */
+.lc-slot{border-left:1px solid var(--borda);padding:2px 3px 3px;display:flex;align-items:stretch;
+  justify-content:center}   /* botão solto na célula fica no meio; cartão é width:100% e não se mexe */
+
+/* ===== A CORDA — UM elemento só, a cor vem de quem ela amarra =====
+   A geometria está definida UMA vez, aqui embaixo. Cada caso só declara três variáveis de cor:
+   quem for amarrar de novo escreve duas linhas, não copia o bloco.
+
+   Ela não é um ::before do BOTÃO (largura fixa, só servia com o botão colado à esquerda): é o
+   PRÓPRIO espaçador esquerdo do slot. Com ::before e ::after ambos em flex-grow:1 o botão cai no
+   centro exato da célula em qualquer largura de coluna, e a corda ocupa sozinha todo o vão à
+   esquerda dele — estica e encolhe junto com a tabela, sem uma conta sequer no JS.
+   O `flex-basis:8px` casado com o `margin-left:-8px` mantém o centro honesto: a margem negativa
+   devolveria 8px de espaço livre para os DOIS lados (desviando o botão 4px), e a base de 8px
+   consome exatamente esses 8px de volta. Os 8px atravessam o vão entre as colunas (3+1+3).
+   `margin-top:1px` NÃO é enfeite: com `align-self:center` num slot de 44px, um filamento de 1px
+   cairia em 21,5px — meio pixel, que o navegador espalha em duas fileiras e desenha borrado. Com
+   a margem, a caixa vira 2px, o centro dá 21 e a linha assenta em 22: inteiro, e exatamente no
+   meio do botão. (A outra metade do problema era a altura fracionária da linha — ver .kanban td.)
+   `:has(>...)` deixa o slot se pintar conforme o botão que carrega — nada de classe vinda do JS. */
+.lc-slot:has(>.lc-acao.sai){--corda:#8FCB9B;--corda-on:#2d9147;--corda-brilho:rgba(45,145,71,.5);
+  --corda-vao:8px}
+.lc-slot:has(>.lc-acao.forte){--corda:#8ACBEC;--corda-on:#1f7fb0;--corda-brilho:rgba(31,127,176,.5);
+  --corda-vao:8px}
+/* A ENTRADA pula a coluna da Recepção (de "A vir" o fluxo vai direto para Em aula), então a corda
+   dela atravessa uma COLUNA INTEIRA, não só o vão entre duas.
+   `calc(100% + 15px)`: 100% é a largura interna do slot, e o slot inteiro mede essa largura + 7
+   (1px de divisória + 3+3 de respiro). Somando 15 chega-se à borda do cartão da coluna 0 com 1px
+   de sobreposição — é a mesma conta dos 8px do caso vizinho, uma coluna adiante. Fica em % e não
+   em px porque a coluna muda de largura conforme a tabela estica. */
+.lc-slot:has(>.lc-acao.entrada){--corda:#7FC0E2;--corda-on:var(--azul);--corda-brilho:rgba(51,170,227,.5);
+  --corda-vao:calc(100% + 15px)}
+.lc-slot:has(>:where(.lc-acao.sai,.lc-acao.forte,.lc-acao.entrada))::before{
+  content:'';flex:1 1 var(--corda-vao);margin-left:calc(-1 * var(--corda-vao));
+  margin-top:1px;height:1px;align-self:center;
+  background:var(--corda);transition:background .18s,box-shadow .18s}
+.lc-slot:has(>:where(.lc-acao.sai,.lc-acao.forte,.lc-acao.entrada))::after{content:'';flex:1 1 0}
+.lc-slot:has(>:where(.lc-acao.sai,.lc-acao.forte):hover)::before,
+.lc-slot:has(>:where(.lc-acao.sai,.lc-acao.forte):focus-visible)::before{
+  background:var(--corda-on);box-shadow:0 0 4px var(--corda-brilho)}
+
+/* ===== a corda da ENTRADA: só no hover, e nascendo das DUAS pontas =====
+   Ela existe no layout o tempo todo — é o espaçador que mantém o botão centrado —, só que
+   invisível. No hover, DOIS segmentos crescem ao mesmo tempo: um da borda do cartão para a
+   direita, outro do botão para a esquerda, e eles se encontram no meio.
+   São dois `background-image` no MESMO elemento, um ancorado à esquerda e outro à direita, cada um
+   indo de 0 a 50% da largura — daí o encontro cair exatamente no meio, sem conta nenhuma.
+   Quem estiver desatento vê só a linha aparecer; quem estiver olhando vê as duas pontes se
+   fechando. E ao tirar o mouse elas recolhem para as pontas em vez de sumir de estalo.
+   Só aqui, e não nas outras duas: naquelas a corda é permanente (o cartão e o botão são vizinhos e
+   a ligação é óbvia); esta atravessa uma coluna vazia e, sempre acesa, seria uma risca à toa
+   cortando o quadro em todas as linhas de aluno esperado. */
+.lc-slot:has(>.lc-acao.entrada)::before{
+  background:none;
+  background-image:linear-gradient(var(--corda-on),var(--corda-on)),
+                   linear-gradient(var(--corda-on),var(--corda-on));
+  background-repeat:no-repeat;background-position:left center,right center;
+  background-size:0 1px,0 1px;opacity:0;
+  transition:background-size .3s cubic-bezier(.22,1,.36,1),opacity .18s ease-out}
+.lc-slot:has(>.lc-acao.entrada:hover)::before,
+.lc-slot:has(>.lc-acao.entrada:focus-visible)::before{background-size:50% 1px,50% 1px;opacity:1}
+@media (prefers-reduced-motion:reduce){
+  .lc-slot:has(>.lc-acao.entrada)::before{transition:opacity .18s ease-out}
+  .lc-slot:has(>.lc-acao.entrada:hover)::before{background-size:50% 1px,50% 1px}}
+
+/* ===== OS DOIS ELOS: as pontas da corda da Entrada =====
+   Uma esfera em cada extremidade, com uma seta entrando por uma porta. Cada uma nasce do elemento
+   que ela marca — a do botão é o ::before do próprio botão, a do cartão é o ::after do cartão — e
+   as duas ficam CENTRADAS na borda (margem negativa de meia largura), montadas por cima. Feito
+   assim, nenhuma delas precisa saber onde a outra está: cada uma acompanha a sua âncora sozinha,
+   em qualquer largura de coluna.
+   O glifo é um data-URI: pseudo-elemento não aceita SVG como conteúdo, mas aceita como camada de
+   fundo — e como são duas camadas (glifo por cima, cor sólida por baixo), dá para animar a posição
+   do glifo sem mexer no círculo.
+   `position:relative` no botão não é detalhe: sem ele o ::before não teria a que se ancorar, e é
+   também o que põe as duas esferas ACIMA do fundo da coluna vazia que elas atravessam (elemento
+   posicionado pinta depois do conteúdo em fluxo). */
+.lc-acao.entrada{position:relative}
+.lc-acao.entrada::before,.lc-mc.avir::after{
+  content:'';position:absolute;top:50%;width:13px;height:13px;margin-top:-6.5px;
+  border-radius:50%;pointer-events:none;
+  background-color:#1f7fb0;background-repeat:no-repeat;background-position:center;
+  background-size:8.5px 8.5px;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'\
+ fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E\
+%3Cpath d='M2 8h6M5.5 5.5 8 8l-2.5 2.5'/%3E%3Cpath d='M11 3.5v9'/%3E%3C/svg%3E");
+  opacity:0;transition:opacity .18s ease-out}
+/* Deslocadas 3,5px para FORA da âncora, e não centradas na borda: centrada, a esfera entrava 6,5px
+   no botão e cobria o "E" de Entrada (o texto começa a 7px da borda). Assim ela entra só 3,5px,
+   fica folgada dentro do respiro do botão e continua montada na junção, que é o que importa. */
+.lc-acao.entrada::before{right:100%;margin-right:-3.5px}
+.lc-mc.avir::after{left:100%;margin-left:-3.5px}
+/* períodos DIFERENTES (1,4s e 1,8s) e não só um atraso: com períodos iguais elas voltariam a bater
+   juntas no ciclo seguinte e ficariam sincronizadas para sempre. Diferentes, entram e saem de fase
+   continuamente — nunca pulsam ao mesmo tempo. */
+.lc-slot:has(>.lc-acao.entrada:hover) .lc-acao.entrada::before,
+.lc-acao.entrada:focus-visible::before{opacity:1;
+  animation:lc-elo-pulsa 1.4s ease-in-out infinite,lc-elo-entra 1.4s ease-in-out infinite}
+.lc-est-linha:has(.lc-acao.entrada:hover) .lc-mc.avir::after,
+.lc-est-linha:has(.lc-acao.entrada:focus-visible) .lc-mc.avir::after{opacity:1;
+  animation:lc-elo-pulsa 1.8s ease-in-out .18s infinite,lc-elo-entra 1.8s ease-in-out .18s infinite}
+/* SEM `transform:scale`. O glifo é camada de fundo DO MESMO elemento, então escalar a esfera
+   escalava o desenho junto — e é isso que fazia a seta parecer crescer e tombar para a direita ao
+   mesmo tempo. Agora a esfera tem tamanho fixo e quem "respira" é só um halo de box-shadow. */
+@keyframes lc-elo-pulsa{
+  0%,100%{box-shadow:0 0 0 0 rgba(51,170,227,.45)}
+  60%{box-shadow:0 0 0 3.5px rgba(51,170,227,0)}}
+/* a seta só TRANSLADA, 1,2px para dentro da porta, e volta — nada cresce */
+@keyframes lc-elo-entra{0%,100%{background-position:center}55%{background-position:calc(50% + 1.2px) center}}
+/* o cartão cinza acende DEPOIS: o atraso deixa a corda fechar primeiro, e aí o realce lê como
+   consequência da ligação, não como mais uma coisa piscando junto. O atraso vive só na regra de
+   hover — ao tirar o mouse, a transição sem atraso do .lc-mc apaga na hora. */
+.lc-est-linha:has(.lc-acao.entrada:hover) .lc-mc.avir,
+.lc-est-linha:has(.lc-acao.entrada:focus-visible) .lc-mc.avir{
+  border-color:#7FC0E2;box-shadow:0 0 0 1.5px rgba(51,170,227,.4),0 2px 10px rgba(51,170,227,.22);
+  transition:box-shadow .22s ease .3s,border-color .22s ease .3s}
+@media (prefers-reduced-motion:reduce){
+  .lc-acao.entrada::before,.lc-mc.avir::after{animation:none!important}}
+.lc-slot.zona{background:var(--cz);opacity:.35}
+
+/* marcador de estado */
+/* padding e gap enxutos: a hora com entrada E saída mais o P¹ é a linha mais larga que o cartão
+   precisa comportar, e ela estava terminando rente à borda — sem folga, qualquer diferença de
+   renderização entre as três máquinas voltaria a cortar o fim do texto. */
+/* stretch e não center: o conteúdo se espalha pela altura do cartão em vez de se amontoar no meio */
+/* Com o livro de 24px, medido na tela de 1920: "09:43" ocupa 27,3px dos 50,7px que sobram para o
+   texto, e "08:42–09:08" ocupa 59,9px de 76,7px. Folga real dos dois lados — padding e gap ficam
+   como estavam. (Cuidado ao medir: `b` é item de flex, então blockifica e `scrollWidth` devolve a
+   largura da CAIXA, não a do texto; medir com Range.getBoundingClientRect.) */
+/* position:relative SEM z-index é o que põe a corda por TRÁS do cartão: elemento posicionado
+   pinta depois do conteúdo em fluxo (a corda é item de flex), então a ponta dela se enfia sob a
+   borda em vez de riscar por cima. Sem z-index de propósito — com um, o cartão passaria por cima
+   da coluna fixa do nome (`.lc-nome`, z-index:1) ao rolar a tabela na horizontal. */
+.lc-mc{width:100%;position:relative;border-radius:6px;padding:4px 4px 4px 5px;font-size:11px;
+  border:1px solid;display:flex;align-items:stretch;gap:3px;
+  animation:lc-entra .24s cubic-bezier(.22,1,.36,1);
+  transition:box-shadow .22s ease}   /* o realce que vem do hover da Saída (ver .lc-acao.sai) */
+.lc-mc .cl{display:flex;flex-direction:column;gap:1px;min-width:0;flex:1;justify-content:center}
+/* nos cartões que mostram hora, a hora é TÍTULO: encosta no topo e a pílula desce para o pé do
+   cartão. Só quem tem pílula muda — "falta / não veio" continua centrado, que é como ele cabe. */
+.lc-mc .cl.com-pil{justify-content:space-between}
+/* tabular-nums e -0.2px de tracking: a hora com entrada E saída é a linha mais larga do cartão */
+.lc-mc b{font-weight:700;font-size:11px;white-space:nowrap;font-variant-numeric:tabular-nums;
+  letter-spacing:-.2px}
+.lc-mc small{font-size:9.5px;opacity:.9;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lc-mc.avir{background:var(--cz);border-color:var(--borda-f,#c6d0db);color:var(--tx2);border-style:dashed}
+/* Cores TROCADAS (2026-08-03, pedido do Vitor): a recepção passou a ser ÂMBAR e a sala AZUL.
+   A leitura fica: âmbar = alguém está esperando por uma ação, azul = está em curso, verde =
+   terminou. Cada botão de avanço veste a cor da coluna PARA ONDE ele leva. */
+.lc-mc.recep{background:#fdf6e6;border-color:#e0a21b;color:#8a6200}
+.lc-mc.aula{background:#eaf6fd;border-color:var(--azul);color:#1f7fb0}
+.lc-mc.feita{background:#edf7f0;border-color:#2d9147;color:#2d9147}
+.lc-mc.falta{background:#fdeeed;border-color:#c5221f;color:#c5221f}
+.lc-mc.naoaula{background:var(--cz);border-color:var(--borda);color:var(--tx3)}
+/* em em, não em px: o P¹ mora DENTRO da pílula e precisa acompanhá-la — fixo em 9px ele acabava
+   maior que a própria duração ao lado, e sobrescrito maior que o texto fica errado */
+.lc-mc-sup{font-size:.85em;font-weight:800;vertical-align:super;letter-spacing:-.5px;margin-left:1px}
+/* ===== o cartão da RECEPÇÃO =====
+   "Chegou" é o título deste cartão, como a hora é a dos outros — então encosta no topo. Sem
+   pílula, o .cl vinha centrado e a palavra caía no meio do cartão.
+   `align-self:flex-start` no <b>: item de flex blockifica e esticaria até a largura do cartão, e
+   aí o sublinhado teria a largura da CAIXA em vez da palavra. Encolhendo, ele veste o texto. */
+.lc-mc.recep .cl{justify-content:flex-start}
+.lc-mc.recep b{align-self:flex-start;position:relative}
+/* o sublinhado respira: 1s aparecendo, 1s sumindo. É o único cartão que fica esperando uma ação de
+   outra pessoa — o pisca-pisca lento diz "ainda pendente" sem gastar mais uma palavra. */
+.lc-mc.recep b::after{content:'';position:absolute;left:0;right:0;bottom:-2px;height:1px;
+  background:currentColor;animation:lc-sublinha 2s ease-in-out infinite}
+@keyframes lc-sublinha{0%,100%{opacity:0}50%{opacity:1}}
+@media (prefers-reduced-motion:reduce){.lc-mc.recep b::after{animation:none;opacity:.55}}
+@keyframes lc-entra{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.lc-mc{animation:none}}
+/* Botão de ação do cartão (desfazer / marcar falta): pastilha de canto arredondado, tamanho FIXO,
+   colada à direita e centrada na altura. Pequena de propósito — a hora "23:24 – 23:24" precisa de
+   quase toda a largura da coluna, e um botão maior comia o fim do texto.
+   O fundo é a PRÓPRIA cor do estado, diluída: verde no cartão verde, âmbar no âmbar. */
+.lc-mc-rev,.lc-mc-falta{width:16px;height:16px;flex:0 0 16px;padding:0;margin-left:auto;
+  align-self:flex-start;display:flex;align-items:center;justify-content:center;
+  border:0;color:inherit;cursor:pointer;border-radius:5px;opacity:.75;
+  background:rgba(0,0,0,.07);              /* reserva para navegador sem color-mix */
+  background:color-mix(in srgb, currentColor 16%, transparent);
+  transition:opacity .12s,background .12s}
+.lc-mc-rev svg,.lc-mc-falta svg{display:block;width:9px;height:9px;fill:currentColor}
+.lc-mc-rev:hover,.lc-mc-falta:hover{opacity:1;background:color-mix(in srgb, currentColor 34%, transparent)}
+.lc-mc-rev:focus-visible,.lc-mc-falta:focus-visible{outline:2px solid currentColor;outline-offset:1px;opacity:1}
+/* o texto cede espaço ao botão em vez de espremê-lo */
+.lc-mc .cl{min-width:0;overflow:hidden}
+
+/* pílula de ajuste da hora: rasa como uma semente, colada sob o horário. Sem borda, só um leve
+   fundo na cor do estado — não pode disputar atenção com a hora nem crescer o cartão. */
+/* A duração ("23min") é APOIO da hora, não concorrente: fica claramente abaixo dos 11px do
+   horário em negrito, senão o olho lê primeiro o minuto e não a hora de entrada e saída. */
+/* align-self:flex-start + width:auto: a pílula ABRAÇA o texto em vez de esticar até a borda do
+   cartão. Em "em aula" ela só tem o ícone, daí o min-width — abaixo disso vira um nó de clicar. */
+.lc-pil{align-self:flex-start;width:auto;min-width:22px;
+  display:flex;align-items:center;gap:3px;max-width:100%;padding:0 4px;height:13px;
+  /* NÃO usar o atalho `font:600 8.5px/1 inherit`: `inherit` não vale como família dentro do
+     shorthand, o navegador joga a declaração inteira fora e o <button> volta para os 13.3px
+     padrão dele — era daí que vinha a duração maior que a própria hora em negrito. */
+  border:0;border-radius:6px;cursor:pointer;color:inherit;
+  font-family:inherit;font-weight:600;font-size:9px;line-height:1;
+  background:rgba(0,0,0,.06);background:color-mix(in srgb, currentColor 13%, transparent);
+  transition:background .12s}
+.lc-pil:hover{background:color-mix(in srgb, currentColor 30%, transparent)}
+.lc-pil:focus-visible{outline:2px solid currentColor;outline-offset:1px}
+/* quadrado: o ícone virou 24×24 (engrenagem em volta do relógio), não mais 18×14. 12px e não 11:
+   comparados lado a lado a 1:1, é em 12 que os dentes da engrenagem param de se fechar. */
+.lc-pil .ic{width:12px;height:12px;flex:0 0 12px;display:block}
+.lc-pil span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
+/* LIVRO ABERTO da aula em andamento — o sinal de "está acontecendo agora" no cartão âmbar.
+   24px e centrado na altura: é o segundo elemento mais visível do cartão, depois da hora. Fica à
+   esquerda do ⌄ (que continua no alto), então os dois nunca se encavalam. */
+.lc-cron{width:24px;height:24px;flex:0 0 24px;align-self:center;display:flex;align-items:center}
+.lc-cron svg{width:24px;height:24px;display:block;overflow:visible}
+/* A PÁGINA QUE VIRA. scaleX(1)→scaleX(-1) em torno da lombada (transform-origin:left center sobre
+   a fill-box = a borda da lombada). Truque que faz o laço fechar sem piscar: as linhas das duas
+   páginas são espelhadas entre si, então a página em repouso cobre exatamente a página direita e,
+   ao terminar, cobre exatamente a esquerda — nos dois extremos ela some no desenho, e o salto do
+   fim do laço para o começo é invisível. Nenhum fade, nenhum pop. */
+.lc-cron .pg{transform-box:fill-box;transform-origin:left center;
+  animation:lc-vira-pg 4s cubic-bezier(.45,0,.55,1) infinite}
+@keyframes lc-vira-pg{0%,22%{transform:scaleX(1)}62%,100%{transform:scaleX(-1)}}
+/* ponteiros: o de minuto dá a volta em 2,4s e o de hora em 14,4s — mesma proporção 1:6 de um
+   relógio de verdade, que é o que faz o olho ler "o tempo está correndo" e não "isso pisca" */
+.lc-cron .pm{transform-box:view-box;transform-origin:18.2px 17.4px;animation:lc-gira-pt 2.4s linear infinite}
+.lc-cron .ph{transform-box:view-box;transform-origin:18.2px 17.4px;animation:lc-gira-pt 14.4s linear infinite}
+@keyframes lc-gira-pt{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.lc-cron .pg,.lc-cron .pm,.lc-cron .ph{animation:none}}
+
+/* popover de correção da hora — janelinha de canto, não caixa de diálogo: ela abre COLADA na
+   pílula, sobre a tabela, então cada pixel a mais tampa a linha do aluno que se está corrigindo.
+   Dupla classe porque `.lc-menu` (mais abaixo) também define min-width e venceria por vir depois. */
+/* TODO seletor daqui leva `.lc-menu.lc-pop-hora`, e não só `.lc-pop-hora`: o bloco `.lc-menu` vem
+   DEPOIS neste arquivo, então com a mesma especificidade era ele que vencia — era daí que vinham a
+   largura de 246px e o CAIXA-ALTA do título. */
+.lc-menu.lc-pop-hora{min-width:0;padding:4px}
+/* título em caixa baixa: "2 aulas esperadas" lê igual e ocupa bem menos largura que a versalete */
+.lc-menu.lc-pop-hora .tit{font-size:9.5px;text-transform:none;letter-spacing:0;padding:3px 4px 4px}
+/* margin:0 mata o `margin:8px 0 2px` do `label` global, que sozinho engordava a janela em 20px */
+/* nowrap: sem ele a janela encolhe até a largura de "Modificar saída" e a linha da ENTRADA, que é
+   uma letra mais longa, quebra em duas — a janela fica mais estreita e mais alta ao mesmo tempo */
+.lc-menu.lc-pop-hora .lin{display:flex;align-items:center;justify-content:space-between;gap:7px;
+  margin:0;padding:2px 4px;font-size:10.5px;text-transform:none;letter-spacing:0;
+  white-space:nowrap;color:var(--tx2);font-weight:600}
+.lc-menu.lc-pop-hora .lin input{width:50px;text-align:center;padding:4px 3px;
+  font-family:inherit;font-weight:700;font-size:11px;line-height:1;   /* shorthand com `inherit` cai */
+  border:1px solid var(--borda);border-radius:5px;color:var(--tx);
+  font-variant-numeric:tabular-nums;background:#fff}
+.lc-menu.lc-pop-hora .lin input:focus{outline:2px solid var(--azul);outline-offset:-1px;border-color:var(--azul)}
+.lc-menu.lc-pop-hora .rod{display:flex;align-items:center;gap:7px;margin-top:2px;padding:2px 4px 0}
+.lc-menu.lc-pop-hora .av{flex:1;font-size:9.5px;color:#c5221f;line-height:1.25}
+.lc-menu.lc-pop-hora .ok{width:auto;background:var(--marca);color:#fff;font-weight:700;font-size:10.5px;
+  padding:5px 12px;border-radius:5px;text-align:center}
+.lc-menu.lc-pop-hora .ok:hover{background:var(--azul-esc,#1f7fb0)}
+
+/* ações de avanço */
+/* align-self:center e não o stretch do slot: o botão é uma AÇÃO, não um cartão de estado — ele não
+   pode ter o tamanho do marcador ao lado, senão a linha do aluno vira dois blocos concorrendo.
+   Fica com 24px de altura contra os 44 do cartão. (font em propriedades separadas: o atalho
+   `font:600 12px/1 inherit` é inválido e o navegador descarta tudo — ver .lc-pil.) */
+/* width:auto e não 100%: o botão abraça a palavra em vez de varrer a coluna inteira. Encostado à
+   esquerda do slot, que é o lado de onde vem a corda — a ação nasce do cartão anterior. */
+.lc-acao{width:auto;align-self:center;display:inline-flex;align-items:center;justify-content:center;
+  gap:2px;                                            /* colado na palavra: o ícone é parte dela */
+  border:1px dashed var(--borda);background:none;color:var(--tx3);
+  border-radius:6px;padding:5px 6px;cursor:pointer;   /* 6 e não 10: "Confirmar" com ícone é o
+  conteúdo mais largo do quadro, e cada pixel de folga aqui é um pixel a menos de coluna */
+  font-family:inherit;font-weight:600;font-size:12px;line-height:1;
+  transition:background .18s,border-color .18s,color .18s,box-shadow .18s}
+.lc-acao:hover{border-style:solid;border-color:var(--azul);color:#1f7fb0;background:#eaf6fd}
+.lc-acao:focus-visible{outline:2px solid var(--azul);outline-offset:1px}
+/* ===== o ícone do botão de avanço =====
+   Em currentColor, ou seja, sempre na cor da palavra ao lado — inclusive quando o hover escurece
+   as duas juntas. Traço 2.4 e não os 2 padrão do Lucide: a 13px o desenho fica ralo ao lado de um
+   texto de 12px em peso 600, e o ícone tem de pesar o mesmo que a palavra.
+   A ANIMAÇÃO: só a SETA anda, a porta fica parada — é o que faz o desenho contar a ação em vez de
+   sacudir. Nas duas ela vai para a DIREITA: no Confirmar entrando pela porta, na Saída saindo
+   dela. Roda no hover (e no foco), não o tempo todo: são até 20 botões numa tela de bloco cheio,
+   e vinte setas andando sozinhas viram ruído. */
+.lc-ic{display:flex;flex:0 0 auto}
+.lc-ic svg{display:block;stroke-width:2.4}
+/* os dois primeiros paths do log-in/log-out do Lucide são a ponta e a haste da seta; o terceiro é
+   a porta. A ordem vem do próprio pacote e está fixa no arquivo vendorizado. */
+.lc-acao:hover .lc-ic svg path:nth-child(-n+2),
+.lc-acao:focus-visible .lc-ic svg path:nth-child(-n+2){animation:lc-seta-anda 1s ease-in-out infinite}
+@keyframes lc-seta-anda{0%,100%{transform:translateX(0)}50%{transform:translateX(2px)}}
+@media (prefers-reduced-motion:reduce){.lc-acao .lc-ic svg path{animation:none!important}}
+/* ===== CONFIRMAR: o botão amarrado ao cartão da recepção =====
+   Mesma dinâmica da Saída, um degrau antes no fluxo. Fica âmbar porque a coluna onde ele mora é a
+   EM AULA — o botão veste a cor do destino, e a corda diz de onde ele veio. */
+/* a corda deste (desenhada no slot, ver .lc-slot) aponta para o cartão AZUL da recepção, na coluna
+   anterior. Nunca para "A vir": de lá o fluxo pula a recepção e não há cartão a amarrar. */
+/* AZUL, a cor da coluna EM AULA — mesmo princípio do Saída */
+.lc-acao.forte{border:1px solid var(--azul);background:#eaf6fd;color:#1f7fb0}
+.lc-acao.forte:hover,.lc-acao.forte:focus-visible{background:#d8ecf9;border-color:#1F7FB0;
+  color:#155F85;box-shadow:0 1px 7px rgba(31,127,176,.26)}
+/* o lembrete pulsante já cumpriu o papel quando o mouse chegou nele: parar de pulsar evita que a
+   animação de box-shadow atropele o realce do hover (animação vence declaração normal) */
+.lc-acao.pulsa:hover,.lc-acao.pulsa:focus-visible{animation:none}
+/* mesma regra na outra ponta: anel AZUL (a cor do Confirmar) sobre o cartão âmbar da recepção */
+.lc-est-linha:has(.lc-acao.forte:hover) .lc-mc.recep,
+.lc-est-linha:has(.lc-acao.forte:focus-visible) .lc-mc.recep{
+  box-shadow:0 0 0 1.5px rgba(51,170,227,.7),0 2px 10px rgba(51,170,227,.32)}
+/* ===== SAÍDA: o botão amarrado ao cartão da aula =====
+   Azul e não verde. Verde já é a cor do estado FEITA, e este botão não É o estado — é o caminho
+   até ele; pintá-lo de verde fazia a coluna parecer já lançada. Fundo azul translúcido para não
+   competir com o âmbar ao lado, borda um tom mais fechada. */
+/* VERDE, a cor da coluna FEITA — o botão veste o destino, não o estado de onde sai */
+.lc-acao.sai{border:1px solid #8FCB9B;background:rgba(45,145,71,.09);color:#2d9147}
+.lc-acao.sai:hover,.lc-acao.sai:focus-visible{font-weight:700;background:rgba(45,145,71,.18);
+  border-color:#2d9147;color:#1f6b34;box-shadow:0 1px 7px rgba(45,145,71,.24)}
+/* A outra ponta da corda: acender a saída acende o cartão âmbar do MESMO aluno — a linha inteira
+   se lê como uma peça só. `:has()` porque o cartão é o irmão ANTERIOR do botão no grid.
+   box-shadow e não border: borda de verdade ocupa espaço e o cartão daria um pulo de 3px no hover;
+   a sombra desenha o anel POR FORA, sem mexer no layout — daí a transição sair macia. */
+/* o anel usa a cor do BOTÃO, não a do cartão: assim o realce se lê como uma coisa só correndo do
+   botão pela corda até o cartão. Verde sobre o cartão azul da sala. */
+.lc-est-linha:has(.lc-acao.sai:hover) .lc-mc.aula,
+.lc-est-linha:has(.lc-acao.sai:focus-visible) .lc-mc.aula{
+  box-shadow:0 0 0 1.5px rgba(45,145,71,.6),0 2px 10px rgba(45,145,71,.26)}
+.lc-acao.pulsa{animation:lc-pulsa-bt 1.9s ease-in-out infinite}
+@keyframes lc-pulsa-bt{0%,100%{box-shadow:0 0 0 0 rgba(51,170,227,0)}50%{box-shadow:0 0 0 3px rgba(51,170,227,.25)}}
+@media (prefers-reduced-motion:reduce){.lc-acao.pulsa{animation:none}}
+
+/* menu de reversão */
+.lc-menu{position:fixed;z-index:60;background:#fff;border:1px solid var(--borda);border-radius:9px;
+  box-shadow:0 4px 16px rgba(7,29,73,.16);padding:5px;min-width:246px}
+.lc-menu .tit{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;
+  color:var(--tx3);padding:6px 9px 5px}
+.lc-menu button{display:block;width:100%;text-align:left;border:0;background:none;color:var(--tx);
+  padding:8px 9px;border-radius:6px;cursor:pointer;font:inherit;font-size:12px}
+.lc-menu button:hover{background:var(--cz)}
+.lc-menu button:focus-visible{outline:2px solid var(--azul);outline-offset:-2px}
+.lc-menu button b{display:block;font-weight:650}
+.lc-menu button small{display:block;color:var(--tx3);font-size:10.5px;margin-top:1px;line-height:1.3}
+.lc-menu .sep{height:1px;background:var(--borda);margin:4px 2px}
+
 /* ===== recepção: status por dropdown (uma célula = veio / não veio / não teve aula) ===== */
 .lc-sel{width:100%;border:1px solid var(--borda);border-radius:5px;background:#fff;color:#3c4043;
   font-size:12px;font-weight:700;padding:2px 1px;min-height:22px;line-height:1;cursor:pointer;
@@ -466,8 +954,15 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
 
 .av-motivo{font-size:10px;font-weight:700;background:#f1f3f4;border-radius:8px;padding:1px 7px;color:var(--tx2)}
 /* alerta ao lado do nome: este aluno não é deste horário, veio de reposição/reforço/etc */
-.lc-av{display:inline-flex;vertical-align:-2px;margin-left:5px;color:#b26a00;cursor:help}
-.lc-av svg{display:block}
+/* Aviso de "hoje não é o dia dele": vai para a BORDA DIREITA da coluna do aluno, e maior.
+   Colado no fim do nome ele se perdia entre as letras e mudava de lugar a cada nome — na direita
+   os avisos ficam todos na mesma coluna vertical e se enxergam de relance, varrendo a lista.
+   O flex mora num <span> DENTRO do td, e não no td: `display:flex` num `<td>` o tira de
+   table-cell, e o navegador embrulha tudo numa célula anônima — lá se vai o `position:sticky`
+   da coluna do nome e a largura fixa da tabela. */
+.lc-nome-in{display:flex;align-items:center;gap:6px;width:100%}
+.lc-av{margin-left:auto;flex:0 0 auto;display:inline-flex;color:#b26a00;cursor:help}
+.lc-av svg{display:block;width:16px;height:16px}
 
 /* qual máquina é esta, no pé da barra lateral — some da vista, mas responde "por que esta tela
    está diferente da outra?" sem precisar abrir o código */
@@ -1480,17 +1975,21 @@ else forcado=localStorage.getItem('wiz_papel');
 }catch(e){/* navegador sem localStorage: segue no automático */}
 run('getEstacao',[],function(e){
 ESTACAO=e;if(forcado)ESTACAO.papel=forcado;ESTACAO.forcado=!!forcado;
-var aba=ESTACAO.papel==='recepcao'?'recepcao':'presenca';
-var outra=aba==='recepcao'?'presenca':'recepcao';
+/* As DUAS abas ficam sempre na barra lateral: o mesmo professor precisa das duas (ele lança na
+   sala e confere o que a recepção marcou), e a recepção pode precisar espiar o quadro da sala
+   numa manhã sem professor. A estação só decide qual delas ABRE por padrão — e é marcada com um
+   ponto ao lado, para quem senta na máquina saber qual é a "sua". */
+var daMaquina=ESTACAO.papel==='recepcao'?'recepcao':'presenca';
 document.querySelectorAll('#sidebar button').forEach(function(b){
-if(String(b.getAttribute('onclick')).indexOf("'"+outra+"'")>=0)b.style.display='none'});
-/* o Início monta os cards a partir de PAGINAS: tira de lá a página que esta estação não usa */
-for(var i=PAGINAS.length-1;i>=0;i--)if(PAGINAS[i].aba===outra)PAGINAS.splice(i,1);
-$('home-cards').innerHTML='';renderHome();
+var alvo=String(b.getAttribute('onclick')).indexOf("'"+daMaquina+"'")>=0;
+b.classList.toggle('desta-maquina',alvo);
+if(alvo)b.title='Esta máquina normalmente usa esta tela ('+ESTACAO.nome+')'});
 var el=$('estacao-tag');
 if(el){el.textContent=ESTACAO.nome+(ESTACAO.forcado?' · forçado':'');
-el.title='IP '+ESTACAO.ip+' · lançamento por '+(ESTACAO.papel==='recepcao'?'dropdown de status (recepção)':'entrada e saída (sala de aula)')
-+(ESTACAO.conhecida?'':' · máquina não cadastrada em ESTACOES (main.ts)')+'\nTrocar nesta máquina: acrescente ?papel=sala, ?papel=recepcao ou ?papel=auto na URL.';
+el.title='IP '+ESTACAO.ip+' · tela padrão desta máquina: '+(ESTACAO.papel==='recepcao'?'Entrada Recep (dropdown)':'Presença (fluxo da sala)')
++(ESTACAO.conhecida?'':' · máquina não cadastrada em ESTACOES (main.ts)')
++'\nAs duas telas continuam disponíveis na barra lateral.'
++'\nTrocar o padrão nesta máquina: ?papel=sala, ?papel=recepcao ou ?papel=auto na URL.';
 el.className='estacao-tag'+(ESTACAO.conhecida?'':' desconhecida')}
 })}
 
@@ -1635,6 +2134,54 @@ var box=lcEl('blocos');box.innerHTML='';LC_CELULAS=[];
 if(!LC.blocos.length){box.innerHTML='<div class="lc-vazio">Nenhuma turma neste dia/horário.<br><small>Use as setas para trocar de dia ou escolha outro horário acima.</small></div>';return}
 LC.blocos.forEach(function(b){box.appendChild(lcCard(b))});
 }
+/* ===== fluxo de presença da SALA em 5 estados (a "tabela-Kanban") =====
+   Os estados NÃO são coluna nova no banco: saem do que `presenca` já guarda. É a mesma linha que
+   a recepção mexe pelo dropdown — só a leitura é diferente.
+     a vir  = não existe linha            recepção = P sem entrada
+     em aula= P com entrada, sem saída    feita    = P com saída
+     falta  = F                           não aula = N (feriado; fora do fluxo, sem ação)
+   O fluxo anda só para a frente; voltar é sempre reversão explícita, com confirmação. */
+var LC_EST=[{k:'avir',r:'A vir',t:'Esperados, nada lançado'},
+            {k:'recep',r:'Recepção',t:'A recepção marcou presença; falta confirmar a entrada na sala'},
+            {k:'aula',r:'Em aula',t:'Entrada confirmada, relógio correndo'},
+            {k:'feita',r:'Feita',t:'Aula encerrada: entrada, saída e total'},
+            {k:'falta',r:'Falta',t:'Não compareceu (ou dia sem aula)'}];
+var LC_EST_ROT={avir:'A vir',recep:'Recepção',aula:'Em aula',feita:'Aula feita',falta:'Falta'};
+var LC_EST_ORDEM={avir:0,recep:1,aula:2,feita:3,falta:4};
+function lcEstado(p){
+if(!p) return 'avir';
+if(p.status==='F') return 'falta';
+if(p.status==='N') return 'naoaula';
+if(p.saida) return 'feita';
+if(p.entrada) return 'aula';
+return 'recep';
+}
+/* onde o marcador de cada estado mora (não-aula divide a última coluna com falta: os dois são
+   "fora do fluxo de aula", e criar uma sexta coluna só para feriado não pagaria a largura) */
+function lcColunaDe(est){ return est==='naoaula'?'falta':est }
+/* "2ª" vira um numeral grande com o ª sobrescrito — o dígito é o que identifica a aba, e o ª
+   sozinho não carrega informação nenhuma. "Sáb" não tem numeral e entra como palavra. */
+function lcCodigoDia(cod){
+var m=/^\s*(\d+)\s*[ªa]?\s*$/i.exec(cod||'');
+return m?'<span class="lc-dia-bola">'+m[1]+'<sup>ª</sup></span>'
+        :'<span class="lc-dia-bola palavra">'+escBloco((cod||'').toUpperCase())+'</span>';
+}
+/* próximo passo do fluxo — é ele que decide em qual coluna o botão de avanço aparece */
+var LC_PROX={avir:'aula',recep:'aula',aula:'feita'};
+
+/* reversões possíveis por estado. `perde` é o que sai do banco: a confirmação diz isso com todas
+   as letras, porque desfazer aqui apaga hora já gravada. */
+var LC_REV={
+recep:[{p:'avir',t:'Ainda não chegou',s:'Segue esperado hoje; ninguém leva falta.',perde:'a presença lançada pela recepção'},
+       {p:'falta',t:'Marcar falta',s:'Não vem mais hoje.',perde:'a presença, e entra falta no lugar'}],
+aula:[{p:'recep',t:'Não entrou ainda',s:'Confirmei sem querer: chegou na escola, mas não entrou na sala.',perde:'a hora de entrada'},
+      {p:'avir',t:'Ainda não chegou',s:'Lancei no aluno errado. Volta para a fila.',perde:'a hora de entrada e a presença'},
+      {p:'falta',t:'Marcar falta',s:'Ele não veio.',perde:'a hora de entrada, e entra falta'}],
+feita:[{p:'aula',t:'Saída foi engano',s:'Ainda está na sala; o relógio volta a correr.',perde:'a hora de saída e as lições marcadas'},
+       {p:'avir',t:'Desfazer tudo',s:'O dia deste aluno volta ao começo.',perde:'entrada, saída e a presença'}],
+falta:[{p:'aula',t:'Ele está aqui',s:'Falta por engano — o aluno está na sala agora.',perde:'a falta; entra presença com a hora de agora'},
+       {p:'avir',t:'Ainda não chegou',s:'Não é falta ainda: pode vir mais tarde hoje.',perde:'a falta'}]};
+
 function lcCard(b){
 var card=document.createElement('div');card.className='lc-card compacto';
 var chipCls=b.tipoKey==='Kids'?'mod-Kids':(b.mod==='Conn'?'mod-Conn':'mod-Inter');
@@ -1642,21 +2189,53 @@ var head=document.createElement('div');head.className='lc-head';
 head.innerHTML='<div class="lc-head-esq"><span class="lc-hora-badge">'+escBloco(b.hora+' – '+b.fim)+'</span>'
 +'<h4>'+escBloco(tituloBloco(b))+'</h4><span class="lc-chip '+chipCls+'">'+escBloco(b.tipoKey==='Kids'?'Conn Kids':b.mod)+'</span>'
 +(b.profs.length?'<span class="lc-chip">'+escBloco(b.profs.join(', '))+'</span>':'')+'</div>'
-+'<div class="lc-resumo"></div>';
++'<div class="lc-head-dir"><div class="lc-resumo"></div></div>';
 card.appendChild(head);
+/* "Não aula" no cabeçalho, ao lado da estatística: é ação do BLOCO inteiro (feriado, férias,
+   aula cancelada), e não de uma coluna do quadro — onde ela morava antes. */
+if(LCM==='sala'){
+var fer=document.createElement('button');fer.type='button';fer.className='lc-feriado';
+fer.innerHTML='<span class="ic">'+icon('calendar-clock',13)+'</span>Não aula';
+fer.title='Marcar dias inteiros como não aula (feriado, férias, aula cancelada) para os alunos deste bloco';
+fer.onclick=function(ev){lcNaoAulaPainel(ev,b,card)};
+head.querySelector('.lc-head-dir').appendChild(fer);
+}
 var wrap=document.createElement('div');wrap.className='lc-wrap';
 var tb=document.createElement('table');tb.className='lc-tabela semana';
 /* colunas = a SEMANA corrente (Seg→Sáb). Cabeçalho em dois níveis: nome do dia em cima,
    número do dia embaixo (a ficha IMPRESSA continua com as 12 colunas do mês — visão diferente). */
-var h1='<tr><th class="lc-th-aluno" rowspan="2">Aluno</th><th class="c-est" rowspan="2">Estágio<small>Modalidade</small></th>'
+var meta='<th class="lc-th-aluno" rowspan="2">Aluno</th><th class="c-est" rowspan="2">Estágio<small>Modalidade</small></th>'
 +'<th class="c-prof" rowspan="2">Professor</th><th class="c-dias" rowspan="2">Dias</th>';
-var h2='<tr>';
+if(LCM==='sala'){
+/* SALA: os dias viram abas de largura fixa que NÃO se deslocam, e a faixa debaixo é o quadro de
+   estados do dia aberto. As colunas do aluno atravessam as duas faixas (rowspan) para não sobrar
+   um cabeçalho fantasma vazio. */
+tb.className='lc-tabela semana kanban';
+var abas='';
+LC.semana.forEach(function(c,i){
+abas+='<th class="lc-dia-aba'+(c.data===LC.data?' on':'')+(c.hoje?' eh-hoje':'')+'" data-dia="'+escBloco(c.data)+'"'
++' role="tab" aria-selected="'+(c.data===LC.data)+'" tabindex="0"'
++' title="'+escBloco(c.dia+', dia '+c.numero+(c.hoje?' — hoje':''))+'">'
++'<span class="lc-dia-cx">'+lcCodigoDia(c.codigo||c.curto)
++'<span class="lc-dia-num"><span class="lc-dia-bolha">'+c.numero+'</span></span></span></th>'});
+tb.innerHTML='<thead><tr>'+meta+abas+'</tr>'
++'<tr><th class="lc-faixa" colspan="'+LC.semana.length+'"></th></tr></thead>';
+/* clicar numa aba navega para aquele dia — mesma rota das setas < >, então os blocos do dia
+   certo vêm do servidor em vez de a tela inventar dados que não tem */
+tb.querySelectorAll('thead .lc-dia-aba').forEach(function(th){
+var ir=function(){if(th.dataset.dia!==LC.data){LC_DATA=th.dataset.dia;lcCarregar()}};
+th.onclick=ir;
+th.onkeydown=function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();ir()}}});
+tb.querySelector('.lc-faixa').appendChild(lcFaixaEstados(b,card));
+}else{
+var h1='<tr>'+meta, h2='<tr>';
 LC.semana.forEach(function(c,i){
 h1+='<th class="lc-dia'+(c.hoje?' hoje':'')+'" data-col="'+i+'">'+escBloco(c.curto)+'</th>';
 h2+='<th class="lc-num'+(c.hoje?' hoje':'')+'" data-col="'+i+'" title="Clique para marcar o dia inteiro como não aula (feriado/férias)">'+c.numero+'</th>'});
 tb.innerHTML='<thead>'+h1+'</tr>'+h2+'</tr></thead>';
 tb.querySelectorAll('thead .lc-num').forEach(function(th){
 th.onclick=function(){lcColunaNaoAula(b,LC.semana[+th.dataset.col],card)}});
+}
 var tbody=document.createElement('tbody');
 b.alunos.forEach(function(al){
 var tr=document.createElement('tr');
@@ -1668,11 +2247,22 @@ return '<span class="lc-pd" title="'+escBloco(p.curto)+(p.aulas>1?' — '+p.aula
    A estrutura da tabela não muda — ele só se acrescenta como mais uma linha do bloco. */
 var marcaAv=al.avulso?'<span class="lc-av" title="'+escBloco('Fora do horário dele — '+al.avulso.motivo
 +(al.avulso.observacao?': '+al.avulso.observacao:'')+'. O horário fixo continua sendo '+(al.dias||'sem agenda')+'.')
-+'">'+icon('triangle-alert',12)+'</span>':'';
-tr.innerHTML='<td class="lc-nome">'+escBloco(al.nome)+marcaAv+'</td>'
++'">'+icon('triangle-alert',16)+'</span>':'';
+tr.innerHTML='<td class="lc-nome"><span class="lc-nome-in">'+escBloco(al.nome)+marcaAv+'</span></td>'
 +'<td class="lc-estagio"><span class="lc-livro">'+escBloco(al.livro)+'</span><small>'+escBloco(mod)+'</small></td>'
 +'<td class="lc-prof">'+((al.profs&&al.profs.length)?al.profs.map(function(p){return '<span class="lc-pp">'+escBloco(p)+'</span>'}).join(''):'<span class="lc-vazio-cel">—</span>')+'</td>'
 +'<td class="lc-dias-pil">'+(pilulas||'<span class="lc-vazio-cel">—</span>')+'</td>';
+if(LCM==='sala'){
+/* uma célula só, com os 5 slots de estado do dia aberto */
+var c=LC.semana.filter(function(x){return x.data===LC.data})[0]||LC.semana[0];
+var td=document.createElement('td');
+td.className='lc-est-cel'+(al.regular[c.data]?'':' off');
+td.colSpan=LC.semana.length;
+var faixa=lcSlots(al,c,card,b);
+LC_CELULAS.push({al:al,data:c.data,box:faixa,card:card,bloco:b});
+td.appendChild(faixa);
+tr.appendChild(td);
+}else{
 LC.semana.forEach(function(c,ic){
 var td=document.createElement('td');
 var regular=al.regular[c.data];
@@ -1684,6 +2274,7 @@ var cel=lcCelula(al,c,card);
 LC_CELULAS.push({al:al,data:c.data,box:cel,card:card,bloco:b}); // índice p/ sincronizar sem re-render
 td.appendChild(cel);
 tr.appendChild(td)});
+}
 tbody.appendChild(tr)});
 tb.appendChild(tbody);lcCrosshair(tb);wrap.appendChild(tb);card.appendChild(wrap);
 /* a legenda saiu daqui: repetida em cada bloco virava textão. Agora é o popover "Legenda",
@@ -1691,9 +2282,282 @@ tb.appendChild(tbody);lcCrosshair(tb);wrap.appendChild(tb);card.appendChild(wrap
 lcResumo(card,b);
 return card;
 }
+/* cabeçalho das 5 colunas de estado, com o contador de cada uma. O contador é atualizado no
+   lugar (lcContarEstados), nunca redesenhando o quadro inteiro. */
+function lcFaixaEstados(b,card){
+var g=document.createElement('div');g.className='lc-est-grade';
+LC_EST.forEach(function(e){
+var h=document.createElement('div');h.className='lc-est-h';h.title=e.t;
+h.innerHTML='<span class="pt '+e.k+'"></span><span class="rot">'+escBloco(e.r)+'</span>'
++'<span class="n" data-est="'+e.k+'">0</span>';
+g.appendChild(h)});
+/* o botão de "não aula" mudou-se para o cabeçalho do bloco (ver lcCard) */
+card._faixa=g; lcContarEstados(card,b);
+return g;
+}
+function lcContarEstados(card,b){
+if(!card||!card._faixa)return;
+var c=LC.semana.filter(function(x){return x.data===LC.data})[0];if(!c)return;
+var n={avir:0,recep:0,aula:0,feita:0,falta:0};
+b.alunos.forEach(function(al){var e=lcColunaDe(lcEstado(al.pontos[c.data]));n[e]=(n[e]||0)+1});
+card._faixa.querySelectorAll('[data-est]').forEach(function(el){
+var novo=String(n[el.dataset.est]||0);
+if(el.textContent!==novo){el.textContent=novo;el.classList.add('mudou');
+setTimeout(function(){el.classList.remove('mudou')},380)}});
+}
+/* os 5 slots de UM aluno. Devolve o elemento com `_sync`, do mesmo jeito que as células antigas —
+   assim o WebSocket e o polling continuam atualizando só a linha que mudou. */
+function lcSlots(al,c,card,b){
+var box=document.createElement('div');box.className='lc-est-linha';
+var p=al.pontos[c.data]||null;
+/* PRECISA aceitar o ponto novo: as ações chamam ok(n) com o que o servidor devolveu. Sem isto a
+   tela só se corrigia quando o WebSocket trazia uma diferença — e numa reversão o al.pontos já
+   tinha sido atualizado, então não havia diferença e o card ficava congelado no estado anterior. */
+function redesenha(np){
+if(np!==undefined) p=np;
+box.innerHTML='';
+var est=lcEstado(p), col=lcColunaDe(est);
+LC_EST.forEach(function(e){
+var s=document.createElement('div');s.className='lc-slot';
+if(e.k===col)      s.appendChild(lcMarcadorEstado(al,c,card,b,p,est,redesenha));
+else if(LC_PROX[est]===e.k) s.appendChild(lcBotaoAvanco(al,c,card,b,p,est,redesenha));
+else s.className+=' zona';
+box.appendChild(s)});
+lcContarEstados(card,b);
+}
+box._sync=function(np){p=np;redesenha()};
+redesenha();return box;
+}
+/* Relógio DENTRO da engrenagem: "a hora, e dá para ajustar". O aro de dentes é o `settings` do
+   Lucide (ISC, lucide.dev — a mesma biblioteca de resources/vendor/lucide-icons.js) e o miolo é o
+   mostrador do `clock`, no lugar do circulinho original. Traço 1.7 e não 2: a 11px o aro de dentes
+   com traço cheio fecha os vãos e o ícone vira uma bolota. */
+var LC_IC_AJUSTE='<svg viewBox="0 0 24 24" aria-hidden="true" class="ic" fill="none" '
++'stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">'
++'<path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0a2.34 2.34 0 0 0 3.319 1.915a2.34 2.34 0 0 1 2.33 4.033'
++'a2.34 2.34 0 0 0 0 3.831a2.34 2.34 0 0 1-2.33 4.033a2.34 2.34 0 0 0-3.319 1.915a2.34 2.34 0 0 1-4.659 0'
++'a2.34 2.34 0 0 0-3.32-1.915a2.34 2.34 0 0 1-2.33-4.033a2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051'
++'a2.34 2.34 0 0 0 3.319-1.915"/>'
++'<circle cx="12" cy="12" r="5"/><path d="M12 9.2V12l1.9 1.2"/></svg>';
+/* LIVRO ABERTO + RELÓGIO, animado — redesenhado em SVG a partir do book.gif que o Vitor mandou
+   (143 quadros, 20ms: uma página vira e os ponteiros correm). SVG e não o gif/mp4 porque o ícone
+   mora dentro de um cartão de 24px que se repete numa linha por aluno: em vetor ele fica nítido em
+   qualquer zoom, pesa ~1KB em vez de 138KB, e a animação é CSS — logo obedece
+   `prefers-reduced-motion` como o resto do app.
+   As páginas são ESPELHADAS uma da outra (linhas encostadas na lombada dos dois lados). Não é
+   enfeite: é o que permite a página virada pousar exatamente em cima da página esquerda e o laço
+   fechar sem piscada nenhuma — ver o comentário de .lc-cron no CSS. */
+var LC_IC_LIVRO='<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" '
++'stroke-linecap="round" stroke-linejoin="round">'
++'<g transform="translate(-1.3,-1.9)">'
+/* página esquerda: capa + linhas encostadas na lombada */
++'<path d="M12 6c0-1.4-1.1-2.5-2.5-2.5h-6a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h6c1.4 0 2.5 1.1 2.5 2.5z" '
++'fill="#fff" stroke="#0B2A72" stroke-width="1.7"/>'
++'<path d="M9.7 7.2h-5M9.7 9.9h-3.4M9.7 12.6h-5" stroke="#6C6CF5" stroke-width="1.5"/>'
+/* página direita, e logo em seguida a MESMA página de novo: a de cima é a que vira */
++'<path d="M12 6c0-1.4 1.1-2.5 2.5-2.5h6a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1h-6c-1.4 0-2.5 1.1-2.5 2.5z" '
++'fill="#fff" stroke="#0B2A72" stroke-width="1.7"/>'
++'<path d="M14.3 7.2h5M14.3 9.9h3.4M14.3 12.6h5" stroke="#6C6CF5" stroke-width="1.5"/>'
++'<g class="pg">'
++'<path d="M12 6c0-1.4 1.1-2.5 2.5-2.5h6a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1h-6c-1.4 0-2.5 1.1-2.5 2.5z" '
++'fill="#fff" stroke="#0B2A72" stroke-width="1.7"/>'
++'<path d="M14.3 7.2h5M14.3 9.9h3.4M14.3 12.6h5" stroke="#6C6CF5" stroke-width="1.5"/>'
++'</g></g>'
+/* relógio por cima de tudo: o miolo branco é o que recorta o canto do livro */
++'<circle cx="18.2" cy="17.4" r="4.8" fill="#fff" stroke="#0B2A72" stroke-width="1.7"/>'
++'<path d="M18.2 12.6v1M23 17.4h-1M18.2 22.2v-1M13.4 17.4h1" stroke="#0B2A72" stroke-width="1.4"/>'
++'<path class="ph" d="M18.2 17.4v-2.4" stroke="#0B2A72" stroke-width="1.6"/>'
++'<path class="pm" d="M18.2 17.4h3.1" stroke="#0B2A72" stroke-width="1.5"/></svg>';
+
+/* Correção da hora, no popover da pílula. Existe porque acontece de lançar a entrada muito depois
+   do aluno ter chegado — aula das 7h lançada às 8h42. A janela diz quantas aulas o bloco espera,
+   deixa reescrever a hora e grava no OK. Mesma máscara do resto do app: não se digita 99:99. */
+function lcPopHora(ev,al,c,card,b,est,p,ok){
+ev.stopPropagation();lcFecharMenuRev();
+var quantas=p.previstas||1;
+var m=document.createElement('div');m.className='lc-menu lc-pop-hora';m.id='lc-menu-rev';
+m.innerHTML='<div class="tit">'+(quantas>1?quantas+' aulas esperadas':'1 aula esperada')+'</div>'
++'<label class="lin">Modificar entrada<input type="text" inputmode="numeric" maxlength="5" value="'+escBloco(p.entrada||'')+'"></label>'
++(est==='feita'?'<label class="lin">Modificar saída<input type="text" inputmode="numeric" maxlength="5" value="'+escBloco(p.saida||'')+'"></label>':'')
++'<div class="rod"><span class="av"></span><button type="button" class="ok">OK</button></div>';
+document.body.appendChild(m);
+var r=ev.currentTarget.getBoundingClientRect();
+m.style.left=Math.max(8,Math.min(r.left-6,innerWidth-m.offsetWidth-10))+'px';
+m.style.top=(r.bottom+6+m.offsetHeight>innerHeight?Math.max(8,r.top-m.offsetHeight-6):r.bottom+6)+'px';
+LC_MENU_REV=m;
+var ins=m.querySelectorAll('input');
+ins.forEach(function(inp){
+inp.onclick=function(e){e.stopPropagation()};
+inp.oninput=function(){                       // mesma máscara do lcEditarHora
+var d=inp.value.replace(/\D/g,'').slice(0,4);
+if(d.length===1&&+d>2)d='0'+d;
+if(d.length>=2&&+d.slice(0,2)>23)d='23'+d.slice(2);
+if(d.length>=3&&+d[2]>5)d=d.slice(0,2)+'5'+d.slice(3);
+if(d.length>=4&&+d.slice(2,4)>59)d=d.slice(0,2)+'59';
+inp.value=d.length>=3?d.slice(0,2)+':'+d.slice(2):d};
+inp.onkeydown=function(e){if(e.key==='Enter'){e.preventDefault();m.querySelector('.ok').click()}};
+});
+ins[0].focus();ins[0].select();
+m.onclick=function(e){e.stopPropagation()};
+m.querySelector('.ok').onclick=function(){
+var av=m.querySelector('.av');
+var ent=lcHoraOk(ins[0].value);
+if(!ent){av.textContent='Hora inválida — use HH:MM.';return}
+var sai=ins[1]?lcHoraOk(ins[1].value):null;
+if(ins[1]&&!sai){av.textContent='Saída inválida — use HH:MM.';return}
+if(sai&&sai<ent){av.textContent='A saída não pode ser antes da entrada.';return}
+if(c.hoje&&ent>lcAgora()){av.textContent='São '+lcAgora()+' agora — '+ent+' não chegou.';return}
+lcFecharMenuRev();
+/* grava a entrada e, se for o caso, a saída — em sequência, porque são duas gravações */
+if(ent===p.entrada&&(!sai||sai===p.saida)){ok();return}   // nada mudou
+lcPonto(al,c,'entrada',false,card,function(n){
+if(!sai||sai===n.saida){ok(n);return}
+lcPonto(al,c,'saida',false,card,function(n2){ok(n2)},true,sai);
+},true,ent);
+};
+}
+
+/* o marcador do estado em que o aluno está agora. Todo marcador (menos não-aula) carrega o ⌄ que
+   abre as reversões — desfazer nunca é um clique solto, sempre passa por confirmação nomeada. */
+function lcMarcadorEstado(al,c,card,b,p,est,ok){
+var m=document.createElement('div');m.className='lc-mc '+est;
+var topo='',baixo='';
+/* seta CHEIA: o caractere ⌄ era desenhado como a letra v pela fonte do sistema */
+var SETA='<svg viewBox="0 0 10 10" aria-hidden="true"><path d="M1.2 3.4h7.6L5 7.8z"/></svg>';
+if(est==='avir'){
+/* cartão do esperado: existe para a SALA poder lançar falta sem depender da recepção */
+m.innerHTML='<span class="cl"><b>esperado</b><small>'+escBloco(b.hora)+'</small></span>';
+var f=document.createElement('button');f.type='button';f.className='lc-mc-falta';f.textContent='✕';
+f.title='Marcar falta de '+al.nome;f.setAttribute('aria-label','Marcar falta de '+al.nome);
+f.onclick=function(ev){ev.stopPropagation();lcGravarStatus(al,c,'F',card,function(n){ok(n)})};
+m.appendChild(f);return m;
+}
+if(est==='naoaula'){m.innerHTML='<span class="cl"><b>não aula</b><small>feriado ou férias</small></span>';
+var l=document.createElement('button');l.type='button';l.className='lc-mc-falta';l.textContent='✕';
+l.title='Limpar o "não aula" deste aluno';
+l.onclick=function(ev){ev.stopPropagation();lcGravarStatus(al,c,null,card,function(n){ok(n)})};
+m.appendChild(l);return m}
+if(est==='recep'){topo='Chegou';baixo='aguardando sala'}
+/* "em aula" e "feita" trocam a legenda por uma PÍLULA clicável: o texto "2 lições previstas" não
+   cabia na coluna e era cortado, e o que se precisa ali não é ler — é poder corrigir a hora que
+   foi lançada errada. O ícone junta relógio e engrenagem: hora + ajuste. */
+if(est==='aula'){topo=escBloco(p.entrada);baixo=null}
+if(est==='feita'){
+var parcial=p.previstas>1&&p.ordinais&&p.ordinais.length&&p.ordinais.length<p.previstas;
+/* travessão sem espaços: a linha da hora é a mais larga do cartão e assim ela cabe inteira */
+topo=escBloco(p.entrada+'–'+p.saida);
+/* o P¹ vai na SEGUNDA linha, não junto da hora: somado ao horário ele estourava a coluna e o
+   fim do texto era cortado — justo no caso da lição parcial, que é o que se quer enxergar */
+/* Só "1h04", ou "P¹ 1h04" quando parcial. Dentro da pílula não cabe mais que isso, e "de aula"
+   não informa nada que a coluna já não diga. O detalhe completo fica no title do cartão. */
+baixo=(parcial?'<span class="lc-mc-sup">P'+p.ordinais.map(function(o){return '¹²³'[o-1]||''}).join('')+'</span> ':'')
+  +(p.minutos!=null?escBloco(fmtDur(p.minutos)):'—');
+if(parcial) m.title=al.nome+' — cumpriu '+p.ordinais.length+' de '+p.previstas+' lições ('
+  +p.ordinais.map(function(o){return o+'ª'}).join(' e ')+')';
+}
+if(est==='falta'){topo='falta';baixo='não veio'}
+/* topo e baixo já vêm escapados onde carregam dado do banco — aqui não se escapa de novo, senão
+   o P¹ da lição parcial sairia como texto em vez de marcador */
+m.innerHTML='<span class="cl"><b>'+topo+'</b>'+(baixo!==null?'<small>'+baixo+'</small>':'')+'</span>';
+
+/* Pílula de ajuste, colada sob a hora: substitui a legenda que não cabia. No estado "feita" ela
+   abraça o texto (P¹ · 1h04) em vez de disputar espaço com ele. */
+if(est==='aula'||est==='feita'){
+var pil=document.createElement('button');pil.type='button';pil.className='lc-pil';
+pil.innerHTML=LC_IC_AJUSTE+(baixo!==null?'<span>'+baixo+'</span>':'');
+var quantas=(p.previstas||1);
+pil.title=quantas>1?quantas+' aulas esperadas neste bloco — clique para corrigir a hora'
+                   :'1 aula esperada — clique para corrigir a hora';
+pil.onclick=function(ev){lcPopHora(ev,al,c,card,b,est,p,ok)};
+var cl=m.querySelector('.cl');
+if(baixo!==null){var s=cl.querySelector('small');if(s)s.remove()}   // o texto passa para dentro da pílula
+cl.className+=' com-pil';   // manda a hora para o topo e a pílula para o pé do cartão
+cl.appendChild(pil);
+}
+/* livro aberto com a página virando: diz "a aula está correndo" sem gastar uma linha de texto */
+if(est==='aula'){
+var cr=document.createElement('span');cr.className='lc-cron';cr.innerHTML=LC_IC_LIVRO;
+cr.setAttribute('aria-hidden','true');m.appendChild(cr);
+}
+var r=document.createElement('button');r.type='button';r.className='lc-mc-rev';r.innerHTML=SETA;
+r.title='Desfazer';r.setAttribute('aria-label','Desfazer lançamento de '+al.nome);
+r.onclick=function(ev){lcMenuReverter(ev,al,c,card,b,est,ok)};
+m.appendChild(r);return m;
+}
+/* botão de avanço, no slot da PRÓXIMA etapa. De "a vir" ele pula a coluna da recepção e vai
+   direto para Em aula — a coluna 2 só existe quando a recepção lançou antes. */
+function lcBotaoAvanco(al,c,card,b,p,est,ok){
+var bt=document.createElement('button');bt.type='button';
+/* `entrada` marca o único caso em que a corda salta uma coluna e só aparece no hover — ver
+   .lc-slot:has(>.lc-acao.entrada) no CSS */
+if(est==='avir'){bt.className='lc-acao entrada';bt.textContent='Entrada';
+bt.title='Registrar a entrada de '+al.nome+' na sala (a recepção não lançou nada)'}
+/* O par log-in / log-out do Lucide (ISC, já vendorizado em resources/vendor/lucide-icons.js):
+   a MESMA porta, a seta entrando num e saindo no outro. É literalmente o que os dois botões
+   fazem, e dispensa ler a palavra quando se conhece a tela. A animação é CSS, no hover — ver
+   .lc-acao .lc-ic. */
+if(est==='recep'){bt.className='lc-acao forte pulsa';
+bt.innerHTML='<span class="lc-ic">'+icon('log-in',13)+'</span>Confirmar';
+bt.title='A recepção marcou presença — confirme que ele entrou na sala'}
+if(est==='aula'){bt.className='lc-acao sai';
+bt.innerHTML='<span class="lc-ic">'+icon('log-out',13)+'</span>Saída';
+bt.title='Encerrar a aula de '+al.nome}
+bt.onclick=function(){
+if(est==='aula') lcPonto(al,c,'saida',false,card,function(n){ok(n)});
+else lcPonto(al,c,'entrada',false,card,function(n){ok(n)});
+};
+return bt;
+}
+/* menu das reversões válidas para o estado atual */
+function lcMenuReverter(ev,al,c,card,b,est,ok){
+ev.stopPropagation();lcFecharMenuRev();
+var ops=LC_REV[est];if(!ops)return;
+var m=document.createElement('div');m.className='lc-menu';m.id='lc-menu-rev';
+m.innerHTML='<div class="tit">Desfazer — '+escBloco(al.nome.split(' ')[0])+' está em “'+LC_EST_ROT[est]+'”</div>';
+ops.forEach(function(o,i){
+if(i)m.appendChild(Object.assign(document.createElement('div'),{className:'sep'}));
+var bt=document.createElement('button');bt.type='button';
+bt.innerHTML='<b>'+escBloco(o.t)+'</b><small>'+escBloco(o.s)+'</small>';
+bt.onclick=function(){lcReverter(al,c,card,o,est,ok)};
+m.appendChild(bt)});
+document.body.appendChild(m);
+var r=ev.currentTarget.getBoundingClientRect();
+m.style.left=Math.max(8,Math.min(r.left,innerWidth-m.offsetWidth-10))+'px';
+m.style.top=(r.bottom+6+m.offsetHeight>innerHeight?Math.max(8,r.top-m.offsetHeight-6):r.bottom+6)+'px';
+LC_MENU_REV=m;m.querySelector('button').focus();
+}
+var LC_MENU_REV=null;
+function lcFecharMenuRev(){if(LC_MENU_REV){LC_MENU_REV.remove();LC_MENU_REV=null}}
+document.addEventListener('click',function(){lcFecharMenuRev()});
+document.addEventListener('keydown',function(e){if(e.key==='Escape')lcFecharMenuRev()});
+/* executa a reversão escolhida. Cada destino é gravado com as funções que já existem: limpar o
+   ponto é registrarPonto(limpar), mudar o status é lancarPresenca. */
+function lcReverter(al,c,card,o,est,ok){
+var qdo=c.curto?c.curto+' '+c.numero:c.data;
+if(!confirm('Desfazer: '+o.t+'\n\n'+al.nome+' — '+qdo+'\n\nIsto apaga '+o.perde+'.\n\nConfirmar?')){lcFecharMenuRev();return}
+lcFecharMenuRev();
+if(o.p==='avir')      lcGravarStatus(al,c,null,card,function(n){ok(n)});
+else if(o.p==='falta')lcGravarStatus(al,c,'F',card,function(n){ok(n)});
+/* limpa a HORA e mantém o P: o aluno chegou à escola, só não entrou na sala. O `manterP` é o que
+   faz o cartão parar na coluna Recepção — sem ele o servidor apagava a linha e ele caía em "A vir" */
+else if(o.p==='recep')lcPonto(al,c,'entrada',true,card,function(n){ok(n)},false,null,true);
+else if(o.p==='aula'){
+/* "Em aula" tem DUAS origens e cada uma desfaz uma coisa diferente:
+     vindo de Feita  → a saída é que foi engano: limpa só ela, a entrada continua valendo
+     vindo de Falta  → uma gravação SÓ. `registrarPonto` já faz `DO UPDATE SET status='P', entrada`,
+       então marcar o P antes era redundante — e era o que produzia o estilingue: a primeira
+       gravação desenhava o cartão em Recepção (P sem hora) e a segunda o puxava para Em aula,
+       duas animações de entrada em colunas diferentes em poucos milésimos. */
+if(est==='feita') lcPonto(al,c,'saida',true,card,function(n){ok(n)});
+else lcPonto(al,c,'entrada',false,card,function(n){ok(n)});
+}
+}
+
 /* crosshair da tabela: destaca a linha do aluno e a coluna do dia sob o ponteiro.
    Índices montados uma vez e cada eixo com estado próprio — andar na horizontal só repinta a
-   coluna, andar na vertical só repinta a linha (mesmo padrão da grade de horários do aluno). */
+   coluna, andar na vertical só repinta a linha (mesmo padrão da grade de horários do aluno).
+   No modo sala não há mais colunas de dia no corpo: sobra o realce da linha, que é o que importa
+   quando se procura um aluno específico na lista. */
 function lcCrosshair(tb){
 var porCol={};
 tb.querySelectorAll('td[data-col],thead th[data-col]').forEach(function(el){
@@ -1933,8 +2797,11 @@ return h?(h+'h'+(m?' '+m+'min':'')):(m+'min')}
 /* `hora` só vem preenchida na correção manual do ponto; sem ela o servidor carimba o relógio dele.
    Ela é repassada nas duas recaídas abaixo (confirmação e lições), senão a hora corrigida se perderia
    e o registro voltaria para o horário do relógio. */
-function lcPonto(al,c,tipo,desfazer,card,ok,confirmado,hora){
-run('registrarPonto',[{idMatricula:al.id,livro:al.livro,data:c.data,tipo:tipo,limpar:desfazer,confirmado:!!confirmado,hora:hora||null}],function(r){
+/* `manterP` só vale junto com `desfazer`: apaga a hora de entrada mas deixa a presença de pé, que
+   é o que devolve o cartão à coluna Recepção em vez de "A vir" (ver registrarPonto no main.ts) */
+function lcPonto(al,c,tipo,desfazer,card,ok,confirmado,hora,manterP){
+run('registrarPonto',[{idMatricula:al.id,livro:al.livro,data:c.data,tipo:tipo,limpar:desfazer,
+  manterPresenca:!!manterP,confirmado:!!confirmado,hora:hora||null}],function(r){
 /* saída poucos minutos depois da entrada quase sempre é clique errado — confirma antes de gravar */
 if(r.precisaConfirmar){
 if(confirm(al.nome+'\n\n'+r.aviso+'\n\nUma aula dura cerca de 1 hora. Registrar a saída às '+r.saida+' mesmo assim?'))
@@ -1994,6 +2861,65 @@ var b=LC.blocos.filter(function(x){return x.alunos.indexOf(al)>=0})[0];
 if(b&&card)lcResumo(card,b);
 })}
 /* coluna inteira como "não aula" (feriado/férias): clicar no número do dia no cabeçalho */
+/* ===== "Não aula": janelinha com os seis dias da semana =====
+   O botão vive no cabeçalho do bloco, longe das colunas de dia — então ele não pode adivinhar o
+   dia sozinho. A janela abre com o dia ABERTO já marcado (o caso comum é feriado hoje: abre e
+   confirma) e com os dias que JÁ são não aula também marcados, para que confirmar não desfaça
+   nada por descuido. Desmarcar um desses limpa o dia: a caixinha é o estado desejado da semana,
+   não uma fila de comandos.
+   Segunda a sábado, que é a semana que a grade mostra. */
+function lcNaoAulaPainel(ev,b,card){
+ev.stopPropagation();lcFecharMenuRev();
+var m=document.createElement('div');m.className='lc-menu lc-pop-dias';m.id='lc-menu-rev';
+var linhas=LC.semana.map(function(c){
+/* "já é não aula" = TODOS os alunos do bloco com N naquele dia. Parcial não conta: seria mentira
+   dizer que o dia está marcado quando metade da turma tem presença lançada. */
+var jaN=b.alunos.length>0&&b.alunos.every(function(a){var x=a.pontos[c.data];return x&&x.status==='N'});
+var aberto=c.data===LC.data;
+return {c:c,jaN:jaN,marcar:jaN||aberto};
+});
+m.innerHTML='<div class="tit">Marcar como não aula — '+escBloco(b.hora)+', '+b.alunos.length+' aluno(s)</div>'
++linhas.map(function(l,i){
+return '<label class="dia'+(l.jaN?' jaN':'')+(l.c.data===LC.data?' hoje':'')+'">'
++'<input type="checkbox" data-i="'+i+'"'+(l.marcar?' checked':'')+'>'
++escBloco(l.c.dia)+'<span class="num">'+(l.jaN?'já é não aula':'dia '+l.c.numero)+'</span></label>'}).join('')
++'<div class="rod"><button type="button" class="ok">Aplicar</button></div>';
+document.body.appendChild(m);
+var r=ev.currentTarget.getBoundingClientRect();
+m.style.left=Math.max(8,Math.min(r.right-m.offsetWidth,innerWidth-m.offsetWidth-10))+'px';
+m.style.top=(r.bottom+6+m.offsetHeight>innerHeight?Math.max(8,r.top-m.offsetHeight-6):r.bottom+6)+'px';
+LC_MENU_REV=m;
+m.onclick=function(e){e.stopPropagation()};
+m.querySelector('.ok').onclick=function(){
+var marcar=[],limpar=[];
+m.querySelectorAll('input[data-i]').forEach(function(inp){
+var l=linhas[+inp.dataset.i];
+if(inp.checked&&!l.jaN)      marcar.push(l.c);
+else if(!inp.checked&&l.jaN) limpar.push(l.c);
+});
+if(!marcar.length&&!limpar.length){lcFecharMenuRev();return}
+/* diz com todas as letras o que vai por cima: marcar N num dia que já tem presença lançada apaga
+   o lançamento daqueles alunos, e isso não pode acontecer em silêncio */
+var perde=0;
+marcar.forEach(function(c){b.alunos.forEach(function(a){
+var x=a.pontos[c.data];if(x&&x.status!=='N')perde++})});
+var txt=[];
+if(marcar.length)txt.push('Marcar como NÃO AULA: '+marcar.map(function(c){return c.dia+' '+c.numero}).join(', '));
+if(limpar.length)txt.push('Desmarcar (volta a ser dia normal): '+limpar.map(function(c){return c.dia+' '+c.numero}).join(', '));
+if(perde)txt.push('\nAtenção: '+perde+' lançamento(s) já feitos nesses dias serão apagados.');
+if(!confirm(txt.join('\n')+'\n\nConfirmar?'))return;
+lcFecharMenuRev();
+var itens=[];
+marcar.forEach(function(c){b.alunos.forEach(function(a){
+itens.push({idMatricula:a.id,livro:a.livro,data:c.data,status:'N'})})});
+limpar.forEach(function(c){b.alunos.forEach(function(a){
+itens.push({idMatricula:a.id,livro:a.livro,data:c.data,status:null})})});
+run('lancarPresencaLote',[{itens:itens}],function(){
+msg((marcar.length?marcar.length+' dia(s) marcados como não aula. ':'')
+   +(limpar.length?limpar.length+' dia(s) desmarcados.':''));
+lcCarregar()});
+};
+}
 function lcColunaNaoAula(b,c,card){
 var todosN=b.alunos.every(function(a){var x=a.pontos[c.data];return x&&x.status==='N'});
 var novo=todosN?null:'N';

@@ -68,10 +68,15 @@ function bandaPagina(titulos, mesNome) {
 
 /* linha vazia com as células REAIS (não colspan) — as 2 linhas extras de cada bloco precisam
    das bordas verticais para preencher aluno à mão na recepção. */
-function linhaVaziaFicha() {
-  var h = '<tr>';
-  for (var k = 0; k < COLUNAS_FICHA + 5; k++) h += '<td></td>'; // A B C D + 12 datas + Q
-  return h + '</tr>';
+/* As 2 linhas de preenchimento à mão também entram na faixa hachurada das colunas fora do grupo:
+   a coluna precisa se ler como UMA peça só, do cabeçalho ao pé do bloco. Sem isto, a hachura
+   parava no último aluno e as linhas horizontais voltavam a aparecer nas duas últimas. */
+function linhaVaziaFicha(cols) {
+  cols = cols || [];
+  var h = '<tr><td></td><td></td><td></td><td></td>';           // A B C D
+  for (var k = 0; k < COLUNAS_FICHA; k++)
+    h += '<td' + (cols[k] && cols[k].foraDoGrupo ? ' class="fora"' : '') + '></td>';
+  return h + '<td></td></tr>';                                  // Q
 }
 
 /* UMA <table class="ficha"> completa por bloco de hora. compacto=true: sem as 2 linhas extras
@@ -100,11 +105,18 @@ function blocoHTML(b, opts) {
     for (var k4 = 0; k4 < COLUNAS_FICHA; k4++) {  // marca já lançada no app (reimpressão não perde o que foi preenchido)
       var p = (cols[k4] && a.presencas) ? a.presencas[cols[k4].data] : null;
       var st = p ? (p.status || p) : null;
-      h += '<td class="marca' + (st ? ' m-' + st : '') + (p && p.parcial ? ' parcial' : '') + '">' + marcaImpressa(p) + '</td>';
+      /* Coluna de dia que NÃO é o desta ficha (reposição/anteposição): a célula VAZIA sai hachurada
+         e sem linhas horizontais, para a coluna se ler como uma faixa desativada. Quem tem marca
+         volta a ser célula normal — é justamente o aluno que veio naquele dia, e ele precisa saltar
+         da faixa. Sem isso, um branco numa coluna de terça na ficha de Seg/Qua parecia lançamento
+         esquecido, quando na verdade aquele dia não é daquela ficha. */
+      var fora = cols[k4] && cols[k4].foraDoGrupo && !st;
+      h += '<td class="marca' + (st ? ' m-' + st : '') + (p && p.parcial ? ' parcial' : '')
+        + (fora ? ' fora' : '') + '">' + marcaImpressa(p) + '</td>';
     }
     h += '<td>' + escBloco((a.profs || []).join(', ') || (b.profs || []).join(', ')) + '</td></tr>';
   });
-  if (!opts.compacto) h += linhaVaziaFicha() + linhaVaziaFicha();
+  if (!opts.compacto) h += linhaVaziaFicha(cols) + linhaVaziaFicha(cols);
   return h + '</tbody></table>';
 }
 

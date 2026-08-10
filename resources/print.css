@@ -54,14 +54,29 @@ tbody.bloco td.marca sup { font-size: 6pt; font-weight: bold; vertical-align: su
    Solução: o corpo da coluna vira uma faixa hachurada e SEM linhas horizontais, lida como uma
    célula só, desativada. Quem tem marca continua célula normal e salta da faixa.
    Como `border-collapse` é collapse, zerar em cima E embaixo é obrigatório: com um lado só, a
-   borda da célula vizinha vence a disputa e a linha reaparece. */
-tbody.bloco td.fora {
-  border-top: 0; border-bottom: 0;
-  background-image: repeating-linear-gradient(45deg,
-    #8f8f8f 0, #8f8f8f 0.5px, transparent 0.5px, transparent 3.5px);
+   borda da célula vizinha vence a disputa e a linha reaparece.
+
+   A hachura é pintada no <col>, NÃO na célula. Fundo de <col> é uma área de pintura única para a
+   coluna inteira, então as diagonais correm sem emenda de cima a baixo. Pintada por célula, cada
+   <td> reiniciava o padrão de 45° na própria origem e as linhas não se encontravam entre as
+   fileiras: a faixa saía quebrada em fragmentos, no papel e na tela.
+   Linha de 1px (não 0,5px) a cada 7px: meio pixel cai em fração de pixel de tela — pior ainda no
+   Windows a 125%, onde 0,5px vira 0,625 — e o traço some ou dobra conforme o zoom. 1px é o menor
+   traço que o navegador desenha igual em qualquer escala. */
+col.cE.fora {
+  background-image: repeating-linear-gradient(45deg, #9aa0a6 0 1px, transparent 1px 7px);
 }
+/* célula VAZIA na faixa: some com as linhas horizontais para a coluna se ler como uma peça só.
+   Precisa ser transparente — qualquer fundo aqui taparia a hachura que vem do <col>. */
+tbody.bloco td.fora { border-top: 0; border-bottom: 0; background-color: transparent; }
+/* célula COM marca na faixa: fundo opaco para saltar da hachura, e bordas de volta */
+tbody.bloco td.fora-marca { background-color: #fff; }
 /* o pé do bloco precisa fechar: sem isto o contorno da tabela abria um vão na coluna hachurada */
 tbody.bloco tr:last-child td.fora { border-bottom: 1px solid #000; }
+/* a hachura é imagem de fundo: sem isto o navegador a descarta na impressão a menos que
+   "Gráficos de plano de fundo" esteja ligado na caixa de diálogo. As faixas coloridas do
+   template já dependiam disso; aqui garantimos no CSS. */
+col.cE.fora, tbody.bloco td.fora-marca { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 .ficha-legenda { font-family: Calibri, Arial, sans-serif; font-size: 8pt; color: #333;
   padding: 4px 2px 0; border-top: 1px solid #999; margin-top: 2px; }
 .ficha-legenda sup { font-size: 6pt; font-weight: bold; }

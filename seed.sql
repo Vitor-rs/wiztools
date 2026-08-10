@@ -1,6 +1,7 @@
 /* seed.sql — dados reais exportados do Excel em 2026-07-14 (parte 1/2) */
 INSERT INTO situacoes VALUES ('Matriculado',1);
 INSERT INTO situacoes VALUES ('Rematriculado',1);
+INSERT INTO situacoes VALUES ('Retornado',1);
 INSERT INTO situacoes VALUES ('Cancelado',0);
 INSERT INTO situacoes VALUES ('Encerrado',0);
 INSERT INTO situacoes VALUES ('Trancado',0);

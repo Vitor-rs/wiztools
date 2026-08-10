@@ -58,6 +58,27 @@ body{margin:0;color:#202124;font-size:13px;display:flex;min-height:100vh;backgro
 #sidebar button.desta-maquina::after{content:"";display:inline-block;width:5px;height:5px;
   border-radius:50%;background:var(--azul);margin-left:6px;vertical-align:middle}
 #sidebar button:hover{background:var(--cz)}
+/* ===== seção recolhível do sidebar (estilo Notion) =====
+   O cabeçalho é um rótulo de contexto, não uma página: fonte menor, caixa alta e sem a borda
+   esquerda que marca aba selecionada — assim ninguém tenta clicar nele esperando abrir tela.
+   Os filhos recuam para o olho ler a hierarquia sem precisar de linha-guia. */
+.sb-grupo{display:flex;flex-direction:column}
+#sidebar .sb-cabeca{display:flex;align-items:center;gap:6px;padding:11px 16px 5px;
+  font-size:10.5px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.06em;
+  border-left:3px solid transparent}
+#sidebar .sb-cabeca:hover{background:transparent;color:var(--marca)}
+.sb-seta{width:0;height:0;border-left:5px solid currentColor;border-top:4px solid transparent;
+  border-bottom:4px solid transparent;transition:transform .16s ease-out;transform-origin:30% 50%}
+.sb-grupo.aberto .sb-seta{transform:rotate(90deg)}
+/* grid-template-rows 1fr→0fr: com max-height a curva é mentira, porque o valor é sempre maior
+   que o conteúdo e a animação corre e para seca (mesma razão da sanfona dos blocos) */
+.sb-filhos{display:grid;grid-template-rows:0fr;transition:grid-template-rows .18s ease-out}
+.sb-grupo.aberto .sb-filhos{grid-template-rows:1fr}
+/* o invólucro interno é obrigatório: com os dois botões soltos, `grid-template-rows:0fr` só
+   colapsaria a PRIMEIRA linha e o segundo botão continuaria visível */
+.sb-filhos-in{overflow:hidden;min-height:0}
+#sidebar .sb-filhos button{padding-left:30px;font-size:12.5px}
+@media (prefers-reduced-motion:reduce){.sb-filhos,.sb-seta{transition:none}}
 #conteudo{flex:1;min-width:0;padding-bottom:40px}
 label{display:block;margin:8px 0 2px;font-weight:600;font-size:11px;color:#555;text-transform:uppercase;letter-spacing:.02em}
 input,select{width:100%;padding:7px;border:1px solid #d5d8dc;border-radius:8px;font-size:13px}
@@ -110,7 +131,11 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
 .pill.off{background:#e0e0e0;color:#555}.pill.add{background:#fff;border:1px dashed var(--v);color:var(--v)}
 
 .tab{display:none;padding:14px 18px}.tab.on{display:block}
-.tab.on.duasCols{display:flex;gap:22px;align-items:flex-start}
+/* duas colunas: a regra valia em `.tab.on.duasCols`, quando a própria aba era o contêiner flex.
+   Com o cabeçalho padrão, a aba passou a ter o título em cima e as colunas num invólucro DENTRO
+   dela — por isso a classe agora vale sozinha também. A variante `.tab.on` fica para as telas que
+   ainda não foram convertidas. */
+.tab.on.duasCols,.tab.on .duasCols{display:flex;gap:22px;align-items:flex-start}
 .form-col{width:430px;flex-shrink:0;min-width:0}
 .preview-col{flex:1;min-width:300px;position:sticky;top:14px}
 .preview-col h3{margin-top:0}
@@ -119,10 +144,103 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
 #impressao-controles{margin-bottom:12px}
 #folha-impressao{overflow:auto}
 
-.aluno-cadastro{width:360px;flex-shrink:0;position:sticky;top:14px}
+/* ===== página de Alunos =====
+   A tela era duas colunas com TUDO empilhado à esquerda: busca, cadastro, nova matrícula e três
+   sanfonas de histórico numa faixa de 360px. Cada coisa nova a deixava mais apertada.
+   Agora são duas abas: "Aluno" (cadastro + os três registros) e "Matrículas" (os blocos por
+   livro). O cadastro virou uma FILEIRA horizontal, que é a forma natural de um formulário curto
+   ocupando a largura da página, e os históricos ganharam a largura toda. */
+/* a busca mora acima das abas, sozinha: é o gesto que vem antes de escolher aba nenhuma.
+   ~18px de respiro até o trilho das abas — perto o bastante para se ler como a mesma tela, longe
+   o bastante para não parecer parte da aba selecionada. */
+.al-busca-topo{margin:0 0 18px;max-width:360px}
+.al-busca-topo label{margin:0 0 3px}
+.al-busca-topo input{padding:9px 11px}
+
+.al-faixa{display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap}
+.al-campo{display:flex;flex-direction:column;min-width:0}
+.al-campo label{margin:0 0 3px}
+.al-campo-nome{flex:1 1 280px;min-width:220px}
+/* o ID é um número de 4 dígitos: largura de 4 dígitos, não a do nome completo */
+.al-campo-id{width:120px}
+.al-campo-id input{text-align:center;font-variant-numeric:tabular-nums;letter-spacing:.04em}
+.al-campo-sit{width:170px}
+/* nova matrícula: rótulo, campo e o ⓘ numa fileira só */
+.nm-linha{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.nm-linha label{margin:0;white-space:nowrap}
+.nm-linha .sug{width:300px}
+.nm-info{appearance:none;width:20px;height:20px;flex-shrink:0;border-radius:50%;cursor:pointer;
+  border:1px solid var(--azul-borda);background:var(--azul-cl);color:var(--azul-esc);
+  font:700 12px/1 Georgia,serif;font-style:italic;padding:0}
+.nm-info:hover{background:var(--azul);color:#fff;border-color:var(--azul)}
+.al-campo-status{width:auto;min-width:96px}
+.al-campo-status .badge{align-self:flex-start;margin-top:5px}
+.al-acoes{display:flex;gap:0;align-items:center;flex-wrap:wrap}
+.al-acoes .acao{margin:0 6px 0 0}
+/* `.al-sep-v` (divisória entre busca e cadastro) saiu: a busca deixou de dividir fileira com o
+   formulário — subiu para cima das abas, e a separação agora é de posição, não de traço. */
+.al-quem{font-size:12px;color:var(--tx3);font-weight:600}
+
+.al-historicos{display:grid;gap:16px;align-items:start;
+  grid-template-columns:repeat(auto-fit,minmax(290px,1fr))}
+/* a frequência é a mais alta das três (tem os KPIs em cima), então ganha o dobro quando cabe */
+.al-hist-larga{grid-column:span 2}
+@media (max-width:1100px){.al-hist-larga{grid-column:span 1}}
+.al-hist{background:#fff;border:1px solid var(--borda);border-radius:10px;padding:12px 14px 14px;
+  min-width:0}
+.al-hist h3{margin:0 0 8px;font-size:13px;color:var(--marca)}
+.al-hist h3 small{font-weight:400;color:var(--tx3);font-size:11px;margin-left:5px}
+.al-hist .freq-lista{max-height:300px}
+.al-hist .hist-linha:last-child{border-bottom:0}
+.al-hist-vazio{color:var(--tx3);font-size:12px;padding:6px 0}
+/* pílula do contrato no cabeçalho do cartão de matrícula: identifica o vínculo, e é clicável */
+.mat-contrato{font-size:11px;font-weight:700;font-variant-numeric:tabular-nums;cursor:pointer;
+  background:var(--marca-cl);color:var(--marca);border:1px solid #d5ddec;border-radius:9px;
+  padding:1px 8px;margin-left:8px;white-space:nowrap}
+.mat-contrato:hover{background:var(--azul-cl);color:var(--azul-esc);border-color:var(--azul-borda)}
+/* a nova matrícula escolhida joga o usuário direto na aba onde o cartão dela apareceu */
+.al-painel{min-width:0}
+
+/* `.aluno-cadastro` (a coluna estreita de 360px) saiu junto com o layout de duas colunas da
+   página de Alunos — o cadastro virou fileira horizontal. `.matriculas-col` continua em uso na
+   aba Professores. */
 .matriculas-col{flex:1;min-width:340px}
 .matriculas-vazio{color:var(--tx3);font-size:12px;padding:16px;text-align:center;border:1px dashed #ccc;border-radius:10px}
-.matricula-card{border:1px solid var(--borda);border-radius:12px;padding:12px 14px;margin-bottom:14px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+.matricula-card{border:1px solid var(--borda);border-radius:12px;margin-bottom:12px;background:#fff;
+  box-shadow:0 1px 3px rgba(0,0,0,.05);overflow:hidden}
+/* ===== cartão de matrícula como ACORDEON =====
+   Recolhido sobra só o cabeçalho: nome do livro e contrato. Com dois ou três livros a coluna
+   virava um paredão de formulários abertos. */
+.mat-cab{display:flex;align-items:center;gap:9px;padding:10px 13px;cursor:pointer;user-select:none}
+.mat-cab:hover{background:#FAFCFE}
+.matricula-card.aberto .mat-cab{border-bottom:1px solid var(--borda)}
+.mat-seta{width:0;height:0;flex-shrink:0;border-left:6px solid var(--tx3);border-top:5px solid transparent;
+  border-bottom:5px solid transparent;transition:transform .16s ease-out;transform-origin:35% 50%}
+.matricula-card.aberto .mat-seta{transform:rotate(90deg)}
+/* o nome do livro é o que identifica o cartão: realçado como uma pastilha azul */
+.mat-livro{font-size:14.5px;font-weight:700;color:var(--marca);background:var(--azul-cl);
+  border:1px solid var(--azul-borda);border-radius:8px;padding:3px 11px;line-height:1.25}
+.mat-acoes{margin-left:auto;display:flex;align-items:center;gap:4px}
+.mat-corpo{display:grid;grid-template-rows:0fr;transition:grid-template-rows .18s ease-out}
+.matricula-card.aberto .mat-corpo{grid-template-rows:1fr}
+/* invólucro obrigatório: com os filhos soltos, 0fr colapsaria só a primeira linha do grid */
+.mat-corpo-in{overflow:hidden;min-height:0;padding:0 14px}
+.matricula-card.aberto .mat-corpo-in{padding:12px 14px 14px}
+@media (prefers-reduced-motion:reduce){.mat-corpo,.mat-seta{transition:none}}
+/* corpo em duas colunas: formulário à esquerda, matriz de horários à direita */
+.mat-cols{display:grid;grid-template-columns:minmax(200px,260px) 1fr;gap:18px;align-items:start}
+@media (max-width:900px){.mat-cols{grid-template-columns:1fr}}
+.mat-esq{display:flex;flex-direction:column;min-width:0}
+.mat-esq label{margin:0 0 3px}
+.mat-esq>div{margin-bottom:9px}
+.mat-dir{min-width:0}
+/* ancorado em `.mat-esq` de propósito: `.mat-esq label{margin:0 0 3px}` tem especificidade maior
+   que `.mat-vip` sozinho e comia o respiro, deixando o VIP colado no rótulo de Professores */
+.mat-esq label.mat-vip{display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;
+  color:var(--tx2);text-transform:none;letter-spacing:0;margin:2px 0 14px}
+.mat-vip input{width:auto;margin:0}
+.mat-aplicar{margin-top:8px;align-self:flex-start}
+.mat-dir .mat-aplicar{margin-top:10px}
 .matricula-card .cabecalho{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
 .matricula-card h4{margin:0;color:var(--v);font-size:14px}
 .matricula-card .remover{background:none;border:0;color:var(--tx3);cursor:pointer;font-size:16px;padding:2px 6px;line-height:1}
@@ -155,23 +273,333 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
 .hist-linha{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #eee;font-size:12px}
 .hist-linha .remover{background:none;border:0;color:var(--tx3);cursor:pointer;font-size:14px;padding:0 4px}
 .hist-linha .remover:hover{color:var(--perigo)}
-.hist-add{display:flex;gap:5px;margin-top:8px;align-items:center}
+/* wrap + base flexível: a linha ganhou um segundo select (o livro da situação) e, na coluna
+   estreita do formulário, os quatro controles não cabem numa fileira só em telas menores. */
+.hist-add{display:flex;gap:5px;margin-top:0;align-items:center;flex-wrap:wrap}
+/* divisória entre o formulário de lançar (em cima) e a lista de registros (embaixo) */
+.hist-fio{border:0;border-top:1px solid #EDF0F3;margin:12px 0 8px}
 /* o select precisa caber "Rematriculado" inteiro; o campo de data tem largura própria, sem esticar */
-.hist-add select{flex:1;min-width:0}
+.hist-add select{flex:1 1 96px;min-width:0}
 .hist-add input[type=date]{width:120px;flex:none;padding:6px 7px}
 
 /* ===== situações: cada uma com sua cor =====
    Verde claro para matriculado e verde forte para rematriculado (o rematriculado é o aluno que
    renovou — vale mais). Encerrado terminou o livro: roxo→verde, conquista. Trancado é pausa que
-   volta: laranja de atenção. Evadido parou e não voltou: vermelho. Cancelado: grafite neutro. */
+   volta: laranja de atenção. Evadido parou e não voltou: vermelho. Cancelado: grafite neutro.
+   Retornado é a volta do trancamento: o mesmo laranja, cheio (ver abaixo). */
 .sit{display:inline-block;border-radius:10px;padding:1px 9px;font-size:11px;font-weight:700;line-height:17px;
   border:1px solid transparent}
 .sit-matriculado{background:#e6f5ea;color:#1e7e34;border-color:#bfe0c8}
 .sit-rematriculado{background:#1e7e34;color:#fff;border-color:#186429}
 .sit-encerrado{background:linear-gradient(100deg,#6b4fa3,#26754a);color:#fff;border-color:#5a4390} /* verde fechado: no tom claro o branco caía para 4.0 de contraste */
 .sit-trancado{background:#fff4e5;color:#8a5a00;border-color:#f0d9b5}
+/* Retornado é a contraparte do Trancado: mesmo âmbar, versão CHEIA — a mesma relação que
+   rematriculado tem com matriculado (claro = estado, forte = o estado resolvido). Assim o par
+   pausa/volta se lê junto sem precisar de cor nova na paleta. #8a5a00 com branco mede 5,9:1. */
+.sit-retornado{background:#8a5a00;color:#fff;border-color:#6d4700}
 .sit-evadido{background:#fdecec;color:#c5221f;border-color:#f0cfcf}
 .sit-cancelado{background:#eceef0;color:#3c4043;border-color:#d4d7db}
+/* livro a que a situação se refere: pílula discreta, porque o protagonista da linha é a situação */
+.sit-livro{display:inline-block;border-radius:9px;padding:1px 7px;font-size:10.5px;font-weight:600;
+  background:var(--marca-cl);color:var(--marca);border:1px solid #d5ddec;margin-left:5px}
+.sit-livro.geral{background:transparent;color:var(--tx3);border-style:dashed;border-color:var(--borda)}
+
+/* ===== ESTOQUE =====
+   A grade é o caderno de papel da escola: linhas = itens na ordem pedagógica, colunas = eventos
+   datados. Reaproveita a gramática visual do lançador (coluna grudada, faixas de categoria,
+   cabeçalho com bolha de data), para as duas telas se lerem como o mesmo sistema. */
+:root{
+  --es-contagem:#1C7099; --es-contagem-cl:#E4F2FB;
+  --es-pedido:#B26A00;   --es-pedido-cl:#FDF2E0;
+  --es-remessa:#1E7E34;  --es-remessa-cl:#E4F4E8;
+  --es-saida:#B3261E;    --es-saida-cl:#FDECEC;
+}
+/* as abas do estoque passaram a usar .pg-abas/.pg-aba, o componente padrão do cabeçalho */
+.es-ferramentas{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:12px 0}
+.es-ferramentas .acao{margin:0}
+.es-busca{border:1px solid var(--borda);border-radius:7px;padding:7px 10px;font:inherit;width:210px}
+.es-busca:focus{outline:2px solid var(--azul);outline-offset:-1px;border-color:var(--azul)}
+.es-moldura{background:#fff;border:1px solid var(--borda);border-radius:10px;overflow:auto;
+  max-height:calc(100vh - 300px)}
+.es-tabela{border-collapse:separate;border-spacing:0;width:100%;font-size:13px}
+.es-tabela th,.es-tabela td{padding:0;text-align:left}
+.es-tabela thead th{position:sticky;top:0;z-index:3;background:#fff;border-bottom:1px solid var(--borda);
+  padding:7px 8px;font-size:11px;font-weight:700;color:var(--tx3);text-transform:uppercase;
+  letter-spacing:.4px;white-space:nowrap;vertical-align:bottom}
+/* a engrenagem mora dentro do <th>, encostada à direita e centrada na vertical — daí o relative
+   aqui e o absolute nela. A largura subiu de 76 para 94px para o botão não espremer a bolha. */
+.es-tabela thead th.ev{text-align:center;min-width:94px;border-left:1px solid #EEF1F4;position:relative}
+.es-eng{position:absolute;right:3px;top:50%;transform:translateY(-50%);
+  appearance:none;border:1px solid transparent;background:none;color:#B6BDC6;cursor:pointer;
+  border-radius:20px;padding:3px 4px;line-height:0;display:flex;align-items:center}
+.es-tabela thead th.ev:hover .es-eng{color:var(--tx3);border-color:var(--borda);background:#fff}
+.es-eng:hover{color:var(--marca)!important;border-color:var(--azul-borda)!important;background:var(--azul-cl)!important}
+.es-eng:focus-visible{outline:2px solid var(--azul);outline-offset:1px}
+/* coluna destravada: a engrenagem fica acesa e o cabeçalho ganha um pé azul, para não haver
+   dúvida de QUAL coluna está aceitando digitação */
+.es-eng.destravada{color:var(--azul-esc);border-color:var(--azul-borda);background:var(--azul-cl)}
+.es-tabela thead th.ev.destravada{box-shadow:inset 0 -2px 0 var(--azul)}
+.es-qt-fixa{display:block;padding:7px 2px;font-weight:600;font-variant-numeric:tabular-nums}
+.es-tabela td.qt.zero .es-qt-fixa{color:#B6BDC6}
+.es-tabela td.qt.tipo-pedido .es-qt-fixa{color:var(--es-pedido)}
+.es-tabela td.qt.tipo-remessa .es-qt-fixa{color:var(--es-remessa)}
+
+/* popover da coluna */
+.es-menu{position:fixed;z-index:300;background:#fff;border:1px solid var(--borda);border-radius:10px;
+  box-shadow:0 8px 26px rgba(7,29,73,.18);padding:10px 12px 12px;width:236px;font-size:12.5px}
+.es-menu-tit{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;
+  color:var(--tx3);margin-bottom:8px}
+.es-menu-tog{display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;color:var(--tx2);
+  margin:0 0 4px;text-transform:none;letter-spacing:0;font-size:12.5px}
+.es-menu-tog input{width:auto;margin:0}
+.es-menu-dica{font-size:11px;color:var(--tx3);line-height:1.45;margin-bottom:10px}
+.es-menu-data{display:flex;align-items:center;gap:8px;margin:0 0 12px;text-transform:none;
+  letter-spacing:0;font-size:12px;color:var(--tx2);font-weight:600}
+.es-menu-data input{flex:1;padding:5px 7px;font-size:12px}
+.es-menu-data input:disabled{background:#F4F6F8;color:var(--tx3)}
+.es-menu-x{appearance:none;width:100%;border:1px solid var(--borda);background:#fff;font:inherit;
+  font-size:12px;font-weight:600;color:var(--tx2);border-radius:7px;padding:7px 10px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:6px}
+.es-menu-x:hover{border-color:var(--perigo);color:var(--perigo);background:#FDECEC}
+.es-ev-tipo{display:block;font-size:9.5px;letter-spacing:.5px;margin-bottom:3px}
+.es-ev-data{display:inline-block;font-size:13px;font-weight:700;letter-spacing:0;
+  text-transform:none;padding:2px 7px;border-radius:20px}
+th.tipo-contagem .es-ev-tipo{color:var(--es-contagem)}
+th.tipo-contagem .es-ev-data{background:var(--es-contagem-cl);color:var(--es-contagem)}
+th.tipo-pedido .es-ev-tipo{color:var(--es-pedido)}
+th.tipo-pedido .es-ev-data{background:var(--es-pedido-cl);color:var(--es-pedido)}
+th.tipo-remessa .es-ev-tipo{color:var(--es-remessa)}
+th.tipo-remessa .es-ev-data{background:var(--es-remessa-cl);color:var(--es-remessa)}
+th.tipo-saida .es-ev-tipo{color:var(--es-saida)}
+th.tipo-saida .es-ev-data{background:var(--es-saida-cl);color:var(--es-saida)}
+th.ev.ultima .es-ev-data{background:var(--marca);color:#fff}
+.es-tabela th.col-item{left:0;z-index:4;min-width:210px;padding-left:14px}
+.es-tabela th.col-fim{text-align:center;min-width:74px;background:#FBFCFD;border-left:1px solid var(--borda)}
+.es-tabela tbody td{border-bottom:1px solid #F0F2F5}
+/* coluna do item grudada: box-shadow e não border — border empurra a célula e a grade pula 1px ao rolar */
+.es-tabela td.item{position:sticky;left:0;z-index:2;background:#fff;padding:6px 10px 6px 14px;
+  box-shadow:1px 0 0 var(--borda)}
+.es-tabela tbody tr:hover td{background:#FAFCFE}
+.es-tabela tbody tr:hover td.item{background:#F3F9FD}
+.es-item-nome{font-weight:600;display:block;line-height:1.25}
+.es-item-cod{font-size:10.5px;color:var(--tx3);font-variant-numeric:tabular-nums}
+.es-selo{font-size:9.5px;font-weight:700;letter-spacing:.3px;padding:1px 5px;border-radius:4px;
+  background:var(--marca-cl);color:var(--marca);margin-left:5px;vertical-align:1px}
+.es-selo.kit{background:#EFE7FA;color:#5B2E9D}
+.es-selo.prof{background:#FDF2E0;color:var(--es-pedido)}
+.es-tabela td.qt{text-align:center;border-left:1px solid #F4F6F8;position:relative}
+.es-tabela td.qt input{width:100%;border:0;background:none;font:inherit;font-weight:600;
+  font-variant-numeric:tabular-nums;text-align:center;padding:7px 2px;color:#202124}
+.es-tabela td.qt input:hover{background:var(--azul-cl)}
+.es-tabela td.qt input:focus{outline:2px solid var(--azul);outline-offset:-2px;background:#fff;border-radius:4px}
+.es-tabela td.qt.zero input{color:#B6BDC6}
+.es-tabela td.qt.tipo-pedido input{color:var(--es-pedido)}
+.es-tabela td.qt.tipo-remessa input{color:var(--es-remessa)}
+/* saída não se digita: é a soma das entregas daquele período (ver aba Entregas) */
+.es-tabela td.qt.tipo-saida{color:var(--es-saida);font-weight:600;padding:7px 2px;cursor:help}
+.es-tabela td.qt.tipo-saida.vazia{color:#DDE1E6}
+.es-tabela td.fim{text-align:center;background:#FBFCFD;border-left:1px solid var(--borda);
+  font-weight:700;font-variant-numeric:tabular-nums;padding:7px 6px}
+.es-tabela td.fim.baixo{color:var(--perigo);background:#FDECEC}
+.es-tabela td.sug{text-align:center;background:#FBFCFD;border-left:1px solid #F0F2F5;padding:7px 6px;
+  font-weight:700;color:var(--es-pedido);font-variant-numeric:tabular-nums}
+.es-tabela td.sug.nada{color:#C8CDD4;font-weight:400}
+.es-tabela tr.banda td{background:var(--marca-cl);padding:5px 14px;font-weight:700;font-size:11px;
+  letter-spacing:.6px;text-transform:uppercase;color:var(--marca);position:sticky;left:0;
+  box-shadow:none;border-bottom:1px solid #D5DDEC}
+.es-tabela tr.banda td .cont{font-weight:600;color:var(--marca-md);opacity:.75;margin-left:8px;
+  text-transform:none;letter-spacing:0}
+.es-tabela.lista thead th{text-align:left;padding:8px 10px}
+.es-tabela.lista td{padding:7px 10px}
+.es-tabela.lista input,.es-tabela.lista select{border:1px solid transparent;border-radius:5px;
+  background:none;font:inherit;padding:4px 6px;width:100%}
+.es-tabela.lista input:hover,.es-tabela.lista select:hover{border-color:var(--borda);background:#fff}
+.es-tabela.lista input:focus,.es-tabela.lista select:focus{outline:2px solid var(--azul);
+  outline-offset:-2px;background:#fff;border-color:transparent}
+.es-tabela .num{text-align:center;font-variant-numeric:tabular-nums}
+.es-x{appearance:none;border:0;background:none;color:#C8CDD4;cursor:pointer;font-size:15px;
+  line-height:1;padding:3px 6px;border-radius:5px}
+.es-x:hover{background:#FDECEC;color:var(--perigo)}
+.es-placar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:4px}
+.es-placar .cx{background:#fff;border:1px solid var(--borda);border-radius:10px;padding:9px 14px;min-width:128px}
+.es-placar .cx b{display:block;font-size:21px;line-height:1.15;font-variant-numeric:tabular-nums}
+.es-placar .cx span{font-size:11.5px;color:var(--tx3)}
+.es-placar .cx.alerta{border-color:#F0C2C0;background:var(--es-saida-cl)}
+.es-placar .cx.alerta b{color:var(--es-saida)}
+.es-pil{font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;white-space:nowrap}
+.es-pil.entregue{background:#E4F4E8;color:var(--es-remessa)}
+.es-pil.deduzida{background:#FDF2E0;color:var(--es-pedido)}
+.es-pil.pendente{background:#EEF1F4;color:var(--tx3)}
+.es-pil.semestoque{background:var(--es-saida-cl);color:var(--es-saida)}
+.es-bt{appearance:none;font:inherit;font-size:12px;font-weight:600;cursor:pointer;
+  border:1px solid var(--borda);background:#fff;color:var(--tx2);border-radius:6px;padding:4px 10px}
+.es-bt:hover{border-color:var(--es-remessa);color:var(--es-remessa);background:var(--es-remessa-cl)}
+.es-bt.desfaz:hover{border-color:var(--es-saida);color:var(--es-saida);background:var(--es-saida-cl)}
+.es-bt[disabled]{opacity:.45;cursor:not-allowed}
+.es-bt[disabled]:hover{border-color:var(--borda);color:var(--tx2);background:#fff}
+.es-cartoes{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.es-cartao{background:#fff;border:1px solid var(--borda);border-radius:10px;overflow:hidden}
+.es-cartao-topo{padding:10px 13px;border-bottom:1px solid var(--borda);display:flex;align-items:center;
+  gap:8px;background:#FBFCFD}
+.es-cartao-corpo{padding:8px 13px 12px}
+.es-linha-kit{display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px dashed #EEF1F4}
+.es-linha-kit:last-child{border-bottom:0}
+.es-linha-kit .q{font-weight:700;color:var(--marca);font-variant-numeric:tabular-nums;min-width:26px}
+.es-linha-kit .n{flex:1}
+.es-legenda{margin-top:10px;display:flex;gap:16px;flex-wrap:wrap;font-size:11.5px;color:var(--tx3)}
+.es-legenda span{display:inline-flex;align-items:center;gap:6px}
+.es-legenda i{width:10px;height:10px;border-radius:3px;display:inline-block}
+.es-legenda i.es-c-contagem{background:var(--es-contagem)}
+.es-legenda i.es-c-pedido{background:var(--es-pedido)}
+.es-legenda i.es-c-remessa{background:var(--es-remessa)}
+.es-legenda i.es-c-saida{background:var(--es-saida)}
+.es-vazio{padding:26px;text-align:center;color:var(--tx3)}
+
+/* ===== cabeçalho padrão de página =====
+   Toda tela abre igual: nome no canto superior esquerdo e um fio de 1px atravessando a largura
+   inteira. É o que dá a mesma "moldura" para páginas que por dentro são muito diferentes — a
+   grade do estoque, o formulário de aluno e a matriz de horários.
+   As abas internas, quando existem, encostam NO MESMO fio: o fio é a base do cabeçalho, não um
+   separador solto, e a aba selecionada o interrompe com o traço azul. */
+/* O cabeçalho carrega SÓ o nome da página (e, à direita, o contexto do que está aberto). As abas
+   ficam ABAIXO do fio, já dentro da área de conteúdo — o fio marca onde o cabeçalho termina e o
+   miolo começa. Ter as abas na mesma fileira do título misturava "onde estou" com "o que estou
+   olhando dentro daqui". */
+.pg-cab{display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;
+  border-bottom:1px solid var(--borda);margin:0 0 14px}
+.pg-cab h2{margin:0;font-size:17px;font-weight:700;color:var(--marca);letter-spacing:.01em;
+  padding:2px 0 12px;flex-shrink:0}
+.pg-cab .pg-sub{font-size:12px;color:var(--tx3);padding-bottom:14px;margin-left:-8px}
+.pg-cab .pg-dir{margin-left:auto;padding-bottom:9px;display:flex;gap:8px;align-items:center}
+.pg-cab .pg-dir .acao{margin:0}
+/* trilho das abas: fio próprio, mais leve que o do cabeçalho para não competir com ele */
+.pg-abas{display:flex;gap:2px;margin:0 0 16px;border-bottom:1px solid #E7ECF1}
+.pg-aba{appearance:none;border:0;background:none;font:inherit;font-weight:600;color:var(--tx3);
+  padding:8px 15px 9px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;
+  border-radius:7px 7px 0 0;display:flex;align-items:center;gap:7px}
+.pg-aba:hover{color:var(--marca);background:#F5F8FB}
+/* aba ativa: negrito + traço azul mais grosso + um azul BEM leve de fundo, para o painel abaixo
+   parecer continuação dela */
+.pg-aba.on{color:var(--marca);border-bottom-color:var(--azul);background:#F0F7FD}
+.pg-aba .n{background:var(--marca-cl);color:var(--marca);font-size:11px;font-weight:700;
+  padding:1px 6px;border-radius:10px}
+.pg-aba.on .n{background:var(--azul-cl);color:var(--azul-esc)}
+.pg-aba[disabled]{opacity:.45;cursor:not-allowed}
+.pg-aba[disabled]:hover{background:none;color:var(--tx3)}
+/* fio secundário, mais leve, para separar regiões DENTRO de uma aba */
+.pg-fio{border:0;border-top:1px solid #E2E7EC;margin:18px 0 16px}
+/* nas duas telas de frequência o cabeçalho já é uma barra sticky com busca e navegação de dia:
+   o título entra NELA, à esquerda, em vez de somar mais uma fileira à altura grudada no topo.
+   Mesma tipografia do .pg-cab h2 para as telas se lerem como a mesma família. */
+.pg-titulo-inline{margin:0;font-size:17px;font-weight:700;color:var(--marca);letter-spacing:.01em;
+  flex-shrink:0;white-space:nowrap}
+
+/* ===== janela de aviso/confirmação =====
+   Substitui `confirm()` e `prompt()` do navegador, que abrem uma faixa cinza colada no alto da
+   janela, fora da página e com a tipografia do sistema operacional. Uma peça só, criada uma vez e
+   reaproveitada — nada de markup por chamada.
+   Feita à mão em vez de `sl-dialog` de propósito: estas janelas estão no caminho de confirmações
+   destrutivas, e o autoloader do Shoelace já falhou em silêncio uma vez (ver o fallback do
+   matToggleLock). Sem dependência, não há como não subir. */
+.dlg-fundo{position:fixed;inset:0;z-index:400;background:rgba(7,29,73,.42);
+  display:flex;align-items:center;justify-content:center;padding:20px;
+  opacity:0;pointer-events:none;transition:opacity .16s ease-out}
+.dlg-fundo.on{opacity:1;pointer-events:auto}
+.dlg{background:#fff;border-radius:12px;box-shadow:0 12px 40px rgba(7,29,73,.28);
+  width:min(440px,100%);max-height:calc(100vh - 40px);overflow:auto;
+  transform:translateY(8px) scale(.98);transition:transform .16s ease-out}
+.dlg-fundo.on .dlg{transform:none}
+@media (prefers-reduced-motion:reduce){.dlg-fundo,.dlg{transition:none}}
+.dlg-cab{display:flex;align-items:flex-start;gap:10px;padding:16px 18px 0}
+.dlg-ic{flex-shrink:0;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;
+  justify-content:center;background:var(--azul-cl);color:var(--azul-esc)}
+.dlg-fundo.perigo .dlg-ic{background:#FDECEC;color:var(--perigo)}
+.dlg h3{margin:4px 0 0;font-size:15px;color:var(--marca)}
+.dlg-corpo{padding:8px 18px 0 58px;font-size:13px;color:var(--tx2);line-height:1.55;
+  white-space:pre-line}   /* as mensagens antigas usam \n para separar parágrafos */
+.dlg-corpo b{color:#202124}
+.dlg-campo{padding:12px 18px 0 58px}
+.dlg-campo label{margin:0 0 3px}
+.dlg-pe{display:flex;justify-content:flex-end;gap:8px;padding:16px 18px 18px}
+.dlg-pe .acao{margin:0}
+/* lista de escolha (substitui o prompt que pedia "digite o número") */
+.dlg-opcoes{max-height:260px;overflow:auto;margin:10px 18px 0 58px;border:1px solid var(--borda);
+  border-radius:8px}
+.dlg-op{display:block;width:100%;text-align:left;border:0;background:none;font:inherit;
+  padding:8px 12px;cursor:pointer;border-bottom:1px solid #F0F2F5}
+.dlg-op:last-child{border-bottom:0}
+.dlg-op:hover{background:var(--azul-cl);color:var(--azul-esc)}
+
+/* ===== BIBLIOTECA · ESTÁGIOS =====
+   Uma cor por TIPO de lição: é a informação que a grade de capítulos precisa passar de relance. */
+:root{
+  --lc-input:#1C7099;   --lc-input-bg:#E4F2FB;
+  --lc-output:#6B4FA3;  --lc-output-bg:#F0EAFA;
+  --lc-review:#1E7E34;  --lc-review-bg:#E4F4E8;
+  --lc-esp:#B26A00;     --lc-esp-bg:#FDF2E0;
+  --lc-rem:#B3261E;     --lc-rem-bg:#FDECEC;
+}
+.eg-mestre{display:grid;grid-template-columns:320px 1fr;gap:16px;align-items:start}
+@media (max-width:1150px){.eg-mestre{grid-template-columns:1fr}}
+.eg-cx{background:#fff;border:1px solid var(--borda);border-radius:10px;overflow:hidden}
+.eg-cx-cab{padding:8px 12px;border-bottom:1px solid var(--borda);background:#FBFCFD;font-size:11px;
+  font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--tx3);
+  display:flex;align-items:center;gap:8px}
+.eg-cx-corpo{padding:12px 14px}
+.eg-lista{max-height:70vh;overflow:auto}
+.eg-lin{display:flex;align-items:center;gap:7px;width:100%;text-align:left;border:0;background:none;
+  font:inherit;padding:7px 12px;cursor:pointer;border-bottom:1px solid #F0F2F5}
+.eg-lin:hover{background:#FAFCFE}
+.eg-lin.on{background:var(--azul-cl)}
+.eg-lin b{flex:1;font-size:12.5px;min-width:0}
+.eg-lin small{color:var(--tx3);font-size:10.5px;white-space:nowrap}
+.eg-faixa{background:var(--marca-cl);padding:5px 12px;font-size:10.5px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.5px;color:var(--marca)}
+.eg-p{display:inline-block;border-radius:10px;padding:1px 7px;font-size:10px;font-weight:700;
+  line-height:16px;white-space:nowrap}
+.eg-p.entrada{background:#E4F4E8;color:var(--ok)}
+.eg-p.legado{background:#EFEFEF;color:#5F6771}
+.eg-p.novo{background:var(--azul-cl);color:var(--azul-esc)}
+/* grade de capítulos gerados */
+.eg-caps{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(262px,1fr))}
+.eg-cap{border:1px solid var(--borda);border-radius:9px;overflow:hidden;background:#fff}
+.eg-cap h4{margin:0;padding:6px 11px;background:#FBFCFD;border-bottom:1px solid var(--borda);
+  font-size:11.5px;color:var(--marca);display:flex;align-items:center;gap:6px}
+.eg-cap h4 span{margin-left:auto;font-weight:400;color:var(--tx3);font-size:10.5px}
+.eg-licoes{display:flex;flex-wrap:wrap;gap:4px;padding:9px 11px}
+.eg-lic{display:flex;align-items:center;gap:4px;border-radius:5px;padding:2px 6px;font-size:10.5px;
+  font-weight:600;font-variant-numeric:tabular-nums}
+.eg-lic i{font-style:normal;opacity:.6;font-weight:400}
+.eg-lic.input{background:var(--lc-input-bg);color:var(--lc-input)}
+.eg-lic.output{background:var(--lc-output-bg);color:var(--lc-output)}
+.eg-lic.review{background:var(--lc-review-bg);color:var(--lc-review)}
+.eg-lic.especial{background:var(--lc-esp-bg);color:var(--lc-esp)}
+.eg-lic.remind{background:var(--lc-rem-bg);color:var(--lc-rem)}
+.eg-lic .x{cursor:pointer;opacity:.5;font-weight:700;margin-left:2px}
+.eg-lic .x:hover{opacity:1}
+/* formulário do estágio: rótulo em cima do campo, em grade que reflui */
+.eg-form{display:grid;gap:10px 14px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+.eg-campo{display:flex;flex-direction:column;min-width:0}
+.eg-campo label{margin:0 0 3px}
+.eg-campo.larga{grid-column:span 2}
+@media (max-width:700px){.eg-campo.larga{grid-column:span 1}}
+.eg-chk{display:flex;align-items:center;gap:7px;font-weight:600;color:var(--tx2);font-size:12.5px;
+  text-transform:none;letter-spacing:0;margin:0;align-self:end;padding-bottom:7px}
+.eg-chk input{width:auto;margin:0}
+.eg-kpis{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:12px}
+.eg-kpi{background:#fff;border:1px solid var(--borda);border-radius:9px;padding:8px 13px;min-width:88px}
+.eg-kpi b{display:block;font-size:19px;line-height:1.15;font-variant-numeric:tabular-nums;color:var(--marca)}
+.eg-kpi span{font-size:11px;color:var(--tx3)}
+/* trilha */
+.eg-trilha-cat{background:#fff;border:1px solid var(--borda);border-radius:10px;padding:12px 14px;margin-bottom:12px}
+.eg-trilha-cat h4{margin:0 0 9px;font-size:12px;color:var(--marca);text-transform:uppercase;letter-spacing:.5px}
+.eg-fila{display:flex;flex-wrap:wrap;gap:7px;align-items:center}
+.eg-no{border:1px solid var(--borda);border-radius:8px;padding:6px 11px;background:#fff;font-weight:600;font-size:12px}
+.eg-no.entrada{border-color:#9FD8B2;box-shadow:inset 0 -3px 0 #9FD8B2}
+.eg-no.legado{opacity:.55;border-style:dashed}
+.eg-seta{color:var(--tx3)}
+.eg-nota{margin-top:10px;padding-top:10px;border-top:1px dashed var(--borda);font-size:12px;color:var(--tx2)}
+.eg-vazio{padding:24px;text-align:center;color:var(--tx3)}
 
 .horarios-cols{display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap}
 .mat-lock-bar{display:flex;align-items:center;gap:10px;margin-bottom:12px;padding:8px 12px;background:var(--cz);border-radius:8px}
@@ -209,7 +637,28 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
 .freq-kpi{border:1px solid var(--borda);border-radius:8px;padding:5px 9px;font-size:11px;color:#5f6368;line-height:1.3}
 .freq-kpi b{display:block;font-size:15px;color:#202124}
 .freq-kpi.p b{color:#1e7e34}.freq-kpi.f b{color:#c5221f}.freq-kpi.n b{color:#80868b}
+.freq-kpi.fora b{color:#8a5a00}
+/* sinal de dia fora do horário fixo: fica ANTES da data, junto do marcador de status, para a
+   varredura vertical da lista pegar as duas informações no mesmo eixo. Cor do triângulo é a mesma
+   do arrasto e do trancamento — âmbar é "olha isto", nunca erro. */
+.freq-fora{display:inline-flex;vertical-align:-2px;color:#E8940C}
+.freq-fora svg{display:block}
 .freq-lista{max-height:230px;overflow:auto}
+/* ===== troca de horário: o antes e o depois lado a lado =====
+   Comparação é o conteúdo inteiro desta janela, então ela é o layout, não um detalhe: dois blocos
+   iguais e uma seta no meio. O lado novo é o que leva a cor — o antigo já não vale. */
+.troca-cmp{display:flex;align-items:stretch;gap:10px}
+.troca-lado{flex:1;border:1px solid var(--borda);border-radius:8px;padding:8px 11px;background:#fff}
+.troca-lado small{display:block;font-size:10.5px;color:var(--tx3);text-transform:uppercase;
+  letter-spacing:.4px;margin-bottom:3px}
+.troca-lado b{font-size:14px;font-variant-numeric:tabular-nums}
+.troca-lado.nova{border-color:var(--azul-borda);background:var(--azul-cl)}
+.troca-lado.nova b{color:var(--azul-esc)}
+.troca-seta{display:flex;align-items:center;color:var(--tx3);font-size:18px}
+/* na lista do histórico o par cabe numa linha só, então a seta encolhe */
+.troca-de{color:var(--tx3);text-decoration:line-through;font-variant-numeric:tabular-nums}
+.troca-seta-in{color:var(--tx3);margin:0 6px}
+.troca-para{font-weight:600;color:var(--azul-esc);font-variant-numeric:tabular-nums}
 .st{display:inline-block;border-radius:10px;padding:1px 8px;font-size:10px;font-weight:700}
 .st.P{background:#d7f0dd;color:#1e7e34}.st.F{background:#fdecec;color:#c5221f}.st.N{background:#f1f3f4;color:#80868b}
 
@@ -1181,56 +1630,121 @@ td.lc-est-cel{padding:0!important;border-left:1px solid var(--aba-bd);border-rig
 <button type="button" id="ao-topo" title="Voltar ao topo" onclick="aoTopo()"></button>
 <div id="sidebar">
 <button class="on" onclick="aba('inicio',this)">Início</button>
-<button onclick="aba('presenca',this)">Presença</button>
-<button onclick="aba('recepcao',this)">Entrada Recep</button>
+<!-- Frequência: seção recolhível no estilo do Notion. As DUAS telas continuam sempre acessíveis
+     (o professor lança na sala e confere o que a recepção marcou; a recepção espia o quadro da
+     sala numa manhã sem professor) — o grupo só as junta visualmente. Recepção em cima porque é
+     ela quem responde primeiro "veio ou não veio". -->
+<div class="sb-grupo aberto" id="sb-freq">
+<button type="button" class="sb-cabeca" onclick="sbGrupo('sb-freq')" aria-expanded="true">
+<span class="sb-seta"></span>Frequência</button>
+<div class="sb-filhos"><div class="sb-filhos-in">
+<button onclick="aba('recepcao',this)">Freq. Recepção</button>
+<button onclick="aba('presenca',this)">Freq. Sala</button>
+</div></div>
+</div>
 <button onclick="aba('dashboard',this)">Dashboard</button>
 <button onclick="aba('alunos',this)">Alunos</button>
 <button onclick="aba('turmas',this)">Turmas</button>
 <button onclick="aba('horarios',this)">Horários</button>
 <button onclick="aba('professores',this)">Professores</button>
 <button onclick="aba('impressao',this)">Impressão</button>
+<!-- Biblioteca junta o que é MATERIAL: o estoque conta o livro físico, os estágios descrevem a
+     estrutura pedagógica dele. Mesmo grupo recolhível da Frequência. -->
+<div class="sb-grupo aberto" id="sb-bib">
+<button type="button" class="sb-cabeca" onclick="sbGrupo('sb-bib')" aria-expanded="true">
+<span class="sb-seta"></span>Biblioteca</button>
+<div class="sb-filhos"><div class="sb-filhos-in">
+<button onclick="aba('estoque',this)">Estoque</button>
+<button onclick="aba('estagios',this)">Estágios</button>
+</div></div>
+</div>
 <button onclick="aba('backup',this)">Backup</button>
 <div id="estacao-tag" class="estacao-tag"></div>
 </div>
 <div id="conteudo">
 
-<div id="tab-alunos" class="tab duasCols">
-<div class="aluno-cadastro" id="al-cadastro">
-<label>Buscar / cadastrar aluno</label>
+<div id="tab-alunos" class="tab">
+<div class="pg-cab"><h2>Gerenciar alunos</h2>
+<div class="pg-dir"><span id="al-quem" class="al-quem"></span></div>
+</div>
+<!-- A busca sai das abas e fica sozinha logo abaixo do cabeçalho: ela não pertence a nenhuma das
+     duas, é o que vem ANTES delas. Primeiro se acha (ou cadastra) o aluno; só então faz sentido
+     escolher entre ver as informações dele e mexer nas matrículas. -->
+<div class="al-busca-topo">
+<label for="al-busca">Buscar / cadastrar aluno</label>
 <div class="sug"><input id="al-busca" placeholder="Digite nome ou ID..." autocomplete="off"><div class="lista" id="al-sug"></div></div>
-<h3 id="al-titulo">Novo aluno</h3>
-<label>Nome completo</label><input id="al-nome">
-<label>ID da matrícula</label><input id="al-id">
-<label>Situação</label><select id="al-sit" onchange="alStatus()"></select>
-<div style="margin-top:8px">Status (derivado): <span id="al-status" class="badge b-off">—</span></div>
-<div id="al-aviso"></div>
+</div>
+
+<div class="pg-abas">
+<button class="pg-aba on" data-p="cadastro" onclick="alAba('cadastro')">Informações</button>
+<button class="pg-aba" data-p="matriculas" onclick="alAba('matriculas')">Matrículas<span class="n" id="al-n-mat">0</span></button>
+</div>
+
+<!-- ===== ABA 1: o cadastro e os três históricos ===== -->
+<div id="al-p-cadastro" class="al-painel">
+<!-- faixa horizontal: a busca abre a fileira porque é por onde se ENTRA na tela; os campos do
+     cadastro seguem à direita, na ordem em que se preenche. Larguras por conteúdo — o ID é um
+     número de 4 dígitos e não merecia a mesma largura do nome completo. -->
+<div class="al-faixa">
+<div class="al-campo al-campo-nome">
+<label for="al-nome">Nome completo</label><input id="al-nome">
+</div>
+<div class="al-campo al-campo-id">
+<label for="al-id">ID da matrícula</label><input id="al-id" inputmode="numeric" maxlength="10">
+</div>
+<div class="al-campo al-campo-sit">
+<label for="al-sit">Situação</label><select id="al-sit" onchange="alStatus()"></select>
+</div>
+<div class="al-campo al-campo-status">
+<label>Status</label>
+<span id="al-status" class="badge b-off">—</span>
+</div>
+<div class="al-acoes">
 <button class="acao" id="al-salvar" data-off="Salvar" data-on="Salvar alterações" onclick="alSalvar()"><span class="btn-ic"></span><span class="btn-txt">Salvar</span></button>
 <button class="acao perigo" id="al-excluir" style="display:none" onclick="alExcluir()">Excluir</button>
 <button class="acao sec" onclick="alNovo()">Limpar</button>
+</div>
+</div>
+<div id="al-aviso"></div>
 
-<div style="margin-top:14px;border-top:1px solid #eee;padding-top:10px">
-<label>+ Nova matrícula em livro</label>
+<hr class="pg-fio">
+
+<!-- os três registros lado a lado: com a largura inteira da página eles cabem abertos, e ver os
+     três juntos é o que responde "o que aconteceu com este aluno" sem abrir e fechar nada -->
+<!-- o texto inicial já vem no HTML: sem aluno escolhido os três cartões abriam vazios, e cartão
+     em branco não diz se está carregando, se deu erro ou se falta escolher alguém -->
+<div class="al-historicos">
+<section class="al-hist">
+<h3>Histórico de situação</h3>
+<div id="hist-corpo"><div class="al-hist-vazio">Escolha um aluno.</div></div>
+</section>
+<section class="al-hist">
+<h3>Trocas de horário</h3>
+<div id="hhist-corpo"><div class="al-hist-vazio">Escolha um aluno.</div></div>
+</section>
+<section class="al-hist al-hist-larga">
+<h3>Frequência <small>presenças e faltas</small></h3>
+<div id="freq-corpo"><div class="al-hist-vazio">Escolha um aluno.</div></div>
+</section>
+</div>
+</div>
+
+<!-- ===== ABA 2: as matrículas em livro ===== -->
+<div id="al-p-matriculas" class="al-painel" style="display:none">
+<!-- rótulo e campo na MESMA linha: é um gesto só, e a explicação virou um ⓘ para não ocupar
+     uma faixa inteira da tela com texto que se lê uma vez. -->
+<div class="nm-linha">
+<label for="nm-livro">+ Nova matrícula em livro</label>
 <div class="sug"><input id="nm-livro" placeholder="Digite o livro..." autocomplete="off" disabled><div class="lista" id="nm-livro-sug"></div></div>
+<button type="button" class="nm-info" onclick="dlgAviso({titulo:'Matrícula em livro',texto:'Cada livro é uma matrícula própria: modalidade, VIP, tipo de encontro e agenda ficam aqui, não na turma.\n\nO contrato é a matrícula do aluno mais a ordem do vínculo — 2068/1 é o primeiro livro dele, 2068/2 o segundo, independente do idioma.'})" title="O que é uma matrícula em livro">i</button>
 </div>
-
-<div style="margin-top:14px">
-<button type="button" id="hist-toggle" onclick="histToggle()" style="background:none;border:1px solid #ccc;border-radius:6px;padding:6px 10px;font-size:11px;cursor:pointer;color:#555;width:100%;text-align:left">▸ Histórico de situação</button>
-<div id="hist-corpo" style="display:none;margin-top:8px"></div>
-</div>
-
-<div style="margin-top:8px">
-<button type="button" id="freq-toggle" onclick="freqToggle()" style="background:none;border:1px solid #ccc;border-radius:6px;padding:6px 10px;font-size:11px;cursor:pointer;color:#555;width:100%;text-align:left">▸ Frequência (presenças e faltas)</button>
-<div id="freq-corpo" style="display:none;margin-top:8px"></div>
-</div>
-</div>
-<div class="matriculas-col">
-<h3>Matrículas em livro</h3>
-<div style="font-size:12px;color:#555;margin-bottom:8px">Cada livro é uma matrícula própria: modalidade (Connections/Interactive), VIP, tipo de encontro e agenda ficam aqui, não na turma.</div>
 <div id="mat-lista"><div class="matriculas-vazio">Escolha ou cadastre um aluno para ver as matrículas.</div></div>
 </div>
 </div>
 
-<div id="tab-turmas" class="tab duasCols">
+<div id="tab-turmas" class="tab">
+<div class="pg-cab"><h2>Gerenciar turmas</h2><span class="pg-sub">salas: livro, dias, horário e professoras</span></div>
+<div class="duasCols">
 <div class="form-col">
 <label>Buscar turma</label>
 <div class="sug"><input id="tu-busca" placeholder="Digite nome, livro, dia..." autocomplete="off"><div class="lista" id="tu-sug"></div></div>
@@ -1258,9 +1772,10 @@ td.lc-est-cel{padding:0!important;border-left:1px solid var(--aba-bd);border-rig
 <div class="prev-box" id="tu-preview-bloco"><div class="prev-vazio">Preencha livro, dias e horário para ver como o bloco impresso vai ficar.</div></div>
 </div>
 </div>
+</div>
 
 <div id="tab-horarios" class="tab">
-<h3>Matriz de horários</h3>
+<div class="pg-cab"><h2>Gerenciar horários</h2><span class="pg-sub">matriz de dias × horas disponíveis</span></div>
 <div class="mat-lock-bar">
 <button type="button" class="acao sec" id="mat-lock-btn" onclick="matToggleLock()"></button>
 <span id="mat-lock-status"></span>
@@ -1311,6 +1826,7 @@ Os horários da matriz costumam ser fixos e raramente mudam. Confirma que quer e
 <div id="tab-presenca" class="tab">
 <div class="lc-fixo">
 <div class="lc-topo">
+<h2 class="pg-titulo-inline">Freq. Sala</h2>
 <div class="lc-busca sug">
 <span class="lc-busca-ic"></span>
 <input id="lc-busca" placeholder="Buscar aluno para lançar presença..." autocomplete="off">
@@ -1356,6 +1872,7 @@ Os horários da matriz costumam ser fixos e raramente mudam. Confirma que quer e
 <div id="tab-recepcao" class="tab">
 <div class="lc-fixo">
 <div class="lc-topo">
+<h2 class="pg-titulo-inline">Freq. Recepção</h2>
 <div class="lc-busca sug">
 <span class="lc-busca-ic"></span>
 <input id="rc-busca" placeholder="Buscar aluno para lançar presença..." autocomplete="off">
@@ -1407,6 +1924,14 @@ Os horários da matriz costumam ser fixos e raramente mudam. Confirma que quer e
 <sl-button slot="footer" variant="primary" onclick="horaLoteAplicar()">Aplicar aos marcados</sl-button>
 </sl-dialog>
 
+<!-- Troca de horário: pergunta antes de efetivar. sl-dialog já traz o fundo escurecido e o fade,
+     e é o mesmo componente do destravamento da matriz — a casa só tem um jeito de perguntar. -->
+<sl-dialog id="troca-dialog" label="Trocar o horário do aluno?">
+<div id="troca-corpo"></div>
+<sl-button slot="footer" onclick="document.getElementById('troca-dialog').hide()">Cancelar</sl-button>
+<sl-button slot="footer" variant="primary" onclick="trocaConfirmar()">Trocar horário</sl-button>
+</sl-dialog>
+
 <sl-dialog id="lote-dialog" label="Aplicar professores à turma">
 <div id="lote-corpo"></div>
 <sl-button slot="footer" onclick="document.getElementById('lote-dialog').hide()">Cancelar</sl-button>
@@ -1419,13 +1944,16 @@ Os horários da matriz costumam ser fixos e raramente mudam. Confirma que quer e
 </sl-dialog>
 
 <div id="tab-dashboard" class="tab">
+<div class="pg-cab"><h2>Dashboard</h2><span class="pg-sub">gráficos e tabela de todas as matrículas</span></div>
 <div id="dash" class="dash-cards"></div>
 <div class="visao-filtros">Clique nas pílulas para filtrar a tabela (contagem ao lado de cada opção); os cabeçalhos ordenam.</div>
 <div id="filtros-inicio"></div>
 <div id="grade-geral"></div>
 </div>
 
-<div id="tab-professores" class="tab duasCols">
+<div id="tab-professores" class="tab">
+<div class="pg-cab"><h2>Gerenciar professores</h2></div>
+<div class="duasCols">
 <div class="form-col">
 <h3 id="pf-titulo">Novo professor</h3>
 <div style="font-size:12px;color:var(--tx2);margin-bottom:8px">O nome curto é o que aparece nas pílulas e nas fichas impressas; o completo fica no cadastro.</div>
@@ -1440,10 +1968,11 @@ Os horários da matriz costumam ser fixos e raramente mudam. Confirma que quer e
 <div id="pf-lista"></div>
 </div>
 </div>
+</div>
 
 <div id="tab-impressao" class="tab">
+<div class="pg-cab"><h2>Gerenciar impressão</h2><span class="pg-sub">fichas de frequência em A4</span></div>
 <div id="impressao-controles">
-<h3>Blocos de hora para impressão</h3>
 <div style="display:flex;gap:8px;flex-wrap:wrap">
 <button class="acao" onclick="impGerar(['Segunda','Quarta'],['SEGUNDAS','QUARTAS'])">Segunda e Quarta</button>
 <button class="acao" onclick="impGerar(['Terça','Quinta'],['TERÇAS','QUINTAS'])">Terça e Quinta</button>
@@ -1459,8 +1988,99 @@ Os horários da matriz costumam ser fixos e raramente mudam. Confirma que quer e
 <div id="folha-impressao"></div>
 </div>
 
+<div id="tab-estoque" class="tab">
+<div class="pg-cab"><h2>Gerenciar estoque</h2></div>
+<div class="pg-abas">
+<button class="pg-aba on" data-p="contagem" onclick="esAba('contagem')">Contagem<span class="n" id="es-n-itens">0</span></button>
+<button class="pg-aba" data-p="entregas" onclick="esAba('entregas')">Entregas<span class="n" id="es-n-pend">0</span></button>
+<button class="pg-aba" data-p="itens" onclick="esAba('itens')">Itens<span class="n" id="es-n-itens2">0</span></button>
+<button class="pg-aba" data-p="kits" onclick="esAba('kits')">Kits<span class="n" id="es-n-kits">0</span></button>
+<button class="pg-aba" data-p="remessas" onclick="esAba('remessas')">Remessas<span class="n" id="es-n-rem">0</span></button>
+</div>
+
+<div id="es-p-contagem" class="es-painel">
+<div class="info" style="max-width:900px">Cada coluna é um <b>evento datado</b>: uma <b>contagem</b> (o que foi conferido na prateleira), um <b>pedido</b>, uma <b>remessa</b> recebida ou as <b>entregas</b> feitas a alunos. O <b>Saldo</b> não é digitado — é a última contagem, mais as remessas e menos as entregas posteriores a ela.</div>
+<div class="es-ferramentas">
+<button class="acao sec" onclick="esNovoEvento('contagem')">+ Nova contagem</button>
+<button class="acao sec" onclick="esNovoEvento('pedido')">+ Pedido</button>
+<button class="acao sec" onclick="esNovoEvento('remessa')">+ Remessa</button>
+<span style="flex:1"></span>
+<span id="es-chips"></span>
+<input id="es-busca" class="es-busca" placeholder="buscar item..." oninput="esRender()">
+</div>
+<div class="es-moldura"><table id="es-grade" class="es-tabela"></table></div>
+<div class="es-legenda">
+<span><i class="es-c-contagem"></i>contagem</span><span><i class="es-c-pedido"></i>pedido</span>
+<span><i class="es-c-remessa"></i>remessa</span><span><i class="es-c-saida"></i>entregas a alunos</span>
+<span style="color:var(--perigo)">saldo abaixo do mínimo</span>
+</div>
+</div>
+
+<div id="es-p-entregas" class="es-painel" style="display:none">
+<div class="info" style="max-width:900px">A lista vem das <b>matrículas ativas</b>: quem está matriculado num livro precisa ter recebido aquele livro. As entregas marcadas como <b>deduzidas</b> foram criadas a partir das matrículas que já existiam — <b>a data delas está em branco porque ninguém registrou quando saíram</b>, e é editável.</div>
+<div id="es-placar" class="es-placar"></div>
+<div class="es-ferramentas">
+<span id="es-chips-ent"></span>
+<span style="flex:1"></span>
+<input id="es-busca-ent" class="es-busca" placeholder="buscar aluno ou livro..." oninput="esRenderEntregas()">
+</div>
+<div class="es-moldura"><table id="es-tab-entregas" class="es-tabela lista"></table></div>
+</div>
+
+<div id="es-p-itens" class="es-painel" style="display:none">
+<div class="info" style="max-width:900px">O item é o que se conta. Quase todo item é um <b>livro que o sistema já conhece</b> — o vínculo com a tabela de livros é o que dá a categoria e a ordem pedagógica da grade. Item que não é livro (Wiz.pen) fica sem vínculo. O <b>código</b> é digitado à mão e serve para buscar.</div>
+<div class="es-ferramentas">
+<button class="acao" onclick="esNovoItem()">+ Novo item</button>
+<span style="flex:1"></span>
+<input id="es-busca-item" class="es-busca" placeholder="buscar item..." oninput="esRenderItens()">
+</div>
+<div class="es-moldura"><table id="es-tab-itens" class="es-tabela lista"></table></div>
+</div>
+
+<div id="es-p-kits" class="es-painel" style="display:none">
+<div class="info" style="max-width:900px">Kit é um item cuja <b>unidade é "kit"</b> — como no sistema interno, onde "Espanhol Anual 6" aparece na mesma lista dos livros. Não é tabela à parte: é um item com composição.</div>
+<div class="es-ferramentas"><button class="acao" onclick="esNovoKit()">+ Novo kit</button></div>
+<div id="es-kits" class="es-cartoes"></div>
+</div>
+
+<div id="es-p-remessas" class="es-painel" style="display:none">
+<div class="info" style="max-width:900px">Remessa é a caixa que chega com vários materiais dentro. Registrá-la lança entrada em cada item e vira uma coluna verde na grade da contagem.</div>
+<div class="es-ferramentas"><button class="acao" onclick="esNovoEvento('remessa')">+ Receber remessa</button></div>
+<div id="es-remessas" class="es-cartoes"></div>
+</div>
+</div>
+
+<div id="tab-estagios" class="tab">
+<div class="pg-cab"><h2>Gerenciar estágios</h2>
+<span class="pg-sub">a estrutura do livro — o livro físico fica no Estoque</span></div>
+<div class="pg-abas">
+<button class="pg-aba on" data-p="lista" onclick="egAba('lista')">Estágios<span class="n" id="eg-n">0</span></button>
+<button class="pg-aba" data-p="modelos" onclick="egAba('modelos')">Modelos<span class="n" id="eg-nm">0</span></button>
+<button class="pg-aba" data-p="trilha" onclick="egAba('trilha')">Trilha</button>
+</div>
+
+<div id="eg-p-lista" class="eg-painel">
+<div class="eg-mestre">
+  <div class="eg-cx"><div class="eg-cx-cab">Catálogo
+    <button class="es-bt" style="margin-left:auto" onclick="egNovo()">+ Novo</button></div>
+    <div class="eg-lista" id="eg-lista"></div></div>
+  <div id="eg-detalhe"></div>
+</div>
+</div>
+
+<div id="eg-p-modelos" class="eg-painel" style="display:none">
+<div class="info" style="max-width:900px">Um modelo diz a <b>forma</b> do livro: quantas lições por capítulo e quantos capítulos. As lições são geradas a partir dele — nenhuma é digitada. Toda a Wizard cabe em três, porque <b>todo livro tem 60 lições comuns</b>; o que muda é o agrupamento e, por consequência, quantas revisões existem.</div>
+<div id="eg-modelos"></div>
+</div>
+
+<div id="eg-p-trilha" class="eg-painel" style="display:none">
+<div class="info" style="max-width:900px">Sequência <b>recomendada</b>, nunca obrigatória — o aluno pode saltar. Nó com base verde é porta de entrada; tracejado é legado. Estágios na mesma posição são <b>alternativas</b>.</div>
+<div id="eg-trilha"></div>
+</div>
+</div>
+
 <div id="tab-backup" class="tab">
-<h3>Backup do banco</h3>
+<div class="pg-cab"><h2>Backup do banco</h2><span class="pg-sub">cópias no HD e no OneDrive</span></div>
 <div class="info" style="max-width:680px">Ao abrir, o app guarda automaticamente 1 cópia do banco por dia. Toda cópia vai <b>sempre</b> para uma pasta oculta do computador e <b>também</b> para o OneDrive quando ele existir (destino preferido).</div>
 <div id="bk-status" style="margin-top:10px"></div>
 <div style="max-width:560px">
@@ -1496,18 +2116,127 @@ b.title=on?'Há alterações não salvas':'Nada para salvar'}
 function run(fn,args,ok){loadOn();fetch('/api/'+fn,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify((args&&args[0])!==undefined?args[0]:{})}).then(function(r){return r.json()}).then(function(r){loadOff();if(r&&r.erro){msg(r.erro,true);return}if(ok)ok(r)}).catch(function(e){loadOff();msg(String(e),true)})}
 var notyf=new Notyf({duration:4200,position:{x:'center',y:'bottom'},dismissible:true});
 function msg(t,erro){if(erro)notyf.error(t);else notyf.success(t)}
+
+/* ===== janela de aviso/confirmação (substitui confirm/prompt do navegador) =====
+   API em CALLBACK e não em Promise, para casar com o resto da casa (`run(fn,args,cb)`).
+     dlgConfirmar({titulo,texto,ok,perigo}, cb)   cb(true|false)
+     dlgTexto({titulo,texto,label,valor,tipo}, cb) cb(string) — cb não é chamado no cancelar
+     dlgEscolher({titulo,texto,opcoes}, cb)        cb(indice)
+     dlgAviso({titulo,texto}, cb?)
+   Uma janela por vez: as chamadas do app são sempre reação a um clique, nunca concorrentes. */
+var DLG=null,DLG_FOCO=null;
+function dlgMontar(){
+if(DLG)return DLG;
+var f=document.createElement('div');f.className='dlg-fundo';
+f.innerHTML='<div class="dlg" role="dialog" aria-modal="true" aria-labelledby="dlg-tit">'
+ +'<div class="dlg-cab"><span class="dlg-ic"></span><h3 id="dlg-tit"></h3></div>'
+ +'<div class="dlg-corpo"></div><div class="dlg-campo" style="display:none">'
+ +'<label></label><input></div><div class="dlg-opcoes" style="display:none"></div>'
+ +'<div class="dlg-pe"></div></div>';
+document.body.appendChild(f);
+/* clique no fundo = cancelar, igual a qualquer janela modal; clique DENTRO não fecha */
+f.addEventListener('mousedown',function(e){if(e.target===f)dlgFechar(false)});
+DLG={fundo:f,cx:f.querySelector('.dlg'),ic:f.querySelector('.dlg-ic'),tit:f.querySelector('h3'),
+  corpo:f.querySelector('.dlg-corpo'),campo:f.querySelector('.dlg-campo'),
+  label:f.querySelector('.dlg-campo label'),input:f.querySelector('.dlg-campo input'),
+  opcoes:f.querySelector('.dlg-opcoes'),pe:f.querySelector('.dlg-pe'),cb:null,tipo:'confirmar'};
+return DLG}
+function dlgFechar(valor){
+if(!DLG||!DLG.fundo.classList.contains('on'))return;
+DLG.fundo.classList.remove('on');
+var cb=DLG.cb;DLG.cb=null;
+/* devolve o foco a quem abriu: sem isto o teclado volta para o começo da página */
+if(DLG_FOCO&&DLG_FOCO.focus)try{DLG_FOCO.focus()}catch(e){}
+if(cb)cb(valor);
+}
+function dlgTecla(e){
+if(!DLG||!DLG.fundo.classList.contains('on'))return;
+if(e.key==='Escape'){e.preventDefault();dlgFechar(DLG.tipo==='confirmar'?false:undefined)}
+else if(e.key==='Enter'&&DLG.tipo!=='escolher'){e.preventDefault();
+  var b=DLG.pe.querySelector('.dlg-ok');if(b)b.click()}
+}
+document.addEventListener('keydown',dlgTecla);
+function dlgAbrir(o){
+var d=dlgMontar();
+DLG_FOCO=document.activeElement;
+d.tipo=o.tipo||'confirmar';d.cb=o.cb||null;
+d.fundo.classList.toggle('perigo',!!o.perigo);
+d.ic.innerHTML=icon(o.perigo?'triangle-alert':'info',17);
+d.tit.textContent=o.titulo||(o.perigo?'Confirmar':'Aviso');
+d.corpo.innerHTML=o.texto?escBloco(o.texto):'';
+d.corpo.style.display=o.texto?'block':'none';
+/* campo de texto (o que era prompt) */
+d.campo.style.display=o.campo?'block':'none';
+if(o.campo){d.label.textContent=o.campo.label||'';d.input.type=o.campo.tipo||'text';
+  d.input.value=o.campo.valor==null?'':o.campo.valor;d.input.placeholder=o.campo.dica||''}
+/* lista de opções (o que era "digite o número") */
+d.opcoes.style.display=o.opcoes?'block':'none';d.opcoes.innerHTML='';
+if(o.opcoes)o.opcoes.forEach(function(txt,ix){
+  var b=document.createElement('button');b.type='button';b.className='dlg-op';b.textContent=txt;
+  b.onclick=function(){dlgFechar(ix)};d.opcoes.appendChild(b)});
+d.pe.innerHTML='';
+if(o.tipo!=='aviso'){
+  var c=document.createElement('button');c.type='button';c.className='acao sec';
+  c.textContent=o.cancelar||'Cancelar';c.onclick=function(){dlgFechar(o.tipo==='confirmar'?false:undefined)};
+  d.pe.appendChild(c)}
+if(o.tipo!=='escolher'){
+  var k=document.createElement('button');k.type='button';
+  k.className='acao dlg-ok'+(o.perigo?' perigo':'');k.textContent=o.ok||'Confirmar';
+  k.onclick=function(){dlgFechar(o.campo?d.input.value.trim():true)};
+  d.pe.appendChild(k)}
+d.fundo.classList.add('on');
+setTimeout(function(){
+  if(o.campo){d.input.focus();d.input.select()}
+  else{var b=d.pe.querySelector('.dlg-ok')||d.pe.querySelector('button');if(b)b.focus()}
+},30);
+}
+function dlgConfirmar(o,cb){dlgAbrir({tipo:'confirmar',titulo:o.titulo,texto:o.texto,ok:o.ok||'Confirmar',
+  cancelar:o.cancelar,perigo:o.perigo,cb:function(v){cb(v===true)}})}
+function dlgTexto(o,cb){dlgAbrir({tipo:'texto',titulo:o.titulo,texto:o.texto,ok:o.ok||'Salvar',
+  campo:{label:o.label,valor:o.valor,tipo:o.tipoCampo,dica:o.dica},
+  cb:function(v){if(v!==undefined&&v!=='')cb(v)}})}
+function dlgEscolher(o,cb){dlgAbrir({tipo:'escolher',titulo:o.titulo,texto:o.texto,opcoes:o.opcoes,
+  cb:function(v){if(typeof v==='number')cb(v)}})}
+function dlgAviso(o,cb){dlgAbrir({tipo:'aviso',titulo:o.titulo,texto:o.texto,ok:o.ok||'Entendi',
+  perigo:o.perigo,cb:function(){if(cb)cb()}})}
 function norm(s){return String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')}
 function debounce(fn,ms){var t;return function(){var a=arguments;clearTimeout(t);t=setTimeout(function(){fn.apply(null,a)},ms)}}
 function aba(n,btn){document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('on')});document.querySelectorAll('#sidebar button').forEach(function(b){b.classList.remove('on')});$('tab-'+n).classList.add('on');btn.classList.add('on');
+/* abrir uma tela que mora numa seção recolhida abre a seção junto: caso contrário a barra ficaria
+   sem nenhuma marca do que está aberto, e o usuário não teria como saber onde ele está */
+var grupo=btn.closest?btn.closest('.sb-grupo'):null;
+if(grupo&&!grupo.classList.contains('aberto')){grupo.classList.add('aberto');
+  grupo.querySelector('.sb-cabeca').setAttribute('aria-expanded','true');
+  try{localStorage.setItem('sb-'+grupo.id,'1')}catch(e){}}
 if(n==='horarios')run('getMatriz',[],function(m){MAT=m;matRender();dirty('mat',false);cbMontar()});
 /* Presença sempre reabre no "agora" (lcHoje zera data+hora): se a recepcionista espiou outro
    horário e trocou de aba, ao voltar ela vê de novo a turma que está em aula neste momento */
 if(n==='inicio')renderHome();if(n==='dashboard')renderDashboard();if(n==='professores')profCarregar();if(n==='backup')renderBackup();
+/* estoque recarrega a cada abertura: o saldo depende de entregas que a outra estação pode ter
+   registrado, e a tela é barata (uma rota só, ~30 itens) */
+if(n==='estoque')esCarregar(function(){esAba(ES_ABA)});
+if(n==='estagios')egCarregar(function(){egAba(EG_ABA)});
 /* as duas abas de lançamento compartilham o código: o modo diz de quais elementos ela é dona */
 if(n==='presenca'||n==='recepcao'){LCM=(n==='recepcao'?'recep':'sala');lcAba('checkin');lcHoje()}}
 /* acha o botão pelo próprio onclick em vez de um mapa de índices — assim adicionar/reordenar abas no
    sidebar não quebra a navegação por código (o mapa fixo já saiu de sincronia uma vez) */
 function abaPor(n){var alvo=null;document.querySelectorAll('#sidebar button').forEach(function(b){if(String(b.getAttribute('onclick')).indexOf("'"+n+"'")>=0)alvo=b});if(alvo)aba(n,alvo)}
+/* seção recolhível do sidebar. Nasce ABERTA (é onde está o trabalho do dia) e a escolha fica
+   gravada por grupo, para quem recolhe não ter de recolher de novo a cada abertura do app. */
+function sbGrupo(id){
+var g=$(id);if(!g)return;
+var aberto=!g.classList.contains('aberto');
+g.classList.toggle('aberto',aberto);
+g.querySelector('.sb-cabeca').setAttribute('aria-expanded',aberto?'true':'false');
+try{localStorage.setItem('sb-'+id,aberto?'1':'0')}catch(e){}
+}
+function sbRestaurar(){
+document.querySelectorAll('.sb-grupo').forEach(function(g){
+  var v=null;try{v=localStorage.getItem('sb-'+g.id)}catch(e){}
+  if(v===null)return;                       // sem preferência gravada: fica como veio no HTML
+  g.classList.toggle('aberto',v==='1');
+  g.querySelector('.sb-cabeca').setAttribute('aria-expanded',v==='1'?'true':'false')});
+}
 function iconesEstaticos(){
 document.querySelectorAll('#al-salvar .btn-ic, #tu-salvar .btn-ic, #mat-salvar .btn-ic, #pf-salvar .btn-ic').forEach(function(el){el.innerHTML=icon('save',14)});
 document.querySelectorAll('#btn-imprimir .btn-ic').forEach(function(el){el.innerHTML=icon('printer',14)});
@@ -1523,7 +2252,10 @@ document.querySelectorAll('.lc-busca-ic').forEach(function(el){el.innerHTML=icon
 /* prévia ao vivo: mesmo container renderiza a tabela .ficha em miniatura via blocos.js */
 function renderPreviewBoxEl(box,blocos){if(!blocos||!blocos.length){box.innerHTML='<div class="prev-vazio">Sem alunos neste bloco ainda.</div>';return}box.innerHTML=tabelaFichaHTML(blocos,null,{compacto:true})}
 function renderPreviewBox(elId,blocos){renderPreviewBoxEl($(elId),blocos)}
-var PREV_SEQ=0;
+/* contador da prévia de TURMAS — é uma caixa só na tela, por isso pode ser global.
+   Os cartões de matrícula têm contador PRÓPRIO (ver `meuSeq`): compartilhar um global entre
+   várias caixas fazia uma descartar a resposta da outra. */
+var PREV_SEQ_TURMA=0;
 
 /* autocomplete genérico: mostra sugestões conforme digita */
 function sugerir(inpId,listaId,fonteFn,rotulo,onPick,extra){
@@ -1576,23 +2308,46 @@ function(a){$(p+'-busca').value='';lcAbrirDialog(a.id)})});
 
 /* ===== ALUNOS (cadastro + matrículas em livro, tudo na mesma tela) ===== */
 function alStatus(){var s=$('al-sit').value;var reg=((DOM&&DOM.situacoes)||[]).filter(function(x){return x.situacao===s})[0];var ativo=!!(reg&&reg.ativa);var b=$('al-status');b.textContent=ativo?'Ativado':'Desativado';b.className='badge '+(ativo?'b-on':'b-off')}
-function alCarregar(a){dirty('al',false);alSel=a;$('al-titulo').textContent='Editar: '+a.nome;$('al-nome').value=a.nome;$('al-id').value=a.id;$('al-id').disabled=true;$('al-sit').value=a.situacao;$('al-excluir').style.display='inline-block';$('al-busca').value='';$('nm-livro').disabled=false;histFechar();freqFechar();alStatus();recarregarMatriculas()}
-function alNovo(){dirty('al',false);alSel=null;$('al-titulo').textContent='Novo aluno';$('al-nome').value='';$('al-id').value='';$('al-id').disabled=false;$('al-sit').selectedIndex=0;$('al-excluir').style.display='none';$('al-aviso').innerHTML='';$('nm-livro').disabled=true;histFechar();freqFechar();alStatus();MATRICULAS=[];MATRIC_AULAS={};renderMatriculas()}
+/* ---- abas da página de Alunos ---- */
+function alAba(p){
+document.querySelectorAll('#tab-alunos .pg-aba').forEach(function(b){b.classList.toggle('on',b.dataset.p===p)});
+['cadastro','matriculas'].forEach(function(x){$('al-p-'+x).style.display=(x===p?'block':'none')});
+}
+/* quem está aberto, no canto direito do cabeçalho: com o formulário em fileira o nome deixou de
+   ser um título de coluna, e sem isto a tela não diz de quem são os históricos logo abaixo */
+function alQuem(){$('al-quem').textContent=alSel?('Editando: '+alSel.nome):'Novo aluno'}
+/* os três registros deixaram de ser sanfona: nesta aba eles SÃO o conteúdo, então carregam junto
+   com o aluno. São três chamadas pequenas, e só quando alguém é escolhido. */
+function alHistoricos(){
+if(!alSel){histFechar();hhistFechar();freqFechar();return}
+histCarregar();hhistCarregar();freqCarregar();
+}
+/* os históricos só depois das matrículas: o dropdown de livro da situação depende delas (ver o
+   comentário em recarregarMatriculas) */
+function alCarregar(a){dirty('al',false);alSel=a;$('al-nome').value=a.nome;$('al-id').value=a.id;$('al-id').disabled=true;$('al-sit').value=a.situacao;$('al-excluir').style.display='inline-block';$('al-busca').value='';$('nm-livro').disabled=false;alQuem();alStatus();recarregarMatriculas(alHistoricos)}
+function alNovo(){dirty('al',false);alSel=null;$('al-nome').value='';$('al-id').value='';$('al-id').disabled=false;$('al-sit').selectedIndex=0;$('al-excluir').style.display='none';$('al-aviso').innerHTML='';$('nm-livro').disabled=true;alQuem();alHistoricos();alStatus();MATRICULAS=[];MATRIC_AULAS={};renderMatriculas();alAba('cadastro')}
 function alSalvar(){var a={id:$('al-id').value.trim(),nome:$('al-nome').value.trim(),situacao:$('al-sit').value};
 if(!a.id||!a.nome){msg('Preencha nome e ID.',true);return}
 if(!alSel){var dup=ALUNOS.filter(function(x){return String(x.id)===a.id})[0];if(dup){msg('Já existe aluno com ID '+a.id+' ('+dup.nome+'). Selecione-o na busca para editar.',true);return}}
-run('salvarAluno',[a],function(r){msg(r.criado?'Aluno cadastrado — agora é só adicionar as matrículas em livro ao lado.':'Aluno atualizado.');alSel={id:a.id,nome:a.nome,situacao:a.situacao,status:r.status};$('al-titulo').textContent='Editar: '+a.nome;$('al-id').disabled=true;$('al-excluir').style.display='inline-block';$('nm-livro').disabled=false;run('getAlunos',[],function(x){ALUNOS=x});recarregarMatriculas()})}
-function alExcluir(){if(!alSel)return;if(!confirm('Excluir '+alSel.nome+' e TODAS as suas matrículas/aulas?'))return;run('excluirAluno',[alSel.id],function(r){msg('Aluno excluído ('+r.aulasRemovidas+' aula(s) removida(s)).');alNovo();run('getAlunos',[],function(x){ALUNOS=x})})}
+run('salvarAluno',[a],function(r){msg(r.criado?'Aluno cadastrado — as matrículas em livro ficam na aba Matrículas.':'Aluno atualizado.');alSel={id:a.id,nome:a.nome,situacao:a.situacao,status:r.status};alQuem();$('al-id').disabled=true;$('al-excluir').style.display='inline-block';$('nm-livro').disabled=false;alHistoricos();run('getAlunos',[],function(x){ALUNOS=x});recarregarMatriculas()})}
+function alExcluir(){if(!alSel)return;
+dlgConfirmar({titulo:'Excluir aluno',perigo:true,ok:'Excluir aluno',
+ texto:'Excluir '+alSel.nome+' e TODAS as suas matrículas e aulas?'},function(sim){if(!sim)return;
+run('excluirAluno',[alSel.id],function(r){msg('Aluno excluído ('+r.aulasRemovidas+' aula(s) removida(s)).');alNovo();run('getAlunos',[],function(x){ALUNOS=x})})})}
 
 /* ---- matrículas em livro ---- */
-function recarregarMatriculas(){
-if(!alSel){MATRICULAS=[];MATRIC_AULAS={};renderMatriculas();return}
+/* `cb` existe por causa de uma corrida real: o dropdown de livro do histórico de situação é montado
+   a partir de MATRICULAS, e `alCarregar` disparava os históricos ANTES de as matrículas chegarem —
+   o campo abria só com "(sem livro)" e a situação era gravada sem curso nenhum. */
+function recarregarMatriculas(cb){
+if(!alSel){MATRICULAS=[];MATRIC_AULAS={};renderMatriculas();if(cb)cb();return}
 run('getMatriculasAluno',[alSel.id],function(ms){MATRICULAS=ms;
-run('getAulasAluno',[alSel.id],function(aulas){var por={};aulas.forEach(function(x){(por[x.livro]=por[x.livro]||[]).push(x)});MATRIC_AULAS=por;renderMatriculas()})})}
+run('getAulasAluno',[alSel.id],function(aulas){var por={};aulas.forEach(function(x){(por[x.livro]=por[x.livro]||[]).push(x)});MATRIC_AULAS=por;renderMatriculas();if(cb)cb()})})}
 function renderMatriculas(){
 var box=$('mat-lista');box.innerHTML='';
-if(!alSel){box.innerHTML='<div class="matriculas-vazio">Escolha ou cadastre um aluno para ver as matrículas.</div>';return}
-if(!MATRICULAS.length){var v=document.createElement('div');v.className='matriculas-vazio';v.textContent='Nenhuma matrícula ainda — use "+ Nova matrícula" ao lado.';box.appendChild(v)}
+$('al-n-mat').textContent=alSel?MATRICULAS.length:0;
+if(!alSel){box.innerHTML='<div class="matriculas-vazio">Busque ou cadastre um aluno no campo acima para ver as matrículas.</div>';return}
+if(!MATRICULAS.length){var v=document.createElement('div');v.className='matriculas-vazio';v.textContent='Nenhuma matrícula ainda — use "+ Nova matrícula em livro" acima.';box.appendChild(v)}
 MATRICULAS.forEach(function(m){box.appendChild(criarCartaoMatricula(m))});
 }
 /* grade dia×hora, no mesmo layout da aba Horários: dias nas colunas, horas alinhadas em linha —
@@ -1647,21 +2402,52 @@ return grid;
 function lerItensEditor(editorEl){var out=[];editorEl.querySelectorAll('.chip-hora.on').forEach(function(c){out.push({dia:c.dataset.dia,horario:c.dataset.hora})});return out}
 function criarCartaoMatricula(m){
 var card=document.createElement('div');card.className='matricula-card';
-var head=document.createElement('div');head.className='cabecalho';
-var h4=document.createElement('h4');h4.textContent=m.livro;head.appendChild(h4);
-var acoesHead=document.createElement('div');
+
+/* ---- cabeçalho: é o que sobra quando o cartão está recolhido ---- */
+var head=document.createElement('div');head.className='mat-cab';
+var seta=document.createElement('span');seta.className='mat-seta';head.appendChild(seta);
+var h4=document.createElement('span');h4.className='mat-livro';h4.textContent=m.livro;head.appendChild(h4);
+/* CONTRATO: matrícula/N, onde N é a ordem em que este vínculo foi criado — não importa o livro
+   nem o idioma. Editável porque a numeração histórica da escola pode não bater com a ordem em
+   que as linhas entraram no banco, e quem sabe o número certo é a recepção. */
+var ctr=document.createElement('span');ctr.className='mat-contrato';
+ctr.title='Contrato — clique para editar o número';
+ctr.textContent=m.contrato||(alSel.id+'/—');
+ctr.onclick=function(ev){ev.stopPropagation();
+ dlgTexto({titulo:'Número do contrato',
+  texto:'O contrato é '+alSel.id+'/N, e N é a ordem em que este vínculo foi criado. '
+   +'O primeiro livro do aluno é /1, o seguinte /2, e assim por diante — independente de livro ou idioma.',
+  label:'Número (a parte depois da barra)',valor:m.contratoSeq||'',tipoCampo:'number',ok:'Salvar'},
+ function(v){run('salvarContrato',[{idMatricula:alSel.id,livro:m.livro,seq:v}],function(r){
+   msg('Contrato '+r.contrato+' salvo.');recarregarMatriculas()})})};
+head.appendChild(ctr);
+var acoesHead=document.createElement('div');acoesHead.className='mat-acoes';
 var trocarBtn=document.createElement('button');trocarBtn.type='button';trocarBtn.className='btn-link';trocarBtn.textContent='trocar livro';
 var rm=document.createElement('button');rm.type='button';rm.className='remover';rm.innerHTML='✕';rm.title='Remover matrícula';
-rm.onclick=function(){matriculaExcluir(m.livro)};
+rm.onclick=function(ev){ev.stopPropagation();matriculaExcluir(m.livro)};
 acoesHead.appendChild(trocarBtn);acoesHead.appendChild(rm);
 head.appendChild(acoesHead);card.appendChild(head);
+
+/* ---- corpo recolhível ----
+   Com UMA matrícula o cartão abre: não há o que desambiguar e obrigar um clique só atrapalha.
+   Com duas ou mais, todas nascem recolhidas — é justamente o caso que estava pesando a tela. */
+var corpo=document.createElement('div');corpo.className='mat-corpo';
+var corpoIn=document.createElement('div');corpoIn.className='mat-corpo-in';
+corpo.appendChild(corpoIn);card.appendChild(corpo);
+var aberto=(MATRICULAS.length===1);
+function pintar(){card.classList.toggle('aberto',aberto);
+  head.setAttribute('aria-expanded',aberto?'true':'false')}
+head.onclick=function(){aberto=!aberto;pintar();if(aberto)atualizarPreview()};
+pintar();
 
 var trocaBox=document.createElement('div');trocaBox.className='sug';trocaBox.style.cssText='display:none;margin-bottom:8px';
 var trocaInp=document.createElement('input');trocaInp.placeholder='Digite o novo livro...';
 var trocaLista=document.createElement('div');trocaLista.className='lista';
 trocaBox.appendChild(trocaInp);trocaBox.appendChild(trocaLista);
-card.appendChild(trocaBox);
-trocarBtn.onclick=function(){var abrir=trocaBox.style.display==='none';trocaBox.style.display=abrir?'block':'none';if(abrir)trocaInp.focus()};
+corpoIn.appendChild(trocaBox);
+trocarBtn.onclick=function(ev){ev.stopPropagation();
+ if(!aberto){aberto=true;pintar()}
+ var abrir=trocaBox.style.display==='none';trocaBox.style.display=abrir?'block':'none';if(abrir)trocaInp.focus()};
 function renderTroca(){var q=norm(trocaInp.value);var itens=(DOM.livros||[]).filter(function(l){return l.nome!==m.livro&&!MATRICULAS.some(function(x){return x.livro===l.nome})&&(q===''||norm(l.nome).indexOf(q)>=0)}).slice(0,8);
 trocaLista.innerHTML='';itens.forEach(function(l){var d=document.createElement('div');d.textContent=l.nome+' — padrão '+l.tipoPadrao+(l.kids?' Kids':'');
 d.onmousedown=function(ev){ev.preventDefault();trocaLista.style.display='none';trocaBox.style.display='none';
@@ -1671,53 +2457,74 @@ trocaLista.style.display=itens.length?'block':'none'}
 trocaInp.addEventListener('input',renderTroca);trocaInp.addEventListener('focus',renderTroca);
 trocaInp.addEventListener('blur',function(){setTimeout(function(){trocaLista.style.display='none'},150)});
 
+/* Duas colunas: à ESQUERDA o que descreve a matrícula (modalidade, tipo de encontro, VIP e
+   professores) e à DIREITA a matriz de dias e horários, que é larga e alta. Empilhados, os três
+   selects ocupavam a largura toda e a matriz vinha lá embaixo. */
 var lv=(DOM.livros||[]).filter(function(x){return x.nome===m.livro})[0]||{};
-var linha=document.createElement('div');linha.className='linha2';
+var cols=document.createElement('div');cols.className='mat-cols';
+var esq=document.createElement('div');esq.className='mat-esq';
+var dir=document.createElement('div');dir.className='mat-dir';
+cols.appendChild(esq);cols.appendChild(dir);corpoIn.appendChild(cols);
+
 var dMod=document.createElement('div');var lblMod=document.createElement('label');lblMod.textContent='Modalidade';dMod.appendChild(lblMod);
 var selMod=document.createElement('select');['Conn','Inter'].forEach(function(o){var op=document.createElement('option');op.value=o;op.textContent=o==='Conn'?'Connections':'Interactive';selMod.appendChild(op)});selMod.value=m.modalidade;selMod.disabled=!!lv.tipoFixo;
-dMod.appendChild(selMod);linha.appendChild(dMod);
+/* livro de modalidade travada (TOTS, L. Kids): o select desabilitado já diz isso — o recado
+   escrito embaixo era uma linha a mais para ler e não acrescentava nada */
+if(lv.tipoFixo)selMod.title=m.livro+' é sempre Connections — modalidade travada.';
+dMod.appendChild(selMod);esq.appendChild(dMod);
+
 var dTipo=document.createElement('div');var lblTipo=document.createElement('label');lblTipo.textContent='Tipo de encontro';dTipo.appendChild(lblTipo);
 var selTipo=document.createElement('select');['Presencial','Online'].forEach(function(o){var op=document.createElement('option');op.value=o;op.textContent=o;selTipo.appendChild(op)});selTipo.value=m.tipoEncontro;
-dTipo.appendChild(selTipo);linha.appendChild(dTipo);
-card.appendChild(linha);
-if(lv.tipoFixo){var info=document.createElement('div');info.className='info';info.textContent='🔒 '+m.livro+' é sempre Connections'+(lv.kids?' (Kids)':'')+' — modalidade travada.';card.appendChild(info)}
+dTipo.appendChild(selTipo);esq.appendChild(dTipo);
 
-var vipLabel=document.createElement('label');vipLabel.className='chk';vipLabel.style.marginTop='8px';
-var vipChk=document.createElement('input');vipChk.type='checkbox';vipChk.style.width='auto';vipChk.checked=m.vip;
+var vipLabel=document.createElement('label');vipLabel.className='mat-vip';
+var vipChk=document.createElement('input');vipChk.type='checkbox';vipChk.checked=m.vip;
 vipLabel.appendChild(vipChk);vipLabel.appendChild(document.createTextNode(' VIP (sem turma)'));
-card.appendChild(vipLabel);
+esq.appendChild(vipLabel);
 
-var lblDias=document.createElement('label');lblDias.className='lbl-prof';
-lblDias.innerHTML='Dias e horários (marque um ou mais por dia) <button type="button" class="btn-link" title="Aplicar este mesmo horário aos colegas do bloco — útil em turma fechada de 2 aulas seguidas">aplicar à turma</button>';
-card.appendChild(lblDias);
-var schedule={};(MATRIC_AULAS[m.livro]||[]).forEach(function(x){(schedule[x.dia]=schedule[x.dia]||[]).push(x.horario)});
-var editor=criarEditorHoras(schedule,function(){atualizarPreviewDeb()});
-card.appendChild(editor);
-lblDias.querySelector('button').onclick=function(){horaLoteAbrir(m,editor)};
-
-var lblProf=document.createElement('label');lblProf.className='lbl-prof';
-lblProf.innerHTML='Professores <button type="button" class="btn-link" title="Aplicar estes professores aos colegas do mesmo dia e horário">aplicar à turma</button>';
-card.appendChild(lblProf);
-var profsBox=document.createElement('div');profsBox.className='tags';card.appendChild(profsBox);
-lblProf.querySelector('button').onclick=function(){loteAbrir(m,profsWidget.get(),editor)};
+var lblProf=document.createElement('label');lblProf.textContent='Professores';esq.appendChild(lblProf);
+var profsBox=document.createElement('div');profsBox.className='tags';esq.appendChild(profsBox);
+var btProf=document.createElement('button');btProf.type='button';btProf.className='es-bt mat-aplicar';
+btProf.textContent='Aplicar professor à turma';
+btProf.title='Aplicar estes professores aos colegas do mesmo dia e horário';
+esq.appendChild(btProf);
 var profsIniciais=[];(MATRIC_AULAS[m.livro]||[]).forEach(function(x){(x.professores||[]).forEach(function(p){if(profsIniciais.indexOf(p)<0)profsIniciais.push(p)})});
 var profsWidget=tagWidget(profsBox,function(){atualizarPreviewDeb()});
 profsWidget.set(profsIniciais);
+btProf.onclick=function(){loteAbrir(m,profsWidget.get(),editor)};
 
-var previewBox=document.createElement('div');previewBox.className='prev-box';previewBox.style.marginTop='8px';
+var lblDias=document.createElement('label');lblDias.textContent='Dias e horários (marque um ou mais por dia)';
+dir.appendChild(lblDias);
+var schedule={};(MATRIC_AULAS[m.livro]||[]).forEach(function(x){(schedule[x.dia]=schedule[x.dia]||[]).push(x.horario)});
+var editor=criarEditorHoras(schedule,function(){atualizarPreviewDeb()});
+dir.appendChild(editor);
+var btHora=document.createElement('button');btHora.type='button';btHora.className='es-bt mat-aplicar';
+btHora.textContent='Aplicar horário à turma';
+btHora.title='Aplicar este mesmo horário aos colegas do bloco — útil em turma fechada de 2 aulas seguidas';
+btHora.onclick=function(){horaLoteAbrir(m,editor)};
+dir.appendChild(btHora);
+
+var previewBox=document.createElement('div');previewBox.className='prev-box';previewBox.style.marginTop='10px';
 previewBox.innerHTML='<div class="prev-vazio">Marque dia/horário para ver a prévia.</div>';
-card.appendChild(previewBox);
+corpoIn.appendChild(previewBox);
 
 var salvarBtn=document.createElement('button');salvarBtn.type='button';salvarBtn.className='acao';salvarBtn.textContent='Salvar matrícula';
-card.appendChild(salvarBtn);
+corpoIn.appendChild(salvarBtn);
 
+/* O contador de sequência é DESTE cartão, não global.
+   Era `PREV_SEQ` compartilhado: com o aluno em dois livros, os dois cartões pediam a prévia ao
+   mesmo tempo, o segundo incrementava o contador e o PRIMEIRO descartava a própria resposta
+   achando que era obsoleta — a prévia do outro livro simplesmente não aparecia.
+   Aluno com um livro só nunca mostrou o defeito, e por isso ele passou. */
+var meuSeq=0;
 function atualizarPreview(){
+if(!aberto)return;   /* recolhido não precisa de prévia — e a tabela mediria largura errada */
 var itens=lerItensEditor(editor);
 if(!itens.length){previewBox.innerHTML='<div class="prev-vazio">Marque dia/horário para ver a prévia.</div>';return}
-var seq=++PREV_SEQ;
+var seq=++meuSeq;
 var payload={idMatricula:alSel?alSel.id:null,nome:alSel?alSel.nome:'',livro:m.livro,professores:profsWidget.get(),itens:itens,modalidade:selMod.value,vip:vipChk.checked};
 fetch('/api/previewAgendaAluno',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
-.then(function(r){return r.json()}).then(function(r){if(seq!==PREV_SEQ)return;renderPreviewBoxEl(previewBox,r&&!r.erro?r:[])});
+.then(function(r){return r.json()}).then(function(r){if(seq!==meuSeq)return;renderPreviewBoxEl(previewBox,r&&!r.erro?r:[])});
 }
 var atualizarPreviewDeb=debounce(atualizarPreview,220);
 selMod.onchange=atualizarPreviewDeb;vipChk.onchange=atualizarPreviewDeb;
@@ -1725,71 +2532,146 @@ selMod.onchange=atualizarPreviewDeb;vipChk.onchange=atualizarPreviewDeb;
 salvarBtn.onclick=function(){
 if(!alSel)return;
 run('salvarMatricula',[{idMatricula:alSel.id,livro:m.livro,modalidade:selMod.value,vip:vipChk.checked,tipoEncontro:selTipo.value}],function(){
-var itens=lerItensEditor(editor);
-run('salvarAgendaLivro',[{idMatricula:alSel.id,livro:m.livro,professores:profsWidget.get(),itens:itens}],function(r){
-msg('Matrícula de '+m.livro+' salva — '+r.salvas+' aula(s) na agenda.');
-if(r.avisos&&r.avisos.length)msg('⚠️ '+r.avisos.join(' · '),true);
-recarregarMatriculas();
-})})};
+gravarAgenda(m.livro,lerItensEditor(editor),profsWidget.get(),false)})};
 
 atualizarPreview();
 return card;
 }
+/* ---- gravar a agenda, perguntando antes quando é TROCA de horário ----
+   O servidor é quem decide se é troca (compara a agenda que está no banco com a que veio da tela) e
+   devolve `precisaTroca` sem gravar nada — mesmo padrão de `registrarPonto`/`precisaConfirmar`.
+   A decisão fica lá porque só o banco sabe o horário antigo: a tela já foi editada quando o usuário
+   clica em salvar, e comparar no cliente compararia o novo com ele mesmo. */
+var TROCA=null;
+function gravarAgenda(livro,itens,profs,confirmado){
+run('salvarAgendaLivro',[{idMatricula:alSel.id,livro:livro,professores:profs,itens:itens,confirmado:!!confirmado}],function(r){
+if(r.precisaTroca){TROCA={livro:livro,itens:itens,profs:profs};trocaAbrir(r);return}
+msg('Matrícula de '+livro+' salva — '+r.salvas+' aula(s) na agenda.');
+if(r.trocou)msg('Troca de horário registrada no histórico.');
+if(r.avisos&&r.avisos.length)msg('⚠️ '+r.avisos.join(' · '),true);
+recarregarMatriculas();
+hhistCarregar();   // a troca acabou de ser gravada: o registro tem de aparecer na hora
+})}
+function trocaAbrir(r){
+$('troca-corpo').innerHTML=
+ '<div class="info" style="margin:0 0 10px">O horário de <b>'+escBloco(r.livro)+'</b> já estava definido. '
++'Trocar não apaga presenças nem faltas já lançadas — só muda a agenda daqui para a frente, e a '
++'mudança fica registrada no histórico do aluno.</div>'
++'<div class="troca-cmp"><div class="troca-lado"><small>estava</small><b>'+escBloco(r.antes||'sem horário')+'</b></div>'
++'<div class="troca-seta">→</div>'
++'<div class="troca-lado nova"><small>passa a ser</small><b>'+escBloco(r.depois||'sem horário')+'</b></div></div>';
+var d=$('troca-dialog');
+/* o Shoelace pode não ter subido (ver data-shoelace no autoloader, que já falhou em silêncio uma
+   vez) — nesse caso cai na janela própria, que não depende de nada */
+if(d&&d.show)d.show();
+else dlgConfirmar({titulo:'Trocar o horário do aluno?',ok:'Trocar horário',
+  texto:'O horário de '+r.livro+' já estava definido.\n\nEstava: '+(r.antes||'sem horário')
+   +'\nPassa a ser: '+(r.depois||'sem horário')
+   +'\n\nTrocar não apaga presenças nem faltas já lançadas.'},function(sim){if(sim)trocaConfirmar()});
+}
+function trocaConfirmar(){
+var d=$('troca-dialog');if(d&&d.hide)d.hide();
+if(!TROCA)return;var t=TROCA;TROCA=null;
+gravarAgenda(t.livro,t.itens,t.profs,true);
+}
+
+/* ---- histórico de trocas de horário (recolhido por padrão, como os outros dois) ---- */
+function hhistFechar(){$('hhist-corpo').innerHTML='<div class="al-hist-vazio">Escolha um aluno.</div>'}
+function hhistCarregar(){run('getHorariosHistoricoAluno',[{idMatricula:alSel.id}],function(hs){hhistRender(hs)})}
+function hhistRender(hs){
+var box=$('hhist-corpo');box.innerHTML='';
+if(!hs.length){var v=document.createElement('div');v.style.cssText='color:var(--tx3);font-size:12px;padding:4px 0';
+v.textContent='Nenhuma troca registrada — o horário deste aluno não mudou desde que o registro existe.';
+box.appendChild(v);return}
+/* quantas vezes por livro: é a pergunta que ele faz ("esse aluno troca demais de horário?") */
+var porLivro={};hs.forEach(function(h){porLivro[h.livro]=(porLivro[h.livro]||0)+1});
+var res=document.createElement('div');res.className='freq-resumo';
+res.innerHTML=Object.keys(porLivro).map(function(l){
+ return '<div class="freq-kpi"><b>'+porLivro[l]+'</b>'+escBloco(l)+'</div>'}).join('');
+box.appendChild(res);
+var lista=document.createElement('div');lista.className='freq-lista';
+hs.forEach(function(h){
+var row=document.createElement('div');row.className='hist-linha';
+var tx=document.createElement('span');
+tx.innerHTML='<small style="color:var(--tx3)">'+escBloco(h.momento.slice(8,10)+'/'+h.momento.slice(5,7)+'/'+h.momento.slice(0,4))+'</small> '
++'<small style="color:var(--tx3)">'+escBloco(h.livro)+'</small><br>'
++'<span class="troca-de">'+escBloco(h.antes||'sem horário')+'</span>'
++'<span class="troca-seta-in">→</span>'
++'<span class="troca-para">'+escBloco(h.depois||'sem horário')+'</span>';
+row.appendChild(tx);lista.appendChild(row)});
+box.appendChild(lista);
+}
+
 function novaMatriculaEscolhida(l){if(!alSel){msg('Salve o cadastro do aluno primeiro.',true);return}
 MATRICULAS.push({livro:l.nome,modalidade:l.tipoPadrao,vip:false,tipoEncontro:'Presencial'});
-MATRIC_AULAS[l.nome]=[];renderMatriculas()}
+MATRIC_AULAS[l.nome]=[];renderMatriculas();alAba('matriculas')}
 function matriculaExcluir(livro){if(!alSel)return;
-if(!confirm('Remover a matrícula de '+livro+'? Isso apaga também as aulas desse livro.'))return;
-run('excluirMatricula',[{idMatricula:alSel.id,livro:livro}],function(r){msg('Matrícula removida ('+r.aulasRemovidas+' aula(s)).');recarregarMatriculas()})}
+dlgConfirmar({titulo:'Remover matrícula',perigo:true,ok:'Remover',
+ texto:'Remover a matrícula de '+livro+'?\n\nIsso apaga também as aulas desse livro.'},function(sim){
+if(!sim)return;
+run('excluirMatricula',[{idMatricula:alSel.id,livro:livro}],function(r){msg('Matrícula removida ('+r.aulasRemovidas+' aula(s)).');recarregarMatriculas()})})}
 
 /* ---- histórico de situação (linha do tempo manual, recolhida por padrão) ---- */
-var HIST_ABERTO=false;
-function histFechar(){HIST_ABERTO=false;$('hist-corpo').style.display='none';$('hist-corpo').innerHTML='';$('hist-toggle').textContent='▸ Histórico de situação'}
-function histToggle(){if(!alSel){msg('Escolha um aluno primeiro.',true);return}
-HIST_ABERTO=!HIST_ABERTO;$('hist-corpo').style.display=HIST_ABERTO?'block':'none';$('hist-toggle').textContent=(HIST_ABERTO?'▾':'▸')+' Histórico de situação';
-if(HIST_ABERTO)run('getHistoricoAluno',[alSel.id],function(hs){histRender(hs)})}
+function histFechar(){$('hist-corpo').innerHTML='<div class="al-hist-vazio">Escolha um aluno.</div>'}
+function histCarregar(){run('getHistoricoAluno',[alSel.id],function(hs){histRender(hs)})}
 /* "Rematriculado" -> "sit-rematriculado": sem acento e em minúsculas, para virar classe CSS */
 function classeSit(s){return 'sit-'+norm(s).replace(/[^a-z]/g,'')}
 function dataCurta(iso){var p=String(iso).split('-');return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:iso}
+/* Os campos de lançar vêm EM CIMA e a lista embaixo: o histórico cresce para baixo, então um
+   formulário no pé ia descendo junto e fugindo da vista a cada registro novo. Em cima ele fica
+   parado, no mesmo lugar, sempre. Uma divisória separa "lançar" de "o que já foi lançado". */
 function histRender(hs){
 var box=$('hist-corpo');box.innerHTML='';
-if(!hs.length){var v=document.createElement('div');v.style.cssText='color:var(--tx3);font-size:12px;padding:4px 0';v.textContent='Nenhum registro ainda.';box.appendChild(v)}
-hs.forEach(function(h){var row=document.createElement('div');row.className='hist-linha';
-var txt=document.createElement('span');
-txt.innerHTML='<span class="sit '+classeSit(h.situacao)+'">'+escBloco(h.situacao)+'</span> <small style="color:var(--tx2)">'+escBloco(dataCurta(h.data))+'</small>';
-var del=document.createElement('button');del.type='button';del.className='remover';del.textContent='✕';del.title='Remover registro';
-del.onclick=function(){run('excluirHistoricoAluno',[h.id],function(){run('getHistoricoAluno',[alSel.id],function(hs2){histRender(hs2)})})};
-row.appendChild(txt);row.appendChild(del);box.appendChild(row)});
 var addRow=document.createElement('div');addRow.className='hist-add';
 var selSit=document.createElement('select');(DOM.situacoes||[]).forEach(function(s){var o=document.createElement('option');o.textContent=s.situacao;selSit.appendChild(o)});
+/* livros oferecidos: os que o aluno tem HOJE primeiro (é o caso comum), depois os que aparecem no
+   histórico dele mas já saíram das matrículas — quem encerrou o W2 e foi para o W4 precisa poder
+   registrar "Encerrado · W2" mesmo já não tendo mais a matrícula do W2. */
+var selLiv=document.createElement('select');
+var o0=document.createElement('option');o0.value='';o0.textContent='(sem livro)';selLiv.appendChild(o0);
+var vistos={};
+(MATRICULAS||[]).forEach(function(m){if(!vistos[m.livro]){vistos[m.livro]=1;
+  var o=document.createElement('option');o.value=m.livro;o.textContent=m.livro;selLiv.appendChild(o)}});
+hs.forEach(function(h){if(h.livro&&!vistos[h.livro]){vistos[h.livro]=1;
+  var o=document.createElement('option');o.value=h.livro;o.textContent=h.livro+' (anterior)';selLiv.appendChild(o)}});
 var inpData=document.createElement('input');inpData.type='date';
 var addBtn=document.createElement('button');addBtn.type='button';addBtn.className='acao';addBtn.style.cssText='padding:6px 10px;margin:0';addBtn.textContent='+';
 addBtn.onclick=function(){if(!inpData.value){msg('Escolha uma data.',true);return}
-run('salvarHistoricoAluno',[{idMatricula:alSel.id,situacao:selSit.value,data:inpData.value}],function(){inpData.value='';run('getHistoricoAluno',[alSel.id],function(hs2){histRender(hs2)})})};
-addRow.appendChild(selSit);addRow.appendChild(inpData);addRow.appendChild(addBtn);
+run('salvarHistoricoAluno',[{idMatricula:alSel.id,situacao:selSit.value,data:inpData.value,livro:selLiv.value||null}],function(){inpData.value='';run('getHistoricoAluno',[alSel.id],function(hs2){histRender(hs2)})})};
+addRow.appendChild(selSit);addRow.appendChild(selLiv);addRow.appendChild(inpData);addRow.appendChild(addBtn);
 box.appendChild(addRow);
+box.appendChild(Object.assign(document.createElement('hr'),{className:'hist-fio'}));
+if(!hs.length){var v=document.createElement('div');v.style.cssText='color:var(--tx3);font-size:12px;padding:4px 0';v.textContent='Nenhum registro ainda.';box.appendChild(v);return}
+var lista=document.createElement('div');lista.className='freq-lista';
+hs.forEach(function(h){var row=document.createElement('div');row.className='hist-linha';
+var txt=document.createElement('span');
+/* a pílula do livro diz de QUAL curso é a situação. Registro antigo (sem livro) não some nem
+   mente: mostra "geral" tracejado, que é honesto sobre não se saber a qual matrícula pertence. */
+txt.innerHTML='<span class="sit '+classeSit(h.situacao)+'">'+escBloco(h.situacao)+'</span>'
++(h.livro?'<span class="sit-livro">'+escBloco(h.livro)+'</span>'
+        :'<span class="sit-livro geral" title="Registro sem livro — feito antes de a situação passar a ser por curso">geral</span>')
++' <small style="color:var(--tx2)">'+escBloco(dataCurta(h.data))+'</small>';
+var del=document.createElement('button');del.type='button';del.className='remover';del.textContent='✕';del.title='Remover registro';
+del.onclick=function(){run('excluirHistoricoAluno',[h.id],function(){run('getHistoricoAluno',[alSel.id],function(hs2){histRender(hs2)})})};
+row.appendChild(txt);row.appendChild(del);lista.appendChild(row)});
+box.appendChild(lista);
 }
 
 /* ---- frequência do aluno (só leitura + remover lançamento errado; lançar é na aba Presença) ---- */
-var FREQ_ABERTO=false;
-function freqFechar(){FREQ_ABERTO=false;$('freq-corpo').style.display='none';$('freq-corpo').innerHTML='';$('freq-toggle').textContent='▸ Frequência (presenças e faltas)'}
-function freqToggle(){if(!alSel){msg('Escolha um aluno primeiro.',true);return}
-FREQ_ABERTO=!FREQ_ABERTO;$('freq-corpo').style.display=FREQ_ABERTO?'block':'none';
-$('freq-toggle').textContent=(FREQ_ABERTO?'▾':'▸')+' Frequência (presenças e faltas)';
-if(FREQ_ABERTO)freqCarregar()}
+function freqFechar(){$('freq-corpo').innerHTML='<div class="al-hist-vazio">Escolha um aluno.</div>'}
 /* frequência + encontros fora da agenda: as duas coisas contam a mesma história (quando o aluno
-   veio), então moram no mesmo lugar em vez de virar mais um accordion */
-function freqCarregar(){var id=alSel.id;
-run('getFrequenciaAluno',[{idMatricula:id}],function(r){
-run('getAvulsosAluno',[{idMatricula:id}],function(av){freqRender(r,av)})})}
-function freqRender(r,avulsos){
+   veio), então são UMA lista só — o servidor já as funde e ordena por data (getFrequenciaAluno).
+   Uma chamada só: a segunda existia para montar a seção separada, que deixou de existir. */
+function freqCarregar(){run('getFrequenciaAluno',[{idMatricula:alSel.id}],function(r){freqRender(r)})}
+function freqRender(r){
 var box=$('freq-corpo');box.innerHTML='';
 var res=document.createElement('div');res.className='freq-resumo';
 res.innerHTML='<div class="freq-kpi p"><b>'+r.resumo.P+'</b>presenças</div>'
 +'<div class="freq-kpi f"><b>'+r.resumo.F+'</b>faltas</div>'
 +'<div class="freq-kpi n"><b>'+r.resumo.N+'</b>não aula</div>'
 +'<div class="freq-kpi"><b>'+(r.resumo.aproveitamento===null?'—':r.resumo.aproveitamento+'%')+'</b>aproveitamento</div>'
-+'<div class="freq-kpi t"><b>'+(r.resumo.minutos?escBloco(fmtDur(r.resumo.minutos)):'—')+'</b>de aula<small>'+r.resumo.comPonto+' com ponto</small></div>';
++'<div class="freq-kpi t"><b>'+(r.resumo.minutos?escBloco(fmtDur(r.resumo.minutos)):'—')+'</b>de aula<small>'+r.resumo.comPonto+' com ponto</small></div>'
++(r.resumo.fora?'<div class="freq-kpi fora"><b>'+r.resumo.fora+'</b>fora do horário</div>':'');
 box.appendChild(res);
 if(!r.linhas.length){var v=document.createElement('div');v.style.cssText='color:var(--tx3);font-size:12px;padding:4px 0';
 v.textContent='Nada lançado ainda — use a aba Presença.';box.appendChild(v);return}
@@ -1797,45 +2679,41 @@ var lista=document.createElement('div');lista.className='freq-lista';
 r.linhas.forEach(function(l){
 var row=document.createElement('div');row.className='hist-linha';
 var tx=document.createElement('span');
-tx.innerHTML='<span class="st '+l.status+'">'+(l.status==='P'?'P':l.status==='F'?'F':'—')+'</span> '
+/* dia que não é o do horário fixo do aluno: um sinalzinho na linha, e não uma seção à parte.
+   O motivo do encontro (reposição, reforço...) vai no title — a linha tem de continuar curta. */
+var alerta=l.foraDoHorario
+ ? '<span class="freq-fora" title="'+escBloco(l.avulso
+     ? l.avulso.motivo+' às '+l.avulso.hora+(l.avulso.observacao?' — '+l.avulso.observacao:'')
+     : 'Este dia não é o do horário fixo do aluno neste livro.')+'">'+icon('triangle-alert',13)+'</span> '
+ : '';
+var marca=l.status===null
+ ? '<span class="badge b-emaula" title="Encontro previsto que ainda não virou presença">previsto</span> '
+ : '<span class="st '+l.status+'">'+(l.status==='P'?'P':l.status==='F'?'F':'—')+'</span> ';
+tx.innerHTML=marca+alerta
 +'<b>'+l.numero+'</b> '+escBloco(l.diaCurto)+' · '+escBloco(l.mes.slice(0,3))+' <small style="color:var(--tx3)">'+escBloco(l.livro)+'</small>'
-+(l.minutos!=null?' <span class="lc-dur'+(l.minutos<20?' curta':'')+'">'+escBloco(fmtDur(l.minutos))+'</span>':'');
-var del=document.createElement('button');del.type='button';del.className='remover';del.textContent='✕';del.title='Remover este lançamento';
-del.onclick=function(){if(!confirm('Remover o lançamento de '+l.numero+'/'+l.data.slice(5,7)+' ('+l.livro+')?'))return;
-run('lancarPresenca',[{idMatricula:alSel.id,livro:l.livro,data:l.data,status:null}],function(){msg('Lançamento removido.');freqCarregar()})};
-row.appendChild(tx);row.appendChild(del);lista.appendChild(row)});
-box.appendChild(lista);
-freqAvulsos(box,avulsos);
-}
-/* Encontros fora da agenda, com o motivo que a recepção registrou. Aparece aqui e NÃO nas duas telas
-   de lançamento (lá o motivo fica no tooltip do alerta) — a grade é para lançar, não para ler
-   histórico. Inclui o previsto que nunca virou presença: é justamente o que interessa saber depois. */
-function freqAvulsos(box,avulsos){
-if(!avulsos||!avulsos.length)return;
-var t=document.createElement('div');
-t.style.cssText='font-size:11px;font-weight:700;color:var(--tx2);margin:12px 0 6px';
-t.textContent='Fora do horário fixo ('+avulsos.length+')';
-box.appendChild(t);
-var lista=document.createElement('div');lista.className='freq-lista';
-avulsos.forEach(function(a){
-var row=document.createElement('div');row.className='hist-linha';
-var veio=a.status==='P';
-var tx=document.createElement('span');
-tx.innerHTML='<b>'+a.numero+'</b> '+escBloco(a.diaCurto)+' · <b>'+escBloco(a.hora)+'</b> '
-+'<span class="av-motivo">'+escBloco(a.motivo)+'</span> '
-+'<small style="color:var(--tx3)">'+escBloco(a.livro)+'</small>'
-+(veio?' <span class="lc-hora-tag ent">'+escBloco(a.entrada||'presente')+'</span>'
-      +(a.minutos!=null?' <span class="lc-dur'+(a.minutos<20?' curta':'')+'">'+escBloco(fmtDur(a.minutos))+'</span>':'')
- :a.status==='F'?' <span class="badge b-off">faltou</span>'
- :' <span class="badge b-emaula">não confirmado</span>')
-+(a.observacao?'<br><small style="color:var(--tx3)">'+escBloco(a.observacao)+'</small>':'');
++(l.avulso?' <span class="av-motivo">'+escBloco(l.avulso.motivo)+'</span>':'')
++(l.minutos!=null?' <span class="lc-dur'+(l.minutos<20?' curta':'')+'">'+escBloco(fmtDur(l.minutos))+'</span>':'')
++(l.auto?' <span class="badge b-off" title="Falta lançada pelo fecho do dia, não por alguém">auto</span>':'');
 var del=document.createElement('button');del.type='button';del.className='remover';del.textContent='✕';
-del.title='Remover este encontro (a presença lançada não é apagada)';
-del.onclick=function(){if(!confirm('Remover o encontro de '+a.numero+'/'+a.data.slice(5,7)+' às '+a.hora+' ('+a.motivo+')?'))return;
-run('removerAvulso',[{id:a.id}],function(){msg('Encontro removido.');freqCarregar()})};
+del.title=l.status===null?'Remover este encontro':'Remover este lançamento';
+del.onclick=function(){
+/* linha sem status é só o encontro previsto: remover ali apaga o encontro, não a presença */
+if(l.status===null){
+  dlgConfirmar({titulo:'Remover encontro',perigo:true,ok:'Remover',
+   texto:'Remover o encontro de '+l.numero+'/'+l.data.slice(5,7)+' às '+l.avulso.hora+' ('+l.avulso.motivo+')?'},
+  function(sim){if(!sim)return;
+   run('removerAvulso',[{id:l.avulso.id}],function(){msg('Encontro removido.');freqCarregar()})});return}
+dlgConfirmar({titulo:'Remover lançamento',perigo:true,ok:'Remover',
+ texto:'Remover o lançamento de '+l.numero+'/'+l.data.slice(5,7)+' ('+l.livro+')?'},function(sim){
+if(!sim)return;
+run('lancarPresenca',[{idMatricula:alSel.id,livro:l.livro,data:l.data,status:null}],function(){msg('Lançamento removido.');freqCarregar()})})};
 row.appendChild(tx);row.appendChild(del);lista.appendChild(row)});
 box.appendChild(lista);
 }
+/* `freqAvulsos` foi removida: os encontros fora da agenda deixaram de ter seção própria e entram
+   na lista única de frequência, marcados com o sinal de alerta (ver freqRender). A rota
+   `getAvulsosAluno` continua no servidor — não é mais usada aqui, mas segue sendo a leitura
+   crua de encontro_avulso. */
 
 var MAT=null,MAT_TRAVADA=true;
 function matRender(){var box=$('matriz');box.innerHTML='';box.className='mat'+(MAT_TRAVADA?' travada':'');box.style.gridTemplateColumns='auto repeat('+MAT.dias.length+',1fr)';box.appendChild(document.createElement('div'));
@@ -1855,7 +2733,9 @@ if(MAT)matRender()}
 function matToggleLock(){if(!MAT_TRAVADA){MAT_TRAVADA=true;matAtualizarLock();return}
 var dlg=$('mat-dialog');
 if(dlg&&typeof dlg.show==='function')dlg.show();
-else if(confirm('Os horários da matriz costumam ser fixos e raramente mudam. Confirma que quer editar agora?'))matConfirmarDestrava()}
+else dlgConfirmar({titulo:'Destravar edição da matriz',ok:'Destravar',
+  texto:'Os horários da matriz costumam ser fixos e raramente mudam. Confirma que quer editar agora?'},
+ function(sim){if(sim)matConfirmarDestrava()})}
 function matConfirmarDestrava(){MAT_TRAVADA=false;matAtualizarLock();$('mat-dialog').hide()}
 
 /* ---- configurador de blocos nomeados (Almoço/Descanso/Vago): aplica em lote no grid em memória ---- */
@@ -1885,18 +2765,27 @@ var tuPreviewBloco=debounce(function(){
 var hi=$('tu-hini').value,hf=$('tu-hfim').value,dias=tuDias(),livro=$('tu-livro').value.trim();
 if(hf<=hi||!dias){renderPreviewBox('tu-preview-bloco',[]);return}
 var payload={id:tuSel?tuSel.id:null,livro:livro||null,blocoDias:dias,horario:hi,horaFim:hf,professores:tuTags?tuTags.get():[]};
-var seq=++PREV_SEQ;
+var seq=++PREV_SEQ_TURMA;
 fetch('/api/previewTurma',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
-.then(function(r){return r.json()}).then(function(r){if(seq!==PREV_SEQ)return;renderPreviewBox('tu-preview-bloco',r&&!r.erro?r:[])})
+.then(function(r){return r.json()}).then(function(r){if(seq!==PREV_SEQ_TURMA)return;renderPreviewBox('tu-preview-bloco',r&&!r.erro?r:[])})
 },220);
 function tuCarregar(t){tuSel=t;$('tu-titulo').textContent='Editar: '+t.id;$('tu-busca').value='';$('tu-livro').value=t.livro;tuSetDias(t.blocoDias);$('tu-hini').value=t.horario;$('tu-hfim').value=t.horaFim;tuTags.set(t.professores);$('tu-status').value=t.status;$('tu-excluir').style.display='inline-block';tuPreview();tuMembros();dirty('tu',false)}
 function tuNova(){tuSel=null;$('tu-titulo').textContent='Nova turma';$('tu-livro').value='';tuSetDias('');$('tu-hini').selectedIndex=0;$('tu-hfim').selectedIndex=1;tuTags.set([]);$('tu-status').value='Ativa';$('tu-excluir').style.display='none';$('tu-livro-info').innerHTML='';$('tu-membros').innerHTML='';tuPreview();dirty('tu',false)}
 function tuSalvar(){var t={id:tuSel?tuSel.id:null,livro:$('tu-livro').value.trim(),blocoDias:tuDias(),horario:$('tu-hini').value,horaFim:$('tu-hfim').value,professores:tuTags.get(),status:$('tu-status').value};
 if(!t.blocoDias){msg('Marque os dias da turma.',true);return}
 if(t.horaFim<=t.horario){msg('Horário impossível: o fim deve ser depois do início.',true);return}
-if(!t.livro&&!confirm('Turma sem livro definido: vale para salas Interactive multi-livro (cada aluno segue o próprio livro na matrícula dele). Continuar?'))return;
-if(!t.professores.length&&!confirm('Turma sem professora vinculada — turmas gêmeas (mesmo livro/dias/horário) só se diferenciam pela professora. Salvar mesmo assim?'))return;
-run('salvarTurma',[t],function(r){msg('Turma salva: '+r.nome);if(r.avisos&&r.avisos.length)msg('⚠️ '+r.avisos.join(' · '),true);run('getTurmas',[],function(x){TURMAS=x;if(DOM)DOM.turmas=x});tuNova()})}
+/* os dois avisos abaixo são ressalvas encadeadas: cada uma só pergunta se a anterior passou.
+   Em callback isso vira aninhamento — daí a função `gravar` no fim da cadeia. */
+function gravar(){run('salvarTurma',[t],function(r){msg('Turma salva: '+r.nome);if(r.avisos&&r.avisos.length)msg('⚠️ '+r.avisos.join(' · '),true);run('getTurmas',[],function(x){TURMAS=x;if(DOM)DOM.turmas=x});tuNova()})}
+function semProfessora(){
+ if(t.professores.length)return gravar();
+ dlgConfirmar({titulo:'Turma sem professora',ok:'Salvar assim',
+  texto:'Turmas gêmeas (mesmo livro, dias e horário) só se diferenciam pela professora. Salvar mesmo assim?'},
+ function(sim){if(sim)gravar()})}
+if(!t.livro)dlgConfirmar({titulo:'Turma sem livro',ok:'Continuar',
+  texto:'Vale para salas Interactive multi-livro, onde cada aluno segue o próprio livro na matrícula dele. Continuar?'},
+ function(sim){if(sim)semProfessora()});
+else semProfessora()}
 function tuMembros(){if(!tuSel){$('tu-membros').innerHTML='';return}
 var box=$('tu-membros');box.innerHTML='<h3>Integrantes</h3><small>Carregando...</small>';
 run('getIntegrantesTurma',[tuSel.id],function(ms){
@@ -1904,10 +2793,17 @@ box.innerHTML='<h3>Integrantes ('+ms.length+')</h3>';
 if(!ms.length){var w=document.createElement('div');w.className='info aviso';w.textContent='⚠️ Turma vazia — precisa de alunos (não-VIP, mesmo livro), dias/hora e professora vinculada.';box.appendChild(w);return}
 ms.forEach(function(m){var d=document.createElement('div');d.className='item';d.style.cursor='default';
 var del=document.createElement('button');del.className='acao perigo';del.style.cssText='float:right;padding:2px 8px;margin:0';del.textContent='✕';del.title='Remover da turma';
-del.onclick=function(){if(confirm('Remover '+m.nome+' desta turma? As aulas dele neste dia/horário serão apagadas (o cadastro do aluno permanece).')){run('removerAlunoDaTurma',[{idMatricula:m.id,idTurma:tuSel.id}],function(r){msg(r.aulasRemovidas+' aula(s) removida(s).');tuMembros()})}};
+del.onclick=function(){dlgConfirmar({titulo:'Remover da turma',perigo:true,ok:'Remover',
+ texto:'Remover '+m.nome+' desta turma?\n\nAs aulas dele neste dia e horário serão apagadas. O cadastro do aluno permanece.'},
+function(sim){if(!sim)return;
+run('removerAlunoDaTurma',[{idMatricula:m.id,idTurma:tuSel.id}],function(r){msg(r.aulasRemovidas+' aula(s) removida(s).');tuMembros()})})};
 var tx=document.createElement('span');tx.innerHTML='<b>'+escBloco(m.nome)+'</b> ('+escBloco(m.id)+') · '+escBloco(m.dias.join('+'))+(m.divergente?' · <span class="tx-perigo">⚠️ livro diferente: '+escBloco(m.livros.join(', '))+' — considere ajustar</span>':'');
 d.appendChild(del);d.appendChild(tx);box.appendChild(d)})})}
-function tuExcluir(){if(!tuSel)return;if(!confirm('Excluir a turma '+tuSel.id+'? As aulas não são apagadas (a turma é deduzida).'))return;run('excluirTurma',[tuSel.id],function(){msg('Turma excluída.');run('getTurmas',[],function(x){TURMAS=x;if(DOM)DOM.turmas=x});tuNova()})}
+function tuExcluir(){if(!tuSel)return;
+dlgConfirmar({titulo:'Excluir turma',perigo:true,ok:'Excluir turma',
+ texto:'Excluir a turma '+tuSel.id+'?\n\nAs aulas não são apagadas — a turma é deduzida a partir delas.'},
+function(sim){if(!sim)return;
+run('excluirTurma',[tuSel.id],function(){msg('Turma excluída.');run('getTurmas',[],function(x){TURMAS=x;if(DOM)DOM.turmas=x});tuNova()})})}
 
 /* ===== horário em lote =====
    Turma fechada (Conn) costuma ter o mesmo padrão de horas para todo mundo — o italiano de sábado
@@ -2037,10 +2933,12 @@ run('getDominios',[],function(dom){DOM=dom;TURMAS=dom.turmas})})}  // atualiza a
 function profExcluir(){if(!pfSel)return;
 run('excluirFuncionario',[{id:pfSel.id}],function(r){
 if(r.precisaConfirmar){
-if(!confirm('"'+r.nome+'" está vinculado a '+r.aulas+' aula(s) e '+r.turmas+' turma(s). Excluir mesmo assim? Os vínculos serão desfeitos — os alunos e as turmas permanecem.'))return;
+dlgConfirmar({titulo:'Professor com vínculos',perigo:true,ok:'Excluir mesmo assim',
+ texto:'"'+r.nome+'" está vinculado a '+r.aulas+' aula(s) e '+r.turmas+' turma(s).\n\nOs vínculos serão desfeitos — os alunos e as turmas permanecem.'},
+function(sim){if(!sim)return;
 run('excluirFuncionario',[{id:pfSel.id,forcar:true}],function(r2){
 msg('Professor excluído ('+r2.aulas+' vínculo(s) de aula desfeito(s)).');profNovo();profCarregar();
-run('getDominios',[],function(dom){DOM=dom;TURMAS=dom.turmas})});return}
+run('getDominios',[],function(dom){DOM=dom;TURMAS=dom.turmas})})});return}
 msg('Professor excluído.');profNovo();profCarregar();
 run('getDominios',[],function(dom){DOM=dom;TURMAS=dom.turmas})})}
 
@@ -2078,15 +2976,608 @@ else if(!(r.erros&&r.erros.length))msg('Nada a copiar.');
 if(r.erros&&r.erros.length)msg('⚠️ '+r.erros.join(' · '),true);
 renderBackup()})}
 
+/* ===================== ESTOQUE =====================
+   Modelo: cada coluna da grade é um EVENTO DATADO (contagem | pedido | remessa | entregas).
+   O saldo e a sugestão de pedido vêm calculados do servidor — são as duas contas que não podem
+   divergir entre a grade e a lista de entregas, então existem num lugar só. */
+var ES=null, ES_ABA='contagem', ES_FILTRO=null, ES_FILTRO_ENT='pendente', ES_FILTRO_ENT_ESCOLHIDO=false;
+/* colunas destravadas para edição, por id de evento. A grade nasce SÓ LEITURA: contagem é
+   registro do que se viu na prateleira, e clicar sem querer numa célula de um mês atrás reescreve
+   história. Mesma ideia da matriz de Horários, que também abre travada.
+   A coluna recém-criada é a exceção — quem acabou de criá-la é para preenchê-la agora. */
+var ES_EDIT={};
+var ES_FAIXAS=['Kids','Teens','Ws','Outros Idiomas','Materiais'];
+
+function esCarregar(cb){run('getEstoque',[{}],function(r){ES=r;if(cb)cb();esRender();esAtualizarContadores()})}
+function esAtualizarContadores(){
+if(!ES)return;
+$('es-n-itens').textContent=ES.itens.length;
+$('es-n-itens2').textContent=ES.itens.length;
+$('es-n-kits').textContent=Object.keys(ES.kits||{}).length;
+$('es-n-rem').textContent=ES.eventos.filter(function(e){return e.tipo==='remessa'}).length;
+$('es-n-pend').textContent=ES.entregas.filter(function(e){return !e.entregaId}).length;
+}
+function esAba(p){
+ES_ABA=p;
+document.querySelectorAll('#tab-estoque .pg-aba').forEach(function(b){b.classList.toggle('on',b.dataset.p===p)});
+['contagem','entregas','itens','kits','remessas'].forEach(function(x){
+  $('es-p-'+x).style.display=(x===p?'block':'none')});
+if(p==='contagem')esRender();
+if(p==='entregas')esRenderEntregas();
+if(p==='itens')esRenderItens();
+if(p==='kits')esRenderKits();
+if(p==='remessas')esRenderRemessas();
+}
+function esItem(id){return ES.itens.filter(function(i){return i.id===id})[0]}
+function esDataBR(iso){var p=String(iso).split('-');return p.length===3?p[2]+'/'+p[1]:iso}
+/* linha do tempo: eventos digitados + colunas de saída derivadas. A chave data+ord garante que,
+   no mesmo dia, a leva de entregas que a contagem absorveu desenhe ANTES dela e a ainda não
+   conferida depois — sem isso a ordem dependeria de quem entrou primeiro no array. */
+function esOrd(e){return e.tipo==='saida'?(e.aberta?2:0):1}
+function esEventos(){
+return ES.eventos.concat(ES.saidas||[]).sort(function(a,b){
+  var ka=a.data+'|'+esOrd(a), kb=b.data+'|'+esOrd(b);
+  return ka<kb?-1:(ka>kb?1:0)});
+}
+function esValor(ev,itemId){
+var v=ev.itens?ev.itens[itemId]:null;
+if(v==null)return null;
+return (typeof v==='object')?v.q:v;
+}
+function esNota(ev,itemId){var v=ev.itens?ev.itens[itemId]:null;return (v&&typeof v==='object')?v.nota:null}
+
+function esRender(){
+if(!ES){esCarregar();return}
+var evs=esEventos(), busca=($('es-busca').value||'').toLowerCase();
+var lista=ES.itens.filter(function(i){
+  if(ES_FILTRO&&i.categoria!==ES_FILTRO)return false;
+  if(busca&&(i.descricao+' '+i.codigo).toLowerCase().indexOf(busca)<0)return false;
+  return true});
+var ROT={contagem:'CONTAGEM',pedido:'PEDIDO',remessa:'REMESSA',saida:'ENTREGAS'};
+var h='<thead><tr><th class="col-item">Item</th>';
+evs.forEach(function(e,ix){
+  var rot=ROT[e.tipo]+(e.tipo==='saida'&&e.aberta?' ATÉ HOJE':'');
+  /* a coluna de ENTREGAS é derivada da lista de entregas: não tem data própria para trocar nem
+     linha para excluir, então não ganha engrenagem */
+  var eng=e.tipo==='saida'?''
+   :'<button type="button" class="es-eng'+(ES_EDIT[e.id]?' destravada':'')+'" data-e="'+e.id+'"'
+    +' onclick="esMenuColuna(event,'+e.id+')" title="Editar ou excluir esta coluna">'+icon('settings',13)+'</button>';
+  h+='<th class="ev tipo-'+e.tipo+(ix===evs.length-1?' ultima':'')+(ES_EDIT[e.id]?' destravada':'')
+   +'" title="'+escBloco(e.observacao||rot)+'">'
+   +'<span class="es-ev-tipo">'+rot+'</span><span class="es-ev-data">'+esDataBR(e.data)+'</span>'
+   +eng+'</th>'});
+h+='<th class="col-fim">Saldo</th><th class="col-fim">Mín.</th><th class="col-fim">Pedir</th></tr></thead><tbody>';
+var faixa=null, colspan=evs.length+4;
+ES_FAIXAS.forEach(function(f){
+  var doGrupo=lista.filter(function(i){return i.categoria===f});
+  if(!doGrupo.length)return;
+  h+='<tr class="banda"><td colspan="'+colspan+'">'+escBloco(f)
+   +'<span class="cont">'+doGrupo.length+(doGrupo.length===1?' item':' itens')+'</span></td></tr>';
+  doGrupo.forEach(function(it){
+    var selo=it.unidade==='kit'?'<span class="es-selo kit">KIT</span>'
+      :(it.finalidade==='professor'?'<span class="es-selo prof">PROFESSOR</span>':'');
+    h+='<tr><td class="item"><span class="es-item-nome">'+escBloco(it.descricao)+selo+'</span>'
+     +'<span class="es-item-cod">'+escBloco(it.codigo||'—')+(it.livro?' · livro':' · material')+'</span></td>';
+    evs.forEach(function(e){
+      var q=esValor(e,it.id);
+      if(e.tipo==='saida'){
+        var quem=(e.quem||[]).filter(function(x){return x.itemId===it.id})
+          .map(function(x){return x.nome+' ('+esDataBR(x.data)+')'}).join(' · ');
+        h+='<td class="qt tipo-saida'+(q==null?' vazia':'')+'"'+(quem?' title="'+escBloco(quem)+'"':'')
+         +'>'+(q==null?'·':'−'+q)+'</td>';return}
+      var nota=esNota(e,it.id);
+      var txt=(q==null?'':(q===0?'–':q));
+      h+='<td class="qt tipo-'+e.tipo+(q===0?' zero':'')+'"'+(nota?' title="'+escBloco(nota)+'"':'')+'>'
+       +(ES_EDIT[e.id]
+         ?'<input value="'+txt+'" data-e="'+e.id+'" data-i="'+it.id+'" onchange="esCelula(this)" onfocus="this.select()">'
+         :'<span class="es-qt-fixa">'+(txt===''?'&nbsp;':escBloco(String(txt)))+'</span>')
+       +'</td>'});
+    var baixo=it.saldo!=null&&it.saldo<it.minimo;
+    h+='<td class="fim'+(baixo?' baixo':'')+'" title="última contagem + remessas − entregas posteriores">'
+     +(it.saldo==null?'—':it.saldo)+'</td>'
+     +'<td class="fim" style="font-weight:400;color:var(--tx3)">'+it.minimo+'</td>'
+     +'<td class="sug'+(it.sugestao?'':' nada')+'">'+(it.sugestao?('+'+it.sugestao):'—')+'</td></tr>'})});
+if(!lista.length)h+='<tr><td colspan="'+colspan+'" class="es-vazio">nenhum item com esse filtro</td></tr>';
+if(!evs.length)h+='<tr><td colspan="'+colspan+'" class="es-vazio">Nenhuma contagem ainda — clique em <b>+ Nova contagem</b> para registrar o que existe hoje na prateleira.</td></tr>';
+$('es-grade').innerHTML=h+'</tbody>';
+esChips();
+}
+function esChips(){
+var h='<button class="chip'+(ES_FILTRO?'':' on')+'" onclick="esFiltrar(null)">todas</button> ';
+ES_FAIXAS.forEach(function(f){
+  var n=ES.itens.filter(function(i){return i.categoria===f}).length;
+  if(!n)return;
+  h+='<button class="chip'+(ES_FILTRO===f?' on':'')+'" onclick="esFiltrar(\''+f+'\')">'+f+' '+n+'</button> '});
+$('es-chips').innerHTML=h;
+}
+function esFiltrar(f){ES_FILTRO=f;esRender()}
+/* "–" e vazio são coisas diferentes: zero é "conferi e não tem", vazio é "não contei" */
+function esCelula(el){
+var t=el.value.trim(), q;
+if(t===''||t==='—')q=null;
+else if(t==='-'||t==='–')q=0;
+else{q=parseInt(t.replace(/\D/g,''),10);if(isNaN(q))q=null}
+run('gravarCelulaEstoque',[{eventoId:parseInt(el.dataset.e,10),itemId:parseInt(el.dataset.i,10),quantidade:q}],
+  function(){esCarregar()});
+}
+function esNovoEvento(tipo){
+var hoje=new Date().toISOString().slice(0,10);
+var rot=tipo==='contagem'?'contagem':(tipo==='pedido'?'pedido':'remessa');
+dlgTexto({titulo:'Nova '+(tipo==='pedido'?'coluna de pedido':rot),
+ texto:tipo==='contagem'?'A contagem nova já vem preenchida com o saldo esperado — o trabalho é conferir na prateleira e corrigir onde divergir.'
+   :(tipo==='pedido'?'Registra o que foi encomendado. Pedir não muda o saldo: só o que chega, muda.'
+   :'Registra a caixa recebida. As quantidades entram na coluna verde da grade.'),
+ label:'Data',valor:hoje,tipoCampo:'date',ok:'Criar coluna'},function(d){
+run('salvarEventoEstoque',[{tipo:tipo,data:d}],function(r){
+  msg(tipo==='contagem'?'Contagem criada — confira e corrija na grade.':'Coluna de '+rot+' criada.');
+  /* a coluna nova já nasce destravada: quem acabou de criá-la é para preenchê-la agora */
+  if(r&&r.id)ES_EDIT[r.id]=true;
+  esCarregar(function(){esAba(tipo==='remessa'?'remessas':'contagem')})})});
+}
+
+/* ---- entregas: a saída ligada à matrícula ---- */
+function esRenderEntregas(){
+if(!ES){esCarregar();return}
+/* filtro inicial ADAPTATIVO: no primeiro dia todas as entregas são deduzidas das matrículas e não
+   há nenhuma pendente — abrir em "pendentes" mostraria uma lista vazia justo quando há 127 datas
+   para preencher. Depois que a escola matricular gente nova, "pendentes" volta a ser a fila certa.
+   Só vale enquanto o usuário não escolheu um filtro à mão. */
+if(!ES_FILTRO_ENT_ESCOLHIDO){
+  var pend=ES.entregas.filter(function(e){return !e.entregaId}).length;
+  ES_FILTRO_ENT=pend?'pendente':(ES.entregas.filter(function(e){return e.entregaId&&!e.data}).length?'semdata':'todos');
+}
+var busca=($('es-busca-ent').value||'').toLowerCase();
+var linhas=ES.entregas.map(function(e){
+  var it=e.itemId?esItem(e.itemId):null;
+  var s=it?it.saldo:null;
+  return {e:e,it:it,s:s,
+    estado:e.entregaId?(e.deduzida?'deduzida':'entregue')
+      :(!it?'semitem':((s==null||s<=0)?'semestoque':'pendente'))}});
+linhas=linhas.filter(function(l){
+  if(ES_FILTRO_ENT==='pendente'&&l.e.entregaId)return false;
+  if(ES_FILTRO_ENT==='entregue'&&!l.e.entregaId)return false;
+  if(ES_FILTRO_ENT==='semdata'&&l.e.data)return false;
+  if(busca&&(l.e.nome+' '+l.e.livro).toLowerCase().indexOf(busca)<0)return false;
+  return true});
+/* pendente com estoque no topo: o que dá para fazer agora vem antes do que não dá */
+var peso={pendente:0,semestoque:1,semitem:2,deduzida:3,entregue:4};
+linhas.sort(function(a,b){return peso[a.estado]-peso[b.estado]
+  ||(a.it?a.it.ordem:999)-(b.it?b.it.ordem:999)
+  ||a.e.nome.localeCompare(b.e.nome,'pt')});
+var h='<thead><tr><th style="min-width:180px">Aluno</th><th>Livro</th><th class="num">Saldo</th>'
+ +'<th>Situação</th><th style="min-width:130px">Data da entrega</th><th></th></tr></thead><tbody>';
+linhas.forEach(function(l){
+  var pil=l.estado==='deduzida'?'<span class="es-pil deduzida" title="Deduzida da matrícula: o aluno está estudando com o livro, mas ninguém registrou quando ele saiu">deduzida</span>'
+   :l.estado==='entregue'?'<span class="es-pil entregue">entregue</span>'
+   :l.estado==='semitem'?'<span class="es-pil semestoque">livro sem item</span>'
+   :l.estado==='semestoque'?'<span class="es-pil semestoque">sem estoque</span>'
+   :'<span class="es-pil pendente">pendente</span>';
+  var dataCel=l.e.entregaId
+   ?'<input type="date" value="'+(l.e.data||'')+'" onchange="esAjustarData(\''+l.e.idMatricula+'\',\''+escBloco(l.e.livro)+'\',this.value)">'
+   :'<span style="color:var(--tx3)">—</span>';
+  var bt=l.e.entregaId
+   ?'<button class="es-bt desfaz" onclick="esRemoverEntrega(\''+l.e.idMatricula+'\',\''+escBloco(l.e.livro)+'\')">desfazer</button>'
+   :'<button class="es-bt"'+(l.estado==='pendente'?'':' disabled')
+     +' onclick="esEntregar(\''+l.e.idMatricula+'\',\''+escBloco(l.e.livro)+'\')">entregar</button>';
+  h+='<tr><td><b>'+escBloco(l.e.nome)+'</b></td><td>'+escBloco(l.e.livro)+'</td>'
+   +'<td class="num">'+(l.s==null?'—':l.s)+'</td><td>'+pil+'</td>'
+   +'<td>'+dataCel+'</td><td style="text-align:right">'+bt+'</td></tr>'});
+if(!linhas.length)h+='<tr><td colspan="6" class="es-vazio">nada nesse filtro</td></tr>';
+$('es-tab-entregas').innerHTML=h+'</tbody>';
+esPlacar();esChipsEnt();
+}
+function esPlacar(){
+var tot=ES.entregas.length, ent=ES.entregas.filter(function(e){return e.entregaId}).length;
+var semData=ES.entregas.filter(function(e){return e.entregaId&&!e.data}).length;
+var semEstoque=0;
+ES.entregas.forEach(function(e){
+  if(e.entregaId)return;
+  var it=e.itemId?esItem(e.itemId):null;
+  if(!it||it.saldo==null||it.saldo<=0)semEstoque++});
+function cx(v,r,al){return '<div class="cx'+(al?' alerta':'')+'"><b>'+v+'</b><span>'+r+'</span></div>'}
+$('es-placar').innerHTML=cx(ent+' / '+tot,'alunos com o livro')
+ +cx(tot-ent,'ainda pendentes')
+ +cx(semEstoque,'pendentes sem estoque',semEstoque>0)
+ +cx(semData,'entregues sem data registrada');
+}
+function esChipsEnt(){
+var op=[['pendente','pendentes'],['semdata','sem data'],['entregue','entregues'],['todos','todos']];
+$('es-chips-ent').innerHTML=op.map(function(o){
+  return '<button class="chip'+(ES_FILTRO_ENT===o[0]?' on':'')+'" onclick="esFiltrarEnt(\''+o[0]+'\')">'+o[1]+'</button>'}).join(' ');
+}
+function esFiltrarEnt(f){ES_FILTRO_ENT=f;ES_FILTRO_ENT_ESCOLHIDO=true;esRenderEntregas()}
+function esEntregar(id,livro){
+run('entregarMaterial',[{idMatricula:id,livro:livro,data:new Date().toISOString().slice(0,10)}],function(){
+  msg('Entrega registrada.');esCarregar(function(){esRenderEntregas()})})}
+function esAjustarData(id,livro,data){
+run('ajustarEntrega',[{idMatricula:id,livro:livro,data:data||null}],function(){
+  msg(data?'Data da entrega gravada.':'Data removida.');esCarregar(function(){esRenderEntregas()})})}
+function esRemoverEntrega(id,livro){
+dlgConfirmar({titulo:'Desfazer entrega',perigo:true,ok:'Desfazer',
+ texto:'Desfazer a entrega de '+livro+'?\n\nO livro volta a contar como não entregue e o saldo sobe.'},
+function(sim){if(!sim)return;
+run('removerEntrega',[{idMatricula:id,livro:livro}],function(){
+  msg('Entrega desfeita.');esCarregar(function(){esRenderEntregas()})})})}
+
+/* ---- itens ---- */
+function esRenderItens(){
+if(!ES){esCarregar();return}
+var busca=($('es-busca-item').value||'').toLowerCase();
+var lista=ES.itens.filter(function(i){return !busca||(i.descricao+' '+i.codigo).toLowerCase().indexOf(busca)>=0});
+var h='<thead><tr><th style="min-width:170px">Descrição</th><th>Código</th><th>Livro</th><th>Categoria</th>'
+ +'<th>Unidade</th><th>Finalidade</th><th class="num">Mín.</th><th class="num">Saldo</th><th></th></tr></thead><tbody>';
+lista.forEach(function(i){
+  h+='<tr><td><input value="'+escBloco(i.descricao)+'" onchange="esCampoItem('+i.id+',\'descricao\',this.value)"></td>'
+   +'<td><input value="'+escBloco(i.codigo||'')+'" onchange="esCampoItem('+i.id+',\'codigo\',this.value)"></td>'
+   +'<td>'+(i.livro?escBloco(i.livro):'<span style="color:#B6BDC6">— não é livro —</span>')+'</td>'
+   +'<td>'+escBloco(i.categoria)+'</td>'
+   +'<td><select onchange="esCampoItem('+i.id+',\'unidade\',this.value)">'
+     +'<option'+(i.unidade==='unidade'?' selected':'')+'>unidade</option>'
+     +'<option'+(i.unidade==='kit'?' selected':'')+'>kit</option></select></td>'
+   +'<td><select onchange="esCampoItem('+i.id+',\'finalidade\',this.value)">'
+     +'<option value="venda"'+(i.finalidade==='venda'?' selected':'')+'>venda</option>'
+     +'<option value="consumo"'+(i.finalidade==='consumo'?' selected':'')+'>consumo</option>'
+     +'<option value="professor"'+(i.finalidade==='professor'?' selected':'')+'>uso do professor</option></select></td>'
+   +'<td class="num"><input class="num" value="'+i.minimo+'" onchange="esCampoItem('+i.id+',\'minimo\',this.value)"></td>'
+   +'<td class="num"><b>'+(i.saldo==null?'—':i.saldo)+'</b></td>'
+   +'<td><button class="es-x" title="excluir" onclick="esExcluirItem('+i.id+')">×</button></td></tr>'});
+$('es-tab-itens').innerHTML=h+'</tbody>';
+}
+function esCampoItem(id,campo,valor){
+var i=esItem(id);if(!i)return;
+var p={id:id,descricao:i.descricao,codigo:i.codigo,livro:i.livro,unidade:i.unidade,
+  finalidade:i.finalidade,minimo:i.minimo,ativo:i.ativo,ordem:i.ordem};
+p[campo]=valor;
+run('salvarItemEstoque',[p],function(){esCarregar(function(){esRenderItens()})})}
+function esNovoItem(){
+dlgTexto({titulo:'Novo item de estoque',label:'Descrição',dica:'Ex.: Mochila Kids',ok:'Criar item'},
+function(d){run('salvarItemEstoque',[{descricao:d,ordem:900}],function(){msg('Item criado.');esCarregar(function(){esRenderItens()})})})}
+function esExcluirItem(id){
+var i=esItem(id);if(!i)return;
+dlgConfirmar({titulo:'Excluir item',perigo:true,ok:'Excluir',
+ texto:'Excluir "'+i.descricao+'"?\n\nAs contagens registradas para ele também somem.'},function(sim){
+if(!sim)return;
+run('excluirItemEstoque',[{id:id}],function(){msg('Item excluído.');esCarregar(function(){esRenderItens()})})})}
+
+/* ---- kits ---- */
+function esRenderKits(){
+if(!ES){esCarregar();return}
+var h='';
+ES.itens.filter(function(i){return i.unidade==='kit'}).forEach(function(k){
+  var linhas=(ES.kits[k.id]||[]);
+  h+='<div class="es-cartao"><div class="es-cartao-topo"><b>'+escBloco(k.descricao)+'</b>'
+   +'<span class="es-selo kit">KIT</span>'
+   +'<span style="margin-left:auto;color:var(--tx3);font-size:11.5px">'+escBloco(k.codigo||'')+'</span></div>'
+   +'<div class="es-cartao-corpo">';
+  if(!linhas.length)h+='<div style="color:var(--tx3);padding:6px 0">kit sem itens ainda</div>';
+  linhas.forEach(function(l){
+    var si=esItem(l.itemId);
+    h+='<div class="es-linha-kit"><span class="q">'+l.quantidade+'×</span>'
+     +'<span class="n">'+escBloco(si?si.descricao:'?')+'</span>'
+     +'<button class="es-x" onclick="esRemoverKitItem('+k.id+','+l.itemId+')">×</button></div>'});
+  h+='<div style="margin-top:9px"><button class="es-bt" onclick="esAddKit('+k.id+')">+ item no kit</button></div>'
+   +'</div></div>'});
+$('es-kits').innerHTML=h||'<div class="es-vazio">Nenhum kit — crie um item com unidade "kit".</div>';
+}
+function esNovoKit(){
+dlgTexto({titulo:'Novo kit',texto:'Kit é um item com unidade "kit" e uma composição.',
+ label:'Descrição',dica:'Ex.: Espanhol Anual 4',ok:'Criar kit'},function(d){
+run('salvarItemEstoque',[{descricao:d,unidade:'kit',ordem:920}],function(){
+  msg('Kit criado.');esCarregar(function(){esAba('kits')})})})}
+function esAddKit(kitId){
+/* era um prompt pedindo "digite o número" contra uma lista numerada — agora é a lista clicável */
+var op=ES.itens.filter(function(i){return i.unidade!=='kit'});
+dlgEscolher({titulo:'Qual item entra no kit?',opcoes:op.map(function(i){return i.descricao})},function(ix){
+var alvo=op[ix];
+dlgTexto({titulo:'Quantas unidades?',texto:alvo.descricao,label:'Quantidade',valor:'1',
+ tipoCampo:'number',ok:'Incluir no kit'},function(v){
+var q=parseInt(v,10)||1;
+run('salvarKitItem',[{kitId:kitId,itemId:alvo.id,quantidade:q}],function(){esCarregar(function(){esRenderKits()})})})})}
+function esRemoverKitItem(kitId,itemId){
+run('removerKitItem',[{kitId:kitId,itemId:itemId}],function(){esCarregar(function(){esRenderKits()})})}
+
+/* ---- remessas ---- */
+function esRenderRemessas(){
+if(!ES){esCarregar();return}
+var h='';
+ES.eventos.filter(function(e){return e.tipo==='remessa'})
+ .sort(function(a,b){return a.data<b.data?1:-1}).forEach(function(e){
+  var ids=Object.keys(e.itens||{});
+  h+='<div class="es-cartao"><div class="es-cartao-topo"><b>Remessa '+esDataBR(e.data)+'</b>'
+   +'<span style="margin-left:auto;color:var(--tx3);font-size:11.5px">'+ids.length+' item(ns)</span>'
+   +'<button class="es-x" onclick="esExcluirEvento('+e.id+')">×</button></div><div class="es-cartao-corpo">';
+  if(!ids.length)h+='<div style="color:var(--tx3);padding:6px 0">nada lançado ainda — digite as quantidades na coluna verde da aba Contagem</div>';
+  ids.forEach(function(iid){
+    var si=esItem(parseInt(iid,10));
+    h+='<div class="es-linha-kit"><span class="q">+'+esValor(e,parseInt(iid,10))+'</span>'
+     +'<span class="n">'+escBloco(si?si.descricao:'?')+'</span></div>'});
+  h+='</div></div>'});
+$('es-remessas').innerHTML=h||'<div class="es-vazio">Nenhuma remessa registrada.</div>';
+}
+/* ---- menu da coluna: destravar edição, trocar a data, excluir ----
+   Fica no cabeçalho porque é ali que a coluna "é": data e tipo. Um popover posicionado em
+   `fixed` junto do botão — dentro da tabela ele seria recortado pelo overflow da moldura. */
+var ES_MENU=null;
+function esFecharMenu(){if(ES_MENU){ES_MENU.remove();ES_MENU=null;
+  document.removeEventListener('mousedown',esCliqueFora,true)}}
+function esCliqueFora(e){if(ES_MENU&&!ES_MENU.contains(e.target))esFecharMenu()}
+function esMenuColuna(ev,id){
+ev.stopPropagation();
+if(ES_MENU&&ES_MENU.dataset.e===String(id)){esFecharMenu();return}
+esFecharMenu();
+var e=ES.eventos.filter(function(x){return x.id===id})[0];if(!e)return;
+var ROT={contagem:'contagem',pedido:'pedido',remessa:'remessa'};
+var m=document.createElement('div');m.className='es-menu';m.dataset.e=String(id);
+m.innerHTML='<div class="es-menu-tit">Coluna de '+ROT[e.tipo]+'</div>'
+ +'<label class="es-menu-tog"><input type="checkbox"'+(ES_EDIT[id]?' checked':'')+'>'
+ +'<span>Permitir edição</span></label>'
+ +'<div class="es-menu-dica">Enquanto estiver travada, as quantidades não podem ser alteradas por engano.</div>'
+ +'<label class="es-menu-data"><span>Data</span><input type="date" value="'+escBloco(e.data)+'"'
+ +(ES_EDIT[id]?'':' disabled')+'></label>'
+ +'<button type="button" class="es-menu-x">'+icon('trash-2',13)+' Excluir coluna</button>';
+document.body.appendChild(m);
+ES_MENU=m;   /* sem esta linha esFecharMenu() não fecha nada e os popovers se empilham no DOM */
+var r=ev.currentTarget.getBoundingClientRect();
+/* prende à direita do botão e corrige se escapar da janela */
+m.style.top=Math.min(r.bottom+6,window.innerHeight-m.offsetHeight-8)+'px';
+m.style.left=Math.max(8,Math.min(r.right-m.offsetWidth,window.innerWidth-m.offsetWidth-8))+'px';
+var tog=m.querySelector('.es-menu-tog input'),dt=m.querySelector('.es-menu-data input');
+tog.onchange=function(){
+  if(tog.checked)ES_EDIT[id]=true;else delete ES_EDIT[id];
+  dt.disabled=!tog.checked;esRender();
+};
+dt.onchange=function(){
+  if(!dt.value)return;
+  run('salvarEventoEstoque',[{id:id,tipo:e.tipo,data:dt.value,observacao:e.observacao}],function(){
+    msg('Data da coluna alterada.');esFecharMenu();esCarregar()})};
+m.querySelector('.es-menu-x').onclick=function(){esFecharMenu();esExcluirEvento(id)};
+setTimeout(function(){document.addEventListener('mousedown',esCliqueFora,true)},0);
+}
+function esExcluirEvento(id){
+var e=(ES.eventos.filter(function(x){return x.id===id})[0])||{};
+var n=e.itens?Object.keys(e.itens).length:0;
+dlgConfirmar({titulo:'Excluir coluna',perigo:true,ok:'Excluir coluna',
+ texto:'Excluir a coluna de '+(e.tipo||'evento')+' de '+esDataBR(e.data||'')+'?\n\n'
+  +(n?('Os '+n+' lançamento(s) dela somem junto.'):'Ela ainda não tem lançamento nenhum.')
+  +'\n\nO saldo dos itens é recalculado.'},function(sim){
+if(!sim)return;
+delete ES_EDIT[id];
+run('excluirEventoEstoque',[{id:id}],function(){msg('Coluna excluída.');esCarregar(function(){esAba(ES_ABA)})})})}
+
+/* ===================== BIBLIOTECA · ESTÁGIOS =====================
+   O estágio guarda um MODELO e as lições são geradas por cálculo. As únicas digitadas são as
+   especiais (Welcome, Useful Language) e as remind, que não seguem regra nenhuma. */
+var EG=null, EG_SEL=null, EG_ABA='lista';
+var EG_CATS=['Kids','Teens','W','Outros Idiomas'];
+
+function egCarregar(cb){run('getEstagios',[{}],function(r){
+  EG=r;
+  if(EG_SEL)EG_SEL=EG.estagios.filter(function(e){return e.id===EG_SEL.id})[0]||EG.estagios[0];
+  else EG_SEL=EG.estagios[0]||null;
+  $('eg-n').textContent=EG.estagios.length;$('eg-nm').textContent=EG.modelos.length;
+  egRender();if(cb)cb()})}
+function egAba(p){
+EG_ABA=p;
+document.querySelectorAll('#tab-estagios .pg-aba').forEach(function(b){b.classList.toggle('on',b.dataset.p===p)});
+['lista','modelos','trilha'].forEach(function(x){$('eg-p-'+x).style.display=(x===p?'block':'none')});
+egRender()}
+function egRender(){
+if(!EG){egCarregar();return}
+if(EG_ABA==='lista'){egLista();egDetalhe()}
+if(EG_ABA==='modelos')egModelos();
+if(EG_ABA==='trilha')egTrilha();
+}
+function egModelo(id){return (EG.modelos.filter(function(m){return m.id===id})[0])||EG.modelos[0]}
+
+/* O GERADOR — espelha `licao_inicial` + o modelo. Índice é sequencial (conta hora-aula);
+   rótulo é o número pedagógico. As duas coisas não coincidem quando há lição de abertura. */
+function egLicoes(e){
+var m=egModelo(e.modeloId),out=[],idx=1;
+var abertura=e.extras.filter(function(x){return x.posicao==='abertura'});
+var flut=e.extras.filter(function(x){return x.posicao==='flutuante'});
+abertura.forEach(function(x){out.push({idx:idx++,rotulo:x.rotulo,tipo:'especial',cap:0,extraId:x.id})});
+for(var c=1;c<=m.capitulos;c++){
+  for(var l=1;l<=m.licoesPorCapitulo;l++){
+    var n=(e.licaoInicial-1)+(c-1)*m.licoesPorCapitulo+l;
+    out.push({idx:idx++,rotulo:String(n),tipo:(l%2?'input':'output'),cap:c})}
+  out.push({idx:idx++,rotulo:'Review '+c,tipo:'review',cap:c})}
+flut.forEach(function(x){out.push({idx:idx++,rotulo:x.rotulo,tipo:'remind',cap:0,extraId:x.id})});
+return out}
+function egResumo(e){
+var ls=egLicoes(e),m=egModelo(e.modeloId),por={};
+ls.forEach(function(l){por[l.tipo]=(por[l.tipo]||0)+1});
+var nums=ls.filter(function(l){return /^\d+$/.test(l.rotulo)}).map(function(l){return +l.rotulo});
+return {total:ls.length,por:por,comuns:(por.input||0)+(por.output||0),capitulos:m.capitulos,
+  de:nums.length?Math.min.apply(null,nums):null,ate:nums.length?Math.max.apply(null,nums):null}}
+
+function egLista(){
+var h='',cat=null;
+EG.estagios.forEach(function(e,i){
+ if(e.categoria!==cat){cat=e.categoria;h+='<div class="eg-faixa">'+escBloco(cat)+'</div>'}
+ h+='<button class="eg-lin'+(EG_SEL&&e.id===EG_SEL.id?' on':'')+'" onclick="egEscolher('+e.id+')">'
+  +'<b>'+escBloco(e.nome)+'</b>'
+  +(e.entrada?'<span class="eg-p entrada">entrada</span>':'')
+  +(e.status==='legado'?'<span class="eg-p legado">legado</span>':'')
+  +(e.status==='lancamento'?'<span class="eg-p novo">novo</span>':'')
+  +'<small>'+egResumo(e).total+'</small></button>'});
+$('eg-lista').innerHTML=h||'<div class="eg-vazio">Nenhum estágio.</div>'}
+function egEscolher(id){EG_SEL=EG.estagios.filter(function(e){return e.id===id})[0];egLista();egDetalhe()}
+
+function egDetalhe(){
+var box=$('eg-detalhe');
+if(!EG_SEL){box.innerHTML='<div class="eg-cx"><div class="eg-vazio">Escolha um estágio.</div></div>';return}
+var e=EG_SEL,r=egResumo(e),ls=egLicoes(e);
+var h='<div class="eg-kpis">'
+ +'<div class="eg-kpi"><b>'+r.total+'</b><span>lições · hora-aula</span></div>'
+ +'<div class="eg-kpi"><b>'+r.capitulos+'</b><span>capítulos</span></div>'
+ +'<div class="eg-kpi"><b>'+r.comuns+'</b><span>lições comuns</span></div>'
+ +'<div class="eg-kpi"><b>'+(r.por.review||0)+'</b><span>revisões</span></div>'
+ +(r.de?'<div class="eg-kpi"><b>'+r.de+'–'+r.ate+'</b><span>numeração</span></div>':'')
+ +'<div class="eg-kpi"><b>'+e.alunos+'</b><span>alunos ativos</span></div>'
+ +'</div>';
+
+/* formulário */
+h+='<div class="eg-cx" style="margin-bottom:14px"><div class="eg-cx-cab">Dados do estágio'
+ +'<button class="es-bt desfaz" style="margin-left:auto" onclick="egExcluir()">excluir</button></div>'
+ +'<div class="eg-cx-corpo"><div class="eg-form">'
+ +egC('Sigla','<input id="eg-sigla" value="'+escBloco(e.sigla)+'">')
+ +egC('Nome','<input id="eg-nome" value="'+escBloco(e.nome)+'">','larga')
+ +egC('Idioma','<input id="eg-idioma" value="'+escBloco(e.idioma)+'">')
+ +egC('Categoria','<select id="eg-cat">'+EG_CATS.map(function(c){
+     return '<option'+(c===e.categoria?' selected':'')+'>'+c+'</option>'}).join('')+'</select>')
+ +egC('Grupo','<input id="eg-grupo" value="'+escBloco(e.grupo)+'">')
+ +egC('Modelo','<select id="eg-modelo">'+EG.modelos.map(function(m){
+     return '<option value="'+m.id+'"'+(m.id===e.modeloId?' selected':'')+'>'+escBloco(m.nome)+'</option>'}).join('')+'</select>')
+ +egC('Começa na lição','<input id="eg-licini" type="number" min="1" value="'+e.licaoInicial+'">')
+ +egC('Ordem na trilha','<input id="eg-ordem" type="number" min="1" value="'+e.ordem+'">')
+ +'<label class="eg-chk"><input type="checkbox" id="eg-entrada"'+(e.entrada?' checked':'')
+   +'> Porta de entrada</label>'
+ +egC('Livro vinculado','<select id="eg-livro"><option value="">(sem vínculo)</option>'
+     +EG.livros.map(function(l){return '<option'+(l===e.livro?' selected':'')+'>'+escBloco(l)+'</option>'}).join('')+'</select>')
+ +egC('Edição','<input id="eg-ednome" value="'+escBloco(e.edicaoNome)+'" placeholder="Ex.: 3rd Edition">')
+ +egC('Ano da edição','<input id="eg-edano" type="number" value="'+(e.edicaoAno||'')+'" placeholder="2020">')
+ +egC('Idade mínima','<input id="eg-idmin" type="number" value="'+(e.idadeMin==null?'':e.idadeMin)+'">')
+ +egC('Idade máxima','<input id="eg-idmax" type="number" value="'+(e.idadeMax==null?'':e.idadeMax)+'">')
+ +egC('Status','<select id="eg-status">'+['ativo','legado','lancamento'].map(function(s){
+     return '<option'+(s===e.status?' selected':'')+'>'+s+'</option>'}).join('')+'</select>')
+ +'</div>'
+ /* escala de inglês: nasce desligada em Kids e outros idiomas */
+ +'<hr class="pg-fio"><label class="eg-chk" style="padding:0 0 8px"><input type="checkbox" id="eg-escala"'
+ +(e.escalaAtiva?' checked':'')+' onchange="egEscalaToggle()"> Usar escala CEFR / GSE</label>'
+ +'<div class="eg-form" id="eg-escala-campos"'+(e.escalaAtiva?'':' style="display:none"')+'>'
+ +egC('CEFR mínimo','<input id="eg-cefrmin" value="'+escBloco(e.cefrMin)+'" placeholder="A2">')
+ +egC('CEFR máximo','<input id="eg-cefrmax" value="'+escBloco(e.cefrMax)+'" placeholder="B1">')
+ +egC('GSE mínimo','<input id="eg-gsemin" type="number" value="'+(e.gseMin==null?'':e.gseMin)+'">')
+ +egC('GSE máximo','<input id="eg-gsemax" type="number" value="'+(e.gseMax==null?'':e.gseMax)+'">')
+ +'</div>'
+ +'<div class="eg-campo" style="margin-top:10px"><label for="eg-desc">Descrição</label>'
+ +'<textarea id="eg-desc" rows="2" style="width:100%;padding:7px;border:1px solid #d5d8dc;border-radius:8px;font:inherit">'
+ +escBloco(e.descricao)+'</textarea></div>'
+ +'<button class="acao" onclick="egSalvar()"><span class="btn-ic"></span>Salvar estágio</button>'
+ +'</div></div>';
+
+/* estrutura gerada */
+var caps={};ls.forEach(function(l){(caps[l.cap]=caps[l.cap]||[]).push(l)});
+h+='<div class="eg-cx"><div class="eg-cx-cab">Estrutura gerada'
+ +'<span style="margin-left:auto;font-weight:400;text-transform:none;letter-spacing:0">'
+ +'só as especiais e as remind são digitadas</span></div><div class="eg-cx-corpo">';
+h+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">'
+ +'<button class="es-bt" onclick="egNovaExtra(\'abertura\')">+ lição de abertura</button>'
+ +'<button class="es-bt" onclick="egNovaExtra(\'flutuante\')">+ remind</button></div>';
+if(caps[0]){
+ h+='<div style="margin-bottom:10px"><div style="font-size:11px;color:var(--tx3);margin-bottom:5px">'
+  +'FORA DOS CAPÍTULOS</div><div class="eg-licoes" style="padding:0">';
+ caps[0].forEach(function(l){h+=egLic(l)});h+='</div></div>'}
+h+='<div class="eg-caps">';
+Object.keys(caps).filter(function(k){return k!=='0'}).forEach(function(k){
+ h+='<div class="eg-cap"><h4>Capítulo '+k+'<span>'+caps[k].length+' lições</span></h4><div class="eg-licoes">';
+ caps[k].forEach(function(l){h+=egLic(l)});h+='</div></div>'});
+h+='</div></div></div>';
+box.innerHTML=h;
+box.querySelectorAll('.btn-ic').forEach(function(el){el.innerHTML=icon('save',14)});
+}
+function egC(rot,campo,cls){return '<div class="eg-campo'+(cls?' '+cls:'')+'"><label>'+rot+'</label>'+campo+'</div>'}
+function egLic(l){
+var R={input:'ímpar · input',output:'par · output',review:'revisão',especial:'especial',remind:'remind'};
+return '<span class="eg-lic '+l.tipo+'" title="índice '+l.idx+' · '+R[l.tipo]+'"><i>'+l.idx+'</i>'
+ +escBloco(l.rotulo)
+ +(l.extraId?'<span class="x" title="remover" onclick="egRemoverExtra('+l.extraId+')">×</span>':'')
+ +'</span>'}
+function egEscalaToggle(){$('eg-escala-campos').style.display=$('eg-escala').checked?'grid':'none'}
+
+function egSalvar(){
+var v=function(id){var el=$(id);return el?el.value.trim():''};
+run('salvarEstagio',[{id:EG_SEL.id,sigla:v('eg-sigla'),nome:v('eg-nome'),idioma:v('eg-idioma'),
+ categoria:v('eg-cat'),grupo:v('eg-grupo'),modeloId:v('eg-modelo'),licaoInicial:v('eg-licini'),
+ entrada:$('eg-entrada').checked,ordem:v('eg-ordem'),idadeMin:v('eg-idmin'),idadeMax:v('eg-idmax'),
+ escalaAtiva:$('eg-escala').checked,cefrMin:v('eg-cefrmin'),cefrMax:v('eg-cefrmax'),
+ gseMin:v('eg-gsemin'),gseMax:v('eg-gsemax'),edicaoNome:v('eg-ednome'),edicaoAno:v('eg-edano'),
+ status:v('eg-status'),livro:v('eg-livro'),descricao:v('eg-desc')}],
+function(){msg('Estágio salvo.');egCarregar()})}
+function egNovo(){
+dlgTexto({titulo:'Novo estágio',texto:'A sigla identifica o estágio e não se repete.',
+ label:'Sigla',dica:'Ex.: W14',ok:'Criar'},function(sig){
+run('salvarEstagio',[{sigla:sig,nome:sig,modeloId:EG.modelos[0].id}],function(r){
+ msg('Estágio criado — preencha os dados ao lado.');egCarregar(function(){egEscolher(r.id)})})})}
+function egExcluir(){
+dlgConfirmar({titulo:'Excluir estágio',perigo:true,ok:'Excluir',
+ texto:'Excluir "'+EG_SEL.nome+'"?\n\nAs lições especiais e os vínculos de trilha dele somem junto. Matrículas de aluno NÃO são afetadas — elas apontam para o livro, não para o estágio.'},
+function(sim){if(!sim)return;
+run('excluirEstagio',[{id:EG_SEL.id}],function(){msg('Estágio excluído.');EG_SEL=null;egCarregar()})})}
+function egNovaExtra(posicao){
+dlgTexto({titulo:posicao==='abertura'?'Nova lição de abertura':'Nova lição remind',
+ texto:posicao==='abertura'?'Entra ANTES do capítulo 1 e conta como hora-aula.'
+   :'Lição flutuante, usada em datas de evento — não pertence a capítulo nenhum.',
+ label:'Rótulo',dica:posicao==='abertura'?'Ex.: Welcome Lesson':'Ex.: Remind 5',ok:'Incluir'},
+function(rot){run('salvarLicaoExtra',[{estagioId:EG_SEL.id,rotulo:rot,posicao:posicao}],
+ function(){egCarregar()})})}
+function egRemoverExtra(id){
+run('excluirLicaoExtra',[{id:id}],function(){egCarregar()})}
+
+function egModelos(){
+var h='';
+EG.modelos.forEach(function(m){
+ var usa=EG.estagios.filter(function(e){return e.modeloId===m.id});
+ h+='<div class="eg-cx" style="margin-bottom:14px"><div class="eg-cx-cab">'+escBloco(m.nome)+'</div>'
+  +'<div class="eg-cx-corpo"><div class="eg-kpis">'
+  +'<div class="eg-kpi"><b>'+m.capitulos+'</b><span>capítulos</span></div>'
+  +'<div class="eg-kpi"><b>'+m.licoesPorCapitulo+'+1</b><span>lições por capítulo</span></div>'
+  +'<div class="eg-kpi"><b>'+m.comuns+'</b><span>lições comuns</span></div>'
+  +'<div class="eg-kpi"><b>'+m.capitulos+'</b><span>revisões</span></div></div>'
+  +'<div style="font-size:11px;color:var(--tx3);margin-bottom:5px">USADO POR '+usa.length+' ESTÁGIOS</div>'
+  +'<div class="eg-fila">';
+ usa.forEach(function(e){h+='<span class="eg-no'+(e.entrada?' entrada':'')
+   +(e.status==='legado'?' legado':'')+'">'+escBloco(e.sigla)+'</span>'});
+ h+='</div></div></div>'});
+$('eg-modelos').innerHTML=h}
+
+function egTrilha(){
+var h='';
+EG_CATS.forEach(function(cat){
+ var es=EG.estagios.filter(function(e){return e.categoria===cat});
+ if(!es.length)return;
+ h+='<div class="eg-trilha-cat"><h4>'+escBloco(cat)+'</h4>';
+ if(cat==='Outros Idiomas'){
+  var ids=[];es.forEach(function(e){if(ids.indexOf(e.idioma)<0)ids.push(e.idioma)});
+  ids.forEach(function(id){
+   h+='<div style="margin-bottom:8px"><div style="font-size:11px;color:var(--tx3);margin-bottom:4px">'
+    +escBloco(id)+'</div><div class="eg-fila">'
+    +egFila(es.filter(function(e){return e.idioma===id}))+'</div></div>'});
+ } else h+='<div class="eg-fila">'+egFila(es)+'</div>';
+ /* equivalências e saltos saem das TABELAS, não de texto fixo */
+ var pares=[];
+ es.forEach(function(e){(e.equivalentes||[]).forEach(function(oid){
+   var o=EG.estagios.filter(function(x){return x.id===oid})[0];
+   if(o&&e.sigla<o.sigla)pares.push(e.sigla+' ≡ '+o.sigla)})});
+ if(pares.length)h+='<div class="eg-nota"><b>Equivalências:</b> '+pares.join(' · ')
+   +'. A trilha sugere, não obriga — o aluno pode seguir para o equivalente.</div>';
+ h+='</div>'});
+$('eg-trilha').innerHTML=h}
+function egFila(es){
+/* estágios com a MESMA ordem são alternativas ("ou"), não etapas seguidas */
+var pos={};es.forEach(function(e){(pos[e.ordem]=pos[e.ordem]||[]).push(e)});
+var ks=Object.keys(pos).sort(function(a,b){return a-b}),h='';
+ks.forEach(function(k,i){
+ if(i)h+='<span class="eg-seta">→</span>';
+ pos[k].forEach(function(e,j){
+  if(j)h+='<span class="eg-seta" style="font-size:11px">ou</span>';
+  h+='<span class="eg-no'+(e.entrada?' entrada':'')+(e.status==='legado'?' legado':'')
+   +'" title="'+(e.entrada?'aceita quem nunca fez o idioma':'só continuação')+'">'
+   +escBloco(e.sigla)+'</span>'})});
+return h}
+
 /* ===== INÍCIO (home: atalhos para as páginas + chamada do lançador) ===== */
 var PAGINAS=[
-{aba:'presenca',ic:'clipboard-check',titulo:'Presença',desc:'Entrada e saída da sala, lançadas pelo professor'},
-{aba:'recepcao',ic:'list-checks',titulo:'Entrada Recep',desc:'Recepção marca quem veio, quem faltou e feriado'},
+/* mesmos nomes do sidebar: a mesma tela não pode ter dois nomes no mesmo app */
+{aba:'recepcao',ic:'list-checks',titulo:'Freq. Recepção',desc:'Recepção marca quem veio, quem faltou e feriado'},
+{aba:'presenca',ic:'clipboard-check',titulo:'Freq. Sala',desc:'Entrada e saída da sala, lançadas pelo professor'},
 {aba:'dashboard',ic:'layout-dashboard',titulo:'Dashboard',desc:'Gráficos e tabela de todas as matrículas'},
 {aba:'alunos',ic:'users',titulo:'Alunos',desc:'Cadastro, matrículas em livro e agenda'},
 {aba:'turmas',ic:'graduation-cap',titulo:'Turmas',desc:'Salas: livro, dias, horário e professoras'},
 {aba:'horarios',ic:'calendar-clock',titulo:'Horários',desc:'Matriz de horários disponíveis'},
 {aba:'impressao',ic:'printer',titulo:'Impressão',desc:'Fichas de frequência em A4 para imprimir'},
+{aba:'estoque',ic:'package',titulo:'Estoque',desc:'Contagem de material, entregas aos alunos e pedidos'},
+{aba:'estagios',ic:'clipboard-list',titulo:'Estágios',desc:'Estrutura dos livros: capítulos, lições e trilha'},
 {aba:'backup',ic:'hard-drive',titulo:'Backup',desc:'Cópias do banco no HD e no OneDrive'}
 ];
 function dataExtenso(iso){var d=iso?new Date(iso+'T12:00:00'):new Date();
@@ -2798,8 +4289,13 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')lcFecharMenu
    ponto é registrarPonto(limpar), mudar o status é lancarPresenca. */
 function lcReverter(al,c,card,o,est,ok){
 var qdo=c.curto?c.curto+' '+c.numero:c.data;
-if(!confirm('Desfazer: '+o.t+'\n\n'+al.nome+' — '+qdo+'\n\nIsto apaga '+o.perde+'.\n\nConfirmar?')){lcFecharMenuRev();return}
 lcFecharMenuRev();
+dlgConfirmar({titulo:o.t,perigo:true,ok:'Desfazer',
+ texto:al.nome+' — '+qdo+'\n\nIsto apaga '+o.perde+'.'},function(sim){
+if(!sim)return;
+lcReverterAgora(al,c,card,o,est,ok)})}
+/* separada da confirmação: a gravação em si não muda, só passou a acontecer depois do "sim" */
+function lcReverterAgora(al,c,card,o,est,ok){
 if(o.p==='avir')      lcGravarStatus(al,c,null,card,function(n){ok(n)});
 else if(o.p==='falta')lcGravarStatus(al,c,'F',card,function(n){ok(n)});
 /* limpa a HORA e mantém o P: o aluno chegou à escola, só não entrou na sala. O `manterP` é o que
@@ -2948,18 +4444,28 @@ h.textContent=p.entrada;h.title='Entrada registrada pelo professor na sala';box.
 box._sync=function(np){p=np;redesenha()}; // usado pela sincronização com a outra tela
 redesenha();return box;
 }
+/* Duas guardas ENCADEADAS, agora em callback: a segunda só pergunta se a primeira passou, e
+   qualquer cancelamento devolve o dropdown ao valor que estava. */
 function lcTrocarStatus(sel,al,c,card,p,ok){
 var novo=sel.value||null;
-/* sair de uma falta já lançada (para branco, presença ou não-aula) exige confirmação — mesma
-   guarda do ✕ na aba da sala, para a falta não sumir por um clique errado no dropdown */
-if(p&&p.status==='F'&&novo!=='F'&&!lcConfirmaDesfazerFalta(al,c,novo)){sel.value='F';return}
+function voltar(){sel.value=(p&&p.status)||''}
 /* falta e não-aula apagam o ponto (o banco não admite hora sem presença). Se quem registrou foi o
    professor, a recepção precisa ver o que vai perder ANTES de confirmar. */
+function guardaDoPonto(){
 if(novo!=='P'&&p&&p.entrada){
-if(!confirm(al.nome+' tem entrada às '+p.entrada+(p.saida?' e saída às '+p.saida:'')+' registrada na sala de aula.\n\n'
-+(novo===null?'Limpar o lançamento':'Marcar como '+LC_ROTULO[novo])+' vai apagar esse horário. Continuar?')){
-sel.value=(p&&p.status)||'';return}}
+  dlgConfirmar({titulo:'Isto apaga o horário da sala',perigo:true,ok:'Continuar',
+   texto:al.nome+' tem entrada às '+p.entrada+(p.saida?' e saída às '+p.saida:'')+' registrada na sala de aula.\n\n'
+    +(novo===null?'Limpar o lançamento':'Marcar como '+LC_ROTULO[novo])+' vai apagar esse horário.'},
+  function(sim){if(!sim){voltar();return}lcGravarStatus(al,c,novo,card,ok)});
+  return}
 lcGravarStatus(al,c,novo,card,ok);
+}
+/* sair de uma falta já lançada (para branco, presença ou não-aula) exige confirmação — mesma
+   guarda do ✕ na aba da sala, para a falta não sumir por um clique errado no dropdown */
+if(p&&p.status==='F'&&novo!=='F'){
+  lcConfirmaDesfazerFalta(al,c,novo,function(sim){if(!sim){sel.value='F';return}guardaDoPonto()});
+  return}
+guardaDoPonto();
 }
 /* célula de um dia: botão de entrada (verde) + botão de saída (vermelho), como no protótipo.
    Sem lançamento → só o botão de entrada, apagado. Com entrada → aparece o de saída. */
@@ -2976,8 +4482,9 @@ if(st==='F'||st==='N'){ // falta / não aula: sem ponto, só o marcador
 var m=document.createElement('button');m.type='button';m.className='lc-marca '+st.toLowerCase();
 m.textContent=st==='F'?'✕':'–';m.title=(st==='F'?'Falta — clique para desfazer (pede confirmação)':'Não aula — clique para limpar');
 m.onclick=function(){
-if(st==='F'&&!lcConfirmaDesfazerFalta(al,c,null))return;
-lcGravarStatus(al,c,null,card,function(n){p=n;redesenha()})};
+function limpar(){lcGravarStatus(al,c,null,card,function(n){p=n;redesenha()})}
+if(st==='F')lcConfirmaDesfazerFalta(al,c,null,function(sim){if(sim)limpar()});
+else limpar()};
 box.appendChild(m);return}
 var ent=document.createElement('button');ent.type='button';
 ent.className='lc-bt ent'+(p&&p.entrada?' on':'');
@@ -3017,8 +4524,11 @@ lcPonto(al,c,'saida',false,card,function(n){p=n;redesenha()})},230)};
 sai.ondblclick=function(e){e.preventDefault();
 if(tCli){clearTimeout(tCli);tCli=null}
 var qdo=c.curto?c.curto+' '+c.numero:c.data;
-if(!confirm('Marcar FALTA de '+al.nome+' em '+qdo+'?'+(p&&p.entrada?'\n\nO ponto registrado ('+p.entrada+(p.saida?' às '+p.saida:'')+') será apagado.':'')))return;
-lcGravarStatus(al,c,'F',card,function(n){p=n;redesenha()})};
+dlgConfirmar({titulo:'Marcar falta',perigo:true,ok:'Marcar falta',
+ texto:'Marcar FALTA de '+al.nome+' em '+qdo+'?'
+  +(p&&p.entrada?'\n\nO ponto registrado ('+p.entrada+(p.saida?' às '+p.saida:'')+') será apagado.':'')},
+function(sim){if(!sim)return;
+lcGravarStatus(al,c,'F',card,function(n){p=n;redesenha()})})};
 sai.title+=' · dois cliques marcam falta';
 if(p&&p.saida)lcArmarEdicao(sai,al,c,'saida',p.saida,card,aposEdicao);
 box.appendChild(sai);
@@ -3068,8 +4578,9 @@ run('registrarPonto',[{idMatricula:al.id,livro:al.livro,data:c.data,tipo:tipo,li
   manterPresenca:!!manterP,confirmado:!!confirmado,hora:hora||null}],function(r){
 /* saída poucos minutos depois da entrada quase sempre é clique errado — confirma antes de gravar */
 if(r.precisaConfirmar){
-if(confirm(al.nome+'\n\n'+r.aviso+'\n\nUma aula dura cerca de 1 hora. Registrar a saída às '+r.saida+' mesmo assim?'))
-lcPonto(al,c,tipo,desfazer,card,ok,true,hora);
+dlgConfirmar({titulo:'Saída logo após a entrada',ok:'Registrar assim',
+ texto:al.nome+'\n\n'+r.aviso+'\n\nUma aula dura cerca de 1 hora. Registrar a saída às '+r.saida+' mesmo assim?'},
+function(sim){if(sim)lcPonto(al,c,tipo,desfazer,card,ok,true,hora)});
 return}
 /* saiu antes de dar tempo das lições do dia: a falta é da AULA, então perguntamos quantas ele
    cumpriu em vez de assumir presença cheia (o "P" da ficha sairia induzindo que fez todas). */
@@ -3100,13 +4611,16 @@ var LC_ROTULO={P:'presente',F:'falta',N:'não aula'};
    depois que o dia já fechou (alguém conferindo o que ficou em aberto), e sumia com um clique só —
    um deslize apagava registro que ninguém repara que sumiu, ao contrário de uma falta a mais, que
    o aluno reclama. Não vale para "não aula": feriado errado é evidente e sem consequência. */
-function lcConfirmaDesfazerFalta(al,c,destino){
+/* passou a receber CALLBACK em vez de devolver booleano: a janela própria é assíncrona, então
+   quem chama precisa continuar depois da resposta em vez de ler um `return` na hora. */
+function lcConfirmaDesfazerFalta(al,c,destino,cb){
 /* na grade vem a coluna ('Seg 27'); na busca rápida só a data ISO, que vira dd/mm para ler igual */
 var qdo=(c&&c.curto)?c.curto+' '+c.numero:(c&&c.data?c.data.slice(8,10)+'/'+c.data.slice(5,7):'');
 var oQue=destino===null?'A falta será apagada e o dia fica em branco.'
 :destino==='P'?'A falta passa a valer como PRESENÇA.'
 :'A falta passa a valer como NÃO AULA (feriado, férias, aula cancelada).';
-return confirm('Desfazer a falta de '+al.nome+(qdo?' em '+qdo:'')+'?\n\n'+oQue);
+dlgConfirmar({titulo:'Desfazer falta',perigo:true,ok:'Desfazer',
+ texto:'Desfazer a falta de '+al.nome+(qdo?' em '+qdo:'')+'?\n\n'+oQue},cb);
 }
 function lcPintar(bt,st,nome,c){
 bt.className='lc-tog'+(st?' '+st.toLowerCase():'');
@@ -3171,7 +4685,8 @@ var txt=[];
 if(marcar.length)txt.push('Marcar como NÃO AULA: '+marcar.map(function(c){return c.dia+' '+c.numero}).join(', '));
 if(limpar.length)txt.push('Desmarcar (volta a ser dia normal): '+limpar.map(function(c){return c.dia+' '+c.numero}).join(', '));
 if(perde)txt.push('\nAtenção: '+perde+' lançamento(s) já feitos nesses dias serão apagados.');
-if(!confirm(txt.join('\n')+'\n\nConfirmar?'))return;
+dlgConfirmar({titulo:'Dias sem aula',perigo:!!perde,ok:'Aplicar',texto:txt.join('\n')},function(sim){
+if(!sim)return;
 lcFecharMenuRev();
 var itens=[];
 marcar.forEach(function(c){b.alunos.forEach(function(a){
@@ -3181,16 +4696,18 @@ itens.push({idMatricula:a.id,livro:a.livro,data:c.data,status:null})})});
 run('lancarPresencaLote',[{itens:itens}],function(){
 msg((marcar.length?marcar.length+' dia(s) marcados como não aula. ':'')
    +(limpar.length?limpar.length+' dia(s) desmarcados.':''));
-lcCarregar()});
+lcCarregar()})});
 };
 }
 function lcColunaNaoAula(b,c,card){
 var todosN=b.alunos.every(function(a){var x=a.pontos[c.data];return x&&x.status==='N'});
 var novo=todosN?null:'N';
-if(!confirm(todosN?'Desmarcar "não aula" do dia '+c.numero+' para os '+b.alunos.length+' aluno(s) deste bloco?'
-:'Marcar o dia '+c.numero+' como NÃO AULA (feriado/férias) para os '+b.alunos.length+' aluno(s) deste bloco?'))return;
+dlgConfirmar({titulo:todosN?'Desmarcar não aula':'Marcar dia como não aula',ok:todosN?'Desmarcar':'Marcar não aula',
+ texto:todosN?('Desmarcar "não aula" do dia '+c.numero+' para os '+b.alunos.length+' aluno(s) deste bloco?')
+  :('Marcar o dia '+c.numero+' como NÃO AULA (feriado ou férias) para os '+b.alunos.length+' aluno(s) deste bloco?')},
+function(sim){if(!sim)return;
 run('lancarPresencaLote',[{itens:b.alunos.map(function(a){return {idMatricula:a.id,livro:a.livro,data:c.data,status:novo}})}],
-function(){msg(todosN?'Dia '+c.numero+' desmarcado.':'Dia '+c.numero+' marcado como não aula.');lcCarregar()})}
+function(){msg(todosN?'Dia '+c.numero+' desmarcado.':'Dia '+c.numero+' marcado como não aula.');lcCarregar()})})}
 /* ===== encontro avulso: o aluno vem fora da agenda dele =====
    Dois usos no mesmo painel: MOMENTÂNEO (ele já está aqui — grava a presença junto) e PRÉVIO (a
    recepção soube que ele vem às 15h — não grava presença nenhuma, só faz a linha aparecer na grade
@@ -3231,8 +4748,10 @@ lcAbrirDialog(LC_INFO.id); // redesenha a janelinha com o encontro já listado
 lcCarregar();              // e faz o aluno brotar na grade das duas telas
 })}
 function lcAvulsoRemover(id){
-if(!confirm('Remover este encontro fora do horário?\n\nA linha do aluno some do bloco daquela hora. Presença já lançada não é apagada.'))return;
-run('removerAvulso',[{id:id}],function(){msg('Encontro removido.');lcAbrirDialog(LC_INFO.id);lcCarregar()})}
+dlgConfirmar({titulo:'Remover encontro',perigo:true,ok:'Remover',
+ texto:'Remover este encontro fora do horário?\n\nA linha do aluno some do bloco daquela hora. Presença já lançada não é apagada.'},
+function(sim){if(!sim)return;
+run('removerAvulso',[{id:id}],function(){msg('Encontro removido.');lcAbrirDialog(LC_INFO.id);lcCarregar()})})}
 
 /* busca rápida: qualquer aluno, mesmo fora do horário — a presença é do DIA, então cai no
    horário próprio dele (regra da recepção) */
@@ -3264,13 +4783,17 @@ var m=LC_INFO.matriculas[i];if(!m)return;
    sobraria um caminho em que a falta some sem perguntar nada */
 /* mesma data que a gravação abaixo usa: sem o fallback, entrar pela busca sem ter aberto a grade
    deixava a pergunta sem dia nenhum */
-if(m.status==='F'&&status!=='F'&&!lcConfirmaDesfazerFalta({nome:LC_INFO.nome},{data:LC?LC.data:isoLocal(new Date())},status))return;
-run('lancarPresenca',[{idMatricula:LC_INFO.id,livro:m.livro,data:LC?LC.data:isoLocal(new Date()),status:status}],function(){
+var quando=LC?LC.data:isoLocal(new Date());
+function gravar(){
+run('lancarPresenca',[{idMatricula:LC_INFO.id,livro:m.livro,data:quando,status:status}],function(){
 m.status=status;
 msg(status==='P'?'Presença lançada: '+LC_INFO.nome+' ('+m.livro+').':status==='F'?'Falta lançada: '+LC_INFO.nome+' ('+m.livro+').':status==='N'?'Marcado como não aula: '+LC_INFO.nome+' ('+m.livro+').':'Lançamento removido.');
 lcAbrirDialog(LC_INFO.id); // redesenha os botões com o estado novo
 lcCarregar();              // e reflete na tabela do bloco
 })}
+if(m.status==='F'&&status!=='F')
+  lcConfirmaDesfazerFalta({nome:LC_INFO.nome},{data:quando},status,function(sim){if(sim)gravar()});
+else gravar()}
 
 /* ===== DASHBOARD (gráficos + Tabulator: todos os alunos×matrículas num só lugar) ===== */
 var TABELA_GERAL=null,TABELA_INICIADA=false,FILTROS={},FILTRO_NOME='';
@@ -3386,7 +4909,7 @@ init();
 ['input','change'].forEach(function(ev){el.addEventListener(ev,function(){dirty(par[1],true)})});
 el.addEventListener('click',function(e){if(e.target&&e.target.tagName==='B'&&e.target.parentElement&&String(e.target.parentElement.className).indexOf('pill')>=0)dirty(par[1],true)})});
 bindBuscas();
-iconesEstaticos();matAtualizarLock();renderHome(); // Início é a aba visível na abertura
+iconesEstaticos();sbRestaurar();matAtualizarLock();renderHome(); // Início é a aba visível na abertura
 aplicarEstacao();
 setTimeout(function(){['al','tu','mat'].forEach(function(s){dirty(s,false)})},0);
 setTimeout(function(){if(!DOM)msg('Os domínios não carregaram — o servidor local está rodando? (deno run -A main.ts) Recarregue a página.',true)},4000);

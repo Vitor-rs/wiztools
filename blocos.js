@@ -32,9 +32,16 @@ function tituloBloco(b) {
    larguras de A/B/C/D/Q são fixas por regra; as 12 de presença são estreitas e em número FIXO:
    sobra sempre coluna vazia para lançar reposição/anteposição que aparecer depois. */
 var COLUNAS_FICHA = 12;
-function colgroupFicha() {
+/* A hachura da coluna fora do grupo é pintada AQUI, no <col>, e não nas células.
+   Fundo de <col> é uma área de pintura ÚNICA para a coluna inteira, então as diagonais correm sem
+   emenda de cima a baixo. Pintando por célula, cada <td> reinicia o padrão de 45° na própria
+   origem e as linhas não se encontram entre as fileiras — era isso que fazia a faixa sair
+   quebrada, em fragmentos soltos, no papel e na tela. */
+function colgroupFicha(cols) {
+  cols = cols || [];
   var h = '<colgroup><col class="cA"><col class="cB"><col class="cC"><col class="cD">';
-  for (var k = 0; k < COLUNAS_FICHA; k++) h += '<col class="cE">';
+  for (var k = 0; k < COLUNAS_FICHA; k++)
+    h += '<col class="cE' + (cols[k] && cols[k].foraDoGrupo ? ' fora' : '') + '">';
   return h + '<col class="cQ"></colgroup>';
 }
 /* marca impressa a partir do que foi lançado no app: P presente, X falta, – não aula
@@ -89,7 +96,7 @@ function blocoHTML(b, opts) {
   opts = opts || {};
   var cols = b.colunas || [];
   var c = CORES[b.tipoKey] || CORES['Conn'];
-  var h = '<table class="ficha' + (opts.compacto ? ' compacta' : '') + '">' + colgroupFicha() + '<tbody class="bloco">';
+  var h = '<table class="ficha' + (opts.compacto ? ' compacta' : '') + '">' + colgroupFicha(cols) + '<tbody class="bloco">';
   h += '<tr class="h1"><td class="hora" style="background:' + c.a + '">Hora: ' + escBloco(b.hora) + ' - ' + escBloco(b.fim) + '</td>';
   h += '<td class="titulo" colspan="3" style="background:' + c.bq + '">' + escBloco(tituloBloco(b)) + '</td>';
   for (var k2 = 0; k2 < COLUNAS_FICHA; k2++)  // cabeçalho de cima: dia da semana daquela data
@@ -105,14 +112,14 @@ function blocoHTML(b, opts) {
     for (var k4 = 0; k4 < COLUNAS_FICHA; k4++) {  // marca já lançada no app (reimpressão não perde o que foi preenchido)
       var p = (cols[k4] && a.presencas) ? a.presencas[cols[k4].data] : null;
       var st = p ? (p.status || p) : null;
-      /* Coluna de dia que NÃO é o desta ficha (reposição/anteposição): a célula VAZIA sai hachurada
-         e sem linhas horizontais, para a coluna se ler como uma faixa desativada. Quem tem marca
-         volta a ser célula normal — é justamente o aluno que veio naquele dia, e ele precisa saltar
-         da faixa. Sem isso, um branco numa coluna de terça na ficha de Seg/Qua parecia lançamento
-         esquecido, quando na verdade aquele dia não é daquela ficha. */
-      var fora = cols[k4] && cols[k4].foraDoGrupo && !st;
+      /* Coluna de dia que NÃO é o desta ficha (reposição/anteposição): a hachura vem do <col>
+         (ver colgroupFicha). A célula VAZIA só apaga as linhas horizontais, para a coluna se ler
+         como uma faixa desativada; a que TEM marca ganha fundo branco e devolve as bordas, para
+         saltar da faixa — é justamente o aluno que veio naquele dia. Sem isso, um branco numa
+         coluna de terça na ficha de Seg/Qua parecia lançamento esquecido. */
+      var naFaixa = cols[k4] && cols[k4].foraDoGrupo;
       h += '<td class="marca' + (st ? ' m-' + st : '') + (p && p.parcial ? ' parcial' : '')
-        + (fora ? ' fora' : '') + '">' + marcaImpressa(p) + '</td>';
+        + (naFaixa ? (st ? ' fora-marca' : ' fora') : '') + '">' + marcaImpressa(p) + '</td>';
     }
     h += '<td>' + escBloco((a.profs || []).join(', ') || (b.profs || []).join(', ')) + '</td></tr>';
   });

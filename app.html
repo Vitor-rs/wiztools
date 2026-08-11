@@ -193,6 +193,43 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
 .al-hist .freq-lista{max-height:300px}
 .al-hist .hist-linha:last-child{border-bottom:0}
 .al-hist-vazio{color:var(--tx3);font-size:12px;padding:6px 0}
+/* ===== PERCURSO (livros que o aluno cursa e já cursou) =====
+   Cada livro é um BLOCO, não uma linha de lista: são cinco informações por livro (estado, entrada,
+   saída, lição, vencimento) e espremê-las numa linha só obrigaria a esconder alguma. O bloco
+   também dá o lugar certo para o rodapé, que é derivado e não se edita. */
+.pc-linha{border:1px solid var(--borda);border-radius:9px;padding:7px 9px 8px;margin-bottom:7px;
+  background:#fcfdfe}
+.pc-linha.fechado{background:#fff;border-style:dashed}
+.pc-cab{display:flex;align-items:center;gap:6px;margin-bottom:6px}
+.pc-livro{font-weight:700;font-size:12.5px;color:var(--marca)}
+.pc-cab .remover{background:none;border:0;color:var(--tx3);cursor:pointer;font-size:14px;
+  padding:0 2px;margin-left:auto}
+.pc-cab .remover:hover{color:var(--perigo)}
+.pc-campos{display:flex;gap:6px;align-items:flex-end;flex-wrap:wrap}
+.pc-campo{display:flex;flex-direction:column;gap:2px;min-width:0}
+/* label de campo compacto: a regra global de `label` põe margem e caixa-alta, que aqui empilham
+   altura à toa dentro de um bloco que já é apertado */
+.pc-campo label{margin:0;font-size:9.5px;text-transform:uppercase;letter-spacing:.3px;
+  color:var(--tx3);font-weight:600}
+.pc-campo select,.pc-campo input{padding:4px 6px;font-size:12px;height:26px}
+.pc-campo.est select{width:104px}
+.pc-campo.dt input{width:116px}
+.pc-campo.lic input{width:62px;text-align:center;font-variant-numeric:tabular-nums}
+.pc-de{font-size:11px;color:var(--tx3);align-self:center;padding-bottom:4px}
+.pc-rod{margin-top:6px;font-size:11px;color:var(--tx2);display:flex;gap:5px;flex-wrap:wrap;
+  align-items:center}
+.pc-vence{font-variant-numeric:tabular-nums}
+/* vencimento é aviso, não erro: âmbar quando está chegando, vermelho quando passou */
+.pc-vence.perto{color:#8a5a00;font-weight:700}
+.pc-vence.venceu{color:var(--perigo);font-weight:700}
+.pc-pt{color:var(--borda)}
+.pc-add{display:flex;gap:5px;align-items:center;flex-wrap:wrap}
+.pc-add select{flex:1 1 120px;min-width:0}
+/* resumo do percurso dentro do cartão de matrícula: é um atalho, não um campo — por isso parece
+   texto e não botão, e só se revela clicável no hover */
+.mat-percurso{display:block;width:100%;text-align:left;background:none;border:0;cursor:pointer;
+  font:inherit;font-size:11.5px;color:var(--tx2);padding:0 0 8px;margin:0}
+.mat-percurso:hover{color:var(--azul-esc);text-decoration:underline}
 /* pílula do contrato no cabeçalho do cartão de matrícula: identifica o vínculo, e é clicável */
 .mat-contrato{font-size:11px;font-weight:700;font-variant-numeric:tabular-nums;cursor:pointer;
   background:var(--marca-cl);color:var(--marca);border:1px solid #d5ddec;border-radius:9px;
@@ -316,20 +353,68 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
 }
 /* as abas do estoque passaram a usar .pg-abas/.pg-aba, o componente padrão do cabeçalho */
 .es-ferramentas{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:12px 0}
+/* TRÊS REGIÕES na barra de Materiais: filtros à esquerda, busca no centro, ação à direita.
+   As laterais têm a mesma base flexível, e é isso que mantém a busca no centro de verdade — sem
+   isso ela desliza conforme o número de pílulas. */
+/* 1ª fileira: filtros e ação, na mesma altura. `nowrap` nas DUAS pontas — era o "Complementos"
+   pulando de linha que quebrava o alinhamento com o botão. */
+.es-fer-mat{align-items:center;gap:12px;flex-wrap:nowrap;margin:12px 0 8px}
+.es-fer-mat .es-chips{flex:1 1 auto;min-width:0;display:flex;flex-wrap:nowrap;gap:6px;
+  overflow-x:auto;scrollbar-width:none}
+.es-fer-mat .es-chips::-webkit-scrollbar{display:none}
+.es-fer-mat .es-chips .chip{flex:0 0 auto}
+.es-fer-mat .acao{margin:0;flex:0 0 auto}
+/* 2ª fileira: busca à esquerda (sobre a coluna Material) e legenda à direita, colada na tabela */
+.es-fer-mat2{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;
+  margin:0 0 8px;flex-wrap:wrap}
+.es-fer-mat2 .es-busca-cx{display:flex;align-items:center;gap:6px}
+.es-fer-mat2 .es-busca{width:189px}
+/* PÍLULAS de filtro: liga-desliga, e várias ao mesmo tempo. Ativa = azul com borda mais escura. */
+.es-chips .chip{appearance:none;border:1px solid var(--borda);background:#fff;color:var(--tx2);
+  border-radius:20px;padding:5px 12px;font:inherit;font-size:12px;font-weight:600;cursor:pointer;
+  display:inline-flex;align-items:center;gap:6px;user-select:none;
+  transition:background .12s,border-color .12s,color .12s}
+.es-chips .chip:hover{border-color:var(--azul-borda);background:#F5FAFE}
+.es-chips .chip.on{background:var(--azul-cl);border-color:var(--azul);color:var(--azul-esc)}
+.es-chips .chip .n{font-size:10.5px;font-weight:700;background:var(--fundo);color:var(--tx3);
+  border-radius:9px;padding:0 6px;font-variant-numeric:tabular-nums}
+.es-chips .chip.on .n{background:#fff;color:var(--azul-esc)}
+.es-chips .chip:focus-visible{outline:2px solid var(--azul);outline-offset:1px}
 .es-ferramentas .acao{margin:0}
 .es-busca{border:1px solid var(--borda);border-radius:7px;padding:7px 10px;font:inherit;width:210px}
 .es-busca:focus{outline:2px solid var(--azul);outline-offset:-1px;border-color:var(--azul)}
-.es-moldura{background:#fff;border:1px solid var(--borda);border-radius:10px;overflow:auto;
-  max-height:calc(100vh - 300px)}
+/* A altura é medida em JS (`esAjustarAltura`), não em `calc(100vh - N)`.
+   Com o cálculo fixo a moldura às vezes ficava MAIOR que o espaço restante: a página inteira
+   passava a rolar, a moldura subia junto e o cabeçalho grudado ia embora com ela — era o defeito
+   que ele viu ("o header contagem e pedido tá indo junto pra cima"). Amarrando a altura ao que
+   sobra da janela, quem rola é só o corpo da tabela, e o `thead` sticky cumpre o papel. */
+.es-moldura{background:#fff;border:1px solid var(--borda);border-radius:10px;overflow:auto}
 .es-tabela{border-collapse:separate;border-spacing:0;width:100%;font-size:13px}
 .es-tabela th,.es-tabela td{padding:0;text-align:left}
 .es-tabela thead th{position:sticky;top:0;z-index:3;background:#fff;border-bottom:1px solid var(--borda);
   padding:7px 8px;font-size:11px;font-weight:700;color:var(--tx3);text-transform:uppercase;
-  letter-spacing:.4px;white-space:nowrap;vertical-align:bottom}
+  /* centrado na vertical em TODAS as colunas: encostados embaixo, os cabeçalhos de alturas
+     diferentes (uma linha contra tipo+bolha de data) não se liam como uma régua só */
+  letter-spacing:.4px;white-space:nowrap;vertical-align:middle}
 /* a engrenagem mora dentro do <th>, encostada à direita e centrada na vertical — daí o relative
    aqui e o absolute nela. A largura subiu de 76 para 94px para o botão não espremer a bolha. */
-.es-tabela thead th.ev{text-align:center;min-width:94px;border-left:1px solid #EEF1F4;position:relative}
-.es-eng{position:absolute;right:3px;top:50%;transform:translateY(-50%);
+/* 113px ≈ 3cm, a medida que ele pediu. FIXA nos três lados: com só `min-width`, duas ou três
+   colunas se esticavam para preencher a tabela e chegavam a 4,2cm (medido). Quem absorve a sobra
+   agora é a coluna vazia do fim (`col-fill`) — antes era a do material, que por isso ficava com
+   5,5cm quando ele queria 5. */
+/* NÃO trocar por `position:relative` aqui: `.es-tabela thead th` é sticky, e `relative` nesta regra
+   mais específica anulava o sticky — era ESTE o motivo de o cabeçalho das colunas ir embora ao
+   rolar. A engrenagem continua ancorando normalmente, porque sticky também é elemento posicionado
+   e serve de bloco contentor para o `absolute` dela. */
+.es-tabela thead th.ev{text-align:center;width:113px;min-width:113px;max-width:113px;
+  border-left:1px solid #EEF1F4;
+  /* conteúdo centrado nos dois eixos: são duas linhas (tipo + data) de alturas diferentes, e
+     encostadas embaixo elas brigavam com a bolha da data */
+  vertical-align:middle;height:52px}
+/* A engrenagem desceu para a base do cabeçalho, à direita, na altura da bolha da data (pedido dele:
+   "não pode ficar no meio do header"). Antes era `top:50%`, que a punha por cima da palavra
+   CONTAGEM. */
+.es-eng{position:absolute;right:3px;bottom:5px;
   appearance:none;border:1px solid transparent;background:none;color:#B6BDC6;cursor:pointer;
   border-radius:20px;padding:3px 4px;line-height:0;display:flex;align-items:center}
 .es-tabela thead th.ev:hover .es-eng{color:var(--tx3);border-color:var(--borda);background:#fff}
@@ -373,8 +458,19 @@ th.tipo-remessa .es-ev-data{background:var(--es-remessa-cl);color:var(--es-remes
 th.tipo-saida .es-ev-tipo{color:var(--es-saida)}
 th.tipo-saida .es-ev-data{background:var(--es-saida-cl);color:var(--es-saida)}
 th.ev.ultima .es-ev-data{background:var(--marca);color:#fff}
-.es-tabela th.col-item{left:0;z-index:4;min-width:210px;padding-left:14px}
-.es-tabela th.col-fim{text-align:center;min-width:74px;background:#FBFCFD;border-left:1px solid var(--borda)}
+/* 189px ≈ 5cm, medida que ele pediu: "não vai ter nome de estágio grande aqui". Fixa nos três
+   lados, senão volta a esticar. */
+.es-tabela th.col-item{left:0;z-index:4;width:189px;min-width:189px;max-width:189px;padding-left:14px}
+/* coluna vazia do fim: é ela que engole a sobra da largura, para nenhuma coluna com medida
+   pedida (material 5cm, evento 3cm) precisar esticar para preencher a tabela */
+/* SEM largura declarada, de propósito: numa tabela `width:100%` em que todas as outras colunas têm
+   medida fixa, a folga inteira sobra para a única sem medida. Com `width:100%` aqui, o navegador
+   lia "esta coluna vale a tabela toda" e empurrava o total para além da moldura — apareceu barra
+   horizontal e Mín./Pedir saíram de vista. */
+.es-tabela th.col-fill,.es-tabela td.col-fill{padding:0;border-left:0;background:#fff}
+.es-tabela thead th.col-fill{background:#fff;border-bottom:1px solid var(--borda)}
+.es-tabela th.col-fim{text-align:center;width:74px;min-width:74px;background:#FBFCFD;
+  border-left:1px solid var(--borda);vertical-align:middle}
 .es-tabela tbody td{border-bottom:1px solid #F0F2F5}
 /* coluna do item grudada: box-shadow e não border — border empurra a célula e a grade pula 1px ao rolar */
 .es-tabela td.item{position:sticky;left:0;z-index:2;background:#fff;padding:6px 10px 6px 14px;
@@ -409,6 +505,28 @@ th.ev.ultima .es-ev-data{background:var(--marca);color:#fff}
   box-shadow:none;border-bottom:1px solid #D5DDEC}
 .es-tabela tr.banda td .cont{font-weight:600;color:var(--marca-md);opacity:.75;margin-left:8px;
   text-transform:none;letter-spacing:0}
+/* a faixa deixou de ser uma célula só (`colspan`) e passou a ter as MESMAS colunas das linhas:
+   assim a soma do grupo cai debaixo de Saldo, A caminho e Mín., alinhada com os números de baixo */
+.es-tabela tr.banda td.banda-nome{text-align:left}
+.es-tabela tr.banda td.fim{text-align:center;font-variant-numeric:tabular-nums;font-weight:700;
+  color:var(--marca);letter-spacing:0;text-transform:none;font-size:12.5px}
+/* a faixa virou o gatilho do acordeão: ganha cursor, realce no hover e a seta que gira */
+.es-tabela tr.banda td{cursor:pointer;user-select:none}
+.es-tabela tr.banda td:hover{background:#DCE6F7}
+.es-tabela tr.banda .seta{display:inline-block;width:0;height:0;vertical-align:middle;
+  border-left:5px solid currentColor;border-top:4px solid transparent;border-bottom:4px solid transparent;
+  margin-right:8px;transition:transform .18s ease;transform-origin:30% 50%}
+.es-tabela tbody.grupo.aberta tr.banda .seta{transform:rotate(90deg)}
+/* RECOLHIDA: as linhas do grupo somem. `display:none` é o único jeito honesto numa tabela — animar
+   altura de <tr> não funciona (o navegador recalcula o layout da tabela inteira). A suavidade vem
+   das linhas APARECENDO com fade quando o grupo abre, que é o movimento que se percebe. */
+.es-tabela tbody.grupo tr.linha{display:none}
+.es-tabela tbody.grupo.aberta tr.linha{display:table-row;animation:esEntra .18s ease both}
+@keyframes esEntra{from{opacity:0;transform:translateY(-2px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){
+  .es-tabela tbody.grupo.aberta tr.linha{animation:none}
+  .es-tabela tr.banda .seta{transition:none}
+}
 .es-tabela.lista thead th{text-align:left;padding:8px 10px}
 .es-tabela.lista td{padding:7px 10px}
 .es-tabela.lista input,.es-tabela.lista select{border:1px solid transparent;border-radius:5px;
@@ -420,7 +538,8 @@ th.ev.ultima .es-ev-data{background:var(--marca);color:#fff}
 .es-x{appearance:none;border:0;background:none;color:#C8CDD4;cursor:pointer;font-size:15px;
   line-height:1;padding:3px 6px;border-radius:5px}
 .es-x:hover{background:#FDECEC;color:var(--perigo)}
-.es-placar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:4px}
+/* respiro entre o texto explicativo e os cartões: colados, os dois blocos se liam como um só */
+.es-placar{display:flex;gap:10px;flex-wrap:wrap;margin:16px 0 4px}
 .es-placar .cx{background:#fff;border:1px solid var(--borda);border-radius:10px;padding:9px 14px;min-width:128px}
 .es-placar .cx b{display:block;font-size:21px;line-height:1.15;font-variant-numeric:tabular-nums}
 .es-placar .cx span{font-size:11.5px;color:var(--tx3)}
@@ -446,6 +565,222 @@ th.ev.ultima .es-ev-data{background:var(--marca);color:#fff}
 .es-linha-kit:last-child{border-bottom:0}
 .es-linha-kit .q{font-weight:700;color:var(--marca);font-variant-numeric:tabular-nums;min-width:26px}
 .es-linha-kit .n{flex:1}
+.es-linha-kit .q-in{width:46px;padding:3px 5px;font-size:12px;text-align:center;
+  font-variant-numeric:tabular-nums}
+/* ===== cadastro do material dentro da linha aberta ===== */
+.es-cad{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px 12px;
+  align-items:end;padding-bottom:10px;margin-bottom:8px;border-bottom:1px dashed #E4E9EF}
+.es-cad label{display:flex;flex-direction:column;gap:3px;margin:0;text-transform:none;
+  letter-spacing:0;font-size:12px}
+.es-cad label span{font-size:10.5px;color:var(--tx3);font-weight:600;text-transform:uppercase;
+  letter-spacing:.4px}
+.es-cad input,.es-cad select{padding:5px 7px;font-size:12.5px;width:100%}
+.es-cad .es-bt{align-self:end}
+
+/* ===== blocos de ENTRADA (pedido → remessa) ===== */
+.es-blocos{display:flex;flex-direction:column;gap:9px;max-width:900px}
+.es-bloco{background:#fff;border:1px solid var(--borda);border-radius:10px;overflow:hidden}
+.es-bloco.aberto{border-color:var(--azul);box-shadow:0 0 0 2px var(--azul-cl)}
+/* cabeçalho em duas partes: o gatilho do acordeão à esquerda, a ação do pedido à direita */
+.es-bloco-cab-l{display:flex;align-items:center;gap:8px;padding-right:11px}
+.es-bloco-cab{display:flex;align-items:center;gap:10px;flex:1;min-width:0;padding:11px 13px;border:0;
+  background:none;font:inherit;cursor:pointer;text-align:left}
+.es-bloco-cab:hover{background:#FAFCFE}
+.es-bloco-cab .seta{width:0;height:0;border-left:5px solid var(--tx3);
+  border-top:4px solid transparent;border-bottom:4px solid transparent;
+  transition:transform .18s ease;transform-origin:30% 50%;flex-shrink:0}
+.es-bloco.aberto .es-bloco-cab .seta{transform:rotate(90deg)}
+.es-bloco-cab b{font-size:13px;color:var(--marca)}
+.es-bloco-sit{font-size:10px;font-weight:700;letter-spacing:.3px;padding:2px 8px;border-radius:10px;
+  text-transform:uppercase}
+.es-bloco.aguardando .es-bloco-sit{background:var(--es-pedido-cl);color:var(--es-pedido)}
+.es-bloco.parcial .es-bloco-sit{background:#FFF4E0;color:#8a5a00}
+.es-bloco.recebido .es-bloco-sit{background:var(--es-remessa-cl);color:var(--es-remessa)}
+.es-bloco.avulsa .es-bloco-sit{background:var(--fundo);color:var(--tx3)}
+.es-bloco-num{margin-left:auto;font-size:11.5px;color:var(--tx3);font-variant-numeric:tabular-nums}
+.es-bloco.rascunho .es-bloco-sit{background:var(--fundo);color:var(--tx3)}
+/* "N de M" virou pílula, à esquerda: o lugar da direita passou a ser da AÇÃO */
+.es-pil-cont{font-size:11px;font-weight:600;color:var(--tx2);background:var(--fundo);
+  border:1px solid var(--borda);border-radius:20px;padding:2px 9px;font-variant-numeric:tabular-nums}
+.es-bt-lote{appearance:none;border:1px solid var(--azul-borda);background:var(--azul-cl);
+  color:var(--azul-esc);border-radius:8px;padding:6px 12px;font:inherit;font-size:12px;
+  font-weight:600;cursor:pointer;white-space:nowrap;flex-shrink:0}
+.es-bt-lote:hover{background:var(--azul);color:#fff;border-color:var(--azul)}
+.es-bt-lote.chegada{border-color:#BFE3C8;background:var(--es-remessa-cl);color:var(--es-remessa)}
+.es-bt-lote.chegada:hover{background:var(--es-remessa);color:#fff;border-color:var(--es-remessa)}
+
+/* LARGURAS do relatório do pedido, medidas dele: material 4cm (151px), numéricas 2,5cm (94px).
+   A tabela é `auto`, então sem largura fixa a coluna de números esticava para caber a tabela
+   inteira — um número de um dígito ocupando meia tela. */
+.es-rel{table-layout:fixed}
+.es-rel th.c-mat,.es-rel td.c-mat{width:151px}
+.es-rel th.num,.es-rel td.num{width:94px;text-align:center}
+.es-rel td.c-mat{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* exemplares de um material dentro do pedido */
+.es-unids{padding:8px 10px 10px 22px;background:#FBFCFE}
+.es-unids-tit{font-size:10.5px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;
+  color:var(--tx3);margin-bottom:6px}
+.es-unid{display:flex;align-items:center;gap:9px;padding:3px 0;border-bottom:1px dashed #EDF1F5}
+.es-unid:last-child{border-bottom:0}
+.es-unid .n{width:20px;font-size:11px;color:var(--tx3);font-variant-numeric:tabular-nums}
+.es-unid .cb-in{width:151px;padding:4px 7px;font-size:12px;font-family:inherit;
+  font-variant-numeric:tabular-nums}
+/* ISO longo: o carimbo é metade do identificador do exemplar (o código é a outra), e nesse papel a
+   leitura precisa ser exata — daí o formato cru, com milissegundos à vista */
+.es-unid .ts{font-size:11px;color:var(--tx2);font-variant-numeric:tabular-nums;min-width:172px;
+  font-weight:600}
+.es-unid .ts.sem{color:#C6CDD6;font-weight:400}
+.es-unid .es-bt[disabled]{opacity:.45;cursor:not-allowed}
+/* observação do pedido: mesma largura da tabela de materiais dele */
+.es-obs{margin-top:10px}
+.es-obs label{display:block;font-size:10.5px;font-weight:700;letter-spacing:.4px;
+  text-transform:uppercase;color:var(--tx3);margin:0 0 4px}
+.es-obs textarea{width:100%;padding:7px 9px;border:1px solid var(--borda);border-radius:8px;
+  font:inherit;font-size:12.5px;resize:vertical}
+.es-obs textarea:focus{outline:2px solid var(--azul);outline-offset:-1px;border-color:var(--azul)}
+.es-bloco-corpo{border-top:1px solid var(--borda);padding:10px 13px 12px}
+.es-rel-cx{max-height:340px;overflow:auto;border:1px solid var(--borda);border-radius:8px}
+.es-rel{width:100%;font-size:12.5px}
+.es-rel td,.es-rel th{padding:4px 8px}
+.es-rel thead th{position:sticky;top:0;background:#FBFCFD;z-index:2}
+/* material sem quantidade fica esmaecido: a lista inteira aparece para se poder pedir qualquer
+   coisa, mas só o que foi pedido precisa saltar */
+.es-rel tr.zerado td{color:#AEB6C0}
+.ped-in{width:56px;padding:3px 5px;text-align:center;font:inherit;font-size:12.5px;font-weight:600;
+  font-variant-numeric:tabular-nums;border:1px solid transparent;background:none;border-radius:5px;
+  color:var(--marca)}
+.ped-in:hover{border-color:var(--borda);background:#fff}
+.ped-in:focus{outline:2px solid var(--azul);outline-offset:-1px;background:#fff}
+/* "chegou em 11/08": é o fecho do fluxo e se lê de longe — pílula azul-marinho clara, negrito,
+   com a bolinha de check antes */
+.es-chegou{display:inline-flex;align-items:center;gap:7px;background:#E3EDFA;color:#1B3D85;
+  border:1px solid #C2D5EE;border-radius:20px;padding:4px 12px 4px 5px;font-size:12.5px;
+  font-weight:700}
+.es-chegou i{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;
+  border-radius:50%;background:#1B3D85;color:#fff;font-style:normal;font-size:11px;font-weight:700}
+/* respiro entre o bloco descritivo e os cartões do placar, que estavam colados */
+.es-info-ent{margin-bottom:14px}
+/* ===== detalhe de entregas de um aluno ===== */
+.es-ent-l{padding:8px 0;border-bottom:1px dashed #EDF1F5}
+.es-ent-l:last-child{border-bottom:0}
+.es-ent-topo{display:flex;align-items:center;gap:8px;margin-bottom:5px}
+.es-ent-topo b{font-size:12.5px;color:var(--marca)}
+.es-ent-sd{margin-left:auto;font-size:11px;color:var(--tx3);font-variant-numeric:tabular-nums}
+.es-ent-baixo{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.es-ent-baixo input[type=date]{padding:4px 6px;font-size:12px}
+.es-ent-cb{font-size:11.5px;color:var(--tx2);font-variant-numeric:tabular-nums;flex:1;min-width:0}
+.es-ent-cb small{color:var(--tx3);font-size:10.5px}
+.es-ent-baixo .es-bt{margin-left:auto}
+.es-bloco-pe{display:flex;gap:8px;align-items:center;margin-top:9px;font-size:11.5px;color:var(--tx3)}
+.es-bloco-pe .es-bt{margin-left:auto}
+.es-bloco-pe .es-bt+.es-bt{margin-left:0}
+
+/* ===== MESTRE-DETALHE da aba Materiais =====
+   Tabela à esquerda com largura própria (material 5cm + quatro colunas de 2,5cm = 15cm), detalhes
+   à direita. A tabela ocupava a tela inteira para mostrar cinco números. */
+.es-mestre{display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:start}
+@media (max-width:1150px){.es-mestre{grid-template-columns:1fr}}
+.es-mestre .es-moldura{width:max-content;max-width:100%}
+.es-mestre .es-tabela{width:auto}
+/* "Material" ganhou corpo e negrito, e o título vai centrado; o nome do material fica à esquerda,
+   centrado na vertical */
+.es-tabela th.col-item{text-align:center;font-size:12.5px;color:var(--marca);letter-spacing:.3px}
+/* linhas mais baixas e sem cantos arredondados: é uma tabela, não uma lista de cartões */
+.es-tabela td.item{vertical-align:middle;padding:4px 10px 4px 14px;border-radius:0}
+.es-tabela .es-item-nome{line-height:1.25}
+.es-tabela .es-item-cod{line-height:1.2}
+.es-tabela .es-item-cod b{font-weight:400;color:#C6CDD6;margin:0 2px}
+.es-tabela .es-item-cod .es-selo{margin-left:8px}
+/* 2mm de folga no pé da tabela, no lugar do recado que saiu */
+.es-tabela tr.es-rodape td{height:8px;padding:0;border:0;background:#fff}
+.es-tabela tr.linha{cursor:pointer}
+.es-tabela tr.linha.sel td{background:var(--azul-cl)}
+.es-tabela tr.linha.sel td.item{background:var(--azul-cl);
+  box-shadow:1px 0 0 var(--borda),inset 3px 0 0 var(--azul)}
+/* "Pedir" com a mesma medida de "Mín." — 2,5cm, como ele pediu */
+.es-tabela th.col-fim,.es-tabela td.fim,.es-tabela td.sug{width:94px;min-width:94px}
+.es-cx{background:#fff;border:1px solid var(--borda);border-radius:10px;overflow:hidden}
+.es-cx-cab{display:flex;align-items:center;gap:8px;padding:9px 13px;border-bottom:1px solid var(--borda);
+  font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--tx3);
+  background:#FBFCFD}
+.es-cx-quem{margin-left:auto;text-transform:none;letter-spacing:0;font-size:12.5px;font-weight:700;
+  color:var(--marca)}
+.es-cx-corpo{padding:12px 13px 14px}
+
+/* ===== fila de unidades no painel de detalhes ===== */
+.es-seta-item{appearance:none;border:0;background:none;padding:0;margin-right:6px;cursor:pointer;
+  width:0;height:0;border-left:5px solid var(--tx3);border-top:4px solid transparent;
+  border-bottom:4px solid transparent;transition:transform .18s ease;transform-origin:30% 50%;
+  vertical-align:middle;display:inline-block}
+.es-tabela tr.linha.aberto .es-seta-item{transform:rotate(90deg)}
+.es-seta-vazia{display:inline-block;width:5px;margin-right:6px}
+.es-tabela tr.linha.fila td{background:#FBFCFE;padding:0}
+.es-fila{padding:8px 14px 10px 32px}
+.es-fila-tit{font-size:10.5px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;
+  color:var(--tx3);margin-bottom:6px}
+.es-fila-l{display:flex;align-items:center;gap:10px;font-size:12px;padding:3px 0;
+  border-bottom:1px dashed #EDF1F5}
+.es-fila-l:last-child{border-bottom:0}
+.es-fila-l .ord{width:20px;color:var(--tx3);font-variant-numeric:tabular-nums;font-size:11px}
+.es-fila-l .dt{font-weight:600;color:var(--marca);font-variant-numeric:tabular-nums;min-width:96px}
+.es-fila-l .og{color:var(--tx3);flex:1}
+.es-fila-l .cd{color:var(--tx3);font-size:11px;font-variant-numeric:tabular-nums}
+/* instante e código editáveis: sem moldura até o hover, para a fila continuar se lendo como lista */
+.es-fila-l .dt-in{width:158px;padding:3px 5px;font-size:11.5px;border:1px solid transparent;
+  background:none;border-radius:5px;font-variant-numeric:tabular-nums;color:var(--marca);
+  font-weight:600;font-family:inherit}
+.es-fila-l .cd-in{width:150px;padding:3px 6px;font-size:11px;border:1px solid transparent;
+  background:none;border-radius:5px;font-family:inherit;color:var(--tx2)}
+.es-fila-l .dt-in:hover,.es-fila-l .cd-in:hover{border-color:var(--borda);background:#fff}
+.es-fila-l .dt-in:focus,.es-fila-l .cd-in:focus{outline:2px solid var(--azul);outline-offset:-1px;
+  background:#fff}
+.es-fila-l.proximo .dt-in{color:var(--es-remessa)}
+.es-fila-l.proximo .dt{color:var(--es-remessa)}
+.es-fila-l .pr{font-size:9.5px;font-weight:700;letter-spacing:.3px;padding:1px 6px;border-radius:4px;
+  background:var(--es-remessa-cl);color:var(--es-remessa)}
+
+/* ===== matriz Kits × Peças ===== */
+.es-moldura-kits{max-height:none}
+/* o canto dividido precisa de altura para os dois rótulos não se encostarem na diagonal — 48px
+   contra os 44 das colunas de peça, e é ele quem manda na altura da fileira */
+.es-matriz th.col-kit{left:0;z-index:4;width:210px;min-width:210px;padding:0;height:48px;
+  text-align:left;vertical-align:middle}
+/* o `position` vem do sticky de `.es-tabela thead th`, que já serve de bloco contentor para os
+   filhos absolutos — NÃO declarar `relative` aqui: sobrescreveria o sticky e o cabeçalho voltaria
+   a sumir ao rolar (foi exatamente o defeito das colunas de evento). */
+.es-matriz th.col-kit .diag{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.es-matriz th.col-kit .diag line{stroke:var(--borda);stroke-width:1}
+.es-matriz th.col-kit .rot-peca,.es-matriz th.col-kit .rot-kit{position:absolute;font-size:10.5px;
+  font-weight:700;letter-spacing:.4px;color:var(--tx3);text-transform:uppercase;line-height:1}
+.es-matriz th.col-kit .rot-peca{top:7px;right:11px}
+.es-matriz th.col-kit .rot-kit{bottom:7px;left:14px}
+.es-matriz th.col-peca{width:104px;min-width:104px;max-width:104px;text-align:center;
+  border-left:1px solid #EEF1F4;position:relative;vertical-align:middle;height:44px}
+.es-matriz th.col-peca .pc-rot{display:block;padding:0 12px 0 4px;white-space:normal;line-height:1.25;
+  text-transform:none;letter-spacing:0;font-size:11px}
+.es-matriz th.col-peca .es-x{position:absolute;right:2px;top:3px;opacity:0;transition:opacity .15s}
+.es-matriz th.col-peca:hover .es-x{opacity:1}
+.es-matriz td.qt{text-align:center;border-left:1px solid #F1F4F7}
+.es-matriz td.qt.zero{background:#FCFDFE}
+.es-matriz td.matriz-na{text-align:center;color:#D8DEE6;background:#FAFBFC;border-left:1px solid #F1F4F7}
+.mx-in{width:44px;padding:5px 2px;text-align:center;font:inherit;font-size:12.5px;font-weight:600;
+  font-variant-numeric:tabular-nums;border:1px solid transparent;background:none;border-radius:6px;
+  color:var(--marca)}
+.es-matriz td.qt.zero .mx-in{color:#C6CDD6;font-weight:400}
+.mx-in:hover{border-color:var(--borda);background:#fff}
+.mx-in:focus{outline:2px solid var(--azul);outline-offset:-1px;background:#fff;border-color:var(--azul)}
+/* faixa das PEÇAS: fica acima dos kits porque é o vocabulário com que eles são montados. Pastilhas
+   e não cartões — peça é uma palavra, não um material com saldo. */
+.es-pecas-faixa{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin:0 0 14px;
+  padding:9px 11px;background:#FBFCFD;border:1px solid var(--borda);border-radius:10px}
+.es-pecas-tit{font-size:10px;font-weight:700;letter-spacing:.5px;color:var(--tx3);margin-right:2px}
+.es-peca{display:inline-flex;align-items:center;gap:5px;background:#fff;border:1px solid var(--borda);
+  border-radius:20px;padding:3px 5px 3px 10px;font-size:12px}
+.es-peca b{font-weight:600;cursor:text}
+.es-peca b:hover{text-decoration:underline}
+.es-peca i{font-style:normal;font-size:10.5px;color:var(--tx3);background:var(--fundo);
+  border-radius:9px;padding:0 6px;font-variant-numeric:tabular-nums}
 .es-legenda{margin-top:10px;display:flex;gap:16px;flex-wrap:wrap;font-size:11.5px;color:var(--tx3)}
 .es-legenda span{display:inline-flex;align-items:center;gap:6px}
 .es-legenda i{width:10px;height:10px;border-radius:3px;display:inline-block}
@@ -453,6 +788,10 @@ th.ev.ultima .es-ev-data{background:var(--marca);color:#fff}
 .es-legenda i.es-c-pedido{background:var(--es-pedido)}
 .es-legenda i.es-c-remessa{background:var(--es-remessa)}
 .es-legenda i.es-c-saida{background:var(--es-saida)}
+/* entregue a aluno saiu do vermelho: vermelho no app é ALERTA (falta, saldo baixo), e entregar é
+   um bom desfecho, não um problema. Roxo, que ele escolheu, não colide com nada. */
+.es-legenda i.es-c-entregue{background:#7A4FBF}
+.es-legenda-mat{justify-content:flex-end;margin:0;flex:1 1 auto}
 .es-vazio{padding:26px;text-align:center;color:var(--tx3)}
 
 /* ===== cabeçalho padrão de página =====
@@ -553,6 +892,44 @@ th.ev.ultima .es-ev-data{background:var(--marca);color:#fff}
 .eg-lin.on{background:var(--azul-cl)}
 .eg-lin b{flex:1;font-size:12.5px;min-width:0}
 .eg-lin small{color:var(--tx3);font-size:10.5px;white-space:nowrap}
+/* botão de trocar o ID: mora dentro do <label>, encostado no texto. Sem borda, sem fundo e com
+   padding mínimo — a fileira do cadastro não pode crescer por causa dele. Só aparece quando há
+   aluno escolhido (o campo de um cadastro novo é editável direto). */
+.al-id-eng{appearance:none;border:0;background:none;padding:0 3px;margin-left:5px;cursor:pointer;
+  color:var(--tx3);font-size:11px;line-height:1;vertical-align:baseline}
+.al-id-eng:hover{color:var(--azul-esc)}
+.al-id-eng:focus-visible{outline:2px solid var(--azul);outline-offset:1px;border-radius:3px}
+/* pílulas que vieram do cartão de Percurso para a linha do histórico */
+.sit-curso{display:inline-block;margin-left:5px;padding:1px 7px;border-radius:10px;font-size:10px;
+  font-weight:700;background:var(--es-contagem-cl);color:var(--es-contagem)}
+.sit-contrato{display:inline-block;margin-left:5px;padding:1px 6px;border-radius:5px;font-size:10px;
+  font-weight:600;color:var(--tx3);background:var(--fundo);font-variant-numeric:tabular-nums}
+.sit-vence{margin-left:6px;color:var(--tx3);font-size:10.5px}
+.hist-acoes{display:flex;gap:2px;align-items:center;flex-shrink:0}
+/* linha em edição: os campos ocupam a linha inteira, com o mesmo desenho do formulário de lançar
+   logo acima — é a mesma operação, só que sobre um registro que já existe */
+.hist-linha.hist-editando{gap:5px;align-items:center;background:var(--azul-cl);
+  border-radius:7px;padding:5px 6px;margin:2px 0}
+.hist-linha.hist-editando select,.hist-linha.hist-editando input{padding:4px 6px;font-size:12px;
+  min-width:0}
+.hist-linha.hist-editando select:first-child{flex:1 1 96px}
+.hist-linha.hist-editando select:nth-child(2){flex:1 1 84px}
+.hist-linha.hist-editando input[type=date]{flex:0 0 118px}
+/* nome curto ao lado do longo: é o rótulo que aparece na ficha do aluno, e ver os dois juntos aqui
+   evita ter que abrir o estágio para lembrar qual é qual */
+.eg-curto{font-size:10.5px;color:var(--tx3);background:var(--fundo);border-radius:6px;
+  padding:1px 6px;white-space:nowrap}
+/* trilho de abas DENTRO do detalhe do estágio: um nível abaixo do trilho da página, então o fio é
+   mais leve ainda e o respiro menor — senão pareceria a mesma hierarquia */
+.eg-abas-det{margin:0 0 12px;border-bottom:1px solid #EDF1F5}
+.eg-abas-det .pg-aba{font-size:12px;padding:7px 12px}
+/* mesmo caso no Estoque: Itens e Kits são um nível abaixo de Materiais */
+.es-abas-mat{margin:10px 0 12px;border-bottom:1px solid #EDF1F5}
+.es-abas-mat .pg-aba{font-size:12px;padding:7px 12px}
+/* campo que só ESPELHA o que é editado noutro lugar: sem caixa de input, para não convidar a
+   digitar onde não se digita */
+.eg-espelho{padding:6px 0;font-size:12.5px;font-weight:600;color:var(--tx2)}
+.eg-espelho .vazio{font-weight:400;color:var(--tx3);font-size:12px}
 .eg-faixa{background:var(--marca-cl);padding:5px 12px;font-size:10.5px;font-weight:700;
   text-transform:uppercase;letter-spacing:.5px;color:var(--marca)}
 .eg-p{display:inline-block;border-radius:10px;padding:1px 7px;font-size:10px;font-weight:700;
@@ -577,6 +954,13 @@ th.ev.ultima .es-ev-data{background:var(--marca);color:#fff}
 .eg-lic.remind{background:var(--lc-rem-bg);color:var(--lc-rem)}
 .eg-lic .x{cursor:pointer;opacity:.5;font-weight:700;margin-left:2px}
 .eg-lic .x:hover{opacity:1}
+/* lição digitada: as ações só aparecem no hover. Permanentes, elas triplicariam a largura da
+   pastilha e a fileira de lições geradas — que é a maioria — perderia o alinhamento visual. */
+.eg-lic.editavel b{font-weight:600;cursor:text}
+.eg-lic.editavel b:hover{text-decoration:underline}
+.eg-lic .mv{cursor:pointer;opacity:0;font-weight:700;width:0;overflow:hidden;transition:opacity .12s}
+.eg-lic.editavel:hover .mv{opacity:.55;width:auto}
+.eg-lic .mv:hover{opacity:1}
 /* formulário do estágio: rótulo em cima do campo, em grade que reflui */
 .eg-form{display:grid;gap:10px 14px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
 .eg-campo{display:flex;flex-direction:column;min-width:0}
@@ -590,6 +974,75 @@ th.ev.ultima .es-ev-data{background:var(--marca);color:#fff}
 .eg-kpi{background:#fff;border:1px solid var(--borda);border-radius:9px;padding:8px 13px;min-width:88px}
 .eg-kpi b{display:block;font-size:19px;line-height:1.15;font-variant-numeric:tabular-nums;color:var(--marca)}
 .eg-kpi span{font-size:11px;color:var(--tx3)}
+/* ===== MODELOS: cards quadrados =====
+   Eram cartões de largura inteira, um embaixo do outro — muito espaço para pouca informação (dois
+   números e uma fila de siglas). Em quadrado dá para ver os três de uma vez. */
+.eg-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px;
+  align-items:start}
+.eg-card{background:#fff;border:1px solid var(--borda);border-radius:12px;padding:13px 14px 12px;
+  display:flex;flex-direction:column;gap:9px;min-height:210px}
+.eg-card.on{border-color:var(--azul);box-shadow:0 0 0 2px var(--azul-cl)}
+.eg-card h4{margin:0;font-size:13px;color:var(--marca);line-height:1.25}
+.eg-card-nums{display:flex;gap:7px}
+.eg-card-num{flex:1;background:var(--fundo);border-radius:8px;padding:7px 8px;text-align:center}
+.eg-card-num b{display:block;font-size:18px;line-height:1.1;color:var(--marca);
+  font-variant-numeric:tabular-nums}
+.eg-card-num span{font-size:10px;color:var(--tx3);line-height:1.2;display:block}
+.eg-card-uso{font-size:10.5px;color:var(--tx3);text-transform:uppercase;letter-spacing:.4px}
+.eg-card-fila{display:flex;flex-wrap:wrap;gap:4px;overflow:hidden}
+.eg-card-fila .eg-no{padding:2px 6px;font-size:10.5px;border-radius:6px}
+.eg-card-pe{margin-top:auto;display:flex;gap:6px;align-items:center;padding-top:4px}
+/* selo de "este modelo é uma lista digitada, não uma fórmula" */
+.eg-selo-lista{font-size:9.5px;font-weight:700;letter-spacing:.3px;padding:1px 6px;border-radius:5px;
+  background:var(--lc-esp-bg);color:var(--lc-esp)}
+
+/* acordeão do formulário de modelo — grid-template-rows 1fr→0fr, e não max-height: com max-height
+   a curva é mentira (o valor é sempre maior que o conteúdo, a animação corre e para seca) */
+.eg-sanfona{display:grid;grid-template-rows:0fr;transition:grid-template-rows .22s ease;
+  margin-bottom:0}
+.eg-sanfona.aberta{grid-template-rows:1fr;margin-bottom:14px}
+.eg-sanfona-in{overflow:hidden;min-height:0}
+.eg-form-cx{background:#fff;border:1px solid var(--borda);border-radius:12px;padding:14px}
+.eg-form-cab{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.eg-form-cab h4{margin:0;font-size:13.5px;color:var(--marca)}
+.eg-form-cab .es-bt{margin-left:auto}
+
+/* a tabela de lições: ~10cm de altura, o resto rola. 378px = 10cm a 96dpi. */
+.eg-lic-moldura{border:1px solid var(--borda);border-radius:10px;overflow:auto;max-height:378px;
+  background:#fff}
+.eg-lic-tab{width:100%;border-collapse:separate;border-spacing:0;font-size:12.5px}
+.eg-lic-tab thead th{position:sticky;top:0;z-index:2;background:#FBFCFD;text-align:left;
+  padding:7px 9px;font-size:10.5px;font-weight:700;color:var(--tx3);text-transform:uppercase;
+  letter-spacing:.4px;border-bottom:1px solid var(--borda);white-space:nowrap}
+.eg-lic-tab td{padding:3px 6px;border-bottom:1px solid #F1F4F7;vertical-align:middle}
+.eg-lic-tab tr:last-child td{border-bottom:0}
+.eg-lic-tab tbody tr:hover td{background:#FBFCFD}
+.eg-lic-tab .c-idx{width:44px;text-align:center;color:var(--tx3);font-variant-numeric:tabular-nums;
+  font-size:11px}
+.eg-lic-tab .c-num input{width:58px;text-align:center;font-variant-numeric:tabular-nums}
+.eg-lic-tab .c-bloco input{width:56px;text-align:center;font-variant-numeric:tabular-nums}
+.eg-lic-tab .c-tipo select{width:104px}
+.eg-lic-tab .c-acoes{width:74px;white-space:nowrap;text-align:right}
+.eg-lic-tab input,.eg-lic-tab select{padding:4px 6px;font-size:12.5px;height:27px}
+.eg-lic-tab .c-desc input{width:100%}
+.eg-lic-tab .mv{background:none;border:0;color:var(--tx3);cursor:pointer;font-size:13px;padding:0 3px}
+.eg-lic-tab .mv:hover{color:var(--marca)}
+/* aviso de raio de alcance: âmbar, porque é atenção e não erro — editar o modelo é legítimo, só
+   precisa ser uma escolha consciente */
+.eg-aviso-alcance{background:#FFF8EC;border:1px solid #F0DDB8;border-radius:9px;padding:9px 11px;
+  font-size:12px;color:#6b4a00;line-height:1.55;margin-bottom:10px}
+.eg-atalho{background:#fff;border:1px solid #E4CFA4;border-radius:7px;padding:2px 8px;margin:3px 4px 0 0;
+  font:inherit;font-size:11px;font-weight:700;color:#6b4a00;cursor:pointer}
+.eg-atalho:hover{background:#6b4a00;color:#fff;border-color:#6b4a00}
+.eg-lic-rod{display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap}
+.eg-lic-cont{font-size:11.5px;color:var(--tx3);margin-left:auto}
+/* linha por tipo: a mesma leitura de cor das pastilhas de lição */
+.eg-lic-tab tr.t-especial td:first-child{box-shadow:inset 3px 0 0 var(--lc-esp)}
+.eg-lic-tab tr.t-review td:first-child{box-shadow:inset 3px 0 0 var(--lc-review)}
+.eg-lic-tab tr.t-remind td:first-child{box-shadow:inset 3px 0 0 var(--lc-rem)}
+.eg-lic-tab tr.t-input td:first-child{box-shadow:inset 3px 0 0 var(--lc-input)}
+.eg-lic-tab tr.t-output td:first-child{box-shadow:inset 3px 0 0 var(--lc-output)}
+
 /* trilha */
 .eg-trilha-cat{background:#fff;border:1px solid var(--borda);border-radius:10px;padding:12px 14px;margin-bottom:12px}
 .eg-trilha-cat h4{margin:0 0 9px;font-size:12px;color:var(--marca);text-transform:uppercase;letter-spacing:.5px}
@@ -1690,7 +2143,12 @@ td.lc-est-cel{padding:0!important;border-left:1px solid var(--aba-bd);border-rig
 <label for="al-nome">Nome completo</label><input id="al-nome">
 </div>
 <div class="al-campo al-campo-id">
-<label for="al-id">ID da matrícula</label><input id="al-id" inputmode="numeric" maxlength="10">
+<!-- O ID trava depois de salvo, de propósito: é a chave do aluno em dez tabelas. Trocá-lo fica
+     atrás deste botão minúsculo e de um popover — duas barreiras contra edição acidental, que foi
+     como ele pediu. Sem borda e sem padding para não empurrar a fileira do cadastro. -->
+<label for="al-id">ID da matrícula<button type="button" id="al-id-eng" class="al-id-eng"
+ title="Trocar o ID da matrícula" onclick="alMenuId(event)">✎</button></label>
+<input id="al-id" inputmode="numeric" maxlength="10">
 </div>
 <div class="al-campo al-campo-sit">
 <label for="al-sit">Situação</label><select id="al-sit" onchange="alStatus()"></select>
@@ -1714,8 +2172,11 @@ td.lc-est-cel{padding:0!important;border-left:1px solid var(--aba-bd);border-rig
 <!-- o texto inicial já vem no HTML: sem aluno escolhido os três cartões abriam vazios, e cartão
      em branco não diz se está carregando, se deu erro ou se falta escolher alguém -->
 <div class="al-historicos">
-<section class="al-hist">
-<h3>Histórico de situação</h3>
+<!-- Percurso e histórico de situação diziam a mesma coisa em dois lugares — ele apontou a
+     redundância e os dois viraram UM. O histórico é o ponto de entrada; o percurso continua no
+     banco e se mantém sozinho a partir daqui (data de início, encerramento, contrato). -->
+<section class="al-hist al-hist-larga">
+<h3>Histórico de situação <small>a jornada do aluno, estágio por estágio</small></h3>
 <div id="hist-corpo"><div class="al-hist-vazio">Escolha um aluno.</div></div>
 </section>
 <section class="al-hist">
@@ -1734,23 +2195,23 @@ td.lc-est-cel{padding:0!important;border-left:1px solid var(--aba-bd);border-rig
 <!-- rótulo e campo na MESMA linha: é um gesto só, e a explicação virou um ⓘ para não ocupar
      uma faixa inteira da tela com texto que se lê uma vez. -->
 <div class="nm-linha">
-<label for="nm-livro">+ Nova matrícula em livro</label>
-<div class="sug"><input id="nm-livro" placeholder="Digite o livro..." autocomplete="off" disabled><div class="lista" id="nm-livro-sug"></div></div>
-<button type="button" class="nm-info" onclick="dlgAviso({titulo:'Matrícula em livro',texto:'Cada livro é uma matrícula própria: modalidade, VIP, tipo de encontro e agenda ficam aqui, não na turma.\n\nO contrato é a matrícula do aluno mais a ordem do vínculo — 2068/1 é o primeiro livro dele, 2068/2 o segundo, independente do idioma.'})" title="O que é uma matrícula em livro">i</button>
+<label for="nm-livro">+ Nova matrícula em estágio</label>
+<div class="sug"><input id="nm-livro" placeholder="Digite o estágio..." autocomplete="off" disabled><div class="lista" id="nm-livro-sug"></div></div>
+<button type="button" class="nm-info" onclick="dlgAviso({titulo:'Matrícula em estágio',texto:'Cada estágio é uma matrícula própria: modalidade, VIP, tipo de encontro e agenda ficam aqui, não na turma.\n\nO contrato é a matrícula do aluno mais a ordem do vínculo — 2068/1 é o primeiro estágio dele, 2068/2 o segundo, independente do idioma.'})" title="O que é uma matrícula em estágio">i</button>
 </div>
 <div id="mat-lista"><div class="matriculas-vazio">Escolha ou cadastre um aluno para ver as matrículas.</div></div>
 </div>
 </div>
 
 <div id="tab-turmas" class="tab">
-<div class="pg-cab"><h2>Gerenciar turmas</h2><span class="pg-sub">salas: livro, dias, horário e professoras</span></div>
+<div class="pg-cab"><h2>Gerenciar turmas</h2><span class="pg-sub">salas: estágio, dias, horário e professoras</span></div>
 <div class="duasCols">
 <div class="form-col">
 <label>Buscar turma</label>
-<div class="sug"><input id="tu-busca" placeholder="Digite nome, livro, dia..." autocomplete="off"><div class="lista" id="tu-sug"></div></div>
+<div class="sug"><input id="tu-busca" placeholder="Digite nome, estágio, dia..." autocomplete="off"><div class="lista" id="tu-sug"></div></div>
 <h3 id="tu-titulo">Nova turma</h3>
-<label>Livro</label>
-<div class="sug"><input id="tu-livro" autocomplete="off" placeholder="Digite o livro (vazio = sala Inter multi-livro)"><div class="lista" id="tu-livro-sug"></div></div>
+<label>Estágio</label>
+<div class="sug"><input id="tu-livro" autocomplete="off" placeholder="Digite o estágio (vazio = sala Inter multi-estágio)"><div class="lista" id="tu-livro-sug"></div></div>
 <div id="tu-livro-info"></div>
 <label>Dias</label>
 <div class="checks" id="tu-dias"></div>
@@ -1769,7 +2230,7 @@ td.lc-est-cel{padding:0!important;border-left:1px solid var(--aba-bd);border-rig
 </div>
 <div class="preview-col">
 <h3>Pré-visualização do bloco</h3>
-<div class="prev-box" id="tu-preview-bloco"><div class="prev-vazio">Preencha livro, dias e horário para ver como o bloco impresso vai ficar.</div></div>
+<div class="prev-box" id="tu-preview-bloco"><div class="prev-vazio">Preencha estágio, dias e horário para ver como o bloco impresso vai ficar.</div></div>
 </div>
 </div>
 </div>
@@ -1991,68 +2452,96 @@ Os horários da matriz costumam ser fixos e raramente mudam. Confirma que quer e
 <div id="tab-estoque" class="tab">
 <div class="pg-cab"><h2>Gerenciar estoque</h2></div>
 <div class="pg-abas">
-<button class="pg-aba on" data-p="contagem" onclick="esAba('contagem')">Contagem<span class="n" id="es-n-itens">0</span></button>
+<!-- Três coisas, nesta ordem, que é a da linha de produção que ele descreveu:
+     o que TEMOS · o que está CHEGANDO · o que SAIU. O molde (Kits/Peças) vem por último porque se
+     mexe nele de vez em quando, não todo dia. -->
+<button class="pg-aba on" data-p="contagem" onclick="esAba('contagem')">Materiais<span class="n" id="es-n-itens">0</span></button>
+<button class="pg-aba" data-p="remessas" onclick="esAba('remessas')">Entradas<span class="n" id="es-n-rem">0</span></button>
 <button class="pg-aba" data-p="entregas" onclick="esAba('entregas')">Entregas<span class="n" id="es-n-pend">0</span></button>
-<button class="pg-aba" data-p="itens" onclick="esAba('itens')">Itens<span class="n" id="es-n-itens2">0</span></button>
-<button class="pg-aba" data-p="kits" onclick="esAba('kits')">Kits<span class="n" id="es-n-kits">0</span></button>
-<button class="pg-aba" data-p="remessas" onclick="esAba('remessas')">Remessas<span class="n" id="es-n-rem">0</span></button>
+<button class="pg-aba" data-p="materiais" onclick="esAba('materiais')">Kits / Peças<span class="n" id="es-n-itens2">0</span></button>
 </div>
 
 <div id="es-p-contagem" class="es-painel">
-<div class="info" style="max-width:900px">Cada coluna é um <b>evento datado</b>: uma <b>contagem</b> (o que foi conferido na prateleira), um <b>pedido</b>, uma <b>remessa</b> recebida ou as <b>entregas</b> feitas a alunos. O <b>Saldo</b> não é digitado — é a última contagem, mais as remessas e menos as entregas posteriores a ela.</div>
-<div class="es-ferramentas">
-<button class="acao sec" onclick="esNovoEvento('contagem')">+ Nova contagem</button>
-<button class="acao sec" onclick="esNovoEvento('pedido')">+ Pedido</button>
-<button class="acao sec" onclick="esNovoEvento('remessa')">+ Remessa</button>
-<span style="flex:1"></span>
-<span id="es-chips"></span>
-<input id="es-busca" class="es-busca" placeholder="buscar item..." oninput="esRender()">
+<!-- O bloco azul de explicação saiu daqui (pedido dele): ocupava uma faixa inteira acima dos botões
+     para um texto que se lê uma vez. Virou o ⓘ ao lado da busca, e os botões subiram. -->
+<!-- Três regiões: FILTROS à esquerda, BUSCA no centro, AÇÃO à direita. "Confirmar chegada" não mora
+     aqui — é ação de um pedido, dentro do bloco dele em Entradas. Fazer pedido, sim: é o gesto que
+     nasce olhando o que está faltando nesta tabela. -->
+<!-- DUAS fileiras, e nenhuma delas quebra:
+     1ª — filtros à esquerda, "+ Fazer pedido" à direita, na mesma altura;
+     2ª — busca à esquerda (sobre a coluna Material) e legenda à direita, colada na tabela. -->
+<div class="es-ferramentas es-fer-mat">
+<span id="es-chips" class="es-chips"></span>
+<button class="acao" onclick="esNovoEvento()">+ Fazer pedido</button>
 </div>
+<div class="es-fer-mat2">
+<span class="es-busca-cx">
+<input id="es-busca" class="es-busca" placeholder="buscar material..." oninput="esRender()">
+<button type="button" class="nm-info" title="Como esta tabela funciona" onclick="dlgAviso({titulo:'Como esta tabela funciona',texto:'Cada linha é um material. Abra-a para ver o cadastro dele e as unidades em estoque.\n\nSaldo é quantas unidades ainda não saíram; A caminho é o que já foi pedido e ainda não chegou.\n\nAs faixas coloridas somam o grupo. Os filtros de cima abrem e fecham as faixas — dá para marcar mais de uma.'})">i</button>
+</span>
+<div class="es-legenda es-legenda-mat">
+<span><i class="es-c-pedido"></i>a caminho — pedido que ainda não chegou</span>
+<span><i class="es-c-remessa"></i>em estoque — unidade que já deu entrada</span>
+<span><i class="es-c-entregue"></i>entregue a aluno</span>
+</div>
+</div>
+<!-- MESTRE-DETALHE, o mesmo desenho da página de Estágios: a tabela é o catálogo à esquerda e os
+     detalhes do material escolhido aparecem à direita. Antes cada linha abria para baixo, e com o
+     formulário mais a lista de unidades dentro dela a tabela empilhava demais. -->
+<div class="es-mestre">
 <div class="es-moldura"><table id="es-grade" class="es-tabela"></table></div>
-<div class="es-legenda">
-<span><i class="es-c-contagem"></i>contagem</span><span><i class="es-c-pedido"></i>pedido</span>
-<span><i class="es-c-remessa"></i>remessa</span><span><i class="es-c-saida"></i>entregas a alunos</span>
-<span style="color:var(--perigo)">saldo abaixo do mínimo</span>
+<div id="es-detalhe"></div>
 </div>
 </div>
 
 <div id="es-p-entregas" class="es-painel" style="display:none">
-<div class="info" style="max-width:900px">A lista vem das <b>matrículas ativas</b>: quem está matriculado num livro precisa ter recebido aquele livro. As entregas marcadas como <b>deduzidas</b> foram criadas a partir das matrículas que já existiam — <b>a data delas está em branco porque ninguém registrou quando saíram</b>, e é editável.</div>
+<div class="info es-info-ent" style="max-width:900px">A lista vem das <b>matrículas ativas</b>: quem está matriculado num estágio precisa ter recebido o kit dele. As entregas marcadas como <b>deduzidas</b> foram criadas a partir das matrículas que já existiam — <b>a data delas está em branco porque ninguém registrou quando saíram</b>, e é editável.</div>
 <div id="es-placar" class="es-placar"></div>
 <div class="es-ferramentas">
-<span id="es-chips-ent"></span>
+<!-- mesmas pílulas da aba Materiais: são o mesmo gesto (escolher a fatia da lista) e não faz
+     sentido terem dois desenhos diferentes -->
+<span id="es-chips-ent" class="es-chips"></span>
 <span style="flex:1"></span>
-<input id="es-busca-ent" class="es-busca" placeholder="buscar aluno ou livro..." oninput="esRenderEntregas()">
+<input id="es-busca-ent" class="es-busca" placeholder="buscar aluno ou estágio..." oninput="esRenderEntregas()">
 </div>
+<!-- MESTRE-DETALHE por ALUNO, o mesmo desenho de Materiais e Estágios. A tabela plana tinha uma
+     linha por (aluno × estágio) — 127 linhas em que o mesmo aluno aparecia várias vezes e nada
+     contava a história dele. Agora a esquerda é quem, e a direita é o que ele recebeu. -->
+<div class="es-mestre">
 <div class="es-moldura"><table id="es-tab-entregas" class="es-tabela lista"></table></div>
+<div id="es-ent-detalhe"></div>
+</div>
 </div>
 
-<div id="es-p-itens" class="es-painel" style="display:none">
-<div class="info" style="max-width:900px">O item é o que se conta. Quase todo item é um <b>livro que o sistema já conhece</b> — o vínculo com a tabela de livros é o que dá a categoria e a ordem pedagógica da grade. Item que não é livro (Wiz.pen) fica sem vínculo. O <b>código</b> é digitado à mão e serve para buscar.</div>
+<div id="es-p-materiais" class="es-painel" style="display:none">
+<div class="info" style="max-width:900px">Esta aba é o <b>molde</b>, não o estoque: ela descreve o que vem dentro de cada kit. <b>Linha é o kit, coluna é a peça</b>, e a célula diz quantas vão dentro. O que se conta e se pede está na aba <b>Materiais</b>; o que chega, em <b>Entradas</b>.</div>
+
+<div id="es-m-kits" class="es-mat-p"><span id="es-n-kits" hidden>0</span>
 <div class="es-ferramentas">
-<button class="acao" onclick="esNovoItem()">+ Novo item</button>
-<span style="flex:1"></span>
-<input id="es-busca-item" class="es-busca" placeholder="buscar item..." oninput="esRenderItens()">
+<button class="acao" onclick="esNovoKit()">+ Novo kit</button>
+<button class="acao sec" onclick="esNovaPeca()">+ Nova peça</button>
+<input id="es-busca-kit" class="es-busca" placeholder="Buscar kit..." oninput="esRenderKits()">
+<button type="button" class="nm-info" title="Como a matriz funciona" onclick="dlgAviso({titulo:'Kits e peças',texto:'A linha é o KIT, a coluna é a PEÇA, e a célula diz quantas daquela peça vão dentro dele.\n\nZero significa que não vai — não há caixa de marcar, o número já responde. O máximo é 10.\n\nEsta aba é o molde, não o estoque: ela descreve o que vem dentro de cada kit. O que se conta e se pede está na aba Itens.\n\nA Wiz.pen aparece nos dois eixos porque é o único material que é peça (vai dentro de três kits) e ao mesmo tempo se conta sozinha.'})">i</button>
 </div>
-<div class="es-moldura"><table id="es-tab-itens" class="es-tabela lista"></table></div>
+<div id="es-pecas"></div>
+<!-- SEM `.es-cartoes` aqui: aquela classe é uma grade de colunas de 300px, de quando os kits eram
+     cartões. Com a matriz dentro, a tabela caía numa célula estreita e ficava cortada de lado. -->
+<div id="es-kits"></div>
 </div>
-
-<div id="es-p-kits" class="es-painel" style="display:none">
-<div class="info" style="max-width:900px">Kit é um item cuja <b>unidade é "kit"</b> — como no sistema interno, onde "Espanhol Anual 6" aparece na mesma lista dos livros. Não é tabela à parte: é um item com composição.</div>
-<div class="es-ferramentas"><button class="acao" onclick="esNovoKit()">+ Novo kit</button></div>
-<div id="es-kits" class="es-cartoes"></div>
 </div>
 
 <div id="es-p-remessas" class="es-painel" style="display:none">
-<div class="info" style="max-width:900px">Remessa é a caixa que chega com vários materiais dentro. Registrá-la lança entrada em cada item e vira uma coluna verde na grade da contagem.</div>
-<div class="es-ferramentas"><button class="acao" onclick="esNovoEvento('remessa')">+ Receber remessa</button></div>
-<div id="es-remessas" class="es-cartoes"></div>
+<div class="info" style="max-width:900px"><b>Pedido e remessa são a mesma coisa em dois momentos</b>: pede-se, e depois confirma-se a chegada. Cada bloco abaixo é um pedido — clique para ver o que foi pedido e o que chegou de fato.</div>
+<div class="es-ferramentas">
+<button class="acao" onclick="esNovoEvento('pedido')">+ Fazer pedido</button>
+</div>
+<div id="es-remessas" class="es-blocos"></div>
 </div>
 </div>
 
 <div id="tab-estagios" class="tab">
 <div class="pg-cab"><h2>Gerenciar estágios</h2>
-<span class="pg-sub">a estrutura do livro — o livro físico fica no Estoque</span></div>
+<span class="pg-sub">a estrutura do estágio — o material físico fica no Estoque</span></div>
 <div class="pg-abas">
 <button class="pg-aba on" data-p="lista" onclick="egAba('lista')">Estágios<span class="n" id="eg-n">0</span></button>
 <button class="pg-aba" data-p="modelos" onclick="egAba('modelos')">Modelos<span class="n" id="eg-nm">0</span></button>
@@ -2069,8 +2558,11 @@ Os horários da matriz costumam ser fixos e raramente mudam. Confirma que quer e
 </div>
 
 <div id="eg-p-modelos" class="eg-painel" style="display:none">
-<div class="info" style="max-width:900px">Um modelo diz a <b>forma</b> do livro: quantas lições por capítulo e quantos capítulos. As lições são geradas a partir dele — nenhuma é digitada. Toda a Wizard cabe em três, porque <b>todo livro tem 60 lições comuns</b>; o que muda é o agrupamento e, por consequência, quantas revisões existem.</div>
-<div id="eg-modelos"></div>
+<div class="es-ferramentas"><button class="acao" onclick="egNovoModelo()">+ Novo modelo</button></div>
+<!-- acordeão do formulário: nasce fechado e só abre no "+ Novo modelo" ou ao editar a lista de um
+     modelo. A tabela de lições vive aqui dentro. -->
+<div id="eg-modelo-form" class="eg-sanfona"><div class="eg-sanfona-in"><div id="eg-modelo-form-in"></div></div></div>
+<div id="eg-modelos" class="eg-cards"></div>
 </div>
 
 <div id="eg-p-trilha" class="eg-painel" style="display:none">
@@ -2315,7 +2807,55 @@ document.querySelectorAll('#tab-alunos .pg-aba').forEach(function(b){b.classList
 }
 /* quem está aberto, no canto direito do cabeçalho: com o formulário em fileira o nome deixou de
    ser um título de coluna, e sem isto a tela não diz de quem são os históricos logo abaixo */
-function alQuem(){$('al-quem').textContent=alSel?('Editando: '+alSel.nome):'Novo aluno'}
+function alQuem(){$('al-quem').textContent=alSel?('Editando: '+alSel.nome):'Novo aluno';
+/* cadastro novo já tem o campo editável — o botão só faz sentido quando o ID está travado */
+var b=$('al-id-eng');if(b)b.style.display=alSel?'inline':'none'}
+/* Popover do ID, no estilo do menu do Kanban: some ao clicar fora e ao ESC. Trocar o ID move o
+   aluno em dez tabelas, então a janela diz isso antes de qualquer coisa. */
+var AL_MENU=null;
+function alFecharMenuId(){if(AL_MENU){AL_MENU.remove();AL_MENU=null;
+  document.removeEventListener('mousedown',alCliqueForaId,true);
+  document.removeEventListener('keydown',alEscId,true)}}
+function alCliqueForaId(e){if(AL_MENU&&!AL_MENU.contains(e.target))alFecharMenuId()}
+function alEscId(e){if(e.key==='Escape')alFecharMenuId()}
+function alMenuId(ev){
+ev.stopPropagation();
+if(AL_MENU){alFecharMenuId();return}
+if(!alSel){msg('Escolha um aluno primeiro.',true);return}
+var r=ev.currentTarget.getBoundingClientRect();
+var m=document.createElement('div');m.className='lc-menu';m.style.minWidth='250px';
+m.innerHTML='<div class="tit">ID da matrícula</div>'
+ +'<div style="padding:0 9px 8px;font-size:11.5px;color:var(--tx3);line-height:1.5">'
+ +'O ID identifica o aluno em toda parte — aulas, presenças, entregas e contratos vão junto na troca.</div>'
+ +'<div style="display:flex;gap:6px;padding:0 9px 9px">'
+ +'<input id="al-id-novo" value="'+escBloco(alSel.id)+'" inputmode="numeric" maxlength="10" '
+ +'style="flex:1;padding:5px 7px;font-size:12.5px">'
+ +'<button class="acao" style="margin:0;padding:5px 10px" onclick="alTrocarId()">Trocar</button></div>';
+document.body.appendChild(m);
+/* posiciona abaixo do botão, sem sair da janela pela direita */
+m.style.top=(r.bottom+6)+'px';
+m.style.left=Math.min(r.left,innerWidth-m.offsetWidth-10)+'px';
+AL_MENU=m;   /* guardar a referência: sem isto o fechar não fecha e os popovers se empilham */
+document.addEventListener('mousedown',alCliqueForaId,true);
+document.addEventListener('keydown',alEscId,true);
+var inp=$('al-id-novo');if(inp){inp.focus();inp.select()}
+}
+function alTrocarId(){
+var novo=($('al-id-novo')||{}).value;novo=(novo||'').trim();
+var de=alSel.id;
+if(!novo||novo===de){alFecharMenuId();return}
+alFecharMenuId();
+dlgConfirmar({titulo:'Trocar o ID da matrícula?',perigo:true,ok:'Trocar ID',
+ texto:'O ID de '+alSel.nome+' passa de '+de+' para '+novo+'.\n\n'
+  +'Tudo o que aponta para ele vai junto: matrículas, aulas, presenças, entregas, contratos e '
+  +'históricos. A operação é feita de uma vez só — ou muda tudo, ou não muda nada.'},
+function(sim){if(!sim)return;
+run('trocarIdMatricula',[{de:de,para:novo}],function(r){
+ if(r.quebradas)msg('Atenção: '+r.quebradas+' vínculo(s) ficaram soltos — avise.',true);
+ msg('ID trocado para '+r.novo+'.');
+ alSel.id=r.novo;$('al-id').value=r.novo;alQuem();
+ run('getAlunos',[],function(x){ALUNOS=x});
+ recarregarMatriculas(alHistoricos)})})}
 /* os três registros deixaram de ser sanfona: nesta aba eles SÃO o conteúdo, então carregam junto
    com o aluno. São três chamadas pequenas, e só quando alguém é escolhido. */
 function alHistoricos(){
@@ -2329,7 +2869,7 @@ function alNovo(){dirty('al',false);alSel=null;$('al-nome').value='';$('al-id').
 function alSalvar(){var a={id:$('al-id').value.trim(),nome:$('al-nome').value.trim(),situacao:$('al-sit').value};
 if(!a.id||!a.nome){msg('Preencha nome e ID.',true);return}
 if(!alSel){var dup=ALUNOS.filter(function(x){return String(x.id)===a.id})[0];if(dup){msg('Já existe aluno com ID '+a.id+' ('+dup.nome+'). Selecione-o na busca para editar.',true);return}}
-run('salvarAluno',[a],function(r){msg(r.criado?'Aluno cadastrado — as matrículas em livro ficam na aba Matrículas.':'Aluno atualizado.');alSel={id:a.id,nome:a.nome,situacao:a.situacao,status:r.status};alQuem();$('al-id').disabled=true;$('al-excluir').style.display='inline-block';$('nm-livro').disabled=false;alHistoricos();run('getAlunos',[],function(x){ALUNOS=x});recarregarMatriculas()})}
+run('salvarAluno',[a],function(r){msg(r.criado?'Aluno cadastrado — as matrículas em estágio ficam na aba Matrículas.':'Aluno atualizado.');alSel={id:a.id,nome:a.nome,situacao:a.situacao,status:r.status};alQuem();$('al-id').disabled=true;$('al-excluir').style.display='inline-block';$('nm-livro').disabled=false;alHistoricos();run('getAlunos',[],function(x){ALUNOS=x});recarregarMatriculas()})}
 function alExcluir(){if(!alSel)return;
 dlgConfirmar({titulo:'Excluir aluno',perigo:true,ok:'Excluir aluno',
  texto:'Excluir '+alSel.nome+' e TODAS as suas matrículas e aulas?'},function(sim){if(!sim)return;
@@ -2338,7 +2878,7 @@ run('excluirAluno',[alSel.id],function(r){msg('Aluno excluído ('+r.aulasRemovid
 /* ---- matrículas em livro ---- */
 /* `cb` existe por causa de uma corrida real: o dropdown de livro do histórico de situação é montado
    a partir de MATRICULAS, e `alCarregar` disparava os históricos ANTES de as matrículas chegarem —
-   o campo abria só com "(sem livro)" e a situação era gravada sem curso nenhum. */
+   o campo abria só com "(sem estágio)" e a situação era gravada sem curso nenhum. */
 function recarregarMatriculas(cb){
 if(!alSel){MATRICULAS=[];MATRIC_AULAS={};renderMatriculas();if(cb)cb();return}
 run('getMatriculasAluno',[alSel.id],function(ms){MATRICULAS=ms;
@@ -2347,7 +2887,7 @@ function renderMatriculas(){
 var box=$('mat-lista');box.innerHTML='';
 $('al-n-mat').textContent=alSel?MATRICULAS.length:0;
 if(!alSel){box.innerHTML='<div class="matriculas-vazio">Busque ou cadastre um aluno no campo acima para ver as matrículas.</div>';return}
-if(!MATRICULAS.length){var v=document.createElement('div');v.className='matriculas-vazio';v.textContent='Nenhuma matrícula ainda — use "+ Nova matrícula em livro" acima.';box.appendChild(v)}
+if(!MATRICULAS.length){var v=document.createElement('div');v.className='matriculas-vazio';v.textContent='Nenhuma matrícula ainda — use "+ Nova matrícula em estágio" acima.';box.appendChild(v)}
 MATRICULAS.forEach(function(m){box.appendChild(criarCartaoMatricula(m))});
 }
 /* grade dia×hora, no mesmo layout da aba Horários: dias nas colunas, horas alinhadas em linha —
@@ -2416,13 +2956,13 @@ ctr.textContent=m.contrato||(alSel.id+'/—');
 ctr.onclick=function(ev){ev.stopPropagation();
  dlgTexto({titulo:'Número do contrato',
   texto:'O contrato é '+alSel.id+'/N, e N é a ordem em que este vínculo foi criado. '
-   +'O primeiro livro do aluno é /1, o seguinte /2, e assim por diante — independente de livro ou idioma.',
+   +'O primeiro estágio do aluno é /1, o seguinte /2, e assim por diante — independente de estágio ou idioma.',
   label:'Número (a parte depois da barra)',valor:m.contratoSeq||'',tipoCampo:'number',ok:'Salvar'},
  function(v){run('salvarContrato',[{idMatricula:alSel.id,livro:m.livro,seq:v}],function(r){
    msg('Contrato '+r.contrato+' salvo.');recarregarMatriculas()})})};
 head.appendChild(ctr);
 var acoesHead=document.createElement('div');acoesHead.className='mat-acoes';
-var trocarBtn=document.createElement('button');trocarBtn.type='button';trocarBtn.className='btn-link';trocarBtn.textContent='trocar livro';
+var trocarBtn=document.createElement('button');trocarBtn.type='button';trocarBtn.className='btn-link';trocarBtn.textContent='trocar estágio';
 var rm=document.createElement('button');rm.type='button';rm.className='remover';rm.innerHTML='✕';rm.title='Remover matrícula';
 rm.onclick=function(ev){ev.stopPropagation();matriculaExcluir(m.livro)};
 acoesHead.appendChild(trocarBtn);acoesHead.appendChild(rm);
@@ -2440,8 +2980,33 @@ function pintar(){card.classList.toggle('aberto',aberto);
 head.onclick=function(){aberto=!aberto;pintar();if(aberto)atualizarPreview()};
 pintar();
 
+/* Resumo do percurso: SÓ LEITURA aqui. A edição mora num lugar único, o cartão Percurso da aba
+   Informações — que é o único que também alcança livro já encerrado. Duas telas editando o mesmo
+   dado divergem na primeira melhoria (foi o que já aconteceu entre impressão e prévia). */
+if(m.percurso){
+var resumo=document.createElement('button');resumo.type='button';resumo.className='mat-percurso';
+resumo.title='Ver e editar no Percurso, na aba Informações';
+var ps=[];
+if(m.percurso.estado!=='cursando'){
+ /* a matrícula existe mas o percurso está fechado — some o vencimento (contrato de livro
+    encerrado não vence) e fica o aviso, que é a informação que falta ali */
+ ps.push(m.percurso.estado+(m.percurso.dataFim?' em '+dataCurta(m.percurso.dataFim):''));
+ if(m.percurso.licaoAtual)ps.push('parou na lição '+m.percurso.licaoAtual);
+}else{
+ if(m.percurso.dataInicio)ps.push('em curso desde '+dataCurta(m.percurso.dataInicio));
+ else ps.push('sem data de entrada');
+ /* a lição saiu (ele: "a questão ali do percurso, na lição, não precisa disso") */
+ if(m.percurso.vence)ps.push('contrato vence '+dataCurta(m.percurso.vence));
+}
+resumo.textContent=ps.join(' · ');
+/* leva ao histórico de situação, que é onde a jornada se edita desde que os dois cartões viraram um */
+resumo.onclick=function(ev){ev.stopPropagation();alAba('cadastro');
+ var el=$('hist-corpo');if(el&&el.scrollIntoView)el.scrollIntoView({block:'center'})};
+corpoIn.appendChild(resumo);
+}
+
 var trocaBox=document.createElement('div');trocaBox.className='sug';trocaBox.style.cssText='display:none;margin-bottom:8px';
-var trocaInp=document.createElement('input');trocaInp.placeholder='Digite o novo livro...';
+var trocaInp=document.createElement('input');trocaInp.placeholder='Digite o novo estágio...';
 var trocaLista=document.createElement('div');trocaLista.className='lista';
 trocaBox.appendChild(trocaInp);trocaBox.appendChild(trocaLista);
 corpoIn.appendChild(trocaBox);
@@ -2451,7 +3016,7 @@ trocarBtn.onclick=function(ev){ev.stopPropagation();
 function renderTroca(){var q=norm(trocaInp.value);var itens=(DOM.livros||[]).filter(function(l){return l.nome!==m.livro&&!MATRICULAS.some(function(x){return x.livro===l.nome})&&(q===''||norm(l.nome).indexOf(q)>=0)}).slice(0,8);
 trocaLista.innerHTML='';itens.forEach(function(l){var d=document.createElement('div');d.textContent=l.nome+' — padrão '+l.tipoPadrao+(l.kids?' Kids':'');
 d.onmousedown=function(ev){ev.preventDefault();trocaLista.style.display='none';trocaBox.style.display='none';
-run('trocarLivroAluno',[{idMatricula:alSel.id,livroAntigo:m.livro,livroNovo:l.nome}],function(r){msg('Livro trocado para '+l.nome+' ('+r.aulasMovidas+' aula(s) movida(s)).');recarregarMatriculas()})};
+run('trocarLivroAluno',[{idMatricula:alSel.id,livroAntigo:m.livro,livroNovo:l.nome}],function(r){msg('Estágio trocado para '+l.nome+' ('+r.aulasMovidas+' aula(s) movida(s)).');recarregarMatriculas()})};
 trocaLista.appendChild(d)});
 trocaLista.style.display=itens.length?'block':'none'}
 trocaInp.addEventListener('input',renderTroca);trocaInp.addEventListener('focus',renderTroca);
@@ -2531,8 +3096,21 @@ selMod.onchange=atualizarPreviewDeb;vipChk.onchange=atualizarPreviewDeb;
 
 salvarBtn.onclick=function(){
 if(!alSel)return;
-run('salvarMatricula',[{idMatricula:alSel.id,livro:m.livro,modalidade:selMod.value,vip:vipChk.checked,tipoEncontro:selTipo.value}],function(){
-gravarAgenda(m.livro,lerItensEditor(editor),profsWidget.get(),false)})};
+gravarMatricula(false)};
+/* UM ESTÁGIO POR IDIOMA: quem decide é o servidor, que conhece o idioma de cada estágio e as outras
+   matrículas do aluno. Ele devolve `precisaConfirmar` sem gravar — mesmo padrão da troca de horário
+   e do ponto. A janela NOMEIA o curso que já está em andamento, porque a saída certa quase sempre é
+   encerrar aquele, não abrir mais um. */
+function gravarMatricula(confirmado){
+run('salvarMatricula',[{idMatricula:alSel.id,livro:m.livro,modalidade:selMod.value,
+ vip:vipChk.checked,tipoEncontro:selTipo.value,confirmado:!!confirmado}],function(r){
+if(r&&r.precisaConfirmar){
+ dlgConfirmar({titulo:'Dois estágios do mesmo idioma?',perigo:true,ok:'Matricular assim mesmo',
+  texto:r.texto+'\n\nSe ele realmente trocou de estágio, o certo é encerrar '+r.livroEmCurso
+   +' primeiro — assim o percurso guarda a passagem por ele.'},
+ function(sim){if(sim)gravarMatricula(true)});
+ return}
+gravarAgenda(m.livro,lerItensEditor(editor),profsWidget.get(),false)})}
 
 atualizarPreview();
 return card;
@@ -2607,12 +3185,14 @@ MATRICULAS.push({livro:l.nome,modalidade:l.tipoPadrao,vip:false,tipoEncontro:'Pr
 MATRIC_AULAS[l.nome]=[];renderMatriculas();alAba('matriculas')}
 function matriculaExcluir(livro){if(!alSel)return;
 dlgConfirmar({titulo:'Remover matrícula',perigo:true,ok:'Remover',
- texto:'Remover a matrícula de '+livro+'?\n\nIsso apaga também as aulas desse livro.'},function(sim){
+ texto:'Remover a matrícula de '+livro+'?\n\nIsso apaga também as aulas desse estágio.'},function(sim){
 if(!sim)return;
 run('excluirMatricula',[{idMatricula:alSel.id,livro:livro}],function(r){msg('Matrícula removida ('+r.aulasRemovidas+' aula(s)).');recarregarMatriculas()})})}
 
-/* ---- histórico de situação (linha do tempo manual, recolhida por padrão) ---- */
-function histFechar(){$('hist-corpo').innerHTML='<div class="al-hist-vazio">Escolha um aluno.</div>'}
+/* ---- histórico de situação: a jornada do aluno, estágio por estágio ---- */
+/* id do registro em edição inline — um por vez */
+var HIST_EDIT=null;
+function histFechar(){HIST_EDIT=null;$('hist-corpo').innerHTML='<div class="al-hist-vazio">Escolha um aluno.</div>'}
 function histCarregar(){run('getHistoricoAluno',[alSel.id],function(hs){histRender(hs)})}
 /* "Rematriculado" -> "sit-rematriculado": sem acento e em minúsculas, para virar classe CSS */
 function classeSit(s){return 'sit-'+norm(s).replace(/[^a-z]/g,'')}
@@ -2628,7 +3208,7 @@ var selSit=document.createElement('select');(DOM.situacoes||[]).forEach(function
    histórico dele mas já saíram das matrículas — quem encerrou o W2 e foi para o W4 precisa poder
    registrar "Encerrado · W2" mesmo já não tendo mais a matrícula do W2. */
 var selLiv=document.createElement('select');
-var o0=document.createElement('option');o0.value='';o0.textContent='(sem livro)';selLiv.appendChild(o0);
+var o0=document.createElement('option');o0.value='';o0.textContent='(sem estágio)';selLiv.appendChild(o0);
 var vistos={};
 (MATRICULAS||[]).forEach(function(m){if(!vistos[m.livro]){vistos[m.livro]=1;
   var o=document.createElement('option');o.value=m.livro;o.textContent=m.livro;selLiv.appendChild(o)}});
@@ -2637,24 +3217,80 @@ hs.forEach(function(h){if(h.livro&&!vistos[h.livro]){vistos[h.livro]=1;
 var inpData=document.createElement('input');inpData.type='date';
 var addBtn=document.createElement('button');addBtn.type='button';addBtn.className='acao';addBtn.style.cssText='padding:6px 10px;margin:0';addBtn.textContent='+';
 addBtn.onclick=function(){if(!inpData.value){msg('Escolha uma data.',true);return}
-run('salvarHistoricoAluno',[{idMatricula:alSel.id,situacao:selSit.value,data:inpData.value,livro:selLiv.value||null}],function(){inpData.value='';run('getHistoricoAluno',[alSel.id],function(hs2){histRender(hs2)})})};
+run('salvarHistoricoAluno',[{idMatricula:alSel.id,situacao:selSit.value,data:inpData.value,livro:selLiv.value||null}],function(r){inpData.value='';histDepois(r)})};
 addRow.appendChild(selSit);addRow.appendChild(selLiv);addRow.appendChild(inpData);addRow.appendChild(addBtn);
 box.appendChild(addRow);
 box.appendChild(Object.assign(document.createElement('hr'),{className:'hist-fio'}));
 if(!hs.length){var v=document.createElement('div');v.style.cssText='color:var(--tx3);font-size:12px;padding:4px 0';v.textContent='Nenhum registro ainda.';box.appendChild(v);return}
 var lista=document.createElement('div');lista.className='freq-lista';
 hs.forEach(function(h){var row=document.createElement('div');row.className='hist-linha';
+/* ---- linha em EDIÇÃO: vira os mesmos três campos do formulário de lançar ----
+   Inline, e não numa janela: editar é conferir a linha contra as vizinhas, e uma janela por cima
+   esconde justamente o que se está comparando. Situação, estágio e data juntos, num gesto só. */
+if(HIST_EDIT===h.id){
+ row.className='hist-linha hist-editando';
+ var eSit=document.createElement('select');
+ (DOM.situacoes||[]).forEach(function(s){var o=document.createElement('option');o.textContent=s.situacao;
+   if(s.situacao===h.situacao)o.selected=true;eSit.appendChild(o)});
+ var eLiv=document.createElement('select');
+ var z=document.createElement('option');z.value='';z.textContent='(sem estágio)';eLiv.appendChild(z);
+ Object.keys(vistos).forEach(function(l){var o=document.createElement('option');o.value=l;o.textContent=l;
+   if(l===h.livro)o.selected=true;eLiv.appendChild(o)});
+ /* o estágio da própria linha pode não estar entre os oferecidos (matrícula já removida):
+    acrescenta para a edição não trocar em silêncio o que estava gravado */
+ if(h.livro&&!vistos[h.livro]){var ox=document.createElement('option');ox.value=h.livro;
+   ox.textContent=h.livro+' (anterior)';ox.selected=true;eLiv.appendChild(ox)}
+ var eData=document.createElement('input');eData.type='date';eData.value=h.data;
+ var ok=document.createElement('button');ok.type='button';ok.className='acao';
+ ok.style.cssText='padding:5px 9px;margin:0';ok.textContent='✓';ok.title='Salvar';
+ ok.onclick=function(){
+  if(!eData.value){msg('A data é obrigatória.',true);return}
+  run('editarHistoricoAluno',[{id:h.id,situacao:eSit.value,data:eData.value,livro:eLiv.value||null}],
+   function(r){HIST_EDIT=null;msg('Registro atualizado.');histDepois(r)})};
+ var no=document.createElement('button');no.type='button';no.className='remover';no.textContent='✕';
+ no.title='Cancelar';no.onclick=function(){HIST_EDIT=null;histRender(hs)};
+ row.appendChild(eSit);row.appendChild(eLiv);row.appendChild(eData);
+ var ac=document.createElement('span');ac.className='hist-acoes';
+ ac.appendChild(ok);ac.appendChild(no);row.appendChild(ac);
+ lista.appendChild(row);return}
 var txt=document.createElement('span');
-/* a pílula do livro diz de QUAL curso é a situação. Registro antigo (sem livro) não some nem
-   mente: mostra "geral" tracejado, que é honesto sobre não se saber a qual matrícula pertence. */
+/* a pílula do estágio diz de QUAL curso é a situação. Registro antigo (sem estágio) não some nem
+   mente: mostra "geral" tracejado, que é honesto sobre não se saber a qual matrícula pertence.
+   O que era o cartão de Percurso virou este complemento da linha: "em curso", contrato e
+   vencimento — sem estado nem lição, que ele tirou por serem repetição da própria situação. */
 txt.innerHTML='<span class="sit '+classeSit(h.situacao)+'">'+escBloco(h.situacao)+'</span>'
 +(h.livro?'<span class="sit-livro">'+escBloco(h.livro)+'</span>'
-        :'<span class="sit-livro geral" title="Registro sem livro — feito antes de a situação passar a ser por curso">geral</span>')
-+' <small style="color:var(--tx2)">'+escBloco(dataCurta(h.data))+'</small>';
+        :'<span class="sit-livro geral" title="Registro sem estágio — feito antes de a situação passar a ser por curso">geral</span>')
++(h.emCurso?'<span class="sit-curso" title="Este estágio está em curso">em curso</span>':'')
++(h.contrato?'<span class="sit-contrato" title="Contrato: matrícula do aluno + ordem do vínculo">'+escBloco(h.contrato)+'</span>':'')
++' <small style="color:var(--tx2)">'+escBloco(dataCurta(h.data))+'</small>'
++(h.vence?'<small class="sit-vence" title="Contrato de um ano contado da entrada">vence '+escBloco(dataCurta(h.vence))+'</small>':'');
+var acoes=document.createElement('span');acoes.className='hist-acoes';
+/* editar em vez de apagar e refazer: errar a data ou a situação é comum, e refazer perderia a
+   ordem da lista */
+var ed=document.createElement('button');ed.type='button';ed.className='remover';ed.innerHTML='✎';
+ed.title='Editar situação, estágio e data';
+ed.onclick=function(){HIST_EDIT=h.id;histRender(hs)};
 var del=document.createElement('button');del.type='button';del.className='remover';del.textContent='✕';del.title='Remover registro';
-del.onclick=function(){run('excluirHistoricoAluno',[h.id],function(){run('getHistoricoAluno',[alSel.id],function(hs2){histRender(hs2)})})};
-row.appendChild(txt);row.appendChild(del);lista.appendChild(row)});
+/* apagar pergunta: o registro manda na situação corrente do aluno e no percurso do estágio */
+del.onclick=function(){
+ dlgConfirmar({titulo:'Remover registro',perigo:true,ok:'Remover',
+  texto:'Remover "'+h.situacao+(h.livro?' · '+h.livro:'')+'" de '+dataCurta(h.data)+'?\n\n'
+   +'A situação atual do aluno é recalculada a partir do registro mais recente que sobrar.'},
+ function(sim){if(!sim)return;
+ run('excluirHistoricoAluno',[h.id],function(r){histDepois(r)})})};
+acoes.appendChild(ed);acoes.appendChild(del);
+row.appendChild(txt);row.appendChild(acoes);lista.appendChild(row)});
 box.appendChild(lista);
+}
+/* depois de gravar/apagar: a situação corrente e o status podem ter mudado, e o campo do cadastro
+   ao lado precisa acompanhar — senão a tela mostra uma situação e o banco guarda outra */
+function histDepois(r){
+if(r&&r.resolvido)msg('Retornado registrado — o aluno volta a '+r.resolvido+'.');
+if(r&&r.situacaoCorrente&&$('al-sit')){$('al-sit').value=r.situacaoCorrente;alStatus()}
+if(alSel&&r&&r.situacaoCorrente)alSel.situacao=r.situacaoCorrente;
+run('getHistoricoAluno',[alSel.id],function(hs2){histRender(hs2)});
+run('getAlunos',[],function(x){ALUNOS=x});
 }
 
 /* ---- frequência do aluno (só leitura + remover lançamento errado; lançar é na aba Presença) ---- */
@@ -2684,7 +3320,7 @@ var tx=document.createElement('span');
 var alerta=l.foraDoHorario
  ? '<span class="freq-fora" title="'+escBloco(l.avulso
      ? l.avulso.motivo+' às '+l.avulso.hora+(l.avulso.observacao?' — '+l.avulso.observacao:'')
-     : 'Este dia não é o do horário fixo do aluno neste livro.')+'">'+icon('triangle-alert',13)+'</span> '
+     : 'Este dia não é o do horário fixo do aluno neste estágio.')+'">'+icon('triangle-alert',13)+'</span> '
  : '';
 var marca=l.status===null
  ? '<span class="badge b-emaula" title="Encontro previsto que ainda não virou presença">previsto</span> '
@@ -2752,7 +3388,7 @@ matRender();dirty('mat',true);
 msg(n+' célula(s) marcadas como '+($('cb-nome').value.trim()||(valor?'disponível':'vago'))+'.')}
 
 /* ===== TURMAS (sala: professora + dias + horário; sem modalidade/VIP — isso é do aluno) ===== */
-function tuAplicaLivro(l){$('tu-livro').value=l.nome;$('tu-livro-info').innerHTML=(l.tipoFixo?'<div class="info">'+icon('lock',13)+' '+l.nome+' é sempre Connections'+(l.kids?' (Kids)':'')+' — os alunos desta sala terão a modalidade travada na matrícula deles.</div>':(l.kids?'<div class="info">Livro infantil (Kids).</div>':''));tuPreview()}
+function tuAplicaLivro(l){$('tu-livro').value=l.nome;$('tu-livro-info').innerHTML=(l.tipoFixo?'<div class="info">'+icon('lock',13)+' '+l.nome+' é sempre Connections'+(l.kids?' (Kids)':'')+' — os alunos desta sala terão a modalidade travada na matrícula deles.</div>':(l.kids?'<div class="info">Estágio infantil (Kids).</div>':''));tuPreview()}
 function tuDias(){return Array.prototype.filter.call(document.querySelectorAll('#tu-dias input'),function(c){return c.checked}).map(function(c){return c.value}).join('+')}
 function tuSetDias(str){document.querySelectorAll('#tu-dias input').forEach(function(c){c.checked=String(str).indexOf(c.value)>=0;c.parentNode.classList.toggle('sel',c.checked)})}
 function tuHini(){var h=parseInt($('tu-hini').value,10)+1;$('tu-hfim').value=('0'+h).slice(-2)+':00';tuPreview()}
@@ -2780,24 +3416,24 @@ function gravar(){run('salvarTurma',[t],function(r){msg('Turma salva: '+r.nome);
 function semProfessora(){
  if(t.professores.length)return gravar();
  dlgConfirmar({titulo:'Turma sem professora',ok:'Salvar assim',
-  texto:'Turmas gêmeas (mesmo livro, dias e horário) só se diferenciam pela professora. Salvar mesmo assim?'},
+  texto:'Turmas gêmeas (mesmo estágio, dias e horário) só se diferenciam pela professora. Salvar mesmo assim?'},
  function(sim){if(sim)gravar()})}
-if(!t.livro)dlgConfirmar({titulo:'Turma sem livro',ok:'Continuar',
-  texto:'Vale para salas Interactive multi-livro, onde cada aluno segue o próprio livro na matrícula dele. Continuar?'},
+if(!t.livro)dlgConfirmar({titulo:'Turma sem estágio',ok:'Continuar',
+  texto:'Vale para salas Interactive multi-estágio, onde cada aluno segue o próprio estágio na matrícula dele. Continuar?'},
  function(sim){if(sim)semProfessora()});
 else semProfessora()}
 function tuMembros(){if(!tuSel){$('tu-membros').innerHTML='';return}
 var box=$('tu-membros');box.innerHTML='<h3>Integrantes</h3><small>Carregando...</small>';
 run('getIntegrantesTurma',[tuSel.id],function(ms){
 box.innerHTML='<h3>Integrantes ('+ms.length+')</h3>';
-if(!ms.length){var w=document.createElement('div');w.className='info aviso';w.textContent='⚠️ Turma vazia — precisa de alunos (não-VIP, mesmo livro), dias/hora e professora vinculada.';box.appendChild(w);return}
+if(!ms.length){var w=document.createElement('div');w.className='info aviso';w.textContent='⚠️ Turma vazia — precisa de alunos (não-VIP, mesmo estágio), dias/hora e professora vinculada.';box.appendChild(w);return}
 ms.forEach(function(m){var d=document.createElement('div');d.className='item';d.style.cursor='default';
 var del=document.createElement('button');del.className='acao perigo';del.style.cssText='float:right;padding:2px 8px;margin:0';del.textContent='✕';del.title='Remover da turma';
 del.onclick=function(){dlgConfirmar({titulo:'Remover da turma',perigo:true,ok:'Remover',
  texto:'Remover '+m.nome+' desta turma?\n\nAs aulas dele neste dia e horário serão apagadas. O cadastro do aluno permanece.'},
 function(sim){if(!sim)return;
 run('removerAlunoDaTurma',[{idMatricula:m.id,idTurma:tuSel.id}],function(r){msg(r.aulasRemovidas+' aula(s) removida(s).');tuMembros()})})};
-var tx=document.createElement('span');tx.innerHTML='<b>'+escBloco(m.nome)+'</b> ('+escBloco(m.id)+') · '+escBloco(m.dias.join('+'))+(m.divergente?' · <span class="tx-perigo">⚠️ livro diferente: '+escBloco(m.livros.join(', '))+' — considere ajustar</span>':'');
+var tx=document.createElement('span');tx.innerHTML='<b>'+escBloco(m.nome)+'</b> ('+escBloco(m.id)+') · '+escBloco(m.dias.join('+'))+(m.divergente?' · <span class="tx-perigo">⚠️ estágio diferente: '+escBloco(m.livros.join(', '))+' — considere ajustar</span>':'');
 d.appendChild(del);d.appendChild(tx);box.appendChild(d)})})}
 function tuExcluir(){if(!tuSel)return;
 dlgConfirmar({titulo:'Excluir turma',perigo:true,ok:'Excluir turma',
@@ -2821,7 +3457,7 @@ run('getColegasDeHorario',[{idMatricula:alSel.id,itens:itens}],function(cs){HLOT
 function horaLoteRender(){
 var alvo=HLOTE.itens.map(function(i){return i.dia.slice(0,3)+' '+i.horario}).join(', ');
 var h='<div class="info" style="margin:0 0 10px">Aplicando o horário <b>'+escBloco(alvo)+'</b> ('+HLOTE.itens.length+' aula(s) por aluno) aos marcados.'
-+'<br><small>Cada aluno mantém o próprio livro e os próprios professores. Quem tem horário diferente vem desmarcado — aplicar substitui o horário dele.</small></div>';
++'<br><small>Cada aluno mantém o próprio estágio e os próprios professores. Quem tem horário diferente vem desmarcado — aplicar substitui o horário dele.</small></div>';
 if(!HLOTE.colegas.length){h+='<div class="lote-vazio">Nenhum colega encontrado neste horário.</div>';$('hlote-corpo').innerHTML=h;return}
 h+='<div class="lote-slot">';
 HLOTE.colegas.forEach(function(c,i){
@@ -2833,7 +3469,7 @@ var marcar=c.ehOAluno||(compat&&!c.igual);
 h+='<label class="lote-linha'+(c.ehOAluno?' eu':'')+((!compat&&!c.ehOAluno)?' outro':'')+'">'
 +'<input type="checkbox" data-i="'+i+'"'+(marcar?' checked':'')+(c.igual&&!c.ehOAluno?' disabled':'')+'>'
 +'<span><b>'+escBloco(c.nome||c.id)+'</b>'+(c.ehOAluno?' <small>(este aluno)</small>':'')
-+'<small>'+escBloco(c.livro||'sem livro')+' · '+escBloco(atual)+'</small></span>'
++'<small>'+escBloco(c.livro||'sem estágio')+' · '+escBloco(atual)+'</small></span>'
 +(c.igual?'<span class="lote-ok">já está</span>':((!compat&&!c.ehOAluno)?'<span class="lote-alerta">horário diferente</span>':''))+'</label>'});
 $('hlote-corpo').innerHTML=h+'</div>';
 }
@@ -2986,26 +3622,68 @@ var ES=null, ES_ABA='contagem', ES_FILTRO=null, ES_FILTRO_ENT='pendente', ES_FIL
    história. Mesma ideia da matriz de Horários, que também abre travada.
    A coluna recém-criada é a exceção — quem acabou de criá-la é para preenchê-la agora. */
 var ES_EDIT={};
+/* "Complementos" no lugar de "Materiais" (2026-08-10, dele): a Wiz.pen e o Business Empire não são
+   curso por si — acompanham um. Chamar de material não os distinguia dos kits, que também são
+   material. `categoriaLivro()` no servidor devolve "Materiais" para item sem estágio; a troca é de
+   rótulo, e a tradução mora aqui. */
 var ES_FAIXAS=['Kids','Teens','Ws','Outros Idiomas','Materiais'];
+var ES_ROTULO_FAIXA={'Materiais':'Complementos'};
+function esRotuloFaixa(f){return ES_ROTULO_FAIXA[f]||f}
+/* faixa aberta na grade — UMA só. Começa fechada: com 5 faixas e ~30 linhas, abrir tudo obriga a
+   rolar para achar qualquer coisa. Clicar numa faixa fecha a que estiver aberta. */
+/* faixas ABERTAS — lista, não uma só: as pílulas de filtro permitem marcar várias ao mesmo tempo */
+var ES_ABERTAS=[];
+/* material cuja FILA de exemplares está aberta — um por vez, como as faixas */
+/* material escolhido na tabela — os detalhes dele aparecem no painel da direita */
+var ES_ITEM_SEL=null;
+/* mesma ideia na aba Entregas, só que a chave é o aluno */
+var ES_ALUNO_SEL=null;
+/* um campo do cadastro dentro da linha aberta */
+function esCampo(it,campo,rot,tipo,dica){
+var v=it[campo];v=(v==null?'':v);
+return '<label><span>'+rot+'</span><input'+(tipo==='num'?' type="number"':'')
+ +' value="'+escBloco(String(v))+'" placeholder="'+escBloco(dica)+'"'
+ +' onchange="esCampoItem('+it.id+',\''+campo+'\',this.value)"></label>'}
+/* '2026-08-06 08:00:00.001' → '2026-08-06T08:00' (o que o input datetime-local aceita) */
+function esParaInput(ts){var p=String(ts).split(' ');
+ return p.length===2?p[0]+'T'+p[1].slice(0,5):''}
+function esEntradaUnidade(id,v){
+if(!v){msg('Informe data e hora.',true);return}
+run('ajustarUnidade',[{id:id,entrada:v.replace('T',' ')}],function(){
+ msg('Entrada ajustada — a fila foi reordenada.');esCarregar()})}
+/* Gravar o código LIBERA o carimbo daquele exemplar, então a vista tem de ser repintada — e a vista
+   certa depende de onde ele está: no bloco do pedido (Entradas) ou na fila do material (Materiais).
+   Sem isto o botão continuava desabilitado depois de digitar, e parecia que a regra estava travada. */
+function esCodigoUnidade(id,v){
+run('ajustarUnidade',[{id:id,codigo:v}],function(){
+ esCarregar(function(){if(ES_ABA==='remessas')esRenderRemessas()})})}
+/* '2026-08-06 08:00:00.001' → '06/08 08:00' — o milissegundo importa para a ordem, não para a
+   leitura, e mostrá-lo só encheria a linha */
+function esDataHora(ts){var p=String(ts).split(' ');
+ return p.length===2?esDataBR(p[0])+' '+p[1].slice(0,5):esDataBR(ts)}
 
 function esCarregar(cb){run('getEstoque',[{}],function(r){ES=r;if(cb)cb();esRender();esAtualizarContadores()})}
 function esAtualizarContadores(){
 if(!ES)return;
 $('es-n-itens').textContent=ES.itens.length;
-$('es-n-itens2').textContent=ES.itens.length;
+$('es-n-itens2').textContent=(ES.componentes||[]).length;
 $('es-n-kits').textContent=Object.keys(ES.kits||{}).length;
-$('es-n-rem').textContent=ES.eventos.filter(function(e){return e.tipo==='remessa'}).length;
+/* o contador de Entradas conta PEDIDOS em aberto: é a pergunta da aba ("tem coisa a chegar?") */
+$('es-n-rem').textContent=ES.eventos.filter(function(e){
+  return e.tipo==='pedido'&&e.situacao&&e.situacao.estado!=='recebido'}).length;
 $('es-n-pend').textContent=ES.entregas.filter(function(e){return !e.entregaId}).length;
 }
+/* A aba Kits/Peças teve por um tempo dois níveis (Itens e Kits). A de Itens foi FUNDIDA na de
+   Materiais, então sobrou só a matriz e a função virou um atalho. */
+function esAbaMat(){esRenderKits()}
 function esAba(p){
 ES_ABA=p;
-document.querySelectorAll('#tab-estoque .pg-aba').forEach(function(b){b.classList.toggle('on',b.dataset.p===p)});
-['contagem','entregas','itens','kits','remessas'].forEach(function(x){
+document.querySelectorAll('#tab-estoque .pg-aba[data-p]').forEach(function(b){b.classList.toggle('on',b.dataset.p===p)});
+['contagem','entregas','materiais','remessas'].forEach(function(x){
   $('es-p-'+x).style.display=(x===p?'block':'none')});
 if(p==='contagem')esRender();
 if(p==='entregas')esRenderEntregas();
-if(p==='itens')esRenderItens();
-if(p==='kits')esRenderKits();
+if(p==='materiais')esAbaMat();
 if(p==='remessas')esRenderRemessas();
 }
 function esItem(id){return ES.itens.filter(function(i){return i.id===id})[0]}
@@ -3028,15 +3706,27 @@ function esNota(ev,itemId){var v=ev.itens?ev.itens[itemId]:null;return (v&&typeo
 
 function esRender(){
 if(!ES){esCarregar();return}
-var evs=esEventos(), busca=($('es-busca').value||'').toLowerCase();
+/* SEM colunas de evento: elas eram a "contagem" do caderno e o histórico de pedido/remessa, que
+   agora moram na aba Entradas como blocos. A tabela de Materiais responde só o que ela tem de
+   responder — quanto tem, quanto vem, quanto falta. Foi a fusão que ele pediu, e o que tira a
+   maior parte da carga cognitiva da tela. */
+var evs=[], busca=($('es-busca').value||'').toLowerCase();
 var lista=ES.itens.filter(function(i){
   if(ES_FILTRO&&i.categoria!==ES_FILTRO)return false;
   if(busca&&(i.descricao+' '+i.codigo).toLowerCase().indexOf(busca)<0)return false;
   return true});
 var ROT={contagem:'CONTAGEM',pedido:'PEDIDO',remessa:'REMESSA',saida:'ENTREGAS'};
-var h='<thead><tr><th class="col-item">Item</th>';
+var h='<thead><tr><th class="col-item">Material</th>';
 evs.forEach(function(e,ix){
   var rot=ROT[e.tipo]+(e.tipo==='saida'&&e.aberta?' ATÉ HOJE':'');
+  /* o pedido diz em que pé está na fila: aguardando, parcial ou recebido. É a informação que
+     responde "isso já chegou?" sem abrir nada. */
+  if(e.tipo==='pedido'&&e.situacao)rot=({aguardando:'PEDIDO · AGUARDA',parcial:'PEDIDO · PARCIAL',
+    recebido:'PEDIDO · CHEGOU'})[e.situacao.estado]||rot;
+  /* a remessa mostra de qual pedido ela é: a coluna sozinha não contava essa história */
+  if(e.tipo==='remessa'&&e.pedidoId){
+   var ped=ES.eventos.filter(function(x){return x.id===e.pedidoId})[0];
+   if(ped)rot='REMESSA '+esDataBR(ped.data)}
   /* a coluna de ENTREGAS é derivada da lista de entregas: não tem data própria para trocar nem
      linha para excluir, então não ganha engrenagem */
   var eng=e.tipo==='saida'?''
@@ -3046,18 +3736,47 @@ evs.forEach(function(e,ix){
    +'" title="'+escBloco(e.observacao||rot)+'">'
    +'<span class="es-ev-tipo">'+rot+'</span><span class="es-ev-data">'+esDataBR(e.data)+'</span>'
    +eng+'</th>'});
-h+='<th class="col-fim">Saldo</th><th class="col-fim">Mín.</th><th class="col-fim">Pedir</th></tr></thead><tbody>';
-var faixa=null, colspan=evs.length+4;
+h+='<th class="col-fim">Saldo</th><th class="col-fim" title="já pedido e ainda não chegou">A caminho</th>'
+ +'<th class="col-fim">Mín.</th><th class="col-fim">Pedir</th>'
+ +'</tr></thead>';
+/* sem coluna de sobra: a tabela agora tem largura própria e divide a tela com o painel de detalhes */
+var colspan=evs.length+5;
+/* Cada faixa é um <tbody> próprio, e não uma linha solta no meio de um tbody só: assim recolher é
+   esconder as linhas DAQUELE grupo, sem depender de contar linhas.
+   Busca em curso ABRE tudo: filtrar e ainda ter de clicar para ver o resultado seria absurdo. */
+var buscando=!!busca;
 ES_FAIXAS.forEach(function(f){
   var doGrupo=lista.filter(function(i){return i.categoria===f});
   if(!doGrupo.length)return;
-  h+='<tr class="banda"><td colspan="'+colspan+'">'+escBloco(f)
-   +'<span class="cont">'+doGrupo.length+(doGrupo.length===1?' item':' itens')+'</span></td></tr>';
+  var aberta=buscando||ES_ABERTAS.indexOf(f)>=0;
+  /* A FAIXA SOMA O GRUPO nas próprias colunas: recolhida, ela já responde "quanto tem de Kids" e
+     "quanto vem" sem precisar abrir. O contador de itens saiu de dentro do nome — ele virou o
+     número da coluna Saldo, que é o que interessa olhar. */
+  var somaSaldo=doGrupo.reduce(function(s,i){return s+i.saldo},0);
+  var somaCaminho=doGrupo.reduce(function(s,i){return s+i.pedidoPendente},0);
+  var somaMin=doGrupo.reduce(function(s,i){return s+i.minimo},0);
+  h+='<tbody class="grupo'+(aberta?' aberta':'')+'" data-f="'+escBloco(f)+'">';
+  h+='<tr class="banda" onclick="esAbrirFaixa(\''+escBloco(f)+'\')" '
+   +'title="'+(aberta?'Recolher':'Abrir')+' '+escBloco(esRotuloFaixa(f))+'">'
+   +'<td class="banda-nome"><span class="seta"></span>'+escBloco(esRotuloFaixa(f))+'</td>'
+   +'<td class="fim">'+somaSaldo+'</td>'
+   +'<td class="fim">'+(somaCaminho||'')+'</td>'
+   +'<td class="fim">'+(somaMin||'')+'</td>'
+   +'<td class="fim"></td></tr>';
   doGrupo.forEach(function(it){
     var selo=it.unidade==='kit'?'<span class="es-selo kit">KIT</span>'
       :(it.finalidade==='professor'?'<span class="es-selo prof">PROFESSOR</span>':'');
-    h+='<tr><td class="item"><span class="es-item-nome">'+escBloco(it.descricao)+selo+'</span>'
-     +'<span class="es-item-cod">'+escBloco(it.codigo||'—')+(it.livro?' · livro':' · material')+'</span></td>';
+    /* A SETA SAIU: clicar na linha escolhe o material e os detalhes abrem à DIREITA, no lugar de
+       empilhar formulário e lista de unidades dentro da própria tabela. */
+    /* `data-i` é o que permite trocar a seleção sem redesenhar: a linha se acha pelo id */
+    /* subtítulo: o ESTÁGIO ao qual o material se liga, não o código — o código repetia o nome logo
+       acima. "LITTLE KIDS 2 / L. Kids 2 | estágio" diz algo; "LITTLE KIDS 2 / LK2" não dizia. */
+    h+='<tr class="linha'+(ES_ITEM_SEL===it.id?' sel':'')+'" data-i="'+it.id+'"'
+     +' onclick="esEscolherMaterial('+it.id+')">'
+     +'<td class="item">'
+     +'<span class="es-item-nome">'+escBloco(it.descricao)+'</span>'
+     +'<span class="es-item-cod">'+escBloco(it.livro||'avulso')+' <b>|</b> '
+     +(it.livro?'estágio':'material')+selo+'</span></td>';
     evs.forEach(function(e){
       var q=esValor(e,it.id);
       if(e.tipo==='saida'){
@@ -3066,31 +3785,131 @@ ES_FAIXAS.forEach(function(f){
         h+='<td class="qt tipo-saida'+(q==null?' vazia':'')+'"'+(quem?' title="'+escBloco(quem)+'"':'')
          +'>'+(q==null?'·':'−'+q)+'</td>';return}
       var nota=esNota(e,it.id);
-      var txt=(q==null?'':(q===0?'–':q));
+      /* em pedido e remessa não existe mais zero gravado: vazio JÁ é zero, e é assim que se lê.
+         Na contagem o zero continua aparecendo como "–" porque ali ele é resposta ("conferi e não
+         tem"), diferente de célula em branco ("ainda não contei"). */
+      var txt=(q==null?'':(q===0&&e.tipo==='contagem'?'–':(q===0?'':q)));
       h+='<td class="qt tipo-'+e.tipo+(q===0?' zero':'')+'"'+(nota?' title="'+escBloco(nota)+'"':'')+'>'
        +(ES_EDIT[e.id]
          ?'<input value="'+txt+'" data-e="'+e.id+'" data-i="'+it.id+'" onchange="esCelula(this)" onfocus="this.select()">'
          :'<span class="es-qt-fixa">'+(txt===''?'&nbsp;':escBloco(String(txt)))+'</span>')
        +'</td>'});
-    var baixo=it.saldo!=null&&it.saldo<it.minimo;
-    h+='<td class="fim'+(baixo?' baixo':'')+'" title="última contagem + remessas − entregas posteriores">'
-     +(it.saldo==null?'—':it.saldo)+'</td>'
-     +'<td class="fim" style="font-weight:400;color:var(--tx3)">'+it.minimo+'</td>'
-     +'<td class="sug'+(it.sugestao?'':' nada')+'">'+(it.sugestao?('+'+it.sugestao):'—')+'</td></tr>'})});
-if(!lista.length)h+='<tr><td colspan="'+colspan+'" class="es-vazio">nenhum item com esse filtro</td></tr>';
-if(!evs.length)h+='<tr><td colspan="'+colspan+'" class="es-vazio">Nenhuma contagem ainda — clique em <b>+ Nova contagem</b> para registrar o que existe hoje na prateleira.</td></tr>';
-$('es-grade').innerHTML=h+'</tbody>';
+    var baixo=it.saldo<it.minimo;
+    h+='<td class="fim'+(baixo?' baixo':'')+'" title="exemplares na prateleira que ainda não saíram">'
+     +it.saldo+'</td>'
+     +'<td class="fim'+(it.pedidoPendente?'':' nada')+'" title="pedido e ainda não chegou">'
+     +(it.pedidoPendente||'')+'</td>'
+     /* mínimo sem valor fica VAZIO, não "0": zero afirma um mínimo que ninguém definiu */
+     +'<td class="fim" style="font-weight:400;color:var(--tx3)">'+(it.minimo||'')+'</td>'
+     +'<td class="sug'+(it.sugestao?'':' nada')+'">'+(it.sugestao?('+'+it.sugestao):'')+'</td>'
+     +'</tr>';
+   });
+  h+='</tbody>'});
+if(!lista.length)h+='<tbody><tr><td colspan="'+colspan+'" class="es-vazio">nenhum item com esse filtro</td></tr></tbody>';
+/* o recado "nenhuma contagem ainda" saiu com a contagem. Sobra uma folga de 2mm no pé, para a
+   última linha não encostar na borda da moldura. */
+h+='<tbody><tr class="es-rodape"><td colspan="'+colspan+'"></td></tr></tbody>';
+$('es-grade').innerHTML=h;
 esChips();
+esDetalheMaterial();
+esAjustarAltura();
 }
+/* ---- painel de DETALHES do material escolhido, à direita da tabela ----
+   Mesmo desenho da página de Estágios: a lista à esquerda é o catálogo, e o que se edita aparece ao
+   lado. Dentro da tabela, formulário e lista de unidades empilhavam e empurravam tudo para baixo. */
+/* Escolher um material NÃO redesenha a tabela — só troca a classe da linha e repinta o painel da
+   direita. Com `esRender()` a grade inteira era reconstruída a cada clique, e a tela piscava. */
+function esEscolherMaterial(id){
+ES_ITEM_SEL=(ES_ITEM_SEL===id?null:id);
+document.querySelectorAll('#es-grade tr.linha').forEach(function(tr){
+  tr.classList.toggle('sel',Number(tr.dataset.i)===ES_ITEM_SEL)});
+esDetalheMaterial();
+}
+function esDetalheMaterial(){
+var box=$('es-detalhe');if(!box)return;
+var it=ES_ITEM_SEL?esItem(ES_ITEM_SEL):null;
+if(!it){box.innerHTML='<div class="es-cx"><div class="es-cx-cab">Informações</div>'
+ +'<div class="es-cx-corpo"><div class="es-vazio">Escolha um material na tabela.</div></div></div>';return}
+var us=(it.unidades||[]);
+var h='<div class="es-cx"><div class="es-cx-cab">Informações'
+ +'<span class="es-cx-quem">'+escBloco(it.descricao)+'</span></div><div class="es-cx-corpo">';
+h+='<div class="es-cad">'
+ +esCampo(it,'descricao','Descrição','texto','')
+ +esCampo(it,'codigo','Código de barras','texto','WZ01001000220')
+ +esCampo(it,'edicaoNome','Edição','texto','NEW, 3rd Ed.')
+ +esCampo(it,'edicaoAno','Ano','num','2020')
+ +'<label><span>Tipo</span><select onchange="esCampoItem('+it.id+',\'tipo\',this.value)">'
+   +[['kit','kit'],['peca','peça']].map(function(t){
+     return '<option value="'+t[0]+'"'+(it.tipo===t[0]?' selected':'')+'>'+t[1]+'</option>'}).join('')
+   +'</select></label>'
+ +'<label><span>Finalidade</span><select onchange="esCampoItem('+it.id+',\'finalidade\',this.value)">'
+   +[['venda','venda'],['consumo','consumo'],['professor','uso do professor']].map(function(t){
+     return '<option value="'+t[0]+'"'+(it.finalidade===t[0]?' selected':'')+'>'+t[1]+'</option>'}).join('')
+   +'</select></label>'
+ +esCampo(it,'minimo','Mínimo','num','0')
+ +'</div>';
+h+='<hr class="pg-fio">';
+h+='<div class="es-fila-tit">'+(us.length?us.length+' '+(us.length===1?'unidade':'unidades')
+   +' no estoque — sai a mais antiga primeiro':'nenhuma unidade no estoque')+'</div>';
+us.forEach(function(u,ix){
+ h+='<div class="es-fila-l'+(ix?'':' proximo')+'">'
+  +'<span class="ord">'+(ix+1)+'</span>'
+  /* o instante é EDITÁVEL: é o que permite consertar a ordem da fila quando uma caixa foi lançada
+     com a data errada */
+  +'<input class="dt-in" type="datetime-local" value="'+escBloco(esParaInput(u.entrada))+'"'
+  +' onchange="esEntradaUnidade('+u.id+',this.value)" title="quando esta unidade entrou — muda o lugar dela na fila">'
+  +'<span class="og">'+(u.origem==='contagem'?'da contagem':(u.remessa?'remessa '+esDataBR(u.remessa):'entrada manual'))+'</span>'
+  +'<input class="cd-in" value="'+escBloco(u.codigo||'')+'" placeholder="código de barras"'
+  +' onchange="esCodigoUnidade('+u.id+',this.value)">'
+  +(ix?'':'<span class="pr">próxima a sair</span>')
+  +'</div>'});
+h+='<div style="margin-top:12px"><button class="es-bt desfaz" onclick="esExcluirItem('+it.id+')">excluir material</button></div>';
+box.innerHTML=h+'</div></div>';
+}
+/* Acordeão ALTERNADO: a faixa clicada abre e a que estava aberta fecha. Clicar na já aberta
+   recolhe. Só as classes mudam — nada de redesenhar a grade, que perderia a rolagem e qualquer
+   célula em edição. */
+function esAbrirFaixa(f){
+var i=ES_ABERTAS.indexOf(f);
+if(i<0)ES_ABERTAS.push(f);else ES_ABERTAS.splice(i,1);
+document.querySelectorAll('#es-grade tbody.grupo').forEach(function(tb){
+  tb.classList.toggle('aberta',ES_ABERTAS.indexOf(tb.dataset.f)>=0)});
+esChips();          /* a pílula lá em cima tem de acompanhar a faixa que acabou de abrir */
+esAjustarAltura();
+}
+/* A moldura ganha a altura que SOBRA da janela, medida de verdade.
+   Com `max-height:calc(100vh - N)` fixo, a moldura podia ficar maior que o espaço disponível: a
+   página inteira rolava, levando a moldura e o cabeçalho grudado junto. Amarrando ao que sobra,
+   quem rola é o corpo da tabela e o `thead` fica onde deve. */
+/* Prende a altura das listas de mestre-detalhe ao que SOBRA da janela, medido de verdade.
+   Vale para Materiais E para Entregas: com 125 alunos numa coluna só, a de entregas passava de
+   6000px e a página inteira rolava — o mesmo defeito que a de materiais já tinha tido.
+   Medir em JS em vez de `calc(100vh - N)` porque o N muda conforme o que está acima da lista. */
+function esAjustarAltura(){
+['#es-p-contagem .es-moldura','#es-p-entregas .es-moldura'].forEach(function(sel){
+ var mold=document.querySelector(sel);
+ if(!mold||!mold.offsetParent)return;
+ var sobra=(window.innerHeight||0)-mold.getBoundingClientRect().top-72;
+ mold.style.maxHeight=Math.max(220,sobra)+'px'});
+}
+window.addEventListener('resize',esAjustarAltura);
+/* Os filtros são PÍLULAS de liga-desliga, e dá para marcar várias: marcar Kids e Teens abre as duas
+   faixas. Eles não escondem as outras — abrem e fecham. É a mesma coisa que clicar na faixa, só que
+   de cima, sem procurar a linha. */
 function esChips(){
-var h='<button class="chip'+(ES_FILTRO?'':' on')+'" onclick="esFiltrar(null)">todas</button> ';
+var h='<button class="chip'+(ES_ABERTAS.length?'':' on')+'" onclick="esFiltrar(null)">todas</button>';
 ES_FAIXAS.forEach(function(f){
   var n=ES.itens.filter(function(i){return i.categoria===f}).length;
   if(!n)return;
-  h+='<button class="chip'+(ES_FILTRO===f?' on':'')+'" onclick="esFiltrar(\''+f+'\')">'+f+' '+n+'</button> '});
+  h+='<button class="chip'+(ES_ABERTAS.indexOf(f)>=0?' on':'')+'" onclick="esFiltrar(\''+f+'\')">'
+   +esRotuloFaixa(f)+'<span class="n">'+n+'</span></button>'});
 $('es-chips').innerHTML=h;
 }
-function esFiltrar(f){ES_FILTRO=f;esRender()}
+/* clicar liga/desliga aquela faixa; "todas" recolhe tudo */
+function esFiltrar(f){
+if(!f){ES_ABERTAS=[]}
+else{var i=ES_ABERTAS.indexOf(f);if(i<0)ES_ABERTAS.push(f);else ES_ABERTAS.splice(i,1)}
+esRender()}
 /* "–" e vazio são coisas diferentes: zero é "conferi e não tem", vazio é "não contei" */
 function esCelula(el){
 var t=el.value.trim(), q;
@@ -3100,72 +3919,109 @@ else{q=parseInt(t.replace(/\D/g,''),10);if(isNaN(q))q=null}
 run('gravarCelulaEstoque',[{eventoId:parseInt(el.dataset.e,10),itemId:parseInt(el.dataset.i,10),quantidade:q}],
   function(){esCarregar()});
 }
-function esNovoEvento(tipo){
+/* Só existe UM jeito de criar evento agora: o pedido. A remessa deixou de ser criada à mão —
+   ela é "o pedido chegado" e nasce sozinha na primeira confirmação de chegada, dentro do bloco
+   do pedido (`receberItemPedido` no servidor). O caminho antigo, que perguntava qual pedido a
+   remessa vinha atender, virou código morto e saiu. */
+function esNovoEvento(){
 var hoje=new Date().toISOString().slice(0,10);
-var rot=tipo==='contagem'?'contagem':(tipo==='pedido'?'pedido':'remessa');
-dlgTexto({titulo:'Nova '+(tipo==='pedido'?'coluna de pedido':rot),
- texto:tipo==='contagem'?'A contagem nova já vem preenchida com o saldo esperado — o trabalho é conferir na prateleira e corrigir onde divergir.'
-   :(tipo==='pedido'?'Registra o que foi encomendado. Pedir não muda o saldo: só o que chega, muda.'
-   :'Registra a caixa recebida. As quantidades entram na coluna verde da grade.'),
- label:'Data',valor:hoje,tipoCampo:'date',ok:'Criar coluna'},function(d){
-run('salvarEventoEstoque',[{tipo:tipo,data:d}],function(r){
-  msg(tipo==='contagem'?'Contagem criada — confira e corrija na grade.':'Coluna de '+rot+' criada.');
-  /* a coluna nova já nasce destravada: quem acabou de criá-la é para preenchê-la agora */
-  if(r&&r.id)ES_EDIT[r.id]=true;
-  esCarregar(function(){esAba(tipo==='remessa'?'remessas':'contagem')})})});
+dlgTexto({titulo:'Novo pedido',
+ texto:'Registra o que foi encomendado. O pedido nasce como rascunho: preencha o que vai pedir e confirme — o que ficar em branco sai da lista.',
+ label:'Data do pedido',valor:hoje,tipoCampo:'date',ok:'Criar pedido'},function(d){
+run('salvarEventoEstoque',[{tipo:'pedido',data:d,rascunho:true}],function(r){
+  msg('Pedido criado — preencha o que foi pedido e confirme.');
+  ES_PEDIDO_ABERTO=r.id;
+  esCarregar(function(){esAba('remessas')})})});
 }
 
 /* ---- entregas: a saída ligada à matrícula ---- */
 function esRenderEntregas(){
 if(!ES){esCarregar();return}
 /* filtro inicial ADAPTATIVO: no primeiro dia todas as entregas são deduzidas das matrículas e não
-   há nenhuma pendente — abrir em "pendentes" mostraria uma lista vazia justo quando há 127 datas
-   para preencher. Depois que a escola matricular gente nova, "pendentes" volta a ser a fila certa.
-   Só vale enquanto o usuário não escolheu um filtro à mão. */
+   há nenhuma pendente — abrir em "pendentes" mostraria lista vazia justo quando há 127 datas para
+   preencher. Só vale enquanto o usuário não escolheu um filtro à mão. */
 if(!ES_FILTRO_ENT_ESCOLHIDO){
   var pend=ES.entregas.filter(function(e){return !e.entregaId}).length;
   ES_FILTRO_ENT=pend?'pendente':(ES.entregas.filter(function(e){return e.entregaId&&!e.data}).length?'semdata':'todos');
 }
 var busca=($('es-busca-ent').value||'').toLowerCase();
-var linhas=ES.entregas.map(function(e){
-  var it=e.itemId?esItem(e.itemId):null;
-  var s=it?it.saldo:null;
-  return {e:e,it:it,s:s,
-    estado:e.entregaId?(e.deduzida?'deduzida':'entregue')
-      :(!it?'semitem':((s==null||s<=0)?'semestoque':'pendente'))}});
-linhas=linhas.filter(function(l){
-  if(ES_FILTRO_ENT==='pendente'&&l.e.entregaId)return false;
-  if(ES_FILTRO_ENT==='entregue'&&!l.e.entregaId)return false;
-  if(ES_FILTRO_ENT==='semdata'&&l.e.data)return false;
-  if(busca&&(l.e.nome+' '+l.e.livro).toLowerCase().indexOf(busca)<0)return false;
+/* AGRUPA POR ALUNO. A tabela plana tinha uma linha por (aluno × estágio): o mesmo nome se repetia
+   várias vezes e nenhuma linha contava a história de ninguém. Cada aluno vira uma linha com o que
+   falta e o que já recebeu, e o detalhe da direita conta o resto. */
+var porAluno={};
+ES.entregas.forEach(function(e){
+  var a=porAluno[e.idMatricula]||(porAluno[e.idMatricula]={id:e.idMatricula,nome:e.nome,itens:[]});
+  a.itens.push(e)});
+var alunos=Object.keys(porAluno).map(function(k){var a=porAluno[k];
+  a.pendentes=a.itens.filter(function(x){return !x.entregaId}).length;
+  a.entregues=a.itens.length-a.pendentes;
+  a.semdata=a.itens.filter(function(x){return x.entregaId&&!x.data}).length;
+  return a});
+alunos=alunos.filter(function(a){
+  if(ES_FILTRO_ENT==='pendente'&&!a.pendentes)return false;
+  if(ES_FILTRO_ENT==='entregue'&&!a.entregues)return false;
+  if(ES_FILTRO_ENT==='semdata'&&!a.semdata)return false;
+  if(busca&&(a.nome+' '+a.itens.map(function(x){return x.livro}).join(' ')).toLowerCase().indexOf(busca)<0)return false;
   return true});
-/* pendente com estoque no topo: o que dá para fazer agora vem antes do que não dá */
-var peso={pendente:0,semestoque:1,semitem:2,deduzida:3,entregue:4};
-linhas.sort(function(a,b){return peso[a.estado]-peso[b.estado]
-  ||(a.it?a.it.ordem:999)-(b.it?b.it.ordem:999)
-  ||a.e.nome.localeCompare(b.e.nome,'pt')});
-var h='<thead><tr><th style="min-width:180px">Aluno</th><th>Livro</th><th class="num">Saldo</th>'
- +'<th>Situação</th><th style="min-width:130px">Data da entrega</th><th></th></tr></thead><tbody>';
-linhas.forEach(function(l){
-  var pil=l.estado==='deduzida'?'<span class="es-pil deduzida" title="Deduzida da matrícula: o aluno está estudando com o livro, mas ninguém registrou quando ele saiu">deduzida</span>'
-   :l.estado==='entregue'?'<span class="es-pil entregue">entregue</span>'
-   :l.estado==='semitem'?'<span class="es-pil semestoque">livro sem item</span>'
-   :l.estado==='semestoque'?'<span class="es-pil semestoque">sem estoque</span>'
-   :'<span class="es-pil pendente">pendente</span>';
-  var dataCel=l.e.entregaId
-   ?'<input type="date" value="'+(l.e.data||'')+'" onchange="esAjustarData(\''+l.e.idMatricula+'\',\''+escBloco(l.e.livro)+'\',this.value)">'
-   :'<span style="color:var(--tx3)">—</span>';
-  var bt=l.e.entregaId
-   ?'<button class="es-bt desfaz" onclick="esRemoverEntrega(\''+l.e.idMatricula+'\',\''+escBloco(l.e.livro)+'\')">desfazer</button>'
-   :'<button class="es-bt"'+(l.estado==='pendente'?'':' disabled')
-     +' onclick="esEntregar(\''+l.e.idMatricula+'\',\''+escBloco(l.e.livro)+'\')">entregar</button>';
-  h+='<tr><td><b>'+escBloco(l.e.nome)+'</b></td><td>'+escBloco(l.e.livro)+'</td>'
-   +'<td class="num">'+(l.s==null?'—':l.s)+'</td><td>'+pil+'</td>'
-   +'<td>'+dataCel+'</td><td style="text-align:right">'+bt+'</td></tr>'});
-if(!linhas.length)h+='<tr><td colspan="6" class="es-vazio">nada nesse filtro</td></tr>';
+/* quem tem pendência primeiro: é o que dá trabalho hoje */
+alunos.sort(function(x,y){return (y.pendentes-x.pendentes)||x.nome.localeCompare(y.nome,'pt')});
+var h='<thead><tr><th class="col-item">Aluno</th><th class="col-fim">Falta</th>'
+ +'<th class="col-fim">Recebeu</th></tr></thead><tbody>';
+alunos.forEach(function(a){
+  h+='<tr class="linha'+(ES_ALUNO_SEL===a.id?' sel':'')+'" data-i="'+escBloco(a.id)+'"'
+   +' onclick="esEscolherAluno(&quot;'+escBloco(a.id)+'&quot;)"><td class="item">'
+   +'<span class="es-item-nome">'+escBloco(a.nome)+'</span>'
+   +'<span class="es-item-cod">'+escBloco(a.id)+'</span></td>'
+   +'<td class="fim'+(a.pendentes?' baixo':' nada')+'">'+(a.pendentes||'')+'</td>'
+   +'<td class="fim">'+(a.entregues||'')+'</td></tr>'});
+if(!alunos.length)h+='<tr><td colspan="3" class="es-vazio">nada nesse filtro</td></tr>';
+h+='<tr class="es-rodape"><td colspan="3"></td></tr>';
 $('es-tab-entregas').innerHTML=h+'</tbody>';
-esPlacar();esChipsEnt();
+esPlacar();esChipsEnt();esDetalheAluno();esAjustarAltura();
 }
+/* escolher o aluno não redesenha a lista — só a classe e o painel, como na aba Materiais */
+function esEscolherAluno(id){
+ES_ALUNO_SEL=(ES_ALUNO_SEL===id?null:id);
+document.querySelectorAll('#es-tab-entregas tr.linha').forEach(function(tr){
+  tr.classList.toggle('sel',tr.dataset.i===ES_ALUNO_SEL)});
+esDetalheAluno();
+}
+/* DETALHE: o que aquele aluno recebeu e o que falta, com a etiqueta do exemplar que saiu */
+function esDetalheAluno(){
+var box=$('es-ent-detalhe');if(!box)return;
+if(!ES_ALUNO_SEL){box.innerHTML='<div class="es-cx"><div class="es-cx-cab">Entregas do aluno</div>'
+ +'<div class="es-cx-corpo"><div class="es-vazio">Escolha um aluno na lista.</div></div></div>';return}
+var linhas=ES.entregas.filter(function(e){return e.idMatricula===ES_ALUNO_SEL});
+if(!linhas.length){box.innerHTML='';return}
+var h='<div class="es-cx"><div class="es-cx-cab">Entregas do aluno'
+ +'<span class="es-cx-quem">'+escBloco(linhas[0].nome)+'</span></div><div class="es-cx-corpo">';
+linhas.forEach(function(e){
+  var it=e.itemId?esItem(e.itemId):null;
+  var estado=e.entregaId?(e.deduzida?'deduzida':'entregue')
+    :(!it?'semitem':((it.saldo<=0)?'semestoque':'pendente'));
+  var pil=estado==='deduzida'?'<span class="es-pil deduzida" title="Deduzida da matrícula: o aluno está estudando com o estágio, mas ninguém registrou quando ele saiu">deduzida</span>'
+   :estado==='entregue'?'<span class="es-pil entregue">entregue</span>'
+   :estado==='semitem'?'<span class="es-pil semestoque">estágio sem material</span>'
+   :estado==='semestoque'?'<span class="es-pil semestoque">sem estoque</span>'
+   :'<span class="es-pil pendente">pendente</span>';
+  h+='<div class="es-ent-l"><div class="es-ent-topo">'
+   +'<b>'+escBloco(e.livro)+'</b>'+pil
+   +'<span class="es-ent-sd">'+(it?'saldo '+it.saldo:'')+'</span></div>'
+   +'<div class="es-ent-baixo">';
+  if(e.entregaId){
+   h+='<input type="date" value="'+(e.data||'')+'" onchange="esAjustarData(&quot;'+escBloco(e.idMatricula)+'&quot;,&quot;'+escBloco(e.livro)+'&quot;,this.value)">'
+    +'<span class="es-ent-cb">'+(e.unidade?escBloco(e.unidade.codigo||'sem código')
+       +' <small>'+escBloco(esDataHora(e.unidade.entrada))+'</small>':'sem exemplar ligado')+'</span>'
+    +'<button class="es-bt desfaz" onclick="esRemoverEntrega(&quot;'+escBloco(e.idMatricula)+'&quot;,&quot;'+escBloco(e.livro)+'&quot;)">desfazer</button>';
+  } else {
+   h+='<span class="es-ent-cb">ainda não entregue</span>'
+    +'<button class="es-bt"'+(estado==='pendente'?'':' disabled')
+    +' onclick="esEntregar(&quot;'+escBloco(e.idMatricula)+'&quot;,&quot;'+escBloco(e.livro)+'&quot;)">entregar</button>';
+  }
+  h+='</div></div>'});
+box.innerHTML=h+'</div></div>';
+}
+
 function esPlacar(){
 var tot=ES.entregas.length, ent=ES.entregas.filter(function(e){return e.entregaId}).length;
 var semData=ES.entregas.filter(function(e){return e.entregaId&&!e.data}).length;
@@ -3175,7 +4031,7 @@ ES.entregas.forEach(function(e){
   var it=e.itemId?esItem(e.itemId):null;
   if(!it||it.saldo==null||it.saldo<=0)semEstoque++});
 function cx(v,r,al){return '<div class="cx'+(al?' alerta':'')+'"><b>'+v+'</b><span>'+r+'</span></div>'}
-$('es-placar').innerHTML=cx(ent+' / '+tot,'alunos com o livro')
+$('es-placar').innerHTML=cx(ent+' / '+tot,'alunos com o estágio')
  +cx(tot-ent,'ainda pendentes')
  +cx(semEstoque,'pendentes sem estoque',semEstoque>0)
  +cx(semData,'entregues sem data registrada');
@@ -3194,105 +4050,303 @@ run('ajustarEntrega',[{idMatricula:id,livro:livro,data:data||null}],function(){
   msg(data?'Data da entrega gravada.':'Data removida.');esCarregar(function(){esRenderEntregas()})})}
 function esRemoverEntrega(id,livro){
 dlgConfirmar({titulo:'Desfazer entrega',perigo:true,ok:'Desfazer',
- texto:'Desfazer a entrega de '+livro+'?\n\nO livro volta a contar como não entregue e o saldo sobe.'},
+ texto:'Desfazer a entrega de '+livro+'?\n\nO estágio volta a contar como não entregue e o saldo sobe.'},
 function(sim){if(!sim)return;
 run('removerEntrega',[{idMatricula:id,livro:livro}],function(){
   msg('Entrega desfeita.');esCarregar(function(){esRenderEntregas()})})})}
 
-/* ---- itens ---- */
-function esRenderItens(){
-if(!ES){esCarregar();return}
-var busca=($('es-busca-item').value||'').toLowerCase();
-var lista=ES.itens.filter(function(i){return !busca||(i.descricao+' '+i.codigo).toLowerCase().indexOf(busca)>=0});
-var h='<thead><tr><th style="min-width:170px">Descrição</th><th>Código</th><th>Livro</th><th>Categoria</th>'
- +'<th>Unidade</th><th>Finalidade</th><th class="num">Mín.</th><th class="num">Saldo</th><th></th></tr></thead><tbody>';
-lista.forEach(function(i){
-  h+='<tr><td><input value="'+escBloco(i.descricao)+'" onchange="esCampoItem('+i.id+',\'descricao\',this.value)"></td>'
-   +'<td><input value="'+escBloco(i.codigo||'')+'" onchange="esCampoItem('+i.id+',\'codigo\',this.value)"></td>'
-   +'<td>'+(i.livro?escBloco(i.livro):'<span style="color:#B6BDC6">— não é livro —</span>')+'</td>'
-   +'<td>'+escBloco(i.categoria)+'</td>'
-   +'<td><select onchange="esCampoItem('+i.id+',\'unidade\',this.value)">'
-     +'<option'+(i.unidade==='unidade'?' selected':'')+'>unidade</option>'
-     +'<option'+(i.unidade==='kit'?' selected':'')+'>kit</option></select></td>'
-   +'<td><select onchange="esCampoItem('+i.id+',\'finalidade\',this.value)">'
-     +'<option value="venda"'+(i.finalidade==='venda'?' selected':'')+'>venda</option>'
-     +'<option value="consumo"'+(i.finalidade==='consumo'?' selected':'')+'>consumo</option>'
-     +'<option value="professor"'+(i.finalidade==='professor'?' selected':'')+'>uso do professor</option></select></td>'
-   +'<td class="num"><input class="num" value="'+i.minimo+'" onchange="esCampoItem('+i.id+',\'minimo\',this.value)"></td>'
-   +'<td class="num"><b>'+(i.saldo==null?'—':i.saldo)+'</b></td>'
-   +'<td><button class="es-x" title="excluir" onclick="esExcluirItem('+i.id+')">×</button></td></tr>'});
-$('es-tab-itens').innerHTML=h+'</tbody>';
-}
 function esCampoItem(id,campo,valor){
 var i=esItem(id);if(!i)return;
-var p={id:id,descricao:i.descricao,codigo:i.codigo,livro:i.livro,unidade:i.unidade,
-  finalidade:i.finalidade,minimo:i.minimo,ativo:i.ativo,ordem:i.ordem};
+var p={id:id,descricao:i.descricao,codigo:i.codigo,livro:i.livro,unidade:i.unidade,tipo:i.tipo,
+  finalidade:i.finalidade,minimo:i.minimo,ativo:i.ativo,ordem:i.ordem,componente:i.componente,
+  edicaoNome:i.edicaoNome,edicaoAno:i.edicaoAno};
 p[campo]=valor;
-run('salvarItemEstoque',[p],function(){esCarregar(function(){esRenderItens()})})}
-function esNovoItem(){
-dlgTexto({titulo:'Novo item de estoque',label:'Descrição',dica:'Ex.: Mochila Kids',ok:'Criar item'},
-function(d){run('salvarItemEstoque',[{descricao:d,ordem:900}],function(){msg('Item criado.');esCarregar(function(){esRenderItens()})})})}
+/* virar KIT torna o item contável; virar PEÇA não decide sozinho se ele se conta — a Wiz.pen é
+   peça e se conta, então `componente` fica como estava e é editado à parte */
+if(campo==='tipo'){p.unidade=(valor==='kit'?'kit':'unidade');if(valor==='kit')p.componente=false}
+run('salvarItemEstoque',[p],function(){esCarregar()})}
+/* "+ Novo material" saiu da tela (2026-08-10): material novo nasce do catálogo de estágios ou como
+   peça, na aba Kits/Peças — criar um solto aqui não tinha uso real. A rota `salvarItemEstoque`
+   continua servindo à edição da linha e às duas criações que restaram. */
+/* Excluir NUNCA é proibido — a regra dele é perguntar: "permite apagar, só que me pergunta se eu
+   realmente quero, se esse elemento tem vínculo com outra coisa no sistema". Quem sabe os vínculos
+   é o servidor, então ele devolve a lista e não apaga; a segunda chamada vai com `confirmado`. */
 function esExcluirItem(id){
-var i=esItem(id);if(!i)return;
-dlgConfirmar({titulo:'Excluir item',perigo:true,ok:'Excluir',
- texto:'Excluir "'+i.descricao+'"?\n\nAs contagens registradas para ele também somem.'},function(sim){
-if(!sim)return;
-run('excluirItemEstoque',[{id:id}],function(){msg('Item excluído.');esCarregar(function(){esRenderItens()})})})}
+var i=esItem(id)||esPeca(id);if(!i)return;
+run('excluirItemEstoque',[{id:id}],function(r){
+if(!r.precisaConfirmar){msg('Excluído.');esCarregar(function(){esRender();esRenderKits()});return}
+dlgConfirmar({titulo:'Excluir "'+r.descricao+'"?',perigo:true,ok:'Excluir mesmo assim',
+ texto:'Este material tem vínculo no sistema:\n\n• '+r.vinculos.join('\n• ')
+  +'\n\nApagar não desfaz o que já aconteceu — as entregas aos alunos continuam registradas.'},
+function(sim){if(!sim)return;
+run('excluirItemEstoque',[{id:id,confirmado:true}],function(){
+  msg('Excluído.');esCarregar(function(){esRender();esRenderKits()})})})})}
 
-/* ---- kits ---- */
+/* ---- kits e as peças que os compõem ----
+   Correção de modelo de 2026-08-10: o que a escola conta É o kit. As peças (Student's Book,
+   Workbook, Mochila, Pasta) existem para DESCREVER o que vem na caixa, e ficam fora da grade —
+   contá-las em separado contaria o mesmo material duas vezes. */
+/* MATRIZ Kits × Peças (2026-08-10, redesenho pedido por ele).
+   Os cartões saíram: *"não dá pra visualizar de forma panorâmica; é melhor colocar como tabela,
+   que nem o Notion faz"*. Linha = KIT, coluna = PEÇA, célula = quantidade.
+   Sem checkbox: *"o número já vai dizer se é sim ou não — zero quer dizer que não tem"*. Teto 10.
+   A Wiz.pen aparece nos DOIS eixos, e é o único item assim: é peça (vai dentro de três kits) e ao
+   mesmo tempo se conta sozinha na prateleira. */
 function esRenderKits(){
 if(!ES){esCarregar();return}
-var h='';
-ES.itens.filter(function(i){return i.unidade==='kit'}).forEach(function(k){
-  var linhas=(ES.kits[k.id]||[]);
-  h+='<div class="es-cartao"><div class="es-cartao-topo"><b>'+escBloco(k.descricao)+'</b>'
-   +'<span class="es-selo kit">KIT</span>'
-   +'<span style="margin-left:auto;color:var(--tx3);font-size:11.5px">'+escBloco(k.codigo||'')+'</span></div>'
-   +'<div class="es-cartao-corpo">';
-  if(!linhas.length)h+='<div style="color:var(--tx3);padding:6px 0">kit sem itens ainda</div>';
-  linhas.forEach(function(l){
-    var si=esItem(l.itemId);
-    h+='<div class="es-linha-kit"><span class="q">'+l.quantidade+'×</span>'
-     +'<span class="n">'+escBloco(si?si.descricao:'?')+'</span>'
-     +'<button class="es-x" onclick="esRemoverKitItem('+k.id+','+l.itemId+')">×</button></div>'});
-  h+='<div style="margin-top:9px"><button class="es-bt" onclick="esAddKit('+k.id+')">+ item no kit</button></div>'
-   +'</div></div>'});
-$('es-kits').innerHTML=h||'<div class="es-vazio">Nenhum kit — crie um item com unidade "kit".</div>';
+$('es-pecas').innerHTML='';
+var busca=(($('es-busca-kit')||{}).value||'').toLowerCase();
+var pecas=(ES.componentes||[]);
+/* linhas: o que se conta na prateleira (kits e a Wiz.pen). Peça que só existe dentro de kit não
+   vira linha — não há o que compor nela. */
+var kits=ES.itens.filter(function(i){
+  return !busca||i.descricao.toLowerCase().indexOf(busca)>=0});
+if(!pecas.length){$('es-kits').innerHTML='<div class="es-vazio">Nenhuma peça cadastrada — use "+ Nova peça".</div>';return}
+/* CABEÇALHO DE CANTO DIVIDIDO, como no Excel: uma diagonal do canto superior esquerdo ao inferior
+   direito parte a célula em dois triângulos. O de baixo-esquerda nomeia as LINHAS (kits), o de
+   cima-direita nomeia o GRUPO DE COLUNAS (peças) — um cabeçalho só dizendo duas coisas.
+   A diagonal é SVG com `preserveAspectRatio="none"` e `vector-effect="non-scaling-stroke"`: ela
+   acompanha qualquer largura/altura da célula e o traço continua com 1px de verdade. Gradiente
+   daria o mesmo desenho, mas amaciado — e a tela dele roda a 125%, onde 1px já é reamostrado. */
+var h='<div class="es-moldura es-moldura-kits"><table class="es-tabela es-matriz"><thead><tr>'
+ +'<th class="col-kit" title="As linhas abaixo são os kits; as colunas à direita, as peças que vão dentro deles.">'
+ +'<svg class="diag" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">'
+ +'<line x1="0" y1="0" x2="100" y2="100" vector-effect="non-scaling-stroke"/></svg>'
+ +'<span class="rot-peca">Peças</span><span class="rot-kit">Kit</span>'
+ +'</th>';
+pecas.forEach(function(p){
+  h+='<th class="col-peca" title="'+escBloco(p.descricao)+(p.componente?' — só existe dentro de kit':' — também se conta sozinha')+'">'
+   +'<span class="pc-rot">'+escBloco(p.descricao)+'</span>'
+   +'<button class="es-x" title="excluir peça" onclick="esExcluirItem('+p.id+')">×</button></th>'});
+h+='<th class="col-fill"></th></tr></thead><tbody>';
+kits.forEach(function(k){
+  var comp={};(ES.kits[k.id]||[]).forEach(function(l){comp[l.itemId]=l.quantidade});
+  h+='<tr><td class="item"><span class="es-item-nome">'+escBloco(k.descricao)
+   +(k.tipo==='peca'?'<span class="es-selo prof">PEÇA</span>':'')+'</span>'
+   +'<span class="es-item-cod">'+escBloco(k.livro||'—')+'</span></td>';
+  pecas.forEach(function(p){
+    /* peça não se compõe de si mesma: a diagonal fica travada */
+    if(p.id===k.id){h+='<td class="qt matriz-na">—</td>';return}
+    var q=comp[p.id]||0;
+    h+='<td class="qt'+(q?'':' zero')+'"><input class="mx-in" type="number" min="0" max="10" '
+     +'value="'+(q||0)+'" onchange="esQtdKit('+k.id+','+p.id+',this.value)" onfocus="this.select()"></td>'});
+  h+='<td class="col-fill"></td></tr>'});
+if(!kits.length)h+='<tr><td colspan="'+(pecas.length+2)+'" class="es-vazio">Nenhum kit com esse nome.</td></tr>';
+$('es-kits').innerHTML=h+'</tbody></table></div>';
 }
+function esPeca(id){return (ES.componentes||[]).filter(function(c){return c.id===id})[0]}
 function esNovoKit(){
-dlgTexto({titulo:'Novo kit',texto:'Kit é um item com unidade "kit" e uma composição.',
+dlgTexto({titulo:'Novo kit',texto:'Kit é um material que se conta inteiro e tem peças dentro.',
  label:'Descrição',dica:'Ex.: Espanhol Anual 4',ok:'Criar kit'},function(d){
 run('salvarItemEstoque',[{descricao:d,unidade:'kit',ordem:920}],function(){
-  msg('Kit criado.');esCarregar(function(){esAba('kits')})})})}
-function esAddKit(kitId){
-/* era um prompt pedindo "digite o número" contra uma lista numerada — agora é a lista clicável */
-var op=ES.itens.filter(function(i){return i.unidade!=='kit'});
-dlgEscolher({titulo:'Qual item entra no kit?',opcoes:op.map(function(i){return i.descricao})},function(ix){
-var alvo=op[ix];
-dlgTexto({titulo:'Quantas unidades?',texto:alvo.descricao,label:'Quantidade',valor:'1',
- tipoCampo:'number',ok:'Incluir no kit'},function(v){
-var q=parseInt(v,10)||1;
-run('salvarKitItem',[{kitId:kitId,itemId:alvo.id,quantidade:q}],function(){esCarregar(function(){esRenderKits()})})})})}
-function esRemoverKitItem(kitId,itemId){
-run('removerKitItem',[{kitId:kitId,itemId:itemId}],function(){esCarregar(function(){esRenderKits()})})}
+  msg('Kit criado.');esCarregar(function(){esAba('materiais')})})})}
+function esNovaPeca(){
+dlgTexto({titulo:'Nova peça',
+ texto:'Peça é o que vem DENTRO do kit — Student’s Book, Workbook, mochila. Ela não entra na grade de contagem: quem se conta é o kit fechado.',
+ label:'Nome',dica:'Ex.: Wiz.pen',ok:'Criar peça'},function(d){
+run('salvarItemEstoque',[{descricao:d,componente:true,ordem:950}],function(){
+  msg('Peça criada.');esCarregar(function(){esRenderKits()})})})}
+function esRenomearPeca(id){
+var c=esPeca(id);if(!c)return;
+dlgTexto({titulo:'Renomear peça',label:'Nome',valor:c.descricao,ok:'Salvar'},function(v){
+run('salvarItemEstoque',[{id:id,descricao:v,componente:true,unidade:c.unidade,
+ finalidade:c.finalidade,minimo:c.minimo,ordem:c.ordem}],function(){esCarregar(function(){esRenderKits()})})})}
+/* na matriz não existe "incluir peça no kit": é digitar o número na célula. Gravar NÃO redesenha a
+   tabela — perderia o foco e o campo seguinte, e digitar linha a linha é justamente o gesto. */
+function esQtdKit(kitId,itemId,v){
+var el=event&&event.target;
+run('salvarKitItem',[{kitId:kitId,itemId:itemId,quantidade:v}],function(r){
+ if(el){el.value=r.q;el.closest('td').classList.toggle('zero',!r.q)}
+ /* o estado em memória acompanha, para uma troca de aba não mostrar número velho */
+ var lista=(ES.kits[kitId]||[]).filter(function(l){return l.itemId!==itemId});
+ if(r.q)lista.push({itemId:itemId,quantidade:r.q});
+ ES.kits[kitId]=lista})}
 
 /* ---- remessas ---- */
+/* ENTRADAS: um bloco por PEDIDO, com o estado na cara — aguardando, parcial ou chegou. Abrir mostra
+   o relatório que ele pediu: o que foi pedido × o que chegou de fato, item a item.
+   Remessa avulsa (material que chegou sem pedido registrado) ganha bloco próprio no fim. */
+var ES_PEDIDO_ABERTO=null;
+function esAbrirPedido(id){ES_PEDIDO_ABERTO=(ES_PEDIDO_ABERTO===id?null:id);esRenderRemessas()}
+/* Confirma o rascunho: pergunta antes, porque é o que enxuga a lista — os materiais em branco
+   somem, e refazer é redigitar. */
+function esConfirmarPedido(id){
+var p=ES.eventos.filter(function(e){return e.id===id})[0];
+var ids=Object.keys((p&&p.itens)||{});
+var total=ids.reduce(function(s,i){return s+esValor(p,parseInt(i,10))},0);
+if(!ids.length){msg('Preencha ao menos um material antes de confirmar.',true);return}
+dlgConfirmar({titulo:'Confirmar o pedido?',ok:'Confirmar pedido',
+ texto:ids.length+' material(is), '+total+' exemplar(es) no total.\n\n'
+  +'Depois de confirmado, a lista mostra só o que foi pedido — os materiais em branco saem de vista.'},
+function(sim){if(!sim)return;
+run('confirmarPedido',[{eventoId:id}],function(r){
+ msg('Pedido confirmado — '+r.materiais+' material(is), '+r.total+' exemplar(es).');
+ esCarregar(function(){esRenderRemessas()})})})}
+/* chegada em LOTE: tudo o que falta do pedido, de uma vez. Entra no mesmo segundo — o instante fino
+   de cada exemplar é o botão "carimbar", um a um, e ele só abre depois do código de barras. */
+function esReceberLote(pedidoId){
+var p=ES.eventos.filter(function(e){return e.id===pedidoId})[0];
+var s=p&&p.situacao;if(!s)return;
+var faltando=Object.keys(s.falta||{}).filter(function(k){return s.falta[k]>0});
+if(!faltando.length){msg('Este pedido já chegou inteiro.');return}
+dlgConfirmar({titulo:'Confirmar a chegada de tudo?',ok:'Confirmar chegada',
+ texto:'Entram '+s.totalFalta+' exemplar(es) de '+faltando.length+' material(is), todos no mesmo instante.\n\n'
+  +'Para separar exemplar por exemplar — código de barras e instante próprio — abra cada material e use o botão de carimbar.'},
+function(sim){if(!sim)return;
+var restantes=faltando.length,entraram=0;
+faltando.forEach(function(k){
+ run('receberItemPedido',[{pedidoId:pedidoId,itemId:parseInt(k,10)}],function(r){
+  entraram+=r.unidades.length;
+  if(!--restantes){msg(entraram+' exemplar(es) deram entrada.');esCarregar(function(){esRenderRemessas()})}})})})}
+function esCarimbar(id){
+run('ajustarUnidade',[{id:id,agoraMesmo:true}],function(){
+ msg('Entrada carimbada.');esCarregar(function(){esRenderRemessas()})})}
+function esObsPedido(id,txt){
+run('observacaoEvento',[{eventoId:id,texto:txt}],function(){
+ var ev=ES.eventos.filter(function(e){return e.id===id})[0];
+ if(ev)ev.observacao=txt})}
+/* DESFAZER a chegada: pergunta nomeando o que vai sumir, porque as unidades levam junto os códigos
+   de barras já digitados. O servidor recusa se alguma já foi entregue a aluno. */
+function esDesfazerChegada(id){
+var p=ES.eventos.filter(function(e){return e.id===id})[0];
+var n=0;Object.keys((p&&p.recebidos)||{}).forEach(function(k){n+=p.recebidos[k].length});
+dlgConfirmar({titulo:'Desfazer a chegada?',perigo:true,ok:'Desfazer chegada',
+ texto:'O pedido volta ao estado original — só os números que foram pedidos.\n\n'
+  +n+' unidade(s) somem do estoque, junto com os códigos de barras já digitados nelas.'},
+function(sim){if(!sim)return;
+run('desfazerChegada',[{pedidoId:id}],function(r){
+ msg(r.desfeitas+' unidade(s) removidas — o pedido voltou a aguardando.');
+ esCarregar(function(){esRenderRemessas()})})})}
+/* quantidade de um material no pedido. Não redesenha o bloco: perderia o foco e o próximo campo,
+   e montar um pedido é descer a lista digitando. Só o estado em memória acompanha. */
+function esQtdPedido(pedidoId,itemId,v){
+run('gravarCelulaEstoque',[{eventoId:pedidoId,itemId:itemId,quantidade:v}],function(){
+ var ev=ES.eventos.filter(function(e){return e.id===pedidoId})[0];
+ if(!ev)return;
+ var q=parseInt(v,10)||0;
+ if(q)ev.itens[itemId]={q:q,nota:null}; else delete ev.itens[itemId];
+ esAtualizarContadores()})}
 function esRenderRemessas(){
 if(!ES){esCarregar();return}
+/* dois estados só: "chegou em parte" saiu a pedido dele.
+   O `||` não é decoração: enquanto o servidor não reinicia, ele ainda devolve o estado antigo
+   ('parcial') e o rótulo saía como "undefined" na tela. Estado desconhecido mostra o próprio nome. */
+var ROT={aguardando:'aguardando',recebido:'chegou',parcial:'chegou'};
+var esRot=function(e){return ROT[e]||e||'—'};
 var h='';
-ES.eventos.filter(function(e){return e.tipo==='remessa'})
- .sort(function(a,b){return a.data<b.data?1:-1}).forEach(function(e){
+var pedidos=ES.eventos.filter(function(e){return e.tipo==='pedido'})
+ .sort(function(a,b){return a.data<b.data?1:-1});
+pedidos.forEach(function(p){
+  var s=p.situacao||{estado:'aguardando',totalPedido:0,totalFalta:0,falta:{},remessas:[]};
+  var aberto=ES_PEDIDO_ABERTO===p.id;
+  var rascunho=!p.confirmado;
+  /* o "N de M" virou pílula à ESQUERDA e o botão de chegada em lote ocupou o lugar dele à direita:
+     confirmar chegada é ação DAQUELE pedido, não da página (ele tirou o botão da barra de cima) */
+  h+='<div class="es-bloco '+(rascunho?'rascunho':s.estado)+(aberto?' aberto':'')+'">'
+   +'<div class="es-bloco-cab-l">'
+   +'<button class="es-bloco-cab" onclick="esAbrirPedido('+p.id+')">'
+   +'<span class="seta"></span>'
+   +'<b>Pedido '+esDataBR(p.data)+'</b>'
+   +'<span class="es-bloco-sit">'+(rascunho?'rascunho':esRot(s.estado))+'</span>'
+   +(rascunho?'':'<span class="es-pil-cont" title="quanto já chegou deste pedido">'
+      +(s.totalPedido-s.totalFalta)+' de '+s.totalPedido+'</span>')
+   +'</button>'
+   +(rascunho
+     ?'<button class="es-bt-lote" onclick="esConfirmarPedido('+p.id+')">Confirmar pedido</button>'
+     :(s.estado==='recebido'?''
+       :'<button class="es-bt-lote chegada" onclick="esReceberLote('+p.id+')">Confirmar chegada</button>'))
+   +'</div>';
+  if(aberto){
+   /* Enquanto o pedido não chegou inteiro, a coluna "Pedido" é EDITÁVEL e lista TODOS os materiais:
+      é aqui que se monta o pedido agora que a grade não tem mais colunas de evento. Vazio é zero —
+      só se preenche o que se pediu. Depois de recebido, vira relatório e só mostra o que teve
+      movimento. */
+   /* RASCUNHO lista o catálogo inteiro, com a quantidade editável — é o momento de montar o pedido.
+      CONFIRMADO mostra só o que foi pedido, e cada linha ganha o toggle de chegada. */
+   h+='<div class="es-bloco-corpo"><div class="es-rel-cx"><table class="es-tabela lista es-rel"><thead><tr>'
+    +'<th class="c-mat">Material</th><th class="num">Pedido</th>'
+    +(rascunho?'':'<th class="num">Chegou</th><th class="num">Falta</th>')
+    /* coluna de sobra: com `table-layout:fixed` e `width:100%`, o que falta para completar a
+       tabela é distribuído ENTRE as colunas declaradas — sem esta, Material ia a 8cm e os números
+       a 5cm, o dobro do pedido. É ela que fica com o resto. */
+    +'<th class="col-fill"></th>'
+    +'</tr></thead><tbody>';
+   var listaRel=rascunho?ES.itens:ES.itens.filter(function(i){return (p.itens||{})[i.id]});
+   if(!listaRel.length)h+='<tr><td colspan="5" class="es-vazio">nada lançado neste pedido</td></tr>';
+   listaRel.forEach(function(si){
+     var ped=esValor(p,si.id)||0, falta=(s.falta&&s.falta[si.id])||0, veio=ped-falta;
+     if(rascunho){
+      h+='<tr'+(ped?'':' class="zerado"')+'><td class="c-mat">'+escBloco(si.descricao)+'</td>'
+       +'<td class="num"><input class="ped-in" type="number" min="0" value="'+(ped||'')+'" placeholder="0" '
+        +'onchange="esQtdPedido('+p.id+','+si.id+',this.value)" onfocus="this.select()"></td><td class="col-fill"></td></tr>';
+      return}
+     /* O toggle por material SAIU: confirmar a chegada é do pedido inteiro.
+        E as UNIDADES só existem depois dessa confirmação — antes dela o pedido mostra apenas os
+        números pedidos. É a trava contra ação acidental que ele pediu: não há o que carimbar nem
+        etiquetar enquanto a caixa não chegou. */
+     var unidades=(s.estado==='recebido')?((p.recebidos||{})[si.id]||[]):[];
+     h+='<tr class="lin-mat"><td>'+escBloco(si.descricao)+'</td>'
+      +'<td class="num">'+ped+'</td>'
+      +'<td class="num"'+(veio<ped?' style="color:var(--es-pedido)"':'')+'>'+veio+'</td>'
+      +'<td class="num">'+(falta?'<b style="color:var(--perigo)">'+falta+'</b>':'—')+'</td><td class="col-fill"></td></tr>';
+     /* EXEMPLARES: uma linha por unidade, com o código de barras da etiqueta e o carimbo.
+        O CARIMBO SÓ LIGA COM O CÓDIGO PREENCHIDO — é a regra dele, e faz sentido: código e instante
+        juntos é o que identifica o exemplar na fila; carimbar sem código deixaria um sem nome. */
+     if(unidades.length){
+      h+='<tr class="lin-unid"><td colspan="5"><div class="es-unids">'
+       +'<div class="es-unids-tit">'+unidades.length+' '+(unidades.length===1?'unidade':'unidades')+'</div>';
+      unidades.forEach(function(u,ix){
+       var temCod=!!(u.codigo||'').trim();
+       h+='<div class="es-unid">'
+        +'<span class="n">'+(ix+1)+'</span>'
+        +'<input class="cb-in" value="'+escBloco(u.codigo)+'" placeholder="código de barras"'
+        +' onchange="esCodigoUnidade('+u.id+',this.value)">'
+        /* ISO longo: o carimbo é metade do identificador do exemplar, e nesse papel a leitura
+           precisa ser exata, não bonita */
+        +'<span class="ts'+(temCod?'':' sem')+'">'+escBloco(u.entrada)+'</span>'
+        +'<button class="es-bt" onclick="esCarimbar('+u.id+')"'+(temCod?'':' disabled')
+        +' title="'+(temCod?'carimbar a entrada deste exemplar agora':'preencha o código de barras primeiro')+'">carimbar</button>'
+        +'</div>'});
+      h+='</div></td></tr>'}
+     });
+   h+='</tbody></table></div>';
+   /* observação do pedido, na largura da tabela: entrou no lugar do "chegou em parte" — o que veio
+      diferente numa remessa é texto, não mais um estado */
+   h+='<div class="es-obs"><label for="es-obs-'+p.id+'">Observações</label>'
+    +'<textarea id="es-obs-'+p.id+'" rows="2" placeholder="o que veio diferente, número da nota, quem recebeu..."'
+    +' onchange="esObsPedido('+p.id+',this.value)">'+escBloco(p.observacao||'')+'</textarea></div>';
+   h+='<div class="es-bloco-pe">'
+    /* a chegada só se anuncia quando ela existe: sem remessa confirmada, nada de data.
+       Pílula realçada com bolinha de check — é o fecho do fluxo, e merece se ler de longe. */
+    +(rascunho?'<span>monte o pedido e confirme — os materiais em branco somem da lista</span>'
+      :(s.remessas.length
+        ?'<span class="es-chegou"><i>✓</i>chegou em '
+          +s.remessas.map(function(r){return esDataBR(r.data)}).join(' · ')+'</span>'
+        :'<span>nada chegou ainda</span>'))
+    /* desfazer a chegada devolve o pedido ao estado original: some com as unidades e com a remessa */
+    +(s.estado==='recebido'
+      ?'<button class="es-bt desfaz" onclick="esDesfazerChegada('+p.id+')">desfazer chegada</button>':'')
+    +'<button class="es-bt desfaz" onclick="esExcluirEvento('+p.id+')">excluir pedido</button>'
+    +'</div></div>'}
+  h+='</div>'});
+/* remessas sem pedido: existem, mas são exceção — ficam no fim, sem competir com a fila de pedidos */
+var soltas=ES.eventos.filter(function(e){return e.tipo==='remessa'&&!e.pedidoId})
+ .sort(function(a,b){return a.data<b.data?1:-1});
+soltas.forEach(function(e){
   var ids=Object.keys(e.itens||{});
-  h+='<div class="es-cartao"><div class="es-cartao-topo"><b>Remessa '+esDataBR(e.data)+'</b>'
-   +'<span style="margin-left:auto;color:var(--tx3);font-size:11.5px">'+ids.length+' item(ns)</span>'
-   +'<button class="es-x" onclick="esExcluirEvento('+e.id+')">×</button></div><div class="es-cartao-corpo">';
-  if(!ids.length)h+='<div style="color:var(--tx3);padding:6px 0">nada lançado ainda — digite as quantidades na coluna verde da aba Contagem</div>';
-  ids.forEach(function(iid){
-    var si=esItem(parseInt(iid,10));
-    h+='<div class="es-linha-kit"><span class="q">+'+esValor(e,parseInt(iid,10))+'</span>'
-     +'<span class="n">'+escBloco(si?si.descricao:'?')+'</span></div>'});
-  h+='</div></div>'});
-$('es-remessas').innerHTML=h||'<div class="es-vazio">Nenhuma remessa registrada.</div>';
+  var total=ids.reduce(function(s,i){return s+(esValor(e,parseInt(i,10))||0)},0);
+  h+='<div class="es-bloco avulsa"><button class="es-bloco-cab" onclick="esAbrirPedido('+e.id+')">'
+   +'<span class="seta"></span><b>Remessa avulsa '+esDataBR(e.data)+'</b>'
+   +'<span class="es-bloco-sit">sem pedido</span>'
+   +'<span class="es-bloco-num">'+total+' exemplar(es)</span></button>';
+  if(ES_PEDIDO_ABERTO===e.id){
+   h+='<div class="es-bloco-corpo"><table class="es-tabela lista es-rel"><tbody>';
+   ids.forEach(function(iid){var si=esItem(parseInt(iid,10));
+     h+='<tr><td>'+escBloco(si?si.descricao:'?')+'</td><td class="num">+'+esValor(e,parseInt(iid,10))+'</td></tr>'});
+   h+='</tbody></table><div class="es-bloco-pe">'
+    +'<button class="es-bt desfaz" onclick="esExcluirEvento('+e.id+')">excluir</button></div></div>'}
+  h+='</div>'});
+$('es-remessas').innerHTML=h||'<div class="es-vazio">Nenhum pedido registrado — use "+ Fazer pedido".</div>';
 }
 /* ---- menu da coluna: destravar edição, trocar a data, excluir ----
    Fica no cabeçalho porque é ali que a coluna "é": data e tipo. Um popover posicionado em
@@ -3348,7 +4402,11 @@ run('excluirEventoEstoque',[{id:id}],function(){msg('Coluna excluída.');esCarre
    O estágio guarda um MODELO e as lições são geradas por cálculo. As únicas digitadas são as
    especiais (Welcome, Useful Language) e as remind, que não seguem regra nenhuma. */
 var EG=null, EG_SEL=null, EG_ABA='lista';
-var EG_CATS=['Kids','Teens','W','Outros Idiomas'];
+/* aba de dentro do detalhe do estágio: dados · estrutura · estrutura montada */
+var EG_ABA_DET='dados';
+/* "Avulsos" entrou em 2026-08-10 com o Business Empire: curso que não pertence à trilha principal e
+   complementa um W (BE 2 ↔ W2, BE 4 ↔ W4) */
+var EG_CATS=['Kids','Teens','W','Outros Idiomas','Avulsos'];
 
 function egCarregar(cb){run('getEstagios',[{}],function(r){
   EG=r;
@@ -3369,9 +4427,40 @@ if(EG_ABA==='trilha')egTrilha();
 }
 function egModelo(id){return (EG.modelos.filter(function(m){return m.id===id})[0])||EG.modelos[0]}
 
-/* O GERADOR — espelha `licao_inicial` + o modelo. Índice é sequencial (conta hora-aula);
-   rótulo é o número pedagógico. As duas coisas não coincidem quando há lição de abertura. */
+/* ORDEM DE RESOLUÇÃO da estrutura de um livro (2026-08-10):
+     1. lista PRÓPRIA do estágio  — "eu vou lá no TOTS 2 e reestruturo ele"
+     2. lista digitada do MODELO  — modelo que deixou de ser fórmula e virou lista
+     3. a FÓRMULA                 — o caso comum, que continua não digitando nada
+   Nos dois primeiros o que vale é o que está escrito; no terceiro, o gerador de sempre. */
 function egLicoes(e){
+/* lista do PRÓPRIO livro é a palavra final: ali ele digitou tudo, inclusive as especiais, e
+   acrescentar qualquer coisa por fora contrariaria o que está escrito */
+if((e.licoesProprias||[]).length)return egRenumerar(egDaLista(e.licoesProprias,0));
+var mm=egModelo(e.modeloId);
+/* Lista do MODELO ainda recebe as extras do livro. O modelo conta a parte comum; as especiais e as
+   remind são de cada livro — sem isto, pôr o capítulo de 11 em lista tirava do TOTS 2 as duas
+   especiais de abertura e as 4 remind, e ele caía de 72 para 66 lições.
+   A lista do modelo é RELATIVA (1..60): o deslocamento entra aqui, igual à fórmula, e assim o
+   mesmo modelo-lista serve ao W2 (1–60) e ao W4 (61–120). */
+if(mm&&(mm.licoes||[]).length){
+ var ab=(e.extras||[]).filter(function(x){return x.posicao==='abertura'});
+ var fl=(e.extras||[]).filter(function(x){return x.posicao==='flutuante'});
+ return egRenumerar([].concat(
+   ab.map(function(x){return {rotulo:x.rotulo,descricao:x.rotulo,tipo:'especial',cap:0,extraId:x.id}}),
+   egDaLista(mm.licoes,(e.licaoInicial||1)-1),
+   fl.map(function(x){return {rotulo:x.rotulo,descricao:x.rotulo,tipo:'remind',cap:0,extraId:x.id}})))}
+return egDaFormula(e);
+}
+/* converte linhas digitadas no mesmo formato que o gerador devolve, para o resto da tela não
+   precisar saber de onde a estrutura veio */
+function egDaLista(linhas,desloc){
+return linhas.map(function(l){
+ return {rotulo:(l.numero==null||l.numero==='')?l.descricao:String(Number(l.numero)+desloc),
+   descricao:l.descricao, tipo:l.tipo, cap:l.bloco||0, linhaId:l.id}})}
+/* o índice é a POSIÇÃO na fila e conta hora-aula: tem de ser atribuído depois de a lista estar
+   montada, senão as extras de abertura entrariam com o índice errado */
+function egRenumerar(ls){ls.forEach(function(l,i){l.idx=i+1});return ls}
+function egDaFormula(e){
 var m=egModelo(e.modeloId),out=[],idx=1;
 var abertura=e.extras.filter(function(x){return x.posicao==='abertura'});
 var flut=e.extras.filter(function(x){return x.posicao==='flutuante'});
@@ -3395,7 +4484,10 @@ var h='',cat=null;
 EG.estagios.forEach(function(e,i){
  if(e.categoria!==cat){cat=e.categoria;h+='<div class="eg-faixa">'+escBloco(cat)+'</div>'}
  h+='<button class="eg-lin'+(EG_SEL&&e.id===EG_SEL.id?' on':'')+'" onclick="egEscolher('+e.id+')">'
-  +'<b>'+escBloco(e.nome)+'</b>'
+  /* nome de EXIBIÇÃO: o nome mais a edição, concatenados pelo servidor — é o que distingue os dois
+     Kids 4 sem a edição estar escrita dentro do nome de nenhum dos dois */
+  +'<b>'+escBloco(e.nomeExibicao||e.nome)+'</b>'
+  +(e.nomeCurto&&e.nomeCurto!==e.nome?'<span class="eg-curto">'+escBloco(e.nomeCurto)+'</span>':'')
   +(e.entrada?'<span class="eg-p entrada">entrada</span>':'')
   +(e.status==='legado'?'<span class="eg-p legado">legado</span>':'')
   +(e.status==='lancamento'?'<span class="eg-p novo">novo</span>':'')
@@ -3416,12 +4508,28 @@ var h='<div class="eg-kpis">'
  +'<div class="eg-kpi"><b>'+e.alunos+'</b><span>alunos ativos</span></div>'
  +'</div>';
 
+/* TRÊS ABAS em vez de três caixas empilhadas (2026-08-10, dele: "não tá muito intuitivo um debaixo
+   do outro"). Mesmo componente `.pg-abas` do resto do app, um nível abaixo. */
+h+='<div class="pg-abas eg-abas-det">'
+ +[['dados','Dados do estágio'],['estrutura','Estrutura'],['montada','Estrutura montada']]
+   .map(function(a){return '<button class="pg-aba'+(EG_ABA_DET===a[0]?' on':'')
+     +'" data-d="'+a[0]+'" onclick="egAbaDet(\''+a[0]+'\')">'+a[1]+'</button>'}).join('')
+ +'</div>';
+
 /* formulário */
+h+='<div class="eg-det-p" data-d="dados"'+(EG_ABA_DET==='dados'?'':' style="display:none"')+'>';
 h+='<div class="eg-cx" style="margin-bottom:14px"><div class="eg-cx-cab">Dados do estágio'
  +'<button class="es-bt desfaz" style="margin-left:auto" onclick="egExcluir()">excluir</button></div>'
  +'<div class="eg-cx-corpo"><div class="eg-form">'
- +egC('Sigla','<input id="eg-sigla" value="'+escBloco(e.sigla)+'">')
- +egC('Nome','<input id="eg-nome" value="'+escBloco(e.nome)+'">','larga')
+ /* A SIGLA saiu do formulário (pedido dele, 2026-08-10): *"os Ws não têm como ter sigla, porque W2,
+    W4 já é o estágio. Pode ser removida, não faz diferença ter esse registro."* A coluna continua
+    existindo como chave interna estável — é por ela que a semeadura e os vínculos de trilha se
+    acham — mas deixou de ser campo para preencher. */
+ +'<input type="hidden" id="eg-sigla" value="'+escBloco(e.sigla)+'">'
+ /* nome LONGO e nome CURTO: o longo é o completo que o sistema usa; o curto é o que cabe onde o
+    espaço é apertado — a ficha de frequência é o caso que ele citou */
+ +egC('Nome longo','<input id="eg-nome" value="'+escBloco(e.nome)+'" placeholder="Little Kids 4">','larga')
+ +egC('Nome curto','<input id="eg-nomecurto" value="'+escBloco(e.nomeCurto)+'" placeholder="L. Kids 4">')
  +egC('Idioma','<input id="eg-idioma" value="'+escBloco(e.idioma)+'">')
  +egC('Categoria','<select id="eg-cat">'+EG_CATS.map(function(c){
      return '<option'+(c===e.categoria?' selected':'')+'>'+c+'</option>'}).join('')+'</select>')
@@ -3432,10 +4540,20 @@ h+='<div class="eg-cx" style="margin-bottom:14px"><div class="eg-cx-cab">Dados d
  +egC('Ordem na trilha','<input id="eg-ordem" type="number" min="1" value="'+e.ordem+'">')
  +'<label class="eg-chk"><input type="checkbox" id="eg-entrada"'+(e.entrada?' checked':'')
    +'> Porta de entrada</label>'
- +egC('Livro vinculado','<select id="eg-livro"><option value="">(sem vínculo)</option>'
-     +EG.livros.map(function(l){return '<option'+(l===e.livro?' selected':'')+'>'+escBloco(l)+'</option>'}).join('')+'</select>')
- +egC('Edição','<input id="eg-ednome" value="'+escBloco(e.edicaoNome)+'" placeholder="Ex.: 3rd Edition">')
- +egC('Ano da edição','<input id="eg-edano" type="number" value="'+(e.edicaoAno||'')+'" placeholder="2020">')
+ /* UM vínculo só, e é com o MATERIAL (2026-08-10, dele): *"o estágio é vinculado ao item no
+    estoque"*. O antigo select de livro saiu — o `estagio.livro`, que matrícula e ficha impressa
+    usam, passa a ser DERIVADO do item escolhido, no servidor. Dois selects dizendo quase a mesma
+    coisa era o que não fazia sentido. */
+ +egC('Material vinculado','<select id="eg-item" onchange="egPreverEdicao()">'
+     +'<option value="">(sem vínculo)</option>'
+     +(EG.itens||[]).map(function(i){
+       return '<option value="'+i.id+'"'+(i.id===e.itemEstoqueId?' selected':'')+'>'
+        +escBloco(i.descricao)+(i.unidade==='kit'?' · kit':'')
+        +(i.edicaoNome?' · '+escBloco(i.edicaoNome):'')+'</option>'}).join('')+'</select>','larga')
+ /* A EDIÇÃO é do material e se edita no Estoque: aqui ela só se mostra. Foi a leitura dele — o que
+    ganha edição nova é a caixa (Student's Book, Workbook), não a estrutura pedagógica. */
+ +egC('Edição <small style="font-weight:400;color:var(--tx3)">(vem do material)</small>',
+     '<div id="eg-ed-espelho" class="eg-espelho">'+egTextoEdicao(e)+'</div>')
  +egC('Idade mínima','<input id="eg-idmin" type="number" value="'+(e.idadeMin==null?'':e.idadeMin)+'">')
  +egC('Idade máxima','<input id="eg-idmax" type="number" value="'+(e.idadeMax==null?'':e.idadeMax)+'">')
  +egC('Status','<select id="eg-status">'+['ativo','legado','lancamento'].map(function(s){
@@ -3455,15 +4573,37 @@ h+='<div class="eg-cx" style="margin-bottom:14px"><div class="eg-cx-cab">Dados d
  +escBloco(e.descricao)+'</textarea></div>'
  +'<button class="acao" onclick="egSalvar()"><span class="btn-ic"></span>Salvar estágio</button>'
  +'</div></div>';
+h+='</div>';  // fecha a aba "dados"
+
+h+='<div class="eg-det-p" data-d="estrutura"'+(EG_ABA_DET==='estrutura'?'':' style="display:none"')+'>';
+/* ---- estrutura PRÓPRIA deste livro ----
+   Regra dele: "todos os estágios da Wizard devem ter permissão de fazer isso". O TOTS 2 usa o modelo
+   de capítulo de 11, mas tem duas especiais no começo e as Recall, que são estratégicas e não têm
+   cronograma fixo — nada disso cabe numa fórmula. Quando existe lista aqui, ela vence tudo. */
+var propria=(e.licoesProprias||[]);
+h+='<div class="eg-cx" style="margin-bottom:14px"><div class="eg-cx-cab">Estrutura deste estágio'
+ +'<span style="margin-left:auto;font-weight:400;text-transform:none;letter-spacing:0">'
+ +(propria.length?'lista própria — o modelo não manda mais neste estágio'
+   :'seguindo '+escBloco(egModelo(e.modeloId).nome))
+ +'</span></div><div class="eg-cx-corpo">'
+ +egTabelaLicoes('estagio',e.id,propria,ls)
+ +'</div></div>';
+h+='</div>';  // fecha a aba "estrutura"
 
 /* estrutura gerada */
+h+='<div class="eg-det-p" data-d="montada"'+(EG_ABA_DET==='montada'?'':' style="display:none"')+'>';
 var caps={};ls.forEach(function(l){(caps[l.cap]=caps[l.cap]||[]).push(l)});
-h+='<div class="eg-cx"><div class="eg-cx-cab">Estrutura gerada'
+h+='<div class="eg-cx"><div class="eg-cx-cab">'+(propria.length?'Estrutura em vigor':'Estrutura gerada')
  +'<span style="margin-left:auto;font-weight:400;text-transform:none;letter-spacing:0">'
- +'só as especiais e as remind são digitadas</span></div><div class="eg-cx-corpo">';
-h+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">'
- +'<button class="es-bt" onclick="egNovaExtra(\'abertura\')">+ lição de abertura</button>'
- +'<button class="es-bt" onclick="egNovaExtra(\'flutuante\')">+ remind</button></div>';
+ +(propria.length?'desenhada a partir da lista acima':'só as especiais e as remind são digitadas')
+ +'</span></div><div class="eg-cx-corpo">';
+/* com lista própria, estes dois botões seriam armadilha: a extra entraria no banco e não apareceria
+   em lugar nenhum, porque a lista digitada é a palavra final. Quem tem lista acrescenta lição pela
+   tabela de cima. */
+if(!propria.length)
+ h+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">'
+  +'<button class="es-bt" onclick="egNovaExtra(\'abertura\')">+ lição de abertura</button>'
+  +'<button class="es-bt" onclick="egNovaExtra(\'flutuante\')">+ remind</button></div>';
 if(caps[0]){
  h+='<div style="margin-bottom:10px"><div style="font-size:11px;color:var(--tx3);margin-bottom:5px">'
   +'FORA DOS CAPÍTULOS</div><div class="eg-licoes" style="padding:0">';
@@ -3473,26 +4613,66 @@ Object.keys(caps).filter(function(k){return k!=='0'}).forEach(function(k){
  h+='<div class="eg-cap"><h4>Capítulo '+k+'<span>'+caps[k].length+' lições</span></h4><div class="eg-licoes">';
  caps[k].forEach(function(l){h+=egLic(l)});h+='</div></div>'});
 h+='</div></div></div>';
+h+='</div>';  // fecha a aba "montada"
 box.innerHTML=h;
 box.querySelectorAll('.btn-ic').forEach(function(el){el.innerHTML=icon('save',14)});
+}
+/* troca de aba do detalhe: mostra o painel e repinta o trilho. Não redesenha o detalhe inteiro —
+   perderia o que estiver meio digitado no formulário. */
+function egAbaDet(d){
+EG_ABA_DET=d;
+document.querySelectorAll('#eg-detalhe .eg-abas-det .pg-aba').forEach(function(b){
+  b.classList.toggle('on',b.dataset.d===d)});
+document.querySelectorAll('#eg-detalhe .eg-det-p').forEach(function(p){
+  p.style.display=(p.dataset.d===d?'block':'none')});
 }
 function egC(rot,campo,cls){return '<div class="eg-campo'+(cls?' '+cls:'')+'"><label>'+rot+'</label>'+campo+'</div>'}
 function egLic(l){
 var R={input:'ímpar · input',output:'par · output',review:'revisão',especial:'especial',remind:'remind'};
-return '<span class="eg-lic '+l.tipo+'" title="índice '+l.idx+' · '+R[l.tipo]+'"><i>'+l.idx+'</i>'
- +escBloco(l.rotulo)
- +(l.extraId?'<span class="x" title="remover" onclick="egRemoverExtra('+l.extraId+')">×</span>':'')
+/* lição GERADA não se edita: ela é consequência do modelo e da lição inicial, e mexer nela ali
+   seria mentira (o próximo redesenho a traria de volta). Só as digitadas — especiais e remind —
+   ganham renomear, mover e remover. */
+if(!l.extraId)
+ return '<span class="eg-lic '+l.tipo+'" title="índice '+l.idx+' · '+R[l.tipo]+'"><i>'+l.idx+'</i>'
+  +escBloco(l.rotulo)+'</span>';
+return '<span class="eg-lic '+l.tipo+' editavel" title="índice '+l.idx+' · '+R[l.tipo]+' · clique para renomear">'
+ +'<i>'+l.idx+'</i>'
+ +'<b onclick="egRenomearExtra('+l.extraId+')">'+escBloco(l.rotulo)+'</b>'
+ +'<span class="mv" title="mover para trás" onclick="egMoverExtra('+l.extraId+',\'cima\')">‹</span>'
+ +'<span class="mv" title="mover para a frente" onclick="egMoverExtra('+l.extraId+',\'baixo\')">›</span>'
+ +'<span class="x" title="remover" onclick="egRemoverExtra('+l.extraId+')">×</span>'
  +'</span>'}
+function egRenomearExtra(id){
+var atual='';EG.estagios.forEach(function(e){(e.extras||[]).forEach(function(x){if(x.id===id)atual=x.rotulo})});
+dlgTexto({titulo:'Renomear lição',texto:'Vale para as lições digitadas — as geradas vêm do modelo.',
+ label:'Rótulo',valor:atual,ok:'Salvar'},function(rot){
+/* só o rótulo: mandar posição e ordem daqui seria reenviar dado que a tela não está editando, e
+   se ela estivesse um passo atrás de um "mover" a ordem antiga voltaria por cima */
+run('salvarLicaoExtra',[{id:id,rotulo:rot}],function(){egCarregar()})})}
+function egMoverExtra(id,dir){run('moverLicaoExtra',[{id:id,direcao:dir}],function(r){
+if(r.moveu)egCarregar();})}
 function egEscalaToggle(){$('eg-escala-campos').style.display=$('eg-escala').checked?'grid':'none'}
+/* espelho da edição: mostra a do material vinculado, e diz onde ela se edita */
+function egTextoEdicao(e){
+var it=(EG.itens||[]).filter(function(i){return i.id===e.itemEstoqueId})[0];
+var nome=it?it.edicaoNome:(e.edicaoDoItem||'');
+var ano=it?it.edicaoAno:(e.edicaoAnoDoItem||null);
+if(!nome)return '<span class="vazio">sem edição — defina no material, na aba Estoque</span>';
+return escBloco(nome)+(ano?' <small>· '+ano+'</small>':'')}
+function egPreverEdicao(){
+var id=parseInt($('eg-item').value,10)||null;
+$('eg-ed-espelho').innerHTML=egTextoEdicao({itemEstoqueId:id,edicaoDoItem:'',edicaoAnoDoItem:null})}
 
 function egSalvar(){
 var v=function(id){var el=$(id);return el?el.value.trim():''};
-run('salvarEstagio',[{id:EG_SEL.id,sigla:v('eg-sigla'),nome:v('eg-nome'),idioma:v('eg-idioma'),
+run('salvarEstagio',[{id:EG_SEL.id,sigla:v('eg-sigla'),nome:v('eg-nome'),nomeCurto:v('eg-nomecurto'),
+ idioma:v('eg-idioma'),
  categoria:v('eg-cat'),grupo:v('eg-grupo'),modeloId:v('eg-modelo'),licaoInicial:v('eg-licini'),
  entrada:$('eg-entrada').checked,ordem:v('eg-ordem'),idadeMin:v('eg-idmin'),idadeMax:v('eg-idmax'),
  escalaAtiva:$('eg-escala').checked,cefrMin:v('eg-cefrmin'),cefrMax:v('eg-cefrmax'),
- gseMin:v('eg-gsemin'),gseMax:v('eg-gsemax'),edicaoNome:v('eg-ednome'),edicaoAno:v('eg-edano'),
- status:v('eg-status'),livro:v('eg-livro'),descricao:v('eg-desc')}],
+ gseMin:v('eg-gsemin'),gseMax:v('eg-gsemax'),
+ /* nem livro nem edição vão daqui: o livro o servidor deriva do material, e a edição é do material */
+ status:v('eg-status'),itemEstoqueId:v('eg-item'),descricao:v('eg-desc')}],
 function(){msg('Estágio salvo.');egCarregar()})}
 function egNovo(){
 dlgTexto({titulo:'Novo estágio',texto:'A sigla identifica o estágio e não se repete.',
@@ -3501,7 +4681,7 @@ run('salvarEstagio',[{sigla:sig,nome:sig,modeloId:EG.modelos[0].id}],function(r)
  msg('Estágio criado — preencha os dados ao lado.');egCarregar(function(){egEscolher(r.id)})})})}
 function egExcluir(){
 dlgConfirmar({titulo:'Excluir estágio',perigo:true,ok:'Excluir',
- texto:'Excluir "'+EG_SEL.nome+'"?\n\nAs lições especiais e os vínculos de trilha dele somem junto. Matrículas de aluno NÃO são afetadas — elas apontam para o livro, não para o estágio.'},
+ texto:'Excluir "'+EG_SEL.nome+'"?\n\nAs lições especiais e os vínculos de trilha dele somem junto. Matrículas de aluno NÃO são afetadas — elas apontam para o estágio, não para o estágio.'},
 function(sim){if(!sim)return;
 run('excluirEstagio',[{id:EG_SEL.id}],function(){msg('Estágio excluído.');EG_SEL=null;egCarregar()})})}
 function egNovaExtra(posicao){
@@ -3514,22 +4694,183 @@ function(rot){run('salvarLicaoExtra',[{estagioId:EG_SEL.id,rotulo:rot,posicao:po
 function egRemoverExtra(id){
 run('excluirLicaoExtra',[{id:id}],function(){egCarregar()})}
 
+/* O modelo é A ESTRUTURA do livro. Ele tem duas formas possíveis, e a segunda chegou em
+   2026-08-10: FÓRMULA (lições por capítulo × capítulos, que gera tudo) ou LISTA digitada lição por
+   lição. Quem tem lista não passa mais pela fórmula. */
+var EG_MOD_ABERTO=null;
 function egModelos(){
 var h='';
 EG.modelos.forEach(function(m){
  var usa=EG.estagios.filter(function(e){return e.modeloId===m.id});
- h+='<div class="eg-cx" style="margin-bottom:14px"><div class="eg-cx-cab">'+escBloco(m.nome)+'</div>'
-  +'<div class="eg-cx-corpo"><div class="eg-kpis">'
-  +'<div class="eg-kpi"><b>'+m.capitulos+'</b><span>capítulos</span></div>'
-  +'<div class="eg-kpi"><b>'+m.licoesPorCapitulo+'+1</b><span>lições por capítulo</span></div>'
-  +'<div class="eg-kpi"><b>'+m.comuns+'</b><span>lições comuns</span></div>'
-  +'<div class="eg-kpi"><b>'+m.capitulos+'</b><span>revisões</span></div></div>'
-  +'<div style="font-size:11px;color:var(--tx3);margin-bottom:5px">USADO POR '+usa.length+' ESTÁGIOS</div>'
-  +'<div class="eg-fila">';
- usa.forEach(function(e){h+='<span class="eg-no'+(e.entrada?' entrada':'')
+ var lista=(m.licoes||[]).length;
+ h+='<div class="eg-card'+(EG_MOD_ABERTO===m.id?' on':'')+'">'
+  +'<h4>'+escBloco(m.nome)+(lista?' <span class="eg-selo-lista">LISTA</span>':'')+'</h4>'
+  +'<div class="eg-card-nums">'
+  +'<div class="eg-card-num"><b>'+(lista?lista:m.comuns)+'</b><span>'+(lista?'lições digitadas':'lições comuns')+'</span></div>'
+  +'<div class="eg-card-num"><b>'+(lista?(m.licoes.filter(function(l){return l.tipo==='review'}).length):m.capitulos)+'</b><span>revisões</span></div>'
+  +'</div>'
+  /* as especiais e as remind NÃO entram nestes números: elas são de cada livro, não do modelo —
+     era o "tá faltando coisa" que ele apontou no capítulo de 11 (o TOTS 2 tem duas especiais no
+     começo e 4 remind, que o modelo não conhece) */
+  +'<div class="eg-card-uso" title="Lições especiais e remind pertencem a cada estágio, não ao modelo — por isso não entram nesta conta.">+ especiais e remind, por estágio</div>'
+  +'<div class="eg-card-uso">'+usa.length+' estágio(s)</div>'
+  +'<div class="eg-card-fila">';
+ usa.slice(0,8).forEach(function(e){h+='<span class="eg-no'+(e.entrada?' entrada':'')
    +(e.status==='legado'?' legado':'')+'">'+escBloco(e.sigla)+'</span>'});
- h+='</div></div></div>'});
-$('eg-modelos').innerHTML=h}
+ if(usa.length>8)h+='<span class="eg-no">+'+(usa.length-8)+'</span>';
+ h+='</div>'
+  +'<div class="eg-card-pe">'
+  +'<button class="es-bt" onclick="egAbrirModelo('+m.id+')">editar</button>'
+  +'<button class="es-bt desfaz" onclick="egExcluirModelo('+m.id+')">excluir</button>'
+  +'</div></div>'});
+$('eg-modelos').innerHTML=h;
+}
+/* ---- acordeão de edição do modelo (nasce fechado; "+ Novo modelo" e "editar" o abrem) ---- */
+function egFecharModelo(){EG_MOD_ABERTO=null;$('eg-modelo-form').classList.remove('aberta');
+ $('eg-modelo-form-in').innerHTML='';egModelos()}
+/* atalho do aviso: leva do modelo para o livro, já com o estágio escolhido, que é onde a nuance
+   daquele livro deve morar */
+function egIrCustomizar(id){egFecharModelo();egAba('lista');egEscolher(id);
+ var el=$('eg-detalhe');if(el&&el.scrollIntoView)el.scrollIntoView({block:'start'})}
+function egAbrirModelo(id){
+var m=egModelo(id);if(!m)return;
+EG_MOD_ABERTO=id;
+$('eg-modelo-form').classList.add('aberta');
+var lista=(m.licoes||[]);
+/* quem usa este modelo: é a conta do aviso de raio de alcance logo abaixo */
+var usa=EG.estagios.filter(function(e){return e.modeloId===m.id});
+var h='<div class="eg-form-cx"><div class="eg-form-cab"><h4>'+escBloco(m.nome)+'</h4>'
+ +'<button class="es-bt" onclick="egFecharModelo()">fechar</button></div>'
+ +'<div class="eg-form">'
+ +egC('Nome','<input id="egm-nome" value="'+escBloco(m.nome)+'">','larga')
+ +egC('Lições por capítulo','<input id="egm-lpc" type="number" min="1" value="'+m.licoesPorCapitulo+'">')
+ +egC('Capítulos','<input id="egm-cap" type="number" min="1" value="'+m.capitulos+'">')
+ +'</div>'
+ +'<button class="acao" onclick="egSalvarModelo('+m.id+')"><span class="btn-ic"></span>Salvar modelo</button>'
+ +'<hr class="pg-fio">'
+ +'<div class="eg-form-cab"><h4>Lições</h4>'
+ +'<span style="font-size:11.5px;color:var(--tx3)">'
+ +(lista.length?'esta lista manda — a fórmula acima fica só de referência'
+   :'sem lista, as lições saem da fórmula acima')+'</span></div>'
+ /* AVISO DE RAIO DE ALCANCE. Preocupação dele: "o modelo não pode ser aplicado, se eu quiser
+    customizar uma coisa específica, a todos os livros dessa categoria". O modelo é o genérico do
+    grupo; a nuance de um livro se resolve NO livro. Este aviso é o que separa as duas coisas na
+    hora do clique, e leva direto para o lugar certo. */
+ +(usa.length>1
+   ?'<div class="eg-aviso-alcance">Este modelo é o genérico de <b>'+usa.length+' estágios</b> — '
+    +'mexer aqui muda todos eles.<br>Se a mudança é nuance de um estágio só, customize lá: '
+    +usa.slice(0,6).map(function(x){
+       return '<button class="eg-atalho" onclick="egIrCustomizar('+x.id+')">'+escBloco(x.sigla)+'</button>'}).join('')
+    +(usa.length>6?'<span style="color:var(--tx3);font-size:11px"> e mais '+(usa.length-6)+'</span>':'')
+    +'</div>'
+   :'')
+ +egTabelaLicoes('modelo',m.id,lista,egLicoesDoModelo(m))
+ +'</div>';
+$('eg-modelo-form-in').innerHTML=h;
+egModelos();
+$('eg-modelo-form-in').querySelectorAll('.btn-ic').forEach(function(el){el.innerHTML=icon('save',14)});
+}
+/* o que a fórmula deste modelo geraria, para o botão "partir da fórmula" ter de onde copiar */
+function egLicoesDoModelo(m){
+return egDaFormula({modeloId:m.id,licaoInicial:1,extras:[]})}
+function egSalvarModelo(id){
+var v=function(x){var el=$(x);return el?el.value.trim():''};
+run('salvarModelo',[{id:id,nome:v('egm-nome'),licoesPorCapitulo:v('egm-lpc'),
+ capitulos:v('egm-cap')}],function(r){
+msg('Modelo salvo.');if(r.aviso)msg(r.aviso,true);egCarregar(function(){egAbrirModelo(id)})})}
+function egNovoModelo(){
+dlgTexto({titulo:'Novo modelo de estrutura',
+ texto:'Um modelo pode ser uma FÓRMULA (lições por capítulo × capítulos, que gera tudo) ou uma LISTA digitada lição por lição. Ele nasce como fórmula; a tabela de lições fica logo abaixo, para quem precisa montar à mão.',
+ label:'Nome',dica:'Ex.: Capítulo de 9',ok:'Criar'},function(nome){
+run('salvarModelo',[{nome:nome,licoesPorCapitulo:6,capitulos:10}],function(r){
+ msg('Modelo criado — ajuste abaixo.');if(r.aviso)msg(r.aviso,true);
+ egCarregar(function(){egAbrirModelo(r.id)})})})}
+/* ---- a TABELA de lições, usada pelos dois alvos ----
+   Modelo e estágio guardam a estrutura na mesma forma, então a tabela é uma peça só: montar duas
+   faria duas cópias que divergem na primeira melhoria. `alvo` diz de quem é a lista. */
+var EG_TIPOS=[['input','ímpar · input'],['output','par · output'],['review','revisão'],
+  ['especial','especial'],['remind','remind / recall']];
+var EG_GERADAS={};
+function egTabelaLicoes(alvo,alvoId,lista,geradas){
+EG_GERADAS[alvo+'|'+alvoId]=geradas||[];
+var h='<div class="eg-lic-moldura"><table class="eg-lic-tab">'
+ +'<thead><tr><th class="c-idx">#</th><th class="c-num">Número</th><th class="c-desc">Descrição</th>'
+ +'<th class="c-bloco">Bloco</th><th class="c-tipo">Tipo</th><th class="c-acoes"></th></tr></thead><tbody>';
+if(!lista.length)
+ h+='<tr><td colspan="6" style="padding:14px;color:var(--tx3)">Nenhuma lição digitada — '
+  +'a estrutura vem da fórmula. Use os botões abaixo para começar.</td></tr>';
+lista.forEach(function(l,i){
+ var q="'"+alvo+"',"+l.id;
+ h+='<tr class="t-'+l.tipo+'"><td class="c-idx">'+(i+1)+'</td>'
+  +'<td class="c-num"><input value="'+(l.numero==null?'':l.numero)+'" type="number" min="1"'
+   +' placeholder="—" onchange="egLicSalvar('+q+',\'numero\',this.value)"></td>'
+  +'<td class="c-desc"><input value="'+escBloco(l.descricao)+'"'
+   +' onchange="egLicSalvar('+q+',\'descricao\',this.value)"></td>'
+  +'<td class="c-bloco"><input value="'+(l.bloco==null?'':l.bloco)+'" type="number" min="1"'
+   +' placeholder="—" onchange="egLicSalvar('+q+',\'bloco\',this.value)"></td>'
+  +'<td class="c-tipo"><select onchange="egLicSalvar('+q+',\'tipo\',this.value)">'
+   +EG_TIPOS.map(function(t){return '<option value="'+t[0]+'"'+(t[0]===l.tipo?' selected':'')+'>'+t[1]+'</option>'}).join('')
+   +'</select></td>'
+  +'<td class="c-acoes">'
+   +'<button class="mv" title="subir" onclick="egLicMover('+q+',\'cima\')">↑</button>'
+   +'<button class="mv" title="descer" onclick="egLicMover('+q+',\'baixo\')">↓</button>'
+   +'<button class="mv" title="remover" onclick="egLicExcluir('+q+')">✕</button>'
+  +'</td></tr>'});
+h+='</tbody></table></div>';
+var qa="'"+alvo+"',"+alvoId;
+h+='<div class="eg-lic-rod">'
+ +'<button class="es-bt" onclick="egLicNova('+qa+')">+ lição</button>'
+ +(geradas&&geradas.length&&!lista.length
+   ?'<button class="es-bt" onclick="egLicMaterializar('+qa+')">partir da estrutura gerada ('+geradas.length+' lições)</button>':'')
+ +(lista.length?'<button class="es-bt desfaz" onclick="egLicLimpar('+qa+')">apagar a lista e voltar ao gerado</button>':'')
+ +'<span class="eg-lic-cont">'+(lista.length?lista.length+' lição(ões) digitada(s)':'nada digitado')+'</span>'
+ +'</div>';
+return h}
+/* `EG_GERADAS` guarda a estrutura que o botão "partir de" vai copiar: o servidor não recalcula
+   nada, copia o que esta tela já está mostrando — o gerador continua existindo num lugar só */
+function egLicRecarregar(alvo,alvoId){
+egCarregar(function(){ if(alvo==='modelo')egAbrirModelo(alvoId); else egDetalhe(); })}
+function egLicSalvar(alvo,id,campo,valor){
+var p={alvo:alvo,id:id};p[campo]=valor;
+run('salvarLicaoEstrutura',[p],function(){
+ /* trocar o TIPO repinta a faixa de cor da linha; os outros campos não mexem no desenho, mas
+    recarregar mantém a tela e o banco contando a mesma história */
+ egLicRecarregar(alvo,egLicDono(alvo))})}
+function egLicDono(alvo){return alvo==='modelo'?EG_MOD_ABERTO:(EG_SEL?EG_SEL.id:null)}
+function egLicNova(alvo,alvoId){
+run('salvarLicaoEstrutura',[{alvo:alvo,alvoId:alvoId,descricao:'Nova lição',tipo:'input'}],
+ function(){egLicRecarregar(alvo,alvoId)})}
+function egLicExcluir(alvo,id){
+run('excluirLicaoEstrutura',[{alvo:alvo,id:id}],function(){egLicRecarregar(alvo,egLicDono(alvo))})}
+function egLicMover(alvo,id,dir){
+run('moverLicaoEstrutura',[{alvo:alvo,id:id,direcao:dir}],function(r){
+ if(r.moveu)egLicRecarregar(alvo,egLicDono(alvo))})}
+function egLicMaterializar(alvo,alvoId){
+var geradas=EG_GERADAS[alvo+'|'+alvoId]||[];
+if(!geradas.length){msg('Não há estrutura gerada para copiar.',true);return}
+var linhas=geradas.map(function(l){
+ /* o rótulo gerado é número ("34") ou texto ("Review 2", "Useful Language"): número vira a coluna
+    Número, texto vira a Descrição — é assim que ele descreveu a tabela */
+ var ehNum=/^\d+$/.test(l.rotulo);
+ return {numero:ehNum?Number(l.rotulo):null,
+   descricao:ehNum?('Lesson '+l.rotulo):l.rotulo,
+   bloco:l.cap||null, tipo:l.tipo}});
+run('materializarEstrutura',[{alvo:alvo,alvoId:alvoId,linhas:linhas}],function(r){
+ msg(r.linhas+' lições copiadas — agora dá para editar uma a uma.');egLicRecarregar(alvo,alvoId)})}
+function egLicLimpar(alvo,alvoId){
+dlgConfirmar({titulo:'Apagar a lista digitada',perigo:true,ok:'Apagar lista',
+ texto:'A estrutura volta a ser a '+(alvo==='modelo'?'fórmula do modelo':'do modelo')
+  +'.\n\nAs lições digitadas somem. Nada mais é afetado: matrículas, presenças e percurso não dependem desta lista.'},
+function(sim){if(!sim)return;
+run('limparEstrutura',[{alvo:alvo,alvoId:alvoId}],function(){
+ msg('Lista apagada.');egLicRecarregar(alvo,alvoId)})})}
+
+function egExcluirModelo(id){
+var m=egModelo(id);
+dlgConfirmar({titulo:'Excluir modelo',perigo:true,ok:'Excluir',
+ texto:'Excluir o modelo "'+m.nome+'"?\n\nSó dá para excluir modelo que nenhum estágio esteja usando.'},
+function(sim){if(!sim)return;
+run('excluirModelo',[{id:id}],function(){msg('Modelo excluído.');egCarregar()})})}
 
 function egTrilha(){
 var h='';
@@ -3572,12 +4913,12 @@ var PAGINAS=[
 {aba:'recepcao',ic:'list-checks',titulo:'Freq. Recepção',desc:'Recepção marca quem veio, quem faltou e feriado'},
 {aba:'presenca',ic:'clipboard-check',titulo:'Freq. Sala',desc:'Entrada e saída da sala, lançadas pelo professor'},
 {aba:'dashboard',ic:'layout-dashboard',titulo:'Dashboard',desc:'Gráficos e tabela de todas as matrículas'},
-{aba:'alunos',ic:'users',titulo:'Alunos',desc:'Cadastro, matrículas em livro e agenda'},
-{aba:'turmas',ic:'graduation-cap',titulo:'Turmas',desc:'Salas: livro, dias, horário e professoras'},
+{aba:'alunos',ic:'users',titulo:'Alunos',desc:'Cadastro, matrículas em estágio e agenda'},
+{aba:'turmas',ic:'graduation-cap',titulo:'Turmas',desc:'Salas: estágio, dias, horário e professoras'},
 {aba:'horarios',ic:'calendar-clock',titulo:'Horários',desc:'Matriz de horários disponíveis'},
 {aba:'impressao',ic:'printer',titulo:'Impressão',desc:'Fichas de frequência em A4 para imprimir'},
 {aba:'estoque',ic:'package',titulo:'Estoque',desc:'Contagem de material, entregas aos alunos e pedidos'},
-{aba:'estagios',ic:'clipboard-list',titulo:'Estágios',desc:'Estrutura dos livros: capítulos, lições e trilha'},
+{aba:'estagios',ic:'clipboard-list',titulo:'Estágios',desc:'Estrutura dos estágios: capítulos, lições e trilha'},
 {aba:'backup',ic:'hard-drive',titulo:'Backup',desc:'Cópias do banco no HD e no OneDrive'}
 ];
 function dataExtenso(iso){var d=iso?new Date(iso+'T12:00:00'):new Date();
@@ -4762,7 +6103,7 @@ var h='<div style="margin-bottom:10px"><b style="font-size:15px">'+escBloco(inf.
 +'<span class="badge '+(inf.status==='Ativado'?'b-on':'b-off')+'">'+escBloco(inf.status)+'</span>'
 +'<br><small style="color:#70757a">'+escBloco(inf.situacao)+' · matrícula '+escBloco(inf.id)+'</small></div>'
 +'<div style="font-size:12px;color:#5f6368;margin-bottom:10px">Lançando em <b>'+escBloco(dataExtenso(inf.data||(LC?LC.data:null)))+'</b></div>';
-if(!inf.matriculas.length)h+='<div class="aviso-dia">Este aluno não tem matrícula em livro — cadastre na aba Alunos antes de lançar presença.</div>';
+if(!inf.matriculas.length)h+='<div class="aviso-dia">Este aluno não tem matrícula em estágio — cadastre na aba Alunos antes de lançar presença.</div>';
 inf.matriculas.forEach(function(m,i){
 if(!m.ehDiaDele)h+='<div class="aviso-dia">⚠️ <b>'+escBloco(m.livro)+'</b>: hoje não é dia dele ('+escBloco(m.dias.join('|')||'sem agenda')+'). Pode lançar mesmo assim — a presença vale para o dia e aparece no horário normal dele.</div>';
 h+='<div class="mat-linha"><div><b>'+escBloco(m.livro)+'</b><small>'+escBloco(m.dias.join('|')||'sem agenda')
@@ -4801,7 +6142,7 @@ var CORES_CAT={'Kids':'#e69138','Teens':'#6aa84f','Ws':'#3d85c6','Outros Idiomas
 var ORD_COD=['2ª','3ª','4ª','5ª','6ª','Sáb','Dom'];
 var FILTRO_DEFS=[
 {campo:'situacao',rotulo:'Situação'},
-{campo:'livro',rotulo:'Livro'},
+{campo:'estágio',rotulo:'Estágio'},
 {campo:'modalidade',rotulo:'Modalidade'},
 {campo:'vip',rotulo:'VIP'},
 {campo:'tipoEncontro',rotulo:'Tipo'},
@@ -4839,7 +6180,7 @@ var nTipo={};ativos.forEach(function(r){nTipo[r.tipoEncontro]=(nTipo[r.tipoEncon
 var dadosTipo=[{label:'Presencial',valor:nTipo['Presencial']||0,cor:'#071D49'},{label:'Online',valor:nTipo['Online']||0,cor:'#33AAE3'}];
 var nSit={};ALUNOS.forEach(function(a){if(a.status==='Ativado')nSit[a.situacao]=(nSit[a.situacao]||0)+1});
 var dadosSit=[{label:'Matriculado',valor:nSit['Matriculado']||0,cor:'#071D49'},{label:'Rematriculado',valor:nSit['Rematriculado']||0,cor:'#7FA0D4'}];
-$('dash').innerHTML=dashCard('Alunos por livro',dadosLivro,130)+dashCard('Categorias',dadosCat)+dashCard('Presencial × Online',dadosTipo)+dashCard('Matrícula × Rematrícula',dadosSit);
+$('dash').innerHTML=dashCard('Alunos por estágio',dadosLivro,130)+dashCard('Categorias',dadosCat)+dashCard('Presencial × Online',dadosTipo)+dashCard('Matrícula × Rematrícula',dadosSit);
 }
 function valorFiltro(def,row){return def.campo==='vip'?(row.vip?'VIP':'Normal'):row[def.campo]}
 function renderFiltros(rows){
@@ -4853,7 +6194,7 @@ FILTRO_DEFS.forEach(function(def){
 var vals={};rows.forEach(function(r){var v=valorFiltro(def,r);(def.lista?(v||[]):[String(v)]).forEach(function(x){vals[x]=(vals[x]||0)+1})});
 var chaves=Object.keys(vals);
 if(def.campo==='situacao'&&DOM)chaves.sort(function(a,b){var s=DOM.situacoes.map(function(x){return x.situacao});return s.indexOf(a)-s.indexOf(b)});
-else if(def.campo==='livro'&&DOM)chaves.sort(function(a,b){var s=DOM.livros.map(function(x){return x.nome});return s.indexOf(a)-s.indexOf(b)});
+else if(def.campo==='estágio'&&DOM)chaves.sort(function(a,b){var s=DOM.livros.map(function(x){return x.nome});return s.indexOf(a)-s.indexOf(b)});
 else if(def.campo==='dias')chaves.sort(function(a,b){return ORD_COD.indexOf(a)-ORD_COD.indexOf(b)});
 else chaves.sort(function(a,b){return a.localeCompare(b,'pt')});
 if(chaves.length<2&&def.campo!=='situacao')return;
@@ -4891,7 +6232,7 @@ columns:[
 {title:'Aluno',field:'nome',widthGrow:2,minWidth:180},
 {title:'Situação',field:'situacao',width:110},
 {title:'Status',field:'status',width:100,formatter:function(cell){var v=cell.getValue();return '<span class="badge '+(v==='Ativado'?'b-on':'b-off')+'">'+v+'</span>'}},
-{title:'Livro',field:'livro',width:95},
+{title:'Estágio',field:'estágio',width:95},
 {title:'Mod.',field:'modalidade',width:70},
 {title:'VIP',field:'vip',formatter:'tickCross',hozAlign:'center',width:55},
 {title:'Tipo',field:'tipoEncontro',width:95},

@@ -24,23 +24,28 @@ INSERT INTO livros VALUES ('Kids Esp 1',6,'Conn',1,0);
 INSERT INTO livros VALUES ('KIDS 2',7,'Inter',1,0);
 INSERT INTO livros VALUES ('KIDS 4',8,'Inter',1,0);
 INSERT INTO livros VALUES ('Next Gen',9,'Inter',0,0);
-INSERT INTO livros VALUES ('Teens 2',10,'Inter',0,0);
-INSERT INTO livros VALUES ('Teens 4',11,'Inter',0,0);
-INSERT INTO livros VALUES ('Teens 6',12,'Inter',0,0);
-INSERT INTO livros VALUES ('Teens 8',13,'Inter',0,0);
-INSERT INTO livros VALUES ('W2',14,'Inter',0,0);
-INSERT INTO livros VALUES ('W4',15,'Inter',0,0);
-INSERT INTO livros VALUES ('W6',16,'Inter',0,0);
-INSERT INTO livros VALUES ('W8',17,'Inter',0,0);
-INSERT INTO livros VALUES ('W10',18,'Inter',0,0);
-INSERT INTO livros VALUES ('W12',19,'Inter',0,0);
-INSERT INTO livros VALUES ('Español 2',20,'Conn',0,0);
-INSERT INTO livros VALUES ('Español 4',21,'Conn',0,0);
-INSERT INTO livros VALUES ('Español 6',22,'Conn',0,0);
-INSERT INTO livros VALUES ('Italiano 2',23,'Conn',0,0);
-INSERT INTO livros VALUES ('Italiano 4',24,'Conn',0,0);
-INSERT INTO livros VALUES ('Italiano 6',25,'Conn',0,0);
-INSERT INTO livros VALUES ('Port 2',26,'Conn',0,0);
+-- Pre-Teens: alternativa ao Next Gen na mesma posição da trilha (edição de 2025). Faltava aqui, e
+-- a falta só aparecia em instalação NOVA: o catálogo de estágios referencia este livro por FK, e
+-- sem ele `semearEstagios` abortava no meio e nunca marcava a semeadura como feita. A ordem segue
+-- a do banco em produção, onde ele foi cadastrado pela tela.
+INSERT INTO livros VALUES ('Pre-Teens',10,'Inter',0,0);
+INSERT INTO livros VALUES ('Teens 2',11,'Inter',0,0);
+INSERT INTO livros VALUES ('Teens 4',12,'Inter',0,0);
+INSERT INTO livros VALUES ('Teens 6',13,'Inter',0,0);
+INSERT INTO livros VALUES ('Teens 8',14,'Inter',0,0);
+INSERT INTO livros VALUES ('W2',15,'Inter',0,0);
+INSERT INTO livros VALUES ('W4',16,'Inter',0,0);
+INSERT INTO livros VALUES ('W6',17,'Inter',0,0);
+INSERT INTO livros VALUES ('W8',18,'Inter',0,0);
+INSERT INTO livros VALUES ('W10',19,'Inter',0,0);
+INSERT INTO livros VALUES ('W12',20,'Inter',0,0);
+INSERT INTO livros VALUES ('Español 2',21,'Conn',0,0);
+INSERT INTO livros VALUES ('Español 4',22,'Conn',0,0);
+INSERT INTO livros VALUES ('Español 6',23,'Conn',0,0);
+INSERT INTO livros VALUES ('Italiano 2',24,'Conn',0,0);
+INSERT INTO livros VALUES ('Italiano 4',25,'Conn',0,0);
+INSERT INTO livros VALUES ('Italiano 6',26,'Conn',0,0);
+INSERT INTO livros VALUES ('Port 2',27,'Conn',0,0);
 
 INSERT INTO prioridade VALUES ('Inter',0);
 INSERT INTO prioridade VALUES ('Conn',2);

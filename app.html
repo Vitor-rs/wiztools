@@ -88,6 +88,22 @@ button.acao:hover:not(:disabled){filter:brightness(1.08)}
 button.sec{background:#eee;color:#333;box-shadow:none}button.perigo{background:var(--perigo)}
 .badge{display:inline-block;padding:2px 10px;border-radius:10px;font-weight:bold;font-size:11px}
 .b-on{background:var(--vc);color:#155724}.b-off{background:#f8d7da;color:#721c24}
+/* PÍLULA "NOVO": o ID digitado não existe no banco, então salvar vai CRIAR gente.
+   O degradê corre devagar entre azul, verde e amarelo — a cor não é sólida de propósito, é o
+   único lugar do app que anuncia criação, e o movimento é o que faz o olho parar ali.
+   O truque é `background-size` maior que a caixa e a posição andando: sem redesenho, só composição
+   (é a GPU que move), então não custa quadro. */
+.b-novo{display:inline-flex;align-items:center;gap:5px;color:#fff;border:0;
+  background:linear-gradient(115deg,#1B5FB0,#33AAE3,#22A06B,#E8B10C,#33AAE3,#1B5FB0);
+  background-size:340% 340%;animation:novoFluido 7s ease-in-out infinite;
+  text-shadow:0 1px 2px rgba(0,0,0,.22);letter-spacing:.6px}
+.b-novo .ic{display:inline-flex;animation:novoPulsa 1.9s ease-in-out infinite}
+.b-novo .ic svg{display:block;fill:currentColor;stroke:none}
+@keyframes novoFluido{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+@keyframes novoPulsa{0%,100%{transform:scale(1);opacity:.85}50%{transform:scale(1.18);opacity:1}}
+@media (prefers-reduced-motion:reduce){
+  .b-novo{animation:none;background-position:30% 50%}
+  .b-novo .ic{animation:none}}
 /* Andamento da aula, na aba "Presenças hoje". Classes próprias de propósito: b-on/b-off são o
    Ativado/Desativado do aluno e valem no app inteiro — reaproveitá-los aqui espalharia a mudança.
    Vermelho saiu porque "aula feita" não é notícia ruim: âmbar = acontecendo agora (atenção, mas
@@ -179,7 +195,28 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
 .al-acoes .acao{margin:0 6px 0 0}
 /* `.al-sep-v` (divisória entre busca e cadastro) saiu: a busca deixou de dividir fileira com o
    formulário — subiu para cima das abas, e a separação agora é de posição, não de traço. */
-.al-quem{font-size:12px;color:var(--tx3);font-weight:600}
+/* ===== TOPO GRUDADO da página de Alunos =====
+   Em tela de laptop o conteúdo passa da altura da janela, e ao rolar o cabeçalho ia embora junto —
+   perdia-se de vista de quem era a tela e onde ficavam os botões. Gruda do cabeçalho até o fio;
+   dali para baixo é que rola. O fundo opaco é obrigatório: sem ele o conteúdo passa por dentro. */
+.al-topo{position:sticky;top:0;z-index:20;background:var(--fundo);padding-bottom:2px}
+.al-topo .pg-cab{margin-bottom:10px}
+.al-abas{display:flex;align-items:center}
+/* os três botões no trilho das abas, encostados à direita */
+.al-abas .al-acoes{margin-left:auto;padding-bottom:6px}
+.al-abas .al-acoes .acao{margin:0 0 0 6px}
+/* QUEM ESTÁ SENDO EDITADO: corpo grande, quase o do título da página, com um fio embaixo que
+   pulsa devagar. Sem aluno escolhido a faixa não existe — nada de reservar espaço para um rótulo
+   vazio. */
+.al-quem{display:none}
+.al-quem.tem{display:block;font-size:19px;font-weight:700;color:var(--marca);line-height:1.2;
+  margin:0 0 12px;padding-bottom:7px;position:relative;letter-spacing:-.2px}
+.al-quem.tem::after{content:"";position:absolute;left:0;bottom:0;width:100%;max-width:340px;
+  height:2px;border-radius:2px;background:var(--azul);animation:alPulsa 2.4s ease-in-out infinite}
+@keyframes alPulsa{0%,100%{opacity:.35}50%{opacity:1}}
+@media (prefers-reduced-motion:reduce){.al-quem.tem::after{animation:none;opacity:.8}}
+/* o campo de nova matrícula ocupa o lugar que era dos botões, no fim da fileira do cadastro */
+.al-faixa .nm-linha{margin-left:auto;margin-bottom:0}
 
 .al-historicos{display:grid;gap:16px;align-items:start;
   grid-template-columns:repeat(auto-fit,minmax(290px,1fr))}
@@ -188,8 +225,14 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
 @media (max-width:1100px){.al-hist-larga{grid-column:span 1}}
 .al-hist{background:#fff;border:1px solid var(--borda);border-radius:10px;padding:12px 14px 14px;
   min-width:0}
-.al-hist h3{margin:0 0 8px;font-size:13px;color:var(--marca)}
+.al-hist h3{margin:0 0 8px;font-size:13px;color:var(--marca);display:flex;align-items:center;gap:6px}
 .al-hist h3 small{font-weight:400;color:var(--tx3);font-size:11px;margin-left:5px}
+/* "+" no canto do bloco: é ele que abre o formulário de lançar situação, que nasce escondido */
+.al-hist-add{margin-left:auto;appearance:none;width:24px;height:24px;border-radius:7px;
+  border:1px solid var(--borda);background:#fff;color:var(--tx2);font:inherit;font-size:15px;
+  font-weight:600;line-height:1;cursor:pointer;flex-shrink:0}
+.al-hist-add:hover{border-color:var(--azul);background:var(--azul-cl);color:var(--azul-esc)}
+.al-hist-add.on{background:var(--azul);border-color:var(--azul);color:#fff;transform:rotate(45deg)}
 .al-hist .freq-lista{max-height:300px}
 .al-hist .hist-linha:last-child{border-bottom:0}
 .al-hist-vazio{color:var(--tx3);font-size:12px;padding:6px 0}
@@ -661,17 +704,20 @@ th.ev.ultima .es-ev-data{background:var(--marca);color:#fff}
   border-radius:50%;background:#1B3D85;color:#fff;font-style:normal;font-size:11px;font-weight:700}
 /* respiro entre o bloco descritivo e os cartões do placar, que estavam colados */
 .es-info-ent{margin-bottom:14px}
-/* ===== detalhe de entregas de um aluno ===== */
-.es-ent-l{padding:8px 0;border-bottom:1px dashed #EDF1F5}
+/* ===== detalhe de entregas de um aluno: UMA linha por entrega ===== */
+.es-ent-l{display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:1px dashed #EDF1F5}
 .es-ent-l:last-child{border-bottom:0}
-.es-ent-topo{display:flex;align-items:center;gap:8px;margin-bottom:5px}
-.es-ent-topo b{font-size:12.5px;color:var(--marca)}
-.es-ent-sd{margin-left:auto;font-size:11px;color:var(--tx3);font-variant-numeric:tabular-nums}
-.es-ent-baixo{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.es-ent-baixo input[type=date]{padding:4px 6px;font-size:12px}
-.es-ent-cb{font-size:11.5px;color:var(--tx2);font-variant-numeric:tabular-nums;flex:1;min-width:0}
-.es-ent-cb small{color:var(--tx3);font-size:10.5px}
-.es-ent-baixo .es-bt{margin-left:auto}
+.es-ent-l b{font-size:12.5px;color:var(--marca);flex-shrink:0}
+/* 5cm bastam para uma data — o campo largo comia a linha inteira */
+.es-ent-dt{width:189px;flex-shrink:0;padding:4px 6px;font-size:12px}
+.es-ent-un{font-size:10.5px;color:#AEB6C0;font-weight:400;font-variant-numeric:tabular-nums;
+  flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.es-ent-l .es-bt{margin-left:auto;flex-shrink:0}
+/* o nome do aluno cabe numa linha só; a coluna cresceu e o painel encolheu para dar lugar */
+#es-p-entregas .es-tabela th.col-item{width:290px;min-width:290px}
+#es-p-entregas .es-item-nome{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+#es-p-entregas .es-mestre{grid-template-columns:auto minmax(0,0.7fr)}
+@media (max-width:1150px){#es-p-entregas .es-mestre{grid-template-columns:1fr}}
 .es-bloco-pe{display:flex;gap:8px;align-items:center;margin-top:9px;font-size:11.5px;color:var(--tx3)}
 .es-bloco-pe .es-bt{margin-left:auto}
 .es-bloco-pe .es-bt+.es-bt{margin-left:0}
@@ -726,6 +772,33 @@ th.ev.ultima .es-ev-data{background:var(--marca);color:#fff}
 .es-fila-l .dt{font-weight:600;color:var(--marca);font-variant-numeric:tabular-nums;min-width:96px}
 .es-fila-l .og{color:var(--tx3);flex:1}
 .es-fila-l .cd{color:var(--tx3);font-size:11px;font-variant-numeric:tabular-nums}
+/* linha da unidade: data em negrito, hora esmaecida, código à direita e o lápis no fim */
+.es-fila-l .ent{min-width:132px;font-variant-numeric:tabular-nums}
+.es-fila-l .ent b{font-weight:700;color:var(--marca);font-size:12px}
+.es-fila-l .ent i{font-style:normal;font-size:10.5px;color:#AEB6C0;font-weight:400;margin-left:5px}
+.es-fila-l.proximo .ent b{color:var(--es-remessa)}
+.es-fila-l .cb{font-size:11px;color:var(--tx2);font-variant-numeric:tabular-nums;min-width:120px}
+.es-fila-l .cb i{font-style:normal;color:#C6CDD6}
+.es-lapis{margin-left:auto;appearance:none;border:1px solid transparent;background:none;
+  color:var(--tx3);cursor:pointer;border-radius:6px;padding:2px 6px;font-size:12px;line-height:1}
+.es-lapis:hover{border-color:var(--borda);background:#fff;color:var(--marca)}
+/* balão do lápis: as três ações da unidade, num lugar só */
+.es-balao{min-width:250px;padding:8px}
+.es-balao-c{display:flex;flex-direction:column;gap:3px;margin:0 0 8px;text-transform:none;
+  letter-spacing:0;font-size:12px}
+.es-balao-c span{font-size:10.5px;color:var(--tx3);font-weight:600;text-transform:uppercase;
+  letter-spacing:.4px}
+.es-balao-c input{padding:5px 7px;font-size:12.5px;width:100%;font-family:inherit}
+.es-balao-pe{display:flex;align-items:center;gap:8px}
+.es-balao-pe .acao{margin-left:auto}
+/* botões do formulário do material, no espaço que o código de barras deixou */
+.es-cad-acoes{display:flex;align-items:end;gap:6px}
+.es-cad-acoes .acao{margin:0;padding:6px 12px}
+/* salvar ACESO: há alteração pendente. Pulsa devagar para chamar sem gritar. */
+.es-cad-acoes .acao.alerta{animation:esGlow 1.8s ease-in-out infinite}
+@keyframes esGlow{0%,100%{box-shadow:0 0 0 0 rgba(51,170,227,.5)}50%{box-shadow:0 0 0 5px rgba(51,170,227,0)}}
+@media (prefers-reduced-motion:reduce){.es-cad-acoes .acao.alerta{animation:none}}
+.es-cad-acoes .acao[disabled]{opacity:.45;cursor:not-allowed}
 /* instante e código editáveis: sem moldura até o hover, para a fila continuar se lendo como lista */
 .es-fila-l .dt-in{width:158px;padding:3px 5px;font-size:11.5px;border:1px solid transparent;
   background:none;border-radius:5px;font-variant-numeric:tabular-nums;color:var(--marca);
@@ -2117,35 +2190,44 @@ td.lc-est-cel{padding:0!important;border-left:1px solid var(--aba-bd);border-rig
 <div id="conteudo">
 
 <div id="tab-alunos" class="tab">
-<div class="pg-cab"><h2>Gerenciar alunos</h2>
-<div class="pg-dir"><span id="al-quem" class="al-quem"></span></div>
-</div>
-<!-- A busca sai das abas e fica sozinha logo abaixo do cabeçalho: ela não pertence a nenhuma das
-     duas, é o que vem ANTES delas. Primeiro se acha (ou cadastra) o aluno; só então faz sentido
-     escolher entre ver as informações dele e mexer nas matrículas. -->
+<!-- TOPO GRUDADO: cabeçalho, busca, quem está sendo editado, as abas com os botões, e — só na aba
+     Cadastro — a fileira de campos e o fio. Dessa linha para baixo é que rola.
+     A fileira do cadastro vive AQUI e não dentro do painel justamente para poder grudar junto: o
+     que gruda tem de ser um bloco só, senão cada pedaço para num lugar diferente. -->
+<div class="al-topo">
+<div class="pg-cab"><h2>Gerenciar alunos</h2></div>
+<!-- A busca vem antes de tudo: é por onde se ENTRA na tela. Primeiro se acha (ou cadastra) o
+     aluno; só então faz sentido escolher entre o cadastro dele e o histórico. -->
 <div class="al-busca-topo">
 <label for="al-busca">Buscar / cadastrar aluno</label>
 <div class="sug"><input id="al-busca" placeholder="Digite nome ou ID..." autocomplete="off"><div class="lista" id="al-sug"></div></div>
 </div>
+<!-- QUEM ESTÁ SENDO EDITADO, logo abaixo da busca e em corpo grande. Estava num canto do
+     cabeçalho, discreto demais — trocar de aba escondia o nome e não se sabia mais de quem era a
+     tela. O fio embaixo pulsa devagar: é o sinal de que há alguém aberto. -->
+<div id="al-quem" class="al-quem"></div>
 
-<div class="pg-abas">
-<button class="pg-aba on" data-p="cadastro" onclick="alAba('cadastro')">Informações</button>
-<button class="pg-aba" data-p="matriculas" onclick="alAba('matriculas')">Matrículas<span class="n" id="al-n-mat">0</span></button>
+<div class="pg-abas al-abas">
+<button class="pg-aba on" data-p="cadastro" onclick="alAba('cadastro')">Cadastro</button>
+<button class="pg-aba" data-p="matriculas" onclick="alAba('matriculas')">Informações</button>
+<!-- os três botões saíram de dentro das abas e subiram para o trilho delas: valem para o aluno,
+     não para a aba aberta, e escondidos lá dentro obrigavam a voltar para salvar -->
+<div class="al-acoes">
+<button class="acao" id="al-salvar" data-off="Salvar" data-on="Salvar alterações" onclick="alSalvar()"><span class="btn-ic"></span><span class="btn-txt">Salvar</span></button>
+<button class="acao perigo" id="al-excluir" style="display:none" onclick="alExcluir()">Excluir</button>
+<button class="acao sec" onclick="alNovo()">Limpar</button>
+</div>
 </div>
 
-<!-- ===== ABA 1: o cadastro e os três históricos ===== -->
-<div id="al-p-cadastro" class="al-painel">
-<!-- faixa horizontal: a busca abre a fileira porque é por onde se ENTRA na tela; os campos do
-     cadastro seguem à direita, na ordem em que se preenche. Larguras por conteúdo — o ID é um
-     número de 4 dígitos e não merecia a mesma largura do nome completo. -->
+<!-- fileira do cadastro: some quando a aba aberta é a de Informações -->
+<div id="al-faixa-cx">
 <div class="al-faixa">
 <div class="al-campo al-campo-nome">
 <label for="al-nome">Nome completo</label><input id="al-nome">
 </div>
 <div class="al-campo al-campo-id">
 <!-- O ID trava depois de salvo, de propósito: é a chave do aluno em dez tabelas. Trocá-lo fica
-     atrás deste botão minúsculo e de um popover — duas barreiras contra edição acidental, que foi
-     como ele pediu. Sem borda e sem padding para não empurrar a fileira do cadastro. -->
+     atrás deste botão minúsculo e de um popover — duas barreiras contra edição acidental. -->
 <label for="al-id">ID da matrícula<button type="button" id="al-id-eng" class="al-id-eng"
  title="Trocar o ID da matrícula" onclick="alMenuId(event)">✎</button></label>
 <input id="al-id" inputmode="numeric" maxlength="10">
@@ -2157,26 +2239,37 @@ td.lc-est-cel{padding:0!important;border-left:1px solid var(--aba-bd);border-rig
 <label>Status</label>
 <span id="al-status" class="badge b-off">—</span>
 </div>
-<div class="al-acoes">
-<button class="acao" id="al-salvar" data-off="Salvar" data-on="Salvar alterações" onclick="alSalvar()"><span class="btn-ic"></span><span class="btn-txt">Salvar</span></button>
-<button class="acao perigo" id="al-excluir" style="display:none" onclick="alExcluir()">Excluir</button>
-<button class="acao sec" onclick="alNovo()">Limpar</button>
+<!-- o campo de nova matrícula ocupou o lugar que era dos três botões: é a ação natural de quem
+     acabou de conferir o cadastro, e ali ela fica na mesma fileira -->
+<div class="nm-linha">
+<label for="nm-livro">+ Nova matrícula em estágio</label>
+<div class="sug"><input id="nm-livro" placeholder="Digite o estágio..." autocomplete="off" disabled><div class="lista" id="nm-livro-sug"></div></div>
+<button type="button" class="nm-info" onclick="dlgAviso({titulo:'Matrícula em estágio',texto:'Cada estágio é uma matrícula própria: modalidade, VIP, tipo de encontro e agenda ficam aqui, não na turma.\n\nO contrato é a matrícula do aluno mais a ordem do vínculo — 2068/1 é o primeiro estágio dele, 2068/2 o segundo, independente do idioma.'})" title="O que é uma matrícula em estágio">i</button>
 </div>
 </div>
 <div id="al-aviso"></div>
-
 <hr class="pg-fio">
+</div>
+</div>
 
-<!-- os três registros lado a lado: com a largura inteira da página eles cabem abertos, e ver os
-     três juntos é o que responde "o que aconteceu com este aluno" sem abrir e fechar nada -->
-<!-- o texto inicial já vem no HTML: sem aluno escolhido os três cartões abriam vazios, e cartão
-     em branco não diz se está carregando, se deu erro ou se falta escolher alguém -->
+<!-- ===== ABA 1 · CADASTRO: as matrículas do aluno, livro a livro ===== -->
+<div id="al-p-cadastro" class="al-painel">
+<div id="mat-lista"><div class="matriculas-vazio">Escolha ou cadastre um aluno para ver as matrículas.</div></div>
+</div>
+
+<!-- ===== ABA 2 · INFORMAÇÕES: o que aconteceu com este aluno ===== -->
+<div id="al-p-matriculas" class="al-painel" style="display:none">
+<!-- os três registros lado a lado: ver os três juntos é o que responde "o que aconteceu com este
+     aluno" sem abrir e fechar nada. O texto inicial já vem no HTML — cartão em branco não diz se
+     está carregando, se deu erro ou se falta escolher alguém. -->
 <div class="al-historicos">
-<!-- Percurso e histórico de situação diziam a mesma coisa em dois lugares — ele apontou a
-     redundância e os dois viraram UM. O histórico é o ponto de entrada; o percurso continua no
-     banco e se mantém sozinho a partir daqui (data de início, encerramento, contrato). -->
+<!-- Percurso e histórico de situação diziam a mesma coisa em dois lugares — os dois viraram UM.
+     O histórico é o ponto de entrada; o percurso continua no banco e se mantém sozinho a partir
+     daqui (data de início, encerramento, contrato). -->
 <section class="al-hist al-hist-larga">
-<h3>Histórico de situação <small>a jornada do aluno, estágio por estágio</small></h3>
+<h3>Histórico de situação <small>a jornada do aluno, estágio por estágio</small>
+<button type="button" class="al-hist-add" id="hist-add-bt" onclick="histAbrirAdd()"
+ title="Registrar uma situação">+</button></h3>
 <div id="hist-corpo"><div class="al-hist-vazio">Escolha um aluno.</div></div>
 </section>
 <section class="al-hist">
@@ -2189,19 +2282,8 @@ td.lc-est-cel{padding:0!important;border-left:1px solid var(--aba-bd);border-rig
 </section>
 </div>
 </div>
+</div>
 
-<!-- ===== ABA 2: as matrículas em livro ===== -->
-<div id="al-p-matriculas" class="al-painel" style="display:none">
-<!-- rótulo e campo na MESMA linha: é um gesto só, e a explicação virou um ⓘ para não ocupar
-     uma faixa inteira da tela com texto que se lê uma vez. -->
-<div class="nm-linha">
-<label for="nm-livro">+ Nova matrícula em estágio</label>
-<div class="sug"><input id="nm-livro" placeholder="Digite o estágio..." autocomplete="off" disabled><div class="lista" id="nm-livro-sug"></div></div>
-<button type="button" class="nm-info" onclick="dlgAviso({titulo:'Matrícula em estágio',texto:'Cada estágio é uma matrícula própria: modalidade, VIP, tipo de encontro e agenda ficam aqui, não na turma.\n\nO contrato é a matrícula do aluno mais a ordem do vínculo — 2068/1 é o primeiro estágio dele, 2068/2 o segundo, independente do idioma.'})" title="O que é uma matrícula em estágio">i</button>
-</div>
-<div id="mat-lista"><div class="matriculas-vazio">Escolha ou cadastre um aluno para ver as matrículas.</div></div>
-</div>
-</div>
 
 <div id="tab-turmas" class="tab">
 <div class="pg-cab"><h2>Gerenciar turmas</h2><span class="pg-sub">salas: estágio, dias, horário e professoras</span></div>
@@ -2799,15 +2881,66 @@ function(a){$(p+'-busca').value='';lcAbrirDialog(a.id)})});
 }
 
 /* ===== ALUNOS (cadastro + matrículas em livro, tudo na mesma tela) ===== */
-function alStatus(){var s=$('al-sit').value;var reg=((DOM&&DOM.situacoes)||[]).filter(function(x){return x.situacao===s})[0];var ativo=!!(reg&&reg.ativa);var b=$('al-status');b.textContent=ativo?'Ativado':'Desativado';b.className='badge '+(ativo?'b-on':'b-off')}
+/* O campo Status responde a duas perguntas diferentes, e é por isso que ele tem TRÊS estados:
+   - ID digitado que o banco não conhece  → pílula NOVO (o aluno ainda não existe)
+   - aluno existente                      → Ativado / Desativado, derivado da situação
+   - nada digitado                        → traço
+   Sem o estado NOVO, cadastrar alguém era digitar no escuro: nada na tela dizia se aquele ID já
+   era de outra pessoa ou se ia criar gente nova. */
+function alStatus(){
+var b=$('al-status');
+if(AL_NOVO){
+ b.className='badge b-novo';
+ b.innerHTML='NOVO<span class="ic">'+icon('sparkles',12)+'</span>';
+ b.title='Este ID ainda não existe — salvar vai cadastrar um aluno novo';
+ return}
+if(!alSel&&!($('al-id').value||'').trim()){
+ b.className='badge b-off';b.textContent='—';b.title='Digite o ID da matrícula';return}
+var s=$('al-sit').value;
+var reg=((DOM&&DOM.situacoes)||[]).filter(function(x){return x.situacao===s})[0];
+var ativo=!!(reg&&reg.ativa);
+b.className='badge '+(ativo?'b-on':'b-off');b.textContent=ativo?'Ativado':'Desativado';
+b.title=ativo?'Aluno ativo no sistema':'Aluno fora dos cálculos e das listas';
+}
+/* true quando o ID digitado não existe no banco */
+var AL_NOVO=false;
+/* Consulta o ID enquanto se digita. Debounce porque é uma ida ao servidor por tecla, e o campo do
+   ID tem 4 dígitos — sem ela seriam quatro chamadas para uma resposta só. */
+var alConferirId=debounce(function(){
+var id=($('al-id').value||'').trim();
+if(alSel||!id){AL_NOVO=false;alStatus();alTravarVinculo();return}
+run('alunoExiste',[{id:id}],function(r){
+ AL_NOVO=!r.existe;
+ /* ID que já é de outra pessoa: avisa na hora, em vez de deixar descobrir no salvar */
+ $('al-aviso').innerHTML=r.existe
+   ?'<div class="info aviso">O ID <b>'+escBloco(id)+'</b> já é de <b>'+escBloco(r.nome)+'</b>. Busque-o pelo nome para editar.</div>'
+   :'';
+ alStatus();alTravarVinculo()})},260);
+/* MATRÍCULA SÓ DEPOIS DO ALUNO EXISTIR: vincular estágio a alguém que ainda não foi salvo criaria
+   uma matrícula órfã — `aluno_livro` tem FK para `alunos`. O campo fica travado e diz por quê. */
+function alTravarVinculo(){
+var i=$('nm-livro');if(!i)return;
+var pode=!!alSel;
+i.disabled=!pode;
+i.placeholder=pode?'Digite o estágio...':'Salve o aluno primeiro';
+i.title=pode?'':'O estágio só pode ser vinculado depois que o aluno existir no sistema';
+}
 /* ---- abas da página de Alunos ---- */
 function alAba(p){
 document.querySelectorAll('#tab-alunos .pg-aba').forEach(function(b){b.classList.toggle('on',b.dataset.p===p)});
 ['cadastro','matriculas'].forEach(function(x){$('al-p-'+x).style.display=(x===p?'block':'none')});
+/* a fileira do cadastro mora no topo grudado (para grudar junto com ele), então é aqui que ela
+   some quando a aba aberta é a de Informações */
+$('al-faixa-cx').style.display=(p==='cadastro'?'block':'none');
 }
 /* quem está aberto, no canto direito do cabeçalho: com o formulário em fileira o nome deixou de
    ser um título de coluna, e sem isto a tela não diz de quem são os históricos logo abaixo */
-function alQuem(){$('al-quem').textContent=alSel?('Editando: '+alSel.nome):'Novo aluno';
+function alQuem(){
+/* nome em corpo grande abaixo da busca: sem aluno escolhido a faixa some inteira, em vez de
+   reservar espaço para um "Novo aluno" que não diz nada */
+var q=$('al-quem');
+q.textContent=alSel?alSel.nome:'';
+q.classList.toggle('tem',!!alSel);
 /* cadastro novo já tem o campo editável — o botão só faz sentido quando o ID está travado */
 var b=$('al-id-eng');if(b)b.style.display=alSel?'inline':'none'}
 /* Popover do ID, no estilo do menu do Kanban: some ao clicar fora e ao ESC. Trocar o ID move o
@@ -2864,12 +2997,34 @@ histCarregar();hhistCarregar();freqCarregar();
 }
 /* os históricos só depois das matrículas: o dropdown de livro da situação depende delas (ver o
    comentário em recarregarMatriculas) */
-function alCarregar(a){dirty('al',false);alSel=a;$('al-nome').value=a.nome;$('al-id').value=a.id;$('al-id').disabled=true;$('al-sit').value=a.situacao;$('al-excluir').style.display='inline-block';$('al-busca').value='';$('nm-livro').disabled=false;alQuem();alStatus();recarregarMatriculas(alHistoricos)}
-function alNovo(){dirty('al',false);alSel=null;$('al-nome').value='';$('al-id').value='';$('al-id').disabled=false;$('al-sit').selectedIndex=0;$('al-excluir').style.display='none';$('al-aviso').innerHTML='';$('nm-livro').disabled=true;alQuem();alHistoricos();alStatus();MATRICULAS=[];MATRIC_AULAS={};renderMatriculas();alAba('cadastro')}
-function alSalvar(){var a={id:$('al-id').value.trim(),nome:$('al-nome').value.trim(),situacao:$('al-sit').value};
+function alCarregar(a){dirty('al',false);AL_NOVO=false;alSel=a;$('al-nome').value=a.nome;$('al-id').value=a.id;$('al-id').disabled=true;$('al-sit').value=a.situacao;$('al-excluir').style.display='inline-block';$('al-busca').value='';alQuem();alStatus();alTravarVinculo();$('al-aviso').innerHTML='';recarregarMatriculas(alHistoricos)}
+function alNovo(){dirty('al',false);alSel=null;AL_NOVO=false;$('al-nome').value='';$('al-id').value='';$('al-id').disabled=false;$('al-sit').selectedIndex=0;$('al-excluir').style.display='none';$('al-aviso').innerHTML='';alTravarVinculo();alQuem();alHistoricos();alStatus();MATRICULAS=[];MATRIC_AULAS={};renderMatriculas();alAba('cadastro')}
+function alSalvar(){
+var a={id:$('al-id').value.trim(),nome:$('al-nome').value.trim(),situacao:$('al-sit').value};
 if(!a.id||!a.nome){msg('Preencha nome e ID.',true);return}
-if(!alSel){var dup=ALUNOS.filter(function(x){return String(x.id)===a.id})[0];if(dup){msg('Já existe aluno com ID '+a.id+' ('+dup.nome+'). Selecione-o na busca para editar.',true);return}}
-run('salvarAluno',[a],function(r){msg(r.criado?'Aluno cadastrado — as matrículas em estágio ficam na aba Matrículas.':'Aluno atualizado.');alSel={id:a.id,nome:a.nome,situacao:a.situacao,status:r.status};alQuem();$('al-id').disabled=true;$('al-excluir').style.display='inline-block';$('nm-livro').disabled=false;alHistoricos();run('getAlunos',[],function(x){ALUNOS=x});recarregarMatriculas()})}
+if(!alSel){
+ var dup=ALUNOS.filter(function(x){return String(x.id)===a.id})[0];
+ if(dup){msg('Já existe aluno com ID '+a.id+' ('+dup.nome+'). Selecione-o na busca para editar.',true);return}
+ /* CADASTRAR GENTE NOVA PERGUNTA ANTES: é criação de registro com ID que vai aparecer em dez
+    tabelas, e ID errado só se conserta pelo popover de troca. */
+ dlgConfirmar({titulo:'Cadastrar aluno novo?',ok:'Cadastrar',
+  texto:a.nome+'\nMatrícula '+a.id+'\n\nO ID '+a.id+' ainda não existe no sistema. '
+   +'Depois de salvo ele trava, e trocá-lo exige o botão de edição ao lado do campo.'},
+ function(sim){if(sim)alGravar(a,true)});
+ return}
+alGravar(a,false);
+}
+function alGravar(a,novo){
+run('salvarAluno',[a],function(r){
+ msg(r.criado?'Aluno cadastrado — agora dá para vincular o estágio.':'Aluno atualizado.');
+ alSel={id:a.id,nome:a.nome,situacao:a.situacao,status:r.status};
+ AL_NOVO=false;
+ alQuem();alStatus();
+ $('al-id').disabled=true;$('al-excluir').style.display='inline-block';
+ $('al-aviso').innerHTML='';
+ alTravarVinculo();
+ dirty('al',false);
+ alHistoricos();run('getAlunos',[],function(x){ALUNOS=x});recarregarMatriculas()})}
 function alExcluir(){if(!alSel)return;
 dlgConfirmar({titulo:'Excluir aluno',perigo:true,ok:'Excluir aluno',
  texto:'Excluir '+alSel.nome+' e TODAS as suas matrículas e aulas?'},function(sim){if(!sim)return;
@@ -2885,7 +3040,9 @@ run('getMatriculasAluno',[alSel.id],function(ms){MATRICULAS=ms;
 run('getAulasAluno',[alSel.id],function(aulas){var por={};aulas.forEach(function(x){(por[x.livro]=por[x.livro]||[]).push(x)});MATRIC_AULAS=por;renderMatriculas();if(cb)cb()})})}
 function renderMatriculas(){
 var box=$('mat-lista');box.innerHTML='';
-$('al-n-mat').textContent=alSel?MATRICULAS.length:0;
+/* o contador vivia na aba "Matrículas", que virou "Informações" e não conta matrícula nenhuma —
+   o elemento sumiu do HTML, então a atualização é condicional */
+var cn=$('al-n-mat');if(cn)cn.textContent=alSel?MATRICULAS.length:0;
 if(!alSel){box.innerHTML='<div class="matriculas-vazio">Busque ou cadastre um aluno no campo acima para ver as matrículas.</div>';return}
 if(!MATRICULAS.length){var v=document.createElement('div');v.className='matriculas-vazio';v.textContent='Nenhuma matrícula ainda — use "+ Nova matrícula em estágio" acima.';box.appendChild(v)}
 MATRICULAS.forEach(function(m){box.appendChild(criarCartaoMatricula(m))});
@@ -3192,6 +3349,11 @@ run('excluirMatricula',[{idMatricula:alSel.id,livro:livro}],function(r){msg('Mat
 /* ---- histórico de situação: a jornada do aluno, estágio por estágio ---- */
 /* id do registro em edição inline — um por vez */
 var HIST_EDIT=null;
+/* o formulário de lançar situação está aberto? Nasce fechado. */
+var HIST_ADD=false;
+function histAbrirAdd(){
+if(!alSel){msg('Escolha um aluno primeiro.',true);return}
+HIST_ADD=!HIST_ADD;histCarregar()}
 function histFechar(){HIST_EDIT=null;$('hist-corpo').innerHTML='<div class="al-hist-vazio">Escolha um aluno.</div>'}
 function histCarregar(){run('getHistoricoAluno',[alSel.id],function(hs){histRender(hs)})}
 /* "Rematriculado" -> "sit-rematriculado": sem acento e em minúsculas, para virar classe CSS */
@@ -3217,10 +3379,17 @@ hs.forEach(function(h){if(h.livro&&!vistos[h.livro]){vistos[h.livro]=1;
 var inpData=document.createElement('input');inpData.type='date';
 var addBtn=document.createElement('button');addBtn.type='button';addBtn.className='acao';addBtn.style.cssText='padding:6px 10px;margin:0';addBtn.textContent='+';
 addBtn.onclick=function(){if(!inpData.value){msg('Escolha uma data.',true);return}
-run('salvarHistoricoAluno',[{idMatricula:alSel.id,situacao:selSit.value,data:inpData.value,livro:selLiv.value||null}],function(r){inpData.value='';histDepois(r)})};
+run('salvarHistoricoAluno',[{idMatricula:alSel.id,situacao:selSit.value,data:inpData.value,livro:selLiv.value||null}],function(r){
+ inpData.value='';HIST_ADD=false;   /* lançou, fecha: o gesto acabou */
+ histDepois(r)})};
 addRow.appendChild(selSit);addRow.appendChild(selLiv);addRow.appendChild(inpData);addRow.appendChild(addBtn);
+/* O FORMULÁRIO NASCE ESCONDIDO (2026-08-11): quatro campos sempre à mão num histórico é convite a
+   lançamento acidental, e lançar situação mexe no status do aluno e no percurso dele. Quem quer
+   lançar abre pelo "+" no canto do bloco. */
+if(!HIST_ADD)addRow.style.display='none';
 box.appendChild(addRow);
 box.appendChild(Object.assign(document.createElement('hr'),{className:'hist-fio'}));
+var bt=$('hist-add-bt');if(bt)bt.classList.toggle('on',!!HIST_ADD);
 if(!hs.length){var v=document.createElement('div');v.style.cssText='color:var(--tx3);font-size:12px;padding:4px 0';v.textContent='Nenhum registro ainda.';box.appendChild(v);return}
 var lista=document.createElement('div');lista.className='freq-lista';
 hs.forEach(function(h){var row=document.createElement('div');row.className='hist-linha';
@@ -3638,12 +3807,12 @@ var ES_ABERTAS=[];
 var ES_ITEM_SEL=null;
 /* mesma ideia na aba Entregas, só que a chave é o aluno */
 var ES_ALUNO_SEL=null;
-/* um campo do cadastro dentro da linha aberta */
+/* Um campo do formulário do material. NÃO grava sozinho: gravar a cada tecla tirava o controle de
+   quem edita e impedia o "cancelar". Quem grava é o botão Salvar, que acende ao detectar mudança. */
 function esCampo(it,campo,rot,tipo,dica){
 var v=it[campo];v=(v==null?'':v);
 return '<label><span>'+rot+'</span><input'+(tipo==='num'?' type="number"':'')
- +' value="'+escBloco(String(v))+'" placeholder="'+escBloco(dica)+'"'
- +' onchange="esCampoItem('+it.id+',\''+campo+'\',this.value)"></label>'}
+ +' value="'+escBloco(String(v))+'" placeholder="'+escBloco(dica)+'"></label>'}
 /* '2026-08-06 08:00:00.001' → '2026-08-06T08:00' (o que o input datetime-local aceita) */
 function esParaInput(ts){var p=String(ts).split(' ');
  return p.length===2?p[0]+'T'+p[1].slice(0,5):''}
@@ -3820,11 +3989,70 @@ esAjustarAltura();
 /* Escolher um material NÃO redesenha a tabela — só troca a classe da linha e repinta o painel da
    direita. Com `esRender()` a grade inteira era reconstruída a cada clique, e a tela piscava. */
 function esEscolherMaterial(id){
+/* alteração pendente não some em silêncio: trocar de material com o formulário sujo pergunta
+   antes, porque o que se perde é digitação que ninguém vê sumir */
+if(esSujo()){
+ var atual=esItem(ES_ITEM_SEL);
+ dlgConfirmar({titulo:'Alterações não salvas',ok:'Salvar e continuar',
+  texto:'Há alterações em "'+(atual?atual.descricao:'')+'" que ainda não foram salvas.\n\nSalvar antes de abrir outro material?'},
+ function(sim){
+  if(sim)esSalvarMaterial();
+  ES_ORIG=null;                     /* limpa a guarda para o clique seguinte não repetir */
+  esTrocarMaterial(id)});
+ return}
+esTrocarMaterial(id);
+}
+function esTrocarMaterial(id){
 ES_ITEM_SEL=(ES_ITEM_SEL===id?null:id);
 document.querySelectorAll('#es-grade tr.linha').forEach(function(tr){
   tr.classList.toggle('sel',Number(tr.dataset.i)===ES_ITEM_SEL)});
 esDetalheMaterial();
 }
+/* ---- balão do lápis: as três ações de UMA unidade ---- */
+var ES_BALAO=null;
+function esFecharBalao(){if(ES_BALAO){ES_BALAO.remove();ES_BALAO=null;
+  document.removeEventListener('mousedown',esCliqueForaBalao,true);
+  document.removeEventListener('keydown',esEscBalao,true)}}
+function esCliqueForaBalao(e){if(ES_BALAO&&!ES_BALAO.contains(e.target))esFecharBalao()}
+function esEscBalao(e){if(e.key==='Escape')esFecharBalao()}
+function esBalaoUnidade(ev,id){
+ev.stopPropagation();
+if(ES_BALAO){esFecharBalao();return}
+var u=null;
+(ES.itens||[]).forEach(function(i){(i.unidades||[]).forEach(function(x){if(x.id===id)u=x})});
+if(!u)return;
+var r=ev.currentTarget.getBoundingClientRect();
+var m=document.createElement('div');m.className='lc-menu es-balao';
+m.innerHTML='<div class="tit">Unidade</div>'
+ +'<label class="es-balao-c"><span>Código de barras</span>'
+ +'<input id="es-bl-cod" value="'+escBloco(u.codigo||'')+'" placeholder="WZ01001000220"></label>'
+ +'<label class="es-balao-c"><span>Entrada</span>'
+ +'<input id="es-bl-dt" type="datetime-local" value="'+escBloco(esParaInput(u.entrada))+'"></label>'
+ +'<div class="es-balao-pe">'
+ +'<button class="es-bt desfaz" onclick="esExcluirUnidade('+id+')">excluir</button>'
+ +'<button class="acao" style="margin:0;padding:5px 11px" onclick="esSalvarUnidade('+id+')">Salvar</button>'
+ +'</div>';
+document.body.appendChild(m);
+/* abre PARA CIMA do lápis quando não há espaço abaixo — a lista costuma estar no pé da tela */
+var alt=m.offsetHeight;
+m.style.top=(r.bottom+alt+10<innerHeight?r.bottom+6:r.top-alt-6)+'px';
+m.style.left=Math.max(8,Math.min(r.left-150,innerWidth-m.offsetWidth-10))+'px';
+ES_BALAO=m;
+document.addEventListener('mousedown',esCliqueForaBalao,true);
+document.addEventListener('keydown',esEscBalao,true);
+var i=$('es-bl-cod');if(i){i.focus();i.select()}
+}
+function esSalvarUnidade(id){
+var cod=($('es-bl-cod')||{}).value||'', dt=($('es-bl-dt')||{}).value||'';
+esFecharBalao();
+run('ajustarUnidade',[{id:id,codigo:cod,entrada:dt?dt.replace('T',' '):undefined}],function(){
+ msg('Unidade atualizada.');esCarregar()})}
+function esExcluirUnidade(id){
+esFecharBalao();
+dlgConfirmar({titulo:'Excluir unidade',perigo:true,ok:'Excluir',
+ texto:'Excluir este exemplar do estoque?\n\nO saldo cai em 1. Se ele já foi entregue a um aluno, a entrega continua registrada.'},
+function(sim){if(!sim)return;
+run('excluirUnidade',[{id:id}],function(){msg('Unidade excluída.');esCarregar()})})}
 function esDetalheMaterial(){
 var box=$('es-detalhe');if(!box)return;
 var it=ES_ITEM_SEL?esItem(ES_ITEM_SEL):null;
@@ -3833,45 +4061,93 @@ if(!it){box.innerHTML='<div class="es-cx"><div class="es-cx-cab">Informações</
 var us=(it.unidades||[]);
 var h='<div class="es-cx"><div class="es-cx-cab">Informações'
  +'<span class="es-cx-quem">'+escBloco(it.descricao)+'</span></div><div class="es-cx-corpo">';
+/* O CÓDIGO DE BARRAS saiu daqui: quem tem código é a UNIDADE, não o material. O material é a
+   classe; a etiqueta está colada em cada exemplar, e é ela que, com o instante, identifica um
+   exemplar na fila. */
 h+='<div class="es-cad">'
  +esCampo(it,'descricao','Descrição','texto','')
- +esCampo(it,'codigo','Código de barras','texto','WZ01001000220')
  +esCampo(it,'edicaoNome','Edição','texto','NEW, 3rd Ed.')
  +esCampo(it,'edicaoAno','Ano','num','2020')
- +'<label><span>Tipo</span><select onchange="esCampoItem('+it.id+',\'tipo\',this.value)">'
+ +'<label><span>Tipo</span><select>'
    +[['kit','kit'],['peca','peça']].map(function(t){
      return '<option value="'+t[0]+'"'+(it.tipo===t[0]?' selected':'')+'>'+t[1]+'</option>'}).join('')
    +'</select></label>'
- +'<label><span>Finalidade</span><select onchange="esCampoItem('+it.id+',\'finalidade\',this.value)">'
+ +'<label><span>Finalidade</span><select>'
    +[['venda','venda'],['consumo','consumo'],['professor','uso do professor']].map(function(t){
      return '<option value="'+t[0]+'"'+(it.finalidade===t[0]?' selected':'')+'>'+t[1]+'</option>'}).join('')
    +'</select></label>'
  +esCampo(it,'minimo','Mínimo','num','0')
+ /* Salvar/cancelar no espaço que o código de barras deixou. O salvar só acende quando há mudança
+    de verdade — e volta a apagar se a mudança for desfeita. */
+ +'<div class="es-cad-acoes">'
+ +'<button class="acao" id="es-salvar" onclick="esSalvarMaterial()" disabled>Salvar</button>'
+ +'<button class="acao sec" id="es-cancelar" onclick="esCancelarMaterial()" disabled>Cancelar</button>'
+ +'</div>'
  +'</div>';
 h+='<hr class="pg-fio">';
 h+='<div class="es-fila-tit">'+(us.length?us.length+' '+(us.length===1?'unidade':'unidades')
    +' no estoque — sai a mais antiga primeiro':'nenhuma unidade no estoque')+'</div>';
 us.forEach(function(u,ix){
+ var p=String(u.entrada).split(' ');
  h+='<div class="es-fila-l'+(ix?'':' proximo')+'">'
   +'<span class="ord">'+(ix+1)+'</span>'
-  /* o instante é EDITÁVEL: é o que permite consertar a ordem da fila quando uma caixa foi lançada
-     com a data errada */
-  +'<input class="dt-in" type="datetime-local" value="'+escBloco(esParaInput(u.entrada))+'"'
-  +' onchange="esEntradaUnidade('+u.id+',this.value)" title="quando esta unidade entrou — muda o lugar dela na fila">'
+  /* data em negrito, hora esmaecida ao lado: a data é o que se lê, a hora só desempata a fila */
+  +'<span class="ent"><b>'+escBloco(esDataBR(p[0]||''))+'</b>'
+   +'<i>'+escBloco((p[1]||'').slice(0,12))+'</i></span>'
   +'<span class="og">'+(u.origem==='contagem'?'da contagem':(u.remessa?'remessa '+esDataBR(u.remessa):'entrada manual'))+'</span>'
-  +'<input class="cd-in" value="'+escBloco(u.codigo||'')+'" placeholder="código de barras"'
-  +' onchange="esCodigoUnidade('+u.id+',this.value)">'
+  +'<span class="cb">'+(u.codigo?escBloco(u.codigo):'<i>sem código</i>')+'</span>'
   +(ix?'':'<span class="pr">próxima a sair</span>')
+  /* o lápis abre o balão com as três ações daquela unidade — editar no lugar deixava dois campos
+     sempre à mão numa lista que se lê muito mais do que se edita */
+  +'<button class="es-lapis" onclick="esBalaoUnidade(event,'+u.id+')" title="editar esta unidade">✎</button>'
   +'</div>'});
 h+='<div style="margin-top:12px"><button class="es-bt desfaz" onclick="esExcluirItem('+it.id+')">excluir material</button></div>';
 box.innerHTML=h+'</div></div>';
+/* guarda o estado ORIGINAL para saber o que é mudança de verdade */
+ES_ORIG={descricao:it.descricao,edicaoNome:it.edicaoNome||'',edicaoAno:it.edicaoAno==null?'':String(it.edicaoAno),
+ tipo:it.tipo,finalidade:it.finalidade,minimo:String(it.minimo||0)};
+box.querySelectorAll('.es-cad input,.es-cad select').forEach(function(el){
+ el.addEventListener('input',esConferirMudanca);
+ el.addEventListener('change',esConferirMudanca)});
 }
+/* ---- alteração pendente no formulário do material ----
+   O botão de salvar nasce apagado e só acende quando algum campo difere do original. Desfazer a
+   alteração (apagar o espaço que se digitou, por exemplo) apaga o botão de novo — é comparação de
+   valor, não "mexeu alguma vez". */
+var ES_ORIG=null;
+function esLerCad(){
+var box=$('es-detalhe');if(!box||!ES_ORIG)return null;
+var els=box.querySelectorAll('.es-cad input,.es-cad select');
+if(els.length<6)return null;
+return {descricao:els[0].value,edicaoNome:els[1].value,edicaoAno:els[2].value,
+ tipo:els[3].value,finalidade:els[4].value,minimo:els[5].value};
+}
+function esSujo(){
+var v=esLerCad();if(!v||!ES_ORIG)return false;
+return Object.keys(ES_ORIG).some(function(k){return String(v[k])!==String(ES_ORIG[k])});
+}
+function esConferirMudanca(){
+var sujo=esSujo();
+var s=$('es-salvar'),c=$('es-cancelar');
+if(s){s.disabled=!sujo;s.classList.toggle('alerta',sujo)}
+if(c)c.disabled=!sujo;
+}
+function esSalvarMaterial(){
+var v=esLerCad();if(!v||!ES_ITEM_SEL)return;
+var it=esItem(ES_ITEM_SEL);if(!it)return;
+run('salvarItemEstoque',[{id:it.id,descricao:v.descricao,codigo:it.codigo,livro:it.livro,
+ unidade:v.tipo==='kit'?'kit':'unidade',tipo:v.tipo,finalidade:v.finalidade,minimo:v.minimo,
+ ativo:it.ativo,ordem:it.ordem,componente:v.tipo==='kit'?false:it.componente,
+ edicaoNome:v.edicaoNome,edicaoAno:v.edicaoAno}],
+function(){msg('Material salvo.');esCarregar()})}
+function esCancelarMaterial(){esDetalheMaterial()}
 /* Acordeão ALTERNADO: a faixa clicada abre e a que estava aberta fecha. Clicar na já aberta
    recolhe. Só as classes mudam — nada de redesenhar a grade, que perderia a rolagem e qualquer
    célula em edição. */
+/* Clique na FAIXA é EXCLUSIVO: abre aquela e fecha as demais. Diferente da pílula, que acumula —
+   quem clica na faixa está lendo a tabela e quer um grupo à vista, não empilhar cinco. */
 function esAbrirFaixa(f){
-var i=ES_ABERTAS.indexOf(f);
-if(i<0)ES_ABERTAS.push(f);else ES_ABERTAS.splice(i,1);
+ES_ABERTAS=(ES_ABERTAS.length===1&&ES_ABERTAS[0]===f)?[]:[f];
 document.querySelectorAll('#es-grade tbody.grupo').forEach(function(tb){
   tb.classList.toggle('aberta',ES_ABERTAS.indexOf(tb.dataset.f)>=0)});
 esChips();          /* a pílula lá em cima tem de acompanhar a faixa que acabou de abrir */
@@ -3897,7 +4173,10 @@ window.addEventListener('resize',esAjustarAltura);
    faixas. Eles não escondem as outras — abrem e fecham. É a mesma coisa que clicar na faixa, só que
    de cima, sem procurar a linha. */
 function esChips(){
-var h='<button class="chip'+(ES_ABERTAS.length?'':' on')+'" onclick="esFiltrar(null)">todas</button>';
+/* "todas" acende quando TUDO está aberto — é o estado que ela representa agora, não o vazio */
+var comItens=ES_FAIXAS.filter(function(x){return ES.itens.some(function(i){return i.categoria===x})});
+var h='<button class="chip'+(comItens.length&&ES_ABERTAS.length>=comItens.length?' on':'')
+ +'" onclick="esFiltrar(null)">todas</button>';
 ES_FAIXAS.forEach(function(f){
   var n=ES.itens.filter(function(i){return i.categoria===f}).length;
   if(!n)return;
@@ -3905,10 +4184,18 @@ ES_FAIXAS.forEach(function(f){
    +esRotuloFaixa(f)+'<span class="n">'+n+'</span></button>'});
 $('es-chips').innerHTML=h;
 }
-/* clicar liga/desliga aquela faixa; "todas" recolhe tudo */
+/* DOIS gestos com regras DIFERENTES, e é de propósito (regra dele, 2026-08-11):
+   - PÍLULA: acumulativa. Marca Kids, marca Teens, ficam as duas abertas. "todas" abre TODAS
+     (não recolhe) e, clicada de novo, recolhe tudo.
+   - FAIXA na tabela: exclusiva. Abrir uma fecha as outras — quem está lendo a tabela quer UM
+     grupo à vista, não empilhar. Clicar na já aberta recolhe.
+   As pílulas sempre refletem o que está aberto, venha o gesto de onde vier. */
 function esFiltrar(f){
-if(!f){ES_ABERTAS=[]}
-else{var i=ES_ABERTAS.indexOf(f);if(i<0)ES_ABERTAS.push(f);else ES_ABERTAS.splice(i,1)}
+if(!f){
+ /* "todas": abre tudo se ainda não estiver tudo aberto; senão recolhe */
+ var comItens=ES_FAIXAS.filter(function(x){return ES.itens.some(function(i){return i.categoria===x})});
+ ES_ABERTAS=(ES_ABERTAS.length>=comItens.length)?[]:comItens.slice();
+}else{var i=ES_ABERTAS.indexOf(f);if(i<0)ES_ABERTAS.push(f);else ES_ABERTAS.splice(i,1)}
 esRender()}
 /* "–" e vazio são coisas diferentes: zero é "conferi e não tem", vazio é "não contei" */
 function esCelula(el){
@@ -4004,21 +4291,23 @@ linhas.forEach(function(e){
    :estado==='semitem'?'<span class="es-pil semestoque">estágio sem material</span>'
    :estado==='semestoque'?'<span class="es-pil semestoque">sem estoque</span>'
    :'<span class="es-pil pendente">pendente</span>';
-  h+='<div class="es-ent-l"><div class="es-ent-topo">'
-   +'<b>'+escBloco(e.livro)+'</b>'+pil
-   +'<span class="es-ent-sd">'+(it?'saldo '+it.saldo:'')+'</span></div>'
-   +'<div class="es-ent-baixo">';
+  /* UMA linha por entrega, em lista e não em tabela: estágio · status · data · a unidade que saiu.
+     O saldo saiu — é informação do material, não desta entrega. */
+  h+='<div class="es-ent-l">'
+   +'<b>'+escBloco(e.livro)+'</b>'+pil;
   if(e.entregaId){
-   h+='<input type="date" value="'+(e.data||'')+'" onchange="esAjustarData(&quot;'+escBloco(e.idMatricula)+'&quot;,&quot;'+escBloco(e.livro)+'&quot;,this.value)">'
-    +'<span class="es-ent-cb">'+(e.unidade?escBloco(e.unidade.codigo||'sem código')
-       +' <small>'+escBloco(esDataHora(e.unidade.entrada))+'</small>':'sem exemplar ligado')+'</span>'
+   /* `un. <código>_<instante>` é o identificador do exemplar: código e carimbo juntos, que é o par
+      que a fila usa. Fonte pequena e esmaecida — é rastro, não informação de leitura diária. */
+   var un=e.unidade?('un. '+(e.unidade.codigo||'—')+'_'+e.unidade.entrada):'sem unidade ligada';
+   h+='<input class="es-ent-dt" type="date" value="'+(e.data||'')+'" onchange="esAjustarData(&quot;'+escBloco(e.idMatricula)+'&quot;,&quot;'+escBloco(e.livro)+'&quot;,this.value)">'
+    +'<span class="es-ent-un" title="unidade entregue: código de barras e instante de entrada">'+escBloco(un)+'</span>'
     +'<button class="es-bt desfaz" onclick="esRemoverEntrega(&quot;'+escBloco(e.idMatricula)+'&quot;,&quot;'+escBloco(e.livro)+'&quot;)">desfazer</button>';
   } else {
-   h+='<span class="es-ent-cb">ainda não entregue</span>'
+   h+='<span class="es-ent-un">ainda não entregue</span>'
     +'<button class="es-bt"'+(estado==='pendente'?'':' disabled')
     +' onclick="esEntregar(&quot;'+escBloco(e.idMatricula)+'&quot;,&quot;'+escBloco(e.livro)+'&quot;)">entregar</button>';
   }
-  h+='</div></div>'});
+  h+='</div>'});
 box.innerHTML=h+'</div></div>';
 }
 
@@ -6246,7 +6535,20 @@ TABELA_GERAL.on('tableBuilt',function(){TABELA_INICIADA=true;aplicarFiltros()});
 init();
 
 ['al','tu','mat'].forEach(function(s){DIRTY[s]=false});
-[['al-cadastro','al'],['tab-turmas','tu']].forEach(function(par){var el=document.getElementById(par[0]);if(!el)return;
+/* O botão Salvar da página de Alunos ficou anos DESABILITADO por causa desta linha: ela escutava
+   `#al-cadastro`, um id que nunca existiu no HTML. `if(!el)return` engolia o engano em silêncio, e
+   como nada mais chamava `dirty('al',true)`, o botão nunca saía do repouso.
+   Agora escuta os CAMPOS do cadastro, um a um — se um id sumir, o erro aparece na hora em vez de
+   sumir num `return`. */
+['al-nome','al-id','al-sit'].forEach(function(id){
+ var el=document.getElementById(id);
+ if(!el){console.warn('campo do cadastro não encontrado:',id);return}
+ ['input','change'].forEach(function(ev){el.addEventListener(ev,function(){dirty('al',true)})});
+});
+/* o ID também dispara a consulta ao banco, que é o que acende a pílula NOVO */
+(function(){var el=document.getElementById('al-id');
+ if(el)el.addEventListener('input',function(){alConferirId()})})();
+[['tab-turmas','tu']].forEach(function(par){var el=document.getElementById(par[0]);if(!el)return;
 ['input','change'].forEach(function(ev){el.addEventListener(ev,function(){dirty(par[1],true)})});
 el.addEventListener('click',function(e){if(e.target&&e.target.tagName==='B'&&e.target.parentElement&&String(e.target.parentElement.className).indexOf('pill')>=0)dirty(par[1],true)})});
 bindBuscas();

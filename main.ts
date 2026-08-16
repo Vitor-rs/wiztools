@@ -1678,6 +1678,13 @@ const api: Record<string, (a: any) => unknown> = {
       turmas: getTurmas() };
   },
   getAlunos: () => A("SELECT * FROM v_alunos").map(r => ({ id: r.id_matricula, nome: r.nome, situacao: r.situacao, status: r.status })),
+  /* Existe este ID? Consulta enxuta para a tela dizer "NOVO" enquanto se digita.
+     Vai ao banco em vez de olhar a lista que o cliente já tem em memória porque a recepção e a sala
+     usam máquinas diferentes: um aluno cadastrado agora na outra ponta não está nessa lista. */
+  alunoExiste: ({ id }: any) => {
+    const a = id ? G("SELECT nome, situacao FROM alunos WHERE id_matricula=?", String(id).trim()) : null;
+    return { existe: !!a, nome: a?.nome || null, situacao: a?.situacao || null };
+  },
   salvarAluno(a) {
     if (!a?.id || !a?.nome) throw new Error("Nome e ID são obrigatórios.");
     if (!G("SELECT 1 FROM situacoes WHERE situacao=?", a.situacao)) throw new Error("Situação inválida: " + a.situacao);
@@ -2218,6 +2225,14 @@ const api: Record<string, (a: any) => unknown> = {
       R("UPDATE estoque_unidade SET entrada=? WHERE id=?", base + ":00." + ms, id);
     }
     return { ok: true, saldo: saldoItem(u.item_id) };
+  },
+  /* Apaga UM exemplar. A entrega, se houver, continua registrada: o aluno recebeu de verdade, e
+     apagar o rastro do objeto não desfaz o fato. */
+  excluirUnidade({ id }: any) {
+    const u = G("SELECT item_id FROM estoque_unidade WHERE id=?", id);
+    if (!u) return { ok: false };
+    const ok = R("DELETE FROM estoque_unidade WHERE id=?", id).changes > 0;
+    return { ok, saldo: saldoItem(u.item_id) };
   },
   gravarCelulaEstoque({ eventoId, itemId, quantidade, nota }: any) {
     if (!eventoId || !itemId) throw new Error("Evento e item são obrigatórios.");

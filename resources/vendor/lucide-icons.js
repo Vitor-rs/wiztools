@@ -2,6 +2,8 @@
    strings, no runtime/build step. Usage: icon('save', 16) -> SVG markup string. */
 var LUCIDE = {
   save: '<path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1V3"/>',
+  /* usado na pílula NOVO do cadastro de aluno: a estrela que pulsa ao lado da palavra */
+  sparkles: '<path d="M9.9 2.6 12 8l5.4 2.1L12 12.2 9.9 17.6 7.8 12.2 2.4 10.1 7.8 8z"/><path d="M18 4.5 18.8 6.5 20.8 7.3 18.8 8.1 18 10.1 17.2 8.1 15.2 7.3 17.2 6.5z"/><path d="M17.5 15 18.1 16.5 19.6 17.1 18.1 17.7 17.5 19.2 16.9 17.7 15.4 17.1 16.9 16.5z"/>',
   printer: '<path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/>',
   lock: '<rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
   "lock-open": '<rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/>',

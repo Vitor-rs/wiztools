@@ -2,10 +2,17 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "wizard-ensaio",
+      "runtimeExecutable": ".claude\\ensaio.cmd",
+      "runtimeArgs": [],
+      "port": 8421,
+      "autoPort": true
+    },
+    {
       "name": "wizard-local",
-      "runtimeExecutable": "deno",
-      "runtimeArgs": ["run", "-A", "main.ts"],
-      "port": 8420
+      "port": 8420,
+      "url": "http://localhost:8420",
+      "autoPort": false
     }
   ]
 }

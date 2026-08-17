@@ -4,7 +4,13 @@
 import { DatabaseSync } from "node:sqlite";
 
 const PASTA = new URL(".", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
-const db = new DatabaseSync(PASTA + "wizard.db");
+/* WIZ_DB / WIZ_PORT: só para ENSAIO. Sem as variáveis nada muda — é wizard.db na 8420, como sempre,
+   e os atalhos da recepção não sabem que elas existem. Servem para subir uma segunda instância sobre
+   uma CÓPIA do banco enquanto o painel dele continua aberto: antes disso, ensaiar exigia editar a
+   porta e o nome do arquivo aqui dentro e lembrar de desfazer os dois — e esquecer de desfazer um
+   deles é justamente o acidente que a variável evita. */
+const ENSAIO = !!Deno.env.get("WIZ_DB");
+const db = new DatabaseSync(PASTA + (Deno.env.get("WIZ_DB") || "wizard.db"));
 const A = (sql: string, ...p: any[]) => db.prepare(sql).all(...p) as any[];
 const G = (sql: string, ...p: any[]) => db.prepare(sql).get(...p) as any;
 const R = (sql: string, ...p: any[]) => db.prepare(sql).run(...p);
@@ -176,10 +182,23 @@ db.exec(`CREATE TABLE IF NOT EXISTS entrega_material (
   livro TEXT NOT NULL,                 -- texto solto, como em presenca
   item_id INTEGER REFERENCES estoque_item(id) ON DELETE SET NULL,
   data TEXT,                           -- NULL = entregue em data desconhecida (deduzida da matrícula)
+  hora TEXT CHECK (hora IS NULL OR (data IS NOT NULL AND hora GLOB '[0-2][0-9]:[0-5][0-9]')),
   deduzida INTEGER NOT NULL DEFAULT 0 CHECK (deduzida IN (0,1)), -- 1 = veio do vínculo automático
   momento TEXT NOT NULL,
   UNIQUE (id_matricula, livro)
 )`);
+/* ===== A HORA DA ENTREGA (2026-08-16) =====
+   `momento` já existia, e não serve: ele é quando a LINHA foi escrita. Nas 122 entregas deduzidas
+   `momento` é 09/08 00:29 — o instante da semeadura, não o de nenhuma entrega. E como `data` é
+   editável, preencher "saiu em 12/07" deixa `momento` falando de outro dia. São dois fatos, e um
+   não substitui o outro: `data`+`hora` são O QUE ACONTECEU, `momento` é QUANDO FOI DIGITADO. Mesma
+   separação de `encontro_avulso`, e a mesma palavra para a mesma coisa.
+   Nula = sabe-se o dia e não a hora. É o caso de toda entrega anterior a esta coluna e de toda data
+   preenchida à mão depois: quem digita "saiu em 12/07" quase nunca sabe a hora, e o campo em branco
+   diz isso melhor que um 00:00 inventado.
+   O CHECK recusa hora sem dia — 14:32 de nenhum dia não é informação. */
+addColuna("entrega_material", "hora",
+  "TEXT CHECK (hora IS NULL OR (data IS NOT NULL AND hora GLOB '[0-2][0-9]:[0-5][0-9]'))");
 /* ===== A UNIDADE FÍSICA (2026-08-10) =====
    Decisão dele, depois de ver que a contagem era herança do caderno: *"a contagem não faz sentido,
    era uma coisa que a gente fazia na mão porque quando entregava material tinha que recontar. Como
@@ -203,6 +222,89 @@ db.exec(`CREATE TABLE IF NOT EXISTS estoque_unidade (
   saida TEXT,                            -- quando saiu para a mão do aluno
   momento TEXT NOT NULL
 )`);
+/* ===== O NÚMERO ESCRITO NA ETIQUETA (2026-08-16) =====
+   Decisão dele: *"todo livro que chegar eu vou numerar ele de 1, 2, 3, eu vou escrever o número com
+   a caneta na etiqueta dele"*. É o identificador que a MÃO alcança — o código de barras vem impresso
+   e não distingue dois exemplares do mesmo kit, e o instante com milissegundos ninguém lê na
+   prateleira. Numerando, "leva o W2 número 4" vira uma frase possível no balcão.
+
+   **Contínuo POR MATERIAL**, começando em 1, exatamente como ele descreveu: *"temos três W2, aí
+   chegaram mais dois; esses dois que chegaram vamos numerar de 4 e 5, e assim por diante para todos
+   os materiais."* Não é global (não existe "exemplar 137 da escola") nem reinicia a cada remessa
+   (dois exemplares com o mesmo número na prateleira seria justamente o que a etiqueta evita).
+
+   O próximo é `MAX(numero)+1` daquele material, contando também os JÁ ENTREGUES — a linha continua
+   no banco depois da entrega, então o número sai de circulação junto com o livro. A única forma de
+   reaproveitar um número é APAGAR o exemplar, que é gesto deliberado e raro (e aí a etiqueta velha
+   normalmente sumiu junto).
+   Nulo = exemplar anterior a esta coluna, e `numerarUnidades()` os alcança na primeira subida. */
+addColuna("estoque_unidade", "numero", "INTEGER");
+/* ===== CONFERIDO ≠ CHEGADA (2026-08-16) =====
+   O botão "confirmar" da aba Entradas reescrevia `entrada` para o instante do clique. Mas `entrada`
+   é a POSIÇÃO NA FILA: conferir um exemplar o mandava para o fim dela, e era isso que quebrava a
+   regra que ele mesmo pediu — número menor tem de ser o mais antigo. Conferir o exemplar nº 1
+   primeiro fazia dele o mais recente.
+   São dois fatos diferentes: `entrada` é QUANDO O EXEMPLAR CHEGOU (vem da data da remessa e manda na
+   fila), `conferido` é QUANDO ALGUÉM O CONFERIU contra a caixa. Conferir não reescreve história.
+   Guarda o instante em vez de um 0/1: responde "quando isto foi conferido" pelo mesmo preço, e
+   nulo já é o "ainda não". */
+addColuna("estoque_unidade", "conferido", "TEXT");
+/* ===== A EDIÇÃO É DO EXEMPLAR (2026-08-17) =====
+   Problema real dele: *"a gente pede cinco unidades do Kids 4: duas Old Edition e três Third
+   Edition. Ambos são K4, mesmo nível de inglês, só que edições diferentes."* Isso não cabia:
+   `ux_estoque_item_livro` admite UM material por livro e a edição morava no MATERIAL, então um
+   material tinha uma edição só. Tanto que o estágio "Kids 4 · Old" estava sem material nenhum.
+   Escolha dele entre três desenhos: a edição passou a ser do EXEMPLAR. Materiais continua com uma
+   linha "KIDS 4" — o índice único, a lista de entregas e o vínculo do estágio ficam de pé — e cada
+   unidade diz de qual edição ela é.
+   Tabela própria (e não texto solto na unidade) para ele poder RENOMEAR uma edição e todos os
+   exemplares acompanharem, que é o "alterar edição" que ele pediu. */
+db.exec(`CREATE TABLE IF NOT EXISTS estoque_edicao (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  item_id INTEGER NOT NULL REFERENCES estoque_item(id) ON DELETE CASCADE,
+  nome TEXT NOT NULL,
+  ano INTEGER,
+  momento TEXT NOT NULL
+)`);
+db.exec("CREATE UNIQUE INDEX IF NOT EXISTS ux_edicao_item_nome ON estoque_edicao(item_id, nome)");
+/* ARQUIVAR no lugar de APAGAR (regra dele, 2026-08-17): a edição fica vinculada a exemplares que já
+   saíram, então apagá-la deixaria o rastro sem nome. Arquivada vai para o fim da lista, esmaecida.
+   `padrao` é a edição que os exemplares novos herdam. Sem ninguém marcado, vence a ATIVA de ano mais
+   recente — "geralmente é a do ano mais atual", nas palavras dele, e `geralmente` é o que faz a
+   marca explícita existir: dá para contrariar o padrão quando a compra é de uma tiragem antiga. */
+addColuna("estoque_edicao", "arquivada", "TEXT");
+addColuna("estoque_edicao", "padrao", "INTEGER NOT NULL DEFAULT 0");
+/* A edição PADRÃO é o que o material mostra como "a edição dele" — é ela que o estágio espelha em
+   "EDIÇÃO (vem do material)". Mantém `estoque_item.edicao_nome/ano` em dia para nada rio abaixo
+   precisar saber que a edição virou uma tabela. */
+function edicaoPadrao(itemId: number) {
+  return G(`SELECT * FROM estoque_edicao WHERE item_id=? AND arquivada IS NULL
+            ORDER BY padrao DESC, COALESCE(ano,0) DESC, id DESC LIMIT 1`, itemId);
+}
+function sincronizarEdicaoDoItem(itemId: number) {
+  const ed = edicaoPadrao(itemId);
+  R("UPDATE estoque_item SET edicao_nome=?, edicao_ano=? WHERE id=?",
+    ed?.nome ?? null, ed?.ano ?? null, itemId);
+  return ed;
+}
+addColuna("estoque_unidade", "edicao_id", "INTEGER REFERENCES estoque_edicao(id) ON DELETE SET NULL");
+/* A edição que hoje está no MATERIAL vira a primeira edição dele, e os exemplares existentes
+   passam a apontar para ela — ninguém fica sem edição por causa da mudança de desenho.
+   Self-limiting: só cria o que ainda não existe e só liga unidade que está sem edição. */
+function migrarEdicoesParaUnidade() {
+  let criadas = 0, ligadas = 0;
+  for (const it of A("SELECT id, edicao_nome, edicao_ano FROM estoque_item WHERE edicao_nome IS NOT NULL AND TRIM(edicao_nome)<>''")) {
+    let ed = G("SELECT id FROM estoque_edicao WHERE item_id=? AND nome=?", it.id, it.edicao_nome);
+    if (!ed) {
+      ed = { id: Number(R("INSERT INTO estoque_edicao (item_id,nome,ano,momento) VALUES (?,?,?,?)",
+        it.id, it.edicao_nome, it.edicao_ano ?? null, agora()).lastInsertRowid) };
+      criadas++;
+    }
+    ligadas += R("UPDATE estoque_unidade SET edicao_id=? WHERE item_id=? AND edicao_id IS NULL", ed.id, it.id).changes as number;
+  }
+  if (criadas || ligadas) console.log("estoque: " + criadas + " edição(ões) criadas, " + ligadas + " exemplar(es) ligados");
+  return { criadas, ligadas };
+}
 /* o índice que serve à fila: por item, do mais antigo para o mais novo, só o que não saiu */
 db.exec(`CREATE INDEX IF NOT EXISTS ix_unidade_fila ON estoque_unidade(item_id, entrada)
   WHERE entrega_id IS NULL`);
@@ -323,6 +425,45 @@ db.exec(`CREATE TABLE IF NOT EXISTS estagio_licao (${CORPO_LICAO},
   FOREIGN KEY (dono_id) REFERENCES estagio(id) ON DELETE CASCADE)`);
 db.exec("CREATE INDEX IF NOT EXISTS ix_modelo_licao ON estagio_modelo_licao(dono_id, ordem)");
 db.exec("CREATE INDEX IF NOT EXISTS ix_estagio_licao ON estagio_licao(dono_id, ordem)");
+/* ===== SIGLA DA LIÇÃO (2026-08-16) =====
+   Pedido dele: cada lição ganha um nome curto — *"a lição 1 vai ser L maiúsculo e o número 1 junto"*
+   — customizável, vindo do modelo e viajando para o estágio junto com o resto.
+   Ela também é o que RESOLVE a fusão das duas colunas de número que ele pediu. `ordem` (a posição)
+   e `numero` (o rótulo pedagógico) parecem iguais nas dez primeiras linhas e é por isso que ele as
+   viu como redundantes — mas divergem na primeira Review, que ocupa posição e NÃO tem número:
+     ordem 10 → numero 10 · ordem 11 → Review, sem número · ordem 12 → numero 11
+   Some com a coluna Número e essa distinção se perde. Ela passa a viver na SIGLA: "L10", "R1",
+   "L11". A tela mostra uma coluna de número só (a posição), e a identidade pedagógica fica legível
+   ao lado, em texto — que é mais honesto que um campo numérico vazio. */
+addColuna("estagio_modelo_licao", "sigla", "TEXT");
+addColuna("estagio_licao", "sigla", "TEXT");
+/* Preenche a sigla de quem ainda não tem, a partir do que já existe. Sem marca em `config`: o
+   `WHERE sigla IS NULL` já a torna inerte, e assim ela alcança linha nova que apareça sem sigla. */
+function siglarLicoes() {
+  let n = 0;
+  for (const t of ["estagio_modelo_licao", "estagio_licao"]) {
+    const donos = A(`SELECT DISTINCT dono_id FROM ${t} WHERE sigla IS NULL`).map(r => r.dono_id);
+    for (const dono of donos) {
+      /* contadores por TIPO, para as sem número: Review 1, 2, 3... na ordem em que aparecem */
+      const seq: Record<string, number> = {};
+      for (const l of A(`SELECT id, numero, tipo, descricao, sigla FROM ${t} WHERE dono_id=? ORDER BY ordem, id`, dono)) {
+        if (l.sigla) continue;
+        let s: string;
+        if (l.numero != null) s = "L" + l.numero;
+        else {
+          const pref = l.tipo === "review" ? "R" : l.tipo === "remind" ? "RM"
+            : l.tipo === "especial" ? "E" : "L";
+          seq[pref] = (seq[pref] || 0) + 1;
+          s = pref + seq[pref];
+        }
+        R(`UPDATE ${t} SET sigla=? WHERE id=?`, s, l.id);
+        n++;
+      }
+    }
+  }
+  if (n) console.log("estágios: " + n + " lição(ões) ganharam sigla");
+  return { siglas: n };
+}
 /* NOME LONGO × NOME CURTO (dele, 2026-08-10): *"Little Kids 4 é o nome por extenso. Só que eu quero
    L. Kids 4, que vai ser representado em outros lugares, porque é um nome curto. O nome longo é o
    completo; o curto é mais representativo, na frequência do aluno."*
@@ -330,6 +471,14 @@ db.exec("CREATE INDEX IF NOT EXISTS ix_estagio_licao ON estagio_licao(dono_id, o
    nome próprio no estágio. Aqui ele passa a ser campo, e nasce igual ao livro vinculado. */
 addColuna("estagio", "nome_curto", "TEXT");
 R("UPDATE estagio SET nome_curto=livro WHERE nome_curto IS NULL AND livro IS NOT NULL");
+/* 'W' → 'Ws' (pedido dele, 2026-08-16). O Estoque (`ES_FAIXAS`) e o dashboard (`CORES_CAT`) já
+   escreviam 'Ws'; só o catálogo de estágios dizia 'W', e o mesmo grupo aparecia com dois nomes.
+   Sem marca em `config`: o próprio WHERE a torna inerte depois da primeira passada, e o select da
+   tela não oferece mais 'W' para alguém recriar. */
+{
+  const n = R("UPDATE estagio SET categoria='Ws' WHERE categoria='W'").changes as number;
+  if (n) console.log("estágios: " + n + " passaram da categoria 'W' para 'Ws'");
+}
 /* Reata o vínculo de estoque de quem o perdeu. O formulário do estágio não tinha o campo e mandava
    `undefined` a cada gravação, então salvar um estágio apagava o `item_estoque_id` em silêncio —
    10 dos 27 já estavam sem. Só preenche o que está NULO, pelo livro, que é o vínculo evidente:
@@ -358,6 +507,27 @@ db.exec(`CREATE TABLE IF NOT EXISTS estagio_equivalente (
 )`);
 db.exec("CREATE INDEX IF NOT EXISTS ix_estagio_livro ON estagio(livro)");
 db.exec("CREATE INDEX IF NOT EXISTS ix_licao_extra ON estagio_licao_extra(estagio_id)");
+
+/* ===== ARQUIVAMENTO (2026-08-17) =====
+   Regra dele: *"onde tem para deletar, em vez de deletar ou excluir, coloca arquivar"* — e a
+   EXCLUSÃO passa a existir só na página de Arquivados, com o nome digitado à mão.
+   O motivo já estava no código: quase tudo aqui tem vínculo. Material tem exemplares e entregas;
+   pedido tem unidades; estágio tem matrículas e percurso; modelo tem estágios. Apagar qualquer um
+   arrasta rastro de coisa que ACONTECEU.
+   `arquivado` guarda o INSTANTE, não um 0/1: responde "quando isso saiu de circulação" pelo mesmo
+   preço, e nulo já é o "está em uso".
+   ALUNO ficou de fora, decisão dele: `situacao` inativa já é o arquivamento dele, e duas formas de
+   sumir da tela viraria confusão. */
+for (const t of ["estoque_item", "estoque_unidade", "estoque_evento", "estagio", "estagio_modelo"])
+  addColuna(t, "arquivado", "TEXT");
+/* de qual tabela cada tipo vem, e qual coluna é o NOME que a exclusão vai exigir digitado */
+const ARQUIVAVEIS: Record<string, { tabela: string; rotulo: string }> = {
+  material: { tabela: "estoque_item", rotulo: "descricao" },
+  exemplar: { tabela: "estoque_unidade", rotulo: "codigo" },
+  pedido: { tabela: "estoque_evento", rotulo: "data" },
+  estagio: { tabela: "estagio", rotulo: "nome" },
+  modelo: { tabela: "estagio_modelo", rotulo: "nome" },
+};
 
 /* ===== PERCURSO DO ALUNO =====
    `aluno_livro` responde "o que ele faz HOJE" e por isso é apagada quando o livro troca — a agenda,
@@ -713,16 +883,20 @@ const CAT_EQUIV: string[][] = [["T2","W2"],["T4","W4"],["T6","W6"],["T8","W8"],[
    (marca em `config`), porque depois o Vitor edita idade, escala e edição à mão e uma segunda
    semeadura desfaria o trabalho dele. */
 function semearEstagios() {
+  /* MODELOS reconciliados pela FORMA (lições por bloco × blocos), NUNCA pelo nome — o nome é dele
+     para editar. Casando por nome, renomear "Capítulo de 7" para "Bloco de 7" fazia o boot seguinte
+     não achar o modelo e CRIAR OUTRO igual: foi exatamente o que aconteceu em 2026-08-17, e é a
+     mesma lição que já custou uma rodada no catálogo de estágios e nos nomes de edição.
+     `cap7` e `cap7i` tinham a mesma forma (6×10) e por isso viraram um só, a pedido dele — as duas
+     chaves apontam para o mesmo modelo. */
   const mods: Record<string, number> = {};
-  for (const [chave, nome, lpc, caps] of [
-    ["cap11", "Capítulo de 11", 10, 6],
-    ["cap7", "Capítulo de 7", 6, 10],
-    ["cap7i", "Capítulo de 7 · outros idiomas", 6, 10],
-  ] as any[]) {
-    let m = G("SELECT id FROM estagio_modelo WHERE nome=?", nome);
-    if (!m) m = { id: Number(R("INSERT INTO estagio_modelo (nome,licoes_por_capitulo,capitulos) VALUES (?,?,?)", nome, lpc, caps).lastInsertRowid) };
-    mods[chave] = m.id;
-  }
+  const modelo = (nome: string, lpc: number, caps: number) => {
+    const m = G("SELECT id FROM estagio_modelo WHERE licoes_por_capitulo=? AND capitulos=? ORDER BY id", lpc, caps);
+    return m ? m.id
+      : Number(R("INSERT INTO estagio_modelo (nome,licoes_por_capitulo,capitulos) VALUES (?,?,?)", nome, lpc, caps).lastInsertRowid);
+  };
+  mods["cap11"] = modelo("Bloco de 11", 10, 6);
+  mods["cap7"] = mods["cap7i"] = modelo("Bloco de 7", 6, 10);
   /* O catálogo CRESCE depois da primeira semeadura (o Português 2 chegou em 2026-08-10, com o banco
      dele já semeado na véspera), e o critério para saber o que ainda falta oferecer é a VERSÃO do
      catálogo — nunca a sigla.
@@ -1135,7 +1309,11 @@ function executarBackup(nome: string, pularExistentes: boolean) {
   }
   return { feitos, erros };
 }
+/* instância de ENSAIO não faz backup: `executarBackup` copia o `wizard.db` REAL (o caminho é fixo,
+   não segue o WIZ_DB), então o conteúdo sairia certo — mas quem escreve na pasta de backup da escola
+   tem de ser o servidor dela, não um teste meu que vai ser derrubado em dez minutos. */
 try { // backup diário na subida do servidor (a leitura da config acima já recuperou journal pendente)
+  if (ENSAIO) throw new Error("instância de ensaio (WIZ_DB) não escreve na pasta de backup");
   const r = executarBackup("wizard-" + new Date().toISOString().slice(0, 10) + ".db", true);
   r.feitos.forEach(f => console.log("Backup do dia salvo em " + f.caminho));
   r.erros.forEach(e => console.warn("Backup falhou (o app segue normal) — " + e));
@@ -1436,13 +1614,49 @@ function blocosComColunas(blocos: any[], ref: Date, grupo: string[], incluirGrup
    linhas, não uma conta com data de corte. E deixa de existir o "null = não sei": agora se sabe. */
 function saldoItem(itemId: number): number {
   return G(`SELECT COUNT(*) n FROM estoque_unidade
-            WHERE item_id=? AND entrega_id IS NULL`, itemId)?.n || 0;
+            WHERE item_id=? AND entrega_id IS NULL AND arquivado IS NULL`, itemId)?.n || 0;
 }
 /* a fila: o exemplar mais antigo que ainda está na prateleira. "Quem chegou primeiro sai primeiro",
    e o desempate é o `entrada` com milissegundos. */
 const proximaUnidade = (itemId: number) =>
-  G(`SELECT * FROM estoque_unidade WHERE item_id=? AND entrega_id IS NULL
+  G(`SELECT * FROM estoque_unidade WHERE item_id=? AND entrega_id IS NULL AND arquivado IS NULL
      ORDER BY entrada, id LIMIT 1`, itemId);
+/* o próximo número de etiqueta daquele material. Conta os entregues também: o número sai de
+   circulação com o livro, e reaproveitá-lo poria duas etiquetas iguais no mundo. */
+const proximoNumero = (itemId: number): number =>
+  (G("SELECT MAX(numero) m FROM estoque_unidade WHERE item_id=?", itemId)?.m || 0) + 1;
+/* A ORDEM DA ETIQUETA TEM DE BATER COM A DA CHEGADA (regra dele): *"um timestamp mais antigo tem
+   que ter o número menor... como é que eu vou colocar um timestamp antigo com o número dois e um
+   timestamp mais recente com o número um? Isso é inválido."*
+   Devolve os pares que se contradizem, do material inteiro — quem lê a fila em ordem de chegada
+   deve ver 1, 2, 3. Por ora a tela AVISA e não impede: bloquear a gravação deixaria o campo
+   inutilizável enquanto ele estivesse arrumando dois exemplares trocados, porque toda troca passa
+   por um estado intermediário inválido. */
+function conflitosDeNumero(itemId: number) {
+  const us = A(`SELECT id, numero, entrada, codigo FROM estoque_unidade
+                WHERE item_id=? AND numero IS NOT NULL ORDER BY entrada, id`, itemId);
+  const fora: { numero: number; entrada: string }[] = [];
+  for (let i = 1; i < us.length; i++)
+    if (us[i].numero < us[i - 1].numero) fora.push({ numero: us[i].numero, entrada: us[i].entrada });
+  return fora;
+}
+/* Numera quem ainda não tem número, na ORDEM DA FILA (que é a ordem de chegada) — o exemplar mais
+   antigo do W2 vira o 1, e é o que ele vai escrever na etiqueta.
+   Sem marca em `config` de propósito: o `WHERE numero IS NULL` já a torna inerte depois da primeira
+   passada, e assim ela também alcança qualquer exemplar que apareça sem número depois. Marca em
+   `config` já me travou duas vezes neste módulo — a versão consertada não rodava mais. */
+function numerarUnidades() {
+  const semNumero = A(`SELECT id, item_id FROM estoque_unidade WHERE numero IS NULL
+                       ORDER BY item_id, entrada, id`);
+  if (!semNumero.length) return { numeradas: 0 };
+  const prox: Record<number, number> = {};
+  for (const u of semNumero) {
+    if (prox[u.item_id] === undefined) prox[u.item_id] = proximoNumero(u.item_id);
+    R("UPDATE estoque_unidade SET numero=? WHERE id=?", prox[u.item_id]++, u.id);
+  }
+  console.log("estoque: " + semNumero.length + " exemplar(es) numerados (número da etiqueta)");
+  return { numeradas: semNumero.length };
+}
 
 /* regra ANTIGA, preservada só para a virada: é ela que diz quantas unidades criar a partir do que a
    tela mostrava até aqui. Depois da conversão ninguém mais a chama. */
@@ -1458,6 +1672,20 @@ function saldoPelaContagem(itemId: number): number | null {
     WHERE item_id=? AND data IS NOT NULL AND data > ?`, itemId, base.data)?.s || 0;
   return base.q + entrou - saiu;
 }
+/* 'HH:MM' ou nada. Vazio não é erro: é a entrega cuja hora ninguém sabe — o CHECK da coluna aceita
+   a nula, e é a tela que oferece o campo em branco. Formato conferido com o mesmo rigor de
+   `registrarPonto` (o GLOB da coluna deixaria passar 29:59). */
+function horaEntrega(hora: any): string | null {
+  if (hora == null || hora === "") return null;
+  const h = String(hora).trim().slice(0, 5);
+  if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(h)) throw new Error("Hora inválida: use HH:MM.");
+  return h;
+}
+/* o instante do exemplar que saiu, no formato de `estoque_unidade.saida`. Data e hora vêm da
+   entrega, nunca de um relógio próprio: eram dois carimbos para um fato só. */
+const instanteSaida = (data: string | null, hora: string | null) =>
+  data ? (hora ? data + " " + hora : data) : null;
+
 /* Entregas pelo ponto de vista da MATRÍCULA: toda matrícula ativa precisa do livro dela, e a
    ausência de linha em entrega_material é o que significa "ainda não recebeu". É a lista que
    responde "quem está sem o livro na mão" — o caderno de papel nunca deu isso.
@@ -1465,7 +1693,7 @@ function saldoPelaContagem(itemId: number): number | null {
    Port 2) aparece assim mesmo, com item nulo, em vez de sumir da lista. */
 function listaEntregas() {
   return A(`SELECT al.id_matricula, al.livro, a.nome, a.situacao,
-                   e.id AS entrega_id, e.data, e.deduzida, e.item_id,
+                   e.id AS entrega_id, e.data, e.hora, e.deduzida, e.item_id,
                    i.id AS item_livro_id, i.descricao AS item_desc
             FROM aluno_livro al
             JOIN alunos a ON a.id_matricula=al.id_matricula
@@ -1474,14 +1702,15 @@ function listaEntregas() {
             LEFT JOIN estoque_item i ON i.livro=al.livro
             ORDER BY a.nome`).map(r => ({
     idMatricula: r.id_matricula, livro: r.livro, nome: r.nome, situacao: r.situacao,
-    entregaId: r.entrega_id ?? null, data: r.data ?? null, deduzida: r.deduzida === 1,
+    entregaId: r.entrega_id ?? null, data: r.data ?? null, hora: r.hora ?? null,
+    deduzida: r.deduzida === 1,
     itemId: r.item_id ?? r.item_livro_id ?? null, itemDesc: r.item_desc ?? null,
     /* QUAL exemplar saiu: é o que liga a entrega à etiqueta física. Entrega deduzida das matrículas
        antigas não tem unidade — ninguém registrou qual livro daquela pilha foi para a mão de quem. */
     unidade: r.entrega_id
       ? (() => {
-          const u = G("SELECT id, codigo, entrada FROM estoque_unidade WHERE entrega_id=?", r.entrega_id);
-          return u ? { id: u.id, codigo: u.codigo || "", entrada: u.entrada } : null;
+          const u = G("SELECT id, codigo, entrada, numero FROM estoque_unidade WHERE entrega_id=?", r.entrega_id);
+          return u ? { id: u.id, codigo: u.codigo || "", entrada: u.entrada, numero: u.numero ?? null } : null;
         })()
       : null,
   }));
@@ -1659,7 +1888,13 @@ try { edicaoParaOItem(); } catch (e) { console.warn("edição para o item falhou
 try { arrumarNomeTrocado(); } catch (e) { console.warn("correção do nome trocado falhou (segue o baile):", e); }
 /* por último no estoque: precisa dos itens já classificados para saber quem tem saldo a converter */
 try { converterContagemEmUnidades(); } catch (e) { console.warn("conversão para unidades falhou (segue o baile):", e); }
+/* depois de existirem todas as unidades: numera na ordem da fila quem ainda não tem etiqueta */
+try { numerarUnidades(); } catch (e) { console.warn("numeração das unidades falhou (segue o baile):", e); }
+/* e leva a edição que estava no material para o exemplar */
+try { migrarEdicoesParaUnidade(); } catch (e) { console.warn("migração das edições falhou (segue o baile):", e); }
 try { semearEstagios(); } catch (e) { console.warn("semeadura dos estágios falhou (segue o baile):", e); }
+/* depois de existirem as lições: dá sigla a quem ainda não tem */
+try { siglarLicoes(); } catch (e) { console.warn("siglas das lições falharam (segue o baile):", e); }
 try { numerarContratos(); } catch (e) { console.warn("numeração de contratos falhou (segue o baile):", e); }
 /* depois dos contratos: o percurso copia `contrato_seq`, que a linha acima acabou de preencher */
 try { semearPercurso(); } catch (e) { console.warn("retomada do percurso falhou (segue o baile):", e); }
@@ -1673,7 +1908,18 @@ const api: Record<string, (a: any) => unknown> = {
     return { situacoes: A("SELECT situacao, ativa FROM situacoes").map(r => ({ situacao: r.situacao, ativa: r.ativa === 1 })),
       modalidades: [...new Set(A("SELECT tipo FROM prioridade").map(r => String(r.tipo).replace(/^Vip\s+/i, "")))],
       dias: Object.keys(horariosPorDia), horariosPorDia,
-      livros: A("SELECT * FROM livros ORDER BY ordem").map(r => ({ nome: r.nome, tipoPadrao: r.tipo_padrao, kids: r.kids === 1, tipoFixo: r.tipo_fixo === 1, categoria: categoriaLivro(r.nome) })),
+      /* `saldo` vem junto para a tela de Alunos poder dizer, na hora de matricular, quantas unidades
+         daquele material existem na prateleira — sem obrigar a página a carregar o estoque inteiro
+         só por causa de um número. NULO quando o estágio não tem item de estoque (Kids Esp 1,
+         Port 2): "não sei" é diferente de "zero". */
+      livros: A(`SELECT l.*, i.id AS item_id,
+                   (SELECT COUNT(*) FROM estoque_unidade u
+                    WHERE u.item_id=i.id AND u.entrega_id IS NULL) AS saldo
+                 FROM livros l LEFT JOIN estoque_item i ON i.livro=l.nome
+                 ORDER BY l.ordem`)
+        .map(r => ({ nome: r.nome, tipoPadrao: r.tipo_padrao, kids: r.kids === 1,
+          tipoFixo: r.tipo_fixo === 1, categoria: categoriaLivro(r.nome),
+          saldo: r.item_id ? (r.saldo ?? 0) : null })),
       professores: A("SELECT * FROM funcionarios").map(r => ({ id: r.id, nomeCompleto: r.nome_completo, nome: r.nome })),
       turmas: getTurmas() };
   },
@@ -1951,7 +2197,7 @@ const api: Record<string, (a: any) => unknown> = {
     /* COMPONENTES ficam FORA da grade: Student's Book e Workbook não são linha de prateleira, são
        o que vem dentro da mochila. Contá-los em separado seria contar o mesmo material duas vezes.
        Vão à parte, para a aba Kits montar a composição. */
-    const itens = A("SELECT * FROM estoque_item WHERE componente=0 ORDER BY ordem, descricao").map(linha);
+    const itens = A("SELECT * FROM estoque_item WHERE componente=0 AND arquivado IS NULL ORDER BY ordem, descricao").map(linha);
     /* COLUNAS da matriz Kits × Peças: peça que de fato ENTRA em kit — declarada como componente ou
        já usada em algum. A Wiz.pen entra pelo segundo critério, e por isso aparece nos dois eixos
        (é o caso que ele levantou: "a única coisa que pode ser tanto coluna quanto linha").
@@ -1960,7 +2206,7 @@ const api: Record<string, (a: any) => unknown> = {
     const componentes = A(`SELECT * FROM estoque_item WHERE tipo='peca'
         AND (componente=1 OR EXISTS (SELECT 1 FROM estoque_kit_item k WHERE k.item_id=estoque_item.id))
         ORDER BY componente, ordem, descricao`).map(linha);
-    const eventos = A("SELECT * FROM estoque_evento ORDER BY data, id").map(e => ({
+    const eventos = A("SELECT * FROM estoque_evento WHERE arquivado IS NULL ORDER BY data, id").map(e => ({
       id: e.id, tipo: e.tipo, data: e.data, observacao: e.observacao || "",
       pedidoId: e.pedido_id || null, confirmado: e.confirmado !== 0,
       /* exemplares que já entraram por conta deste pedido, agrupados por material: é o que a tela
@@ -1971,7 +2217,8 @@ const api: Record<string, (a: any) => unknown> = {
            JOIN estoque_evento r ON r.id=u.remessa_id
            WHERE r.pedido_id=? ORDER BY u.item_id, u.entrada, u.id`, e.id)
           .forEach(u => (por[u.item_id] ||= []).push(
-            { id: u.id, entrada: u.entrada, codigo: u.codigo || "", entregue: !!u.entrega_id }));
+            { id: u.id, entrada: u.entrada, codigo: u.codigo || "", numero: u.numero ?? null,
+              conferido: u.conferido || null, entregue: !!u.entrega_id }));
         return por;
       })() } : {}),
       /* o pedido carrega a própria situação na fila: aguardando, parcial ou recebido */
@@ -1999,10 +2246,28 @@ const api: Record<string, (a: any) => unknown> = {
       i.sugestao = Math.max(0, i.minimo - i.saldo - i.pedidoPendente);
       /* as unidades na prateleira, da mais antiga para a mais nova: é a fila de saída, e é o que o
          acordeão da linha abre. Só as que não saíram — o que foi entregue vive na aba Entregas. */
-      i.unidades = A(`SELECT u.id, u.entrada, u.origem, u.codigo, ev.data AS remessa
-                      FROM estoque_unidade u LEFT JOIN estoque_evento ev ON ev.id=u.remessa_id
-                      WHERE u.item_id=? AND u.entrega_id IS NULL ORDER BY u.entrada, u.id`, i.id)
+      /* EDIÇÕES do material, com quantos exemplares cada uma tem na prateleira — é o que alimenta
+         as pílulas de filtro da fila. Vem sempre, mesmo com zero, para a edição existir na tela
+         antes de chegar o primeiro exemplar dela. */
+      /* ATIVAS primeiro (mais recente na frente, que é a que se usa), arquivadas no fim — é a ordem
+         que ele pediu: "quando arquiva, vai pro fundo com aparência de desativado". */
+      i.edicoes = A(`SELECT e.id, e.nome, e.ano, e.padrao, e.arquivada,
+                       (SELECT COUNT(*) FROM estoque_unidade u
+                        WHERE u.edicao_id=e.id AND u.entrega_id IS NULL AND u.arquivado IS NULL) saldo,
+                       (SELECT COUNT(*) FROM estoque_unidade u WHERE u.edicao_id=e.id) total
+                     FROM estoque_edicao e WHERE e.item_id=?
+                     ORDER BY (e.arquivada IS NOT NULL), e.padrao DESC, COALESCE(e.ano,0) DESC, e.id DESC`, i.id)
+        .map(e => ({ id: e.id, nome: e.nome, ano: e.ano ?? null, saldo: e.saldo, total: e.total,
+                     padrao: e.padrao === 1, arquivada: e.arquivada || null }));
+      i.unidades = A(`SELECT u.id, u.entrada, u.origem, u.codigo, u.numero, u.conferido,
+                             u.edicao_id, ed.nome AS edicao_nome, ev.data AS remessa
+                      FROM estoque_unidade u
+                      LEFT JOIN estoque_evento ev ON ev.id=u.remessa_id
+                      LEFT JOIN estoque_edicao ed ON ed.id=u.edicao_id
+                      WHERE u.item_id=? AND u.entrega_id IS NULL AND u.arquivado IS NULL ORDER BY u.entrada, u.id`, i.id)
         .map(u => ({ id: u.id, entrada: u.entrada, origem: u.origem, codigo: u.codigo || "",
+                     numero: u.numero ?? null, conferido: u.conferido || null,
+                     edicaoId: u.edicao_id ?? null, edicao: u.edicao_nome || "",
                      remessa: u.remessa || null }));
     });
     /* colunas de SAÍDA: entregas COM data, agrupadas pelo período entre contagens em que caíram.
@@ -2021,7 +2286,8 @@ const api: Record<string, (a: any) => unknown> = {
                        WHERE e.data IS NOT NULL AND e.item_id IS NOT NULL`)) {
       const lim = limites.find(l => e.data <= l) as string;
       (baldes[lim] ||= {})[e.item_id] = ((baldes[lim] || {})[e.item_id] || 0) + 1;
-      (quem[lim] ||= []).push({ itemId: e.item_id, nome: e.nome, data: e.data, livro: e.livro });
+      (quem[lim] ||= []).push({ itemId: e.item_id, nome: e.nome, data: e.data, hora: e.hora || null,
+        livro: e.livro });
     }
     const saidas = Object.keys(baldes).map(lim => {
       const aberta = lim === ABERTO;
@@ -2046,10 +2312,17 @@ const api: Record<string, (a: any) => unknown> = {
        para derivar um do outro; quem manda aqui é o que veio da tela, com o kit sempre contável. */
     const comp = tipo === "kit" ? 0 : (p.componente === undefined ? 1 : (p.componente ? 1 : 0));
     const num = (v: any) => (v === "" || v == null ? null : Number(v));
+    /* EDIÇÃO E ANO PRESERVAM o valor atual quando não vêm no payload. Quem manda neles é a tabela
+       `estoque_edicao` (via `sincronizarEdicaoDoItem`), e o formulário do material deixou de
+       enviá-los — sem esta guarda, salvar a descrição apagava a edição em silêncio. É o mesmo
+       defeito que já custou o `item_estoque_id` de 10 estágios. */
+    const at = p.id ? G("SELECT edicao_nome, edicao_ano FROM estoque_item WHERE id=?", p.id) : null;
     const campos = [p.descricao, p.codigo || null, p.livro || null,
       tipo === "kit" ? "kit" : "unidade", tipo,
       p.finalidade || "venda", Number(p.minimo) || 0, p.ativo === false ? 0 : 1, Number(p.ordem) || 900,
-      comp, p.edicaoNome || null, num(p.edicaoAno)];
+      comp,
+      p.edicaoNome === undefined ? (at?.edicao_nome ?? null) : (p.edicaoNome || null),
+      p.edicaoAno === undefined ? (at?.edicao_ano ?? null) : num(p.edicaoAno)];
     if (p.id) { R(`UPDATE estoque_item SET descricao=?,codigo=?,livro=?,unidade=?,tipo=?,finalidade=?,minimo=?,ativo=?,ordem=?,componente=?,edicao_nome=?,edicao_ano=? WHERE id=?`, ...campos, p.id); return { ok: true, id: p.id }; }
     const r = R(`INSERT INTO estoque_item (descricao,codigo,livro,unidade,tipo,finalidade,minimo,ativo,ordem,componente,edicao_nome,edicao_ano) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`, ...campos);
     return { ok: true, id: Number(r.lastInsertRowid) };
@@ -2140,12 +2413,14 @@ const api: Record<string, (a: any) => unknown> = {
       rem.id, itemId, q);
     const base = agora();                       // 'YYYY-MM-DD HH:MM:SS'
     const jaTem = G("SELECT COUNT(*) n FROM estoque_unidade WHERE item_id=?", itemId)?.n || 0;
+    let numero = proximoNumero(itemId);         // o que ele vai escrever de caneta na etiqueta
     const novas: any[] = [];
     for (let i = 0; i < q; i++) {
       const ms = ("00" + ((jaTem + i) % 1000)).slice(-3);
-      const id = Number(R(`INSERT INTO estoque_unidade (item_id,remessa_id,entrada,origem,momento)
-         VALUES (?,?,?,'remessa',?)`, itemId, rem.id, base + "." + ms, base).lastInsertRowid);
-      novas.push({ id, entrada: base + "." + ms });
+      const n = numero++;
+      const id = Number(R(`INSERT INTO estoque_unidade (item_id,remessa_id,entrada,origem,momento,numero)
+         VALUES (?,?,?,'remessa',?,?)`, itemId, rem.id, base + "." + ms, base, n).lastInsertRowid);
+      novas.push({ id, entrada: base + "." + ms, numero: n });
     }
     return { ok: true, unidades: novas, remessaId: rem.id, saldo: saldoItem(itemId) };
   },
@@ -2191,10 +2466,11 @@ const api: Record<string, (a: any) => unknown> = {
     const base = ev.data + " " + rel;
     let n = 0, seq = 0;
     for (const l of A("SELECT item_id, quantidade FROM estoque_evento_item WHERE evento_id=? ORDER BY item_id", eventoId)) {
+      let numero = proximoNumero(l.item_id);   // a numeração da etiqueta continua de onde parou
       for (let i = 0; i < l.quantidade; i++) {
         const ms = ("00" + (seq++ % 1000)).slice(-3);
-        R(`INSERT INTO estoque_unidade (item_id,remessa_id,entrada,origem,momento)
-           VALUES (?,?,?,'remessa',?)`, l.item_id, eventoId, base + "." + ms, agora());
+        R(`INSERT INTO estoque_unidade (item_id,remessa_id,entrada,origem,momento,numero)
+           VALUES (?,?,?,'remessa',?,?)`, l.item_id, eventoId, base + "." + ms, agora(), numero++);
         n++;
       }
     }
@@ -2205,18 +2481,35 @@ const api: Record<string, (a: any) => unknown> = {
      lugar, e sem isto a única saída seria apagar e relançar.
      Os milissegundos originais são preservados: o input só dá minutos, e zerá-los empataria
      exemplares que estavam desempatados. */
-  ajustarUnidade({ id, entrada, codigo, agoraMesmo }: any) {
+  ajustarUnidade({ id, entrada, codigo, numero, conferir }: any) {
     const u = G("SELECT * FROM estoque_unidade WHERE id=?", id);
     if (!u) throw new Error("Exemplar não encontrado.");
     if (codigo !== undefined) R("UPDATE estoque_unidade SET codigo=? WHERE id=?", String(codigo || "").trim() || null, id);
-    /* carimbar AGORA: é o botão que ele descreveu, um por exemplar. Os milissegundos vêm do relógio
-       de verdade, não de um contador — conferir dois exemplares em segundos diferentes tem de
-       produzir ordens diferentes, e é isso que a fila usa. */
-    if (agoraMesmo) {
-      const d = new Date();
-      const ts = agora() + "." + ("00" + d.getMilliseconds()).slice(-3);
-      R("UPDATE estoque_unidade SET entrada=? WHERE id=?", ts, id);
-      return { ok: true, entrada: ts, saldo: saldoItem(u.item_id) };
+    /* NÚMERO DA ETIQUETA, editável: os exemplares que já estão na prateleira podem ter sido
+       numerados à mão antes do sistema, e é preciso dizer qual número está escrito em qual.
+       Teto = quantos exemplares o material tem (não existe "nº 7" num material com 5), exceto se
+       algum número maior já estiver em uso — o que acontece quando um exemplar foi apagado.
+       Número já usado por outro exemplar TROCA com ele, em vez de recusar: sem a troca não haveria
+       como rearranjar dois exemplares, só apagar e recriar. */
+    if (numero !== undefined && numero !== null && numero !== "") {
+      const n = parseInt(String(numero), 10);
+      if (!Number.isFinite(n) || n < 1) throw new Error("O número da etiqueta começa em 1.");
+      const total = G("SELECT COUNT(*) n FROM estoque_unidade WHERE item_id=?", u.item_id)?.n || 0;
+      const maior = G("SELECT MAX(numero) m FROM estoque_unidade WHERE item_id=?", u.item_id)?.m || 0;
+      const teto = Math.max(total, maior);
+      if (n > teto) throw new Error("Este material tem " + teto + " exemplar(es) — o número " + n + " não existe.");
+      const dono = G("SELECT id FROM estoque_unidade WHERE item_id=? AND numero=? AND id<>?", u.item_id, n, id);
+      if (dono) R("UPDATE estoque_unidade SET numero=? WHERE id=?", u.numero ?? null, dono.id);
+      R("UPDATE estoque_unidade SET numero=? WHERE id=?", n, id);
+    }
+    /* CONFERIR o exemplar: marca que ele foi conferido contra a caixa, e SÓ ISSO. Antes este era o
+       botão "carimbar", que reescrevia `entrada` — ou seja, mudava o lugar do exemplar na fila a
+       cada conferência, e era a origem da inconsistência entre número e instante.
+       Desmarcar é permitido: quem clicou no exemplar errado precisa poder voltar. */
+    if (conferir !== undefined) {
+      R("UPDATE estoque_unidade SET conferido=? WHERE id=?", conferir ? agora() : null, id);
+      return { ok: true, conferido: conferir ? agora() : null, saldo: saldoItem(u.item_id),
+        conflitos: conflitosDeNumero(u.item_id) };
     }
     if (entrada) {
       const ms = (String(u.entrada).split(".")[1] || "000").slice(0, 3);
@@ -2224,7 +2517,92 @@ const api: Record<string, (a: any) => unknown> = {
       if (!/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(base)) throw new Error("Data e hora inválidas.");
       R("UPDATE estoque_unidade SET entrada=? WHERE id=?", base + ":00." + ms, id);
     }
-    return { ok: true, saldo: saldoItem(u.item_id) };
+    return { ok: true, saldo: saldoItem(u.item_id), conflitos: conflitosDeNumero(u.item_id) };
+  },
+  /* ===== EDIÇÕES DE UM MATERIAL =====
+     Criar e renomear; NÃO apagar (regra dele: *"apagar não dá para apagar, mas talvez alterar ou
+     adicionar edição nova"*) — e é o certo, porque exemplar entregue a aluno aponta para a edição
+     e apagá-la deixaria o rastro sem nome. */
+  salvarEdicao({ id, itemId, nome, ano }: any) {
+    const n = String(nome ?? "").trim();
+    if (!n) throw new Error("A edição precisa de um nome.");
+    const a = (ano === "" || ano == null || ano === 0) ? null : Number(ano);
+    if (id) {
+      const at = G("SELECT * FROM estoque_edicao WHERE id=?", id);
+      if (!at) throw new Error("Edição não encontrada.");
+      if (G("SELECT 1 FROM estoque_edicao WHERE item_id=? AND nome=? AND id<>?", at.item_id, n, id))
+        throw new Error("Este material já tem uma edição chamada \"" + n + "\".");
+      R("UPDATE estoque_edicao SET nome=?, ano=? WHERE id=?", n, a, id);
+      sincronizarEdicaoDoItem(at.item_id);
+      return { ok: true, id, itemId: at.item_id };
+    }
+    if (!itemId) throw new Error("Informe o material.");
+    if (G("SELECT 1 FROM estoque_edicao WHERE item_id=? AND nome=?", itemId, n))
+      throw new Error("Este material já tem uma edição chamada \"" + n + "\".");
+    const r = R("INSERT INTO estoque_edicao (item_id,nome,ano,momento) VALUES (?,?,?,?)", itemId, n, a, agora());
+    sincronizarEdicaoDoItem(itemId);
+    return { ok: true, id: Number(r.lastInsertRowid), itemId };
+  },
+  /* ARQUIVAR / DESARQUIVAR uma edição. Nunca apagar: exemplar entregue aponta para ela.
+     Arquivar a que era PADRÃO passa o posto para a próxima ativa — o material não pode ficar sem
+     edição corrente enquanto tiver alguma viva. */
+  arquivarEdicao({ id, desarquivar }: any) {
+    const ed = G("SELECT * FROM estoque_edicao WHERE id=?", id);
+    if (!ed) throw new Error("Edição não encontrada.");
+    R("UPDATE estoque_edicao SET arquivada=?, padrao=? WHERE id=?",
+      desarquivar ? null : agora(), desarquivar ? ed.padrao : 0, id);
+    const nova = sincronizarEdicaoDoItem(ed.item_id);
+    return { ok: true, padraoAgora: nova?.nome ?? null,
+      exemplares: G("SELECT COUNT(*) n FROM estoque_unidade WHERE edicao_id=?", id)?.n || 0 };
+  },
+  /* a edição que os exemplares novos herdam. Uma por material — marcar outra desmarca a anterior. */
+  edicaoPadraoDoItem({ id }: any) {
+    const ed = G("SELECT * FROM estoque_edicao WHERE id=?", id);
+    if (!ed) throw new Error("Edição não encontrada.");
+    if (ed.arquivada) throw new Error("Edição arquivada não pode ser a padrão — desarquive antes.");
+    R("UPDATE estoque_edicao SET padrao=0 WHERE item_id=?", ed.item_id);
+    R("UPDATE estoque_edicao SET padrao=1 WHERE id=?", id);
+    sincronizarEdicaoDoItem(ed.item_id);
+    return { ok: true };
+  },
+  /* a edição de UM exemplar. Nula é legítima: exemplar antigo cuja edição ninguém anotou. */
+  definirEdicaoUnidade({ id, edicaoId }: any) {
+    const u = G("SELECT item_id FROM estoque_unidade WHERE id=?", id);
+    if (!u) throw new Error("Exemplar não encontrado.");
+    if (edicaoId) {
+      const ed = G("SELECT item_id FROM estoque_edicao WHERE id=?", edicaoId);
+      if (!ed || ed.item_id !== u.item_id) throw new Error("Essa edição não é deste material.");
+    }
+    R("UPDATE estoque_unidade SET edicao_id=? WHERE id=?", edicaoId || null, id);
+    return { ok: true };
+  },
+  /* ENTRADA DIRETA, sem pedido (2026-08-16). Regra dele: *"a entrada vai servir mais para quando a
+     gente faz pedido; só que a edição, manipulação vai ser a mesma"*. O caso que a pediu é o de
+     agora — os exemplares que JÁ estão na prateleira e nunca passaram por um pedido no sistema
+     precisam entrar para receber número, código e carimbo.
+     `origem='manual'` já existia no CHECK desde o primeiro dia da unidade física; era o buraco que
+     faltava preencher. Sem remessa ligada: não houve caixa, e inventar uma criaria um pedido que
+     ninguém fez.
+     O instante é o de AGORA, com milissegundo por posição. Parece errado para livro que está na
+     estante há meses, e não é: o que a fila precisa é da ORDEM, e o que entra hoje sai antes de
+     tudo que chegar depois. Quem souber a data de verdade corrige no lápis da unidade. */
+  adicionarUnidades({ itemId, quantidade }: any) {
+    const it = G("SELECT id, descricao FROM estoque_item WHERE id=?", itemId);
+    if (!it) throw new Error("Material não encontrado.");
+    const q = Math.max(0, Math.min(200, parseInt(quantidade, 10) || 0));
+    if (!q) throw new Error("Informe quantos exemplares estão entrando.");
+    const base = agora();
+    const jaTem = G("SELECT COUNT(*) n FROM estoque_unidade WHERE item_id=?", itemId)?.n || 0;
+    let numero = proximoNumero(itemId);
+    const novas: any[] = [];
+    for (let i = 0; i < q; i++) {
+      const entrada = base + "." + ("00" + ((jaTem + i) % 1000)).slice(-3);
+      const n = numero++;
+      const id = Number(R(`INSERT INTO estoque_unidade (item_id,remessa_id,entrada,origem,momento,numero)
+         VALUES (?,NULL,?,'manual',?,?)`, itemId, entrada, base, n).lastInsertRowid);
+      novas.push({ id, entrada, numero: n });
+    }
+    return { ok: true, unidades: novas, saldo: saldoItem(itemId), descricao: it.descricao };
   },
   /* Apaga UM exemplar. A entrega, se houver, continua registrada: o aluno recebeu de verdade, e
      apagar o rastro do objeto não desfaz o fato. */
@@ -2253,33 +2631,80 @@ const api: Record<string, (a: any) => unknown> = {
   },
   /* entregar = registrar que o livro daquela matrícula foi para a mão do aluno. Sem quantidade:
      é um livro, o dele. A data pode vir vazia e ser preenchida depois. */
-  entregarMaterial({ idMatricula, livro, data }: any) {
+  /* QUAIS exemplares estão disponíveis para entregar naquele estágio. A tela abre esta lista antes
+     de entregar: a escolha do exemplar é dele, não do sistema — *"tem que aparecer uma janelinha e
+     escolher qual que é a unidade que eu quero entregar para esse aluno"*.
+     A ordem continua a da fila (o mais antigo primeiro) e o primeiro vem marcado como sugestão, mas
+     agora é sugestão mesmo, não decisão silenciosa. */
+  unidadesParaEntrega({ livro }: any) {
+    const it = G("SELECT id, descricao FROM estoque_item WHERE livro=?", livro);
+    if (!it) return { itemId: null, descricao: null, unidades: [] };
+    return { itemId: it.id, descricao: it.descricao,
+      unidades: A(`SELECT id, numero, codigo, entrada, origem FROM estoque_unidade
+                   WHERE item_id=? AND entrega_id IS NULL AND arquivado IS NULL ORDER BY entrada, id`, it.id)
+        .map(u => ({ id: u.id, numero: u.numero ?? null, codigo: u.codigo || "",
+                     entrada: u.entrada, origem: u.origem })) };
+  },
+  entregarMaterial({ idMatricula, livro, data, hora, unidadeId }: any) {
     if (!idMatricula || !livro) throw new Error("Matrícula e estágio são obrigatórios.");
     const it = G("SELECT id FROM estoque_item WHERE livro=?", livro);
-    R(`INSERT INTO entrega_material (id_matricula,livro,item_id,data,deduzida,momento) VALUES (?,?,?,?,0,?)
-       ON CONFLICT(id_matricula,livro) DO UPDATE SET data=excluded.data, deduzida=0`,
-      idMatricula, livro, it?.id ?? null, data || null, agora());
+    /* A HORA carimbada pelo RELÓGIO DO SERVIDOR, e só quando a entrega é de HOJE. Quem clica em
+       "entregar" está entregando agora: pedir a hora de um gesto que acabou de acontecer seria
+       trabalho sem informação nova, e é o mesmo carimbo automático de `registrarPonto`.
+       Data passada é memória — a hora dela ninguém sabe, então fica nula e a linha deixa editar.
+       Servidor e não navegador porque são duas estações no balcão, e o relógio que vale é um só. */
+    const hhmm = data
+      ? (horaEntrega(hora) ?? (data === dataISO(new Date()) ? agora().slice(11, 16) : null))
+      : null;
+    R(`INSERT INTO entrega_material (id_matricula,livro,item_id,data,hora,deduzida,momento) VALUES (?,?,?,?,?,0,?)
+       ON CONFLICT(id_matricula,livro) DO UPDATE SET data=excluded.data, hora=excluded.hora, deduzida=0`,
+      idMatricula, livro, it?.id ?? null, data || null, hhmm, agora());
     /* FILA: sai o exemplar MAIS ANTIGO — "quem chegou primeiro sai primeiro". Se não houver unidade
        na prateleira, a entrega é registrada assim mesmo e o saldo fica devendo: a recepção entregou
        de fato, e negar o registro só faria o sistema divergir da realidade. */
     const ent = G("SELECT id FROM entrega_material WHERE id_matricula=? AND livro=?", idMatricula, livro);
     let unidade = null;
     if (it && ent && !G("SELECT 1 FROM estoque_unidade WHERE entrega_id=?", ent.id)) {
-      const u = proximaUnidade(it.id);
+      /* EXEMPLAR ESCOLHIDO pela tela; sem escolha, cai na fila (o mais antigo). A escolha é conferida
+         contra o material e contra "ainda está na prateleira" — o id vem do cliente, e um exemplar já
+         entregue a outro aluno não pode ser entregue de novo. */
+      let u = null;
+      if (unidadeId) {
+        u = G(`SELECT * FROM estoque_unidade WHERE id=? AND item_id=? AND entrega_id IS NULL AND arquivado IS NULL`,
+          Number(unidadeId), it.id);
+        if (!u) throw new Error("Esse exemplar não está mais disponível — recarregue a lista.");
+      } else u = proximaUnidade(it.id);
       if (u) {
-        R("UPDATE estoque_unidade SET entrega_id=?, saida=? WHERE id=?", ent.id, data || dataISO(new Date()), u.id);
-        unidade = { id: u.id, entrada: u.entrada, codigo: u.codigo };
+        /* o exemplar sai com o instante DA ENTREGA, não com um carimbo próprio. Entrega sem data
+           conhecida ainda assim tira o livro da prateleira agora, e é este clique que a `saida`
+           registra — o que não se sabe é quando ele chegou à mão do aluno, e isso quem diz é a
+           linha, com o campo em branco. */
+        R("UPDATE estoque_unidade SET entrega_id=?, saida=? WHERE id=?",
+          ent.id, instanteSaida(data || null, hhmm) ?? agora().slice(0, 16), u.id);
+        unidade = { id: u.id, entrada: u.entrada, codigo: u.codigo, numero: u.numero ?? null };
       }
     }
-    return { ok: true, saldo: it ? saldoItem(it.id) : null, unidade,
+    return { ok: true, saldo: it ? saldoItem(it.id) : null, unidade, hora: hhmm,
       semEstoque: !!it && !unidade };
   },
   /* a data da entrega é editável justamente porque as deduzidas nascem sem data — ninguém sabe
-     quando aqueles livros saíram, e chutar seria pior que deixar em branco */
-  ajustarEntrega({ idMatricula, livro, data }: any) {
-    const r = R("UPDATE entrega_material SET data=?, deduzida=0 WHERE id_matricula=? AND livro=?", data || null, idMatricula, livro);
+     quando aqueles livros saíram, e chutar seria pior que deixar em branco.
+     A HORA anda junto e vem sempre da tela, nunca do relógio: os dois campos estão lado a lado na
+     linha, então o que fica gravado é exatamente o que a recepção está vendo. O servidor não tenta
+     adivinhar se a hora antiga ainda vale para o dia novo — ele não tem como saber, e ela está à
+     vista de quem edita. Apagar a data apaga a hora: hora sem dia não é informação (e o CHECK
+     recusaria de qualquer jeito). */
+  ajustarEntrega({ idMatricula, livro, data, hora }: any) {
+    const d = data || null;
+    const h = d ? horaEntrega(hora) : null;
+    const r = R("UPDATE entrega_material SET data=?, hora=?, deduzida=0 WHERE id_matricula=? AND livro=?",
+      d, h, idMatricula, livro);
     if (!r.changes) throw new Error("Entrega não encontrada.");
-    return { ok: true };
+    /* o exemplar passa a contar a mesma história: sem isto, corrigir a data na linha deixava
+       `estoque_unidade.saida` presa no dia antigo, e o objeto contradizia a entrega para sempre. */
+    const ent = G("SELECT id FROM entrega_material WHERE id_matricula=? AND livro=?", idMatricula, livro);
+    if (ent) R("UPDATE estoque_unidade SET saida=? WHERE entrega_id=?", instanteSaida(d, h), ent.id);
+    return { ok: true, data: d, hora: h };
   },
   removerEntrega({ idMatricula, livro }: any) {
     const it = G("SELECT id FROM estoque_item WHERE livro=?", livro);
@@ -2321,9 +2746,9 @@ const api: Record<string, (a: any) => unknown> = {
        todos os três que vieram semeados. */
     const linhas = (t: string, dono: number) =>
       A(`SELECT * FROM ${t} WHERE dono_id=? ORDER BY ordem, id`, dono)
-        .map(l => ({ id: l.id, ordem: l.ordem, numero: l.numero, descricao: l.descricao,
-                     bloco: l.bloco, tipo: l.tipo }));
-    const modelos = A("SELECT * FROM estagio_modelo ORDER BY id").map(m => ({
+        .map(l => ({ id: l.id, ordem: l.ordem, numero: l.numero, sigla: l.sigla || "",
+                     descricao: l.descricao, bloco: l.bloco, tipo: l.tipo }));
+    const modelos = A("SELECT * FROM estagio_modelo WHERE arquivado IS NULL ORDER BY id").map(m => ({
       id: m.id, nome: m.nome, licoesPorCapitulo: m.licoes_por_capitulo, capitulos: m.capitulos,
       comuns: m.licoes_por_capitulo * m.capitulos,
       licoes: linhas("estagio_modelo_licao", m.id) }));
@@ -2332,8 +2757,8 @@ const api: Record<string, (a: any) => unknown> = {
     A("SELECT * FROM estagio_equivalente").forEach(r => (equiv[r.a_id] ||= []).push(r.b_id));
     /* ordem PEDAGÓGICA das categorias, não alfabética: por nome, "Outros Idiomas" caía entre
        Kids e Teens e quebrava a leitura da progressão. */
-    const estagios = A(`SELECT * FROM estagio ORDER BY
-        CASE categoria WHEN 'Kids' THEN 1 WHEN 'Teens' THEN 2 WHEN 'W' THEN 3 ELSE 4 END,
+    const estagios = A(`SELECT * FROM estagio WHERE arquivado IS NULL ORDER BY
+        CASE categoria WHEN 'Kids' THEN 1 WHEN 'Teens' THEN 2 WHEN 'Ws' THEN 3 ELSE 4 END,
         ordem, id`).map(e => ({
       id: e.id, sigla: e.sigla, nome: e.nome, nomeCurto: e.nome_curto || "",
       /* nome de EXIBIÇÃO = nome + edição, concatenados aqui e não digitados: assim "Kids 4" com
@@ -2497,18 +2922,30 @@ const api: Record<string, (a: any) => unknown> = {
     if (p.id) {
       const at = G(`SELECT * FROM ${t} WHERE id=?`, p.id);
       if (!at) throw new Error("Lição não encontrada.");
-      R(`UPDATE ${t} SET numero=?, descricao=?, bloco=?, tipo=? WHERE id=?`,
+      R(`UPDATE ${t} SET numero=?, sigla=?, descricao=?, bloco=?, tipo=? WHERE id=?`,
         p.numero === undefined ? at.numero : num(p.numero),
+        p.sigla === undefined ? at.sigla : (String(p.sigla).trim() || null),
         desc || at.descricao,
         p.bloco === undefined ? at.bloco : num(p.bloco),
         p.tipo || at.tipo, p.id);
+      /* MUDAR O Nº É MOVER: o índice é a posição na fila, então digitar 57 numa lição que está na 13
+         a leva para a 57 e empurra as vizinhas. É o que ele pediu ao dizer que o índice é editável —
+         e cobre, sem popover nenhum, o "quero levar esta lição para bem longe" que ele descartou. */
+      if (p.ordem !== undefined && p.ordem !== null && p.ordem !== "") {
+        const destino = Math.max(1, parseInt(String(p.ordem), 10) || 1);
+        const outras = A(`SELECT id FROM ${t} WHERE dono_id=? AND id<>? ORDER BY ordem, id`, at.dono_id, p.id)
+          .map(r => r.id);
+        outras.splice(Math.min(destino - 1, outras.length), 0, p.id);
+        outras.forEach((id, i) => R(`UPDATE ${t} SET ordem=? WHERE id=?`, i + 1, id));
+      }
       return { ok: true, id: p.id };
     }
     if (!desc) throw new Error("A lição precisa de uma descrição.");
     /* nasce no fim da fila: construir uma estrutura é acrescentar linha após linha */
     const ordem = num(p.ordem) ?? ((G(`SELECT MAX(ordem) m FROM ${t} WHERE dono_id=?`, p.alvoId)?.m || 0) + 1);
-    const r = R(`INSERT INTO ${t} (dono_id,ordem,numero,descricao,bloco,tipo) VALUES (?,?,?,?,?,?)`,
-      p.alvoId, ordem, num(p.numero), desc, num(p.bloco), p.tipo || "input");
+    const r = R(`INSERT INTO ${t} (dono_id,ordem,numero,sigla,descricao,bloco,tipo) VALUES (?,?,?,?,?,?,?)`,
+      p.alvoId, ordem, num(p.numero), (p.sigla == null ? null : String(p.sigla).trim() || null),
+      desc, num(p.bloco), p.tipo || "input");
     return { ok: true, id: Number(r.lastInsertRowid) };
   },
   excluirLicaoEstrutura: ({ alvo, id }: any) =>
@@ -2523,6 +2960,11 @@ const api: Record<string, (a: any) => unknown> = {
     if (!viz) return { ok: true, moveu: false };
     R(`UPDATE ${t} SET ordem=? WHERE id=?`, eu.ordem, viz.id);
     R(`UPDATE ${t} SET ordem=? WHERE id=?`, viz.ordem, eu.id);
+    /* NORMALIZA a fila para 1..N depois do troca-troca. A coluna Nº da tela É a posição, então ela
+       precisa ser contígua: uma lista que já tenha buracos (lição apagada no meio) mostraria
+       "13, 15, 16" e o número deixaria de ser o índice que ele pediu. */
+    A(`SELECT id FROM ${t} WHERE dono_id=? ORDER BY ordem, id`, eu.dono_id)
+      .forEach((r, i) => R(`UPDATE ${t} SET ordem=? WHERE id=?`, i + 1, r.id));
     return { ok: true, moveu: true };
   },
   /* Materializa uma estrutura GERADA em linhas editáveis. O cliente manda a lista que ele já
@@ -2533,18 +2975,87 @@ const api: Record<string, (a: any) => unknown> = {
     if (!alvoId || !Array.isArray(linhas)) throw new Error("Dados incompletos.");
     R(`DELETE FROM ${t} WHERE dono_id=?`, alvoId);
     linhas.forEach((l: any, i: number) =>
-      R(`INSERT INTO ${t} (dono_id,ordem,numero,descricao,bloco,tipo) VALUES (?,?,?,?,?,?)`,
+      R(`INSERT INTO ${t} (dono_id,ordem,numero,sigla,descricao,bloco,tipo) VALUES (?,?,?,?,?,?,?)`,
         alvoId, i + 1,
         l.numero === "" || l.numero == null ? null : Number(l.numero),
+        l.sigla == null ? null : String(l.sigla).trim() || null,
         String(l.descricao ?? "").trim() || "—",
         l.bloco === "" || l.bloco == null ? null : Number(l.bloco),
         l.tipo || "input"));
+    /* a sigla vem preenchida quando a origem é um MODELO (que já tem a dele); vindo da fórmula,
+       `siglarLicoes` completa o que ficou nulo com L1, L2, R1... */
+    siglarLicoes();
     return { ok: true, linhas: linhas.length };
+  },
+  /* SÓ o vínculo com o modelo. Existe em vez de reaproveitar `salvarEstagio` porque aquele grava o
+     registro INTEIRO: mandar dois campos exigiria repetir os outros vinte, e um esquecido volta
+     nulo — foi exatamente assim que 10 estágios perderam o `item_estoque_id` um dia. */
+  definirModeloDoEstagio({ estagioId, modeloId }: any) {
+    if (!estagioId || !modeloId) throw new Error("Estágio e modelo são obrigatórios.");
+    if (!G("SELECT 1 FROM estagio_modelo WHERE id=?", modeloId)) throw new Error("Modelo não encontrado.");
+    const r = R("UPDATE estagio SET modelo_id=? WHERE id=?", modeloId, estagioId);
+    if (!r.changes) throw new Error("Estágio não encontrado.");
+    return { ok: true };
   },
   /* apagar a lista devolve o estágio ao modelo (ou o modelo à fórmula) */
   limparEstrutura: ({ alvo, alvoId }: any) =>
     ({ ok: true, apagadas: R(`DELETE FROM ${tabelaLicao(alvo)} WHERE dono_id=?`, alvoId).changes }),
 
+  /* ===== ARQUIVO: uma base só para o que saiu de circulação =====
+     Cada tipo sabe de qual tabela vem, como se chama na tela e o que mostrar como rótulo. Assim a
+     página de Arquivados não precisa conhecer o esquema de cinco tabelas. */
+  getArquivados() {
+    const linhas: any[] = [];
+    const push = (tipo: string, origem: string, r: any, rotulo: string, detalhe: string | null) =>
+      linhas.push({ tipo, origem, id: r.id, rotulo, detalhe, arquivado: r.arquivado });
+    for (const r of A("SELECT * FROM estoque_item WHERE arquivado IS NOT NULL"))
+      push("material", "Estoque · Materiais", r, r.descricao,
+        (r.livro ? "estágio " + r.livro : "avulso")
+        + " · " + (G("SELECT COUNT(*) n FROM estoque_unidade WHERE item_id=?", r.id)?.n || 0) + " exemplar(es)");
+    for (const r of A(`SELECT u.*, i.descricao dsc FROM estoque_unidade u
+                       LEFT JOIN estoque_item i ON i.id=u.item_id WHERE u.arquivado IS NOT NULL`))
+      push("exemplar", "Estoque · fila do material", r,
+        (r.dsc || "material apagado") + (r.numero != null ? " nº " + r.numero : ""),
+        (r.codigo ? "código " + r.codigo + " · " : "") + "entrou " + r.entrada
+        + (r.entrega_id ? " · já foi entregue a um aluno" : ""));
+    for (const r of A("SELECT * FROM estoque_evento WHERE arquivado IS NOT NULL"))
+      push("pedido", "Estoque · Entradas", r, r.tipo + " de " + r.data,
+        (r.observacao || "").slice(0, 80) || null);
+    for (const r of A("SELECT * FROM estagio WHERE arquivado IS NOT NULL"))
+      push("estagio", "Estágios · Catálogo", r, r.nome,
+        r.sigla + " · " + (G("SELECT COUNT(*) n FROM estagio_licao WHERE dono_id=?", r.id)?.n || 0) + " lição(ões)");
+    for (const r of A("SELECT * FROM estagio_modelo WHERE arquivado IS NOT NULL"))
+      push("modelo", "Estágios · Modelos", r, r.nome,
+        r.licoes_por_capitulo + " lições × " + r.capitulos + " blocos");
+    /* mais recente primeiro: quem acabou de arquivar por engano acha na primeira linha */
+    return linhas.sort((a, b) => String(b.arquivado).localeCompare(String(a.arquivado)));
+  },
+  arquivarRecurso({ tipo, id, desarquivar }: any) {
+    const meta = ARQUIVAVEIS[tipo];
+    if (!meta) throw new Error("Tipo desconhecido: " + tipo);
+    /* o último modelo não pode sair de circulação: estágio sem modelo não sabe gerar estrutura */
+    if (tipo === "modelo" && !desarquivar
+      && (G("SELECT COUNT(*) n FROM estagio_modelo WHERE arquivado IS NULL")?.n || 0) <= 1)
+      throw new Error("Tem de sobrar ao menos um modelo em uso.");
+    const r = R(`UPDATE ${meta.tabela} SET arquivado=? WHERE id=?`, desarquivar ? null : agora(), id);
+    if (!r.changes) throw new Error("Registro não encontrado.");
+    return { ok: true };
+  },
+  /* EXCLUIR DE VERDADE, e só a partir do arquivo. O nome digitado tem de bater — é a trava que ele
+     pediu, no estilo do GitHub. A contagem regressiva de 5s é da tela; aqui fica a checagem que
+     nenhuma pressa contorna. */
+  excluirArquivado({ tipo, id, confirmacao }: any) {
+    const meta = ARQUIVAVEIS[tipo];
+    if (!meta) throw new Error("Tipo desconhecido: " + tipo);
+    const alvo = G(`SELECT * FROM ${meta.tabela} WHERE id=?`, id);
+    if (!alvo) throw new Error("Registro não encontrado.");
+    if (!alvo.arquivado) throw new Error("Só é possível excluir o que está arquivado.");
+    const nome = String(alvo[meta.rotulo] ?? "").trim();
+    if (String(confirmacao ?? "").trim() !== nome)
+      throw new Error("O nome digitado não confere com \"" + nome + "\".");
+    R(`DELETE FROM ${meta.tabela} WHERE id=?`, id);
+    return { ok: true, nome };
+  },
   ligarEstagios(p: any) {
     const t = p.tipo === "equivalente" ? "estagio_equivalente" : "estagio_proximo";
     const [ca, cb] = p.tipo === "equivalente" ? ["a_id", "b_id"] : ["de_id", "para_id"];
@@ -3377,7 +3888,8 @@ function avisarTodos(evento: string) {
   }
 }
 
-Deno.serve({ port: 8420, hostname: "0.0.0.0" }, async (req, info) => {
+const PORTA = Number(Deno.env.get("WIZ_PORT")) || 8420;
+Deno.serve({ port: PORTA, hostname: "0.0.0.0" }, async (req, info) => {
   const url = new URL(req.url);
   const ip = (info?.remoteAddr as Deno.NetAddr | undefined)?.hostname ?? "127.0.0.1";
   if (url.pathname === "/ws") {
@@ -3419,13 +3931,16 @@ Deno.serve({ port: 8420, hostname: "0.0.0.0" }, async (req, info) => {
   try { return new Response(await Deno.readFile(PASTA + arquivo), { headers: cabecalhos }); }
   catch { return new Response("não encontrado", { status: 404 }); }
 });
-console.log("Wizard local em http://localhost:8420  (painel único: Alunos, Turmas, Horários e Impressão)");
+/* a porta ANUNCIADA tem de ser a que está escutando: com a instância de ensaio dizendo 8420 no log,
+   quem lê o terminal abre o painel dele achando que abriu o teste — ou o contrário. */
+console.log(`Wizard local em http://localhost:${PORTA}  (painel único: Alunos, Turmas, Horários e Impressão)`
+  + (ENSAIO ? `  [ENSAIO sobre ${Deno.env.get("WIZ_DB")} — não é o banco da recepção]` : ""));
 /* endereços por onde os notebooks alcançam esta máquina — a recepção precisa saber qual digitar
    nos outros computadores, e o IP do Wi-Fi muda de vez em quando */
 try {
   for (const [nome, faixas] of Object.entries(Deno.networkInterfaces().reduce((m: Record<string, string[]>, i) => {
     if (i.family === "IPv4" && i.address !== "127.0.0.1") (m[i.name] ||= []).push(i.address);
     return m;
-  }, {}))) console.log(`   na rede (${nome}): http://${faixas.join(" / ")}:8420`);
+  }, {}))) console.log(`   na rede (${nome}): http://${faixas.join(" / ")}:${PORTA}`);
 } catch { /* sem permissão de rede: não é essencial */ }
 

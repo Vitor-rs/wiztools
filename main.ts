@@ -199,6 +199,37 @@ db.exec(`CREATE TABLE IF NOT EXISTS entrega_material (
    O CHECK recusa hora sem dia — 14:32 de nenhum dia não é informação. */
 addColuna("entrega_material", "hora",
   "TEXT CHECK (hora IS NULL OR (data IS NOT NULL AND hora GLOB '[0-2][0-9]:[0-5][0-9]'))");
+/* ===== A DEVOLUÇÃO (2026-08-17) =====
+   Pedido dele: *"devolução de material ao estoque"* — o aluno cancela e devolve o livro.
+   Isso NÃO é o "desfazer entrega" que já existia. Desfazer é dizer *a entrega nunca aconteceu*:
+   apaga a linha e o assunto morre. Devolver é o contrário — a entrega aconteceu, o aluno teve o
+   livro na mão por três meses, e agora ele voltou. Apagar a entrega para representar a devolução
+   perderia justamente o que a escola quer saber depois ("este exemplar já rodou").
+
+   Por isso são duas coisas separadas:
+   - `entrega_material.devolvida` — a data da ÚLTIMA devolução. Nula = o aluno ainda está com o
+     livro. É a coluna que a tela lê para saber o estado de agora.
+   - `devolucao_material` — o registro histórico, uma linha por devolução. Precisa ser tabela
+     própria porque `entrega_material` tem UNIQUE(id_matricula,livro): o mesmo aluno pode receber,
+     devolver e receber de novo, e nesse ciclo a linha da entrega é reescrita enquanto o histórico
+     não pode ser.
+   `unidade_id` fica gravado aqui mesmo depois de o exemplar voltar para a prateleira — é o elo que
+   responde "por quantas mãos este número de etiqueta já passou". A unidade em si volta livre,
+   com o `entrada` INTOCADO: ela retoma o lugar dela na fila, exatamente como em `removerEntrega`. */
+addColuna("entrega_material", "devolvida",
+  "TEXT CHECK (devolvida IS NULL OR devolvida GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]')");
+db.exec(`CREATE TABLE IF NOT EXISTS devolucao_material (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id_matricula TEXT NOT NULL REFERENCES alunos(id_matricula) ON DELETE CASCADE,
+  livro TEXT NOT NULL,                 -- texto solto, como em entrega_material e presenca
+  item_id INTEGER REFERENCES estoque_item(id) ON DELETE SET NULL,
+  unidade_id INTEGER REFERENCES estoque_unidade(id) ON DELETE SET NULL,
+  data TEXT NOT NULL CHECK (data GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]'),
+  hora TEXT CHECK (hora IS NULL OR hora GLOB '[0-2][0-9]:[0-5][0-9]'),
+  motivo TEXT,
+  momento TEXT NOT NULL                -- quando a LINHA foi escrita, como em entrega_material
+)`);
+db.exec("CREATE INDEX IF NOT EXISTS ix_devolucao_mat ON devolucao_material(id_matricula, livro)");
 /* ===== A UNIDADE FÍSICA (2026-08-10) =====
    Decisão dele, depois de ver que a contagem era herança do caderno: *"a contagem não faz sentido,
    era uma coisa que a gente fazia na mão porque quando entregava material tinha que recontar. Como
@@ -520,6 +551,211 @@ db.exec("CREATE INDEX IF NOT EXISTS ix_licao_extra ON estagio_licao_extra(estagi
    sumir da tela viraria confusão. */
 for (const t of ["estoque_item", "estoque_unidade", "estoque_evento", "estagio", "estagio_modelo"])
   addColuna(t, "arquivado", "TEXT");
+/* ===== CENTRAL DE CONTROLE (2026-08-17) =====
+   Pedido dele: *"um sistema de notificação e dependências, tipo central de controle... alunos com
+   livro vinculado mas sem livro entregue, alunos cadastrados sem livro vinculado, recurso sem suas
+   informações completas... é tipo um backlog"*.
+
+   NÃO existe biblioteca para isto, e é por uma razão de fundo: o que conta como "incompleto" aqui
+   não é uma propriedade do esquema, é uma REGRA DA ESCOLA. Nenhum validador genérico sabe que
+   estágio sem próximo pode ser o último da trilha, nem que o Kids 4 da edição antiga está sem
+   material DE PROPÓSITO. Então a central é uma lista de perguntas escritas à mão, cada uma com o
+   seu porquê e a sua saída — e o app segue sem dependência externa nenhuma.
+
+   SILENCIAR é a peça que a torna usável. Ele foi explícito: *"às vezes é uma pendência, às vezes
+   ela pode ser até proposital, por questão de regra de negócio"*. Sem isso, toda pendência
+   deliberada vira ruído permanente e em duas semanas ninguém olha mais a tela.
+   `chave='*'` silencia a REGRA inteira (ex.: "entrega sem data" — são 120 herdadas da semeadura, e
+   ele sabe disso); qualquer outra chave silencia UM caso.
+   As chaves são estáveis: todo alvo é `INTEGER PRIMARY KEY AUTOINCREMENT` (id nunca reaproveitado)
+   ou um id de texto do mundo real (matrícula, turma). Sem isso, apagar um registro faria o silêncio
+   dele cair sobre outro. */
+db.exec(`CREATE TABLE IF NOT EXISTS aviso_silenciado (
+  regra TEXT NOT NULL,
+  chave TEXT NOT NULL,                 -- '*' = a regra inteira
+  motivo TEXT,
+  momento TEXT NOT NULL,
+  PRIMARY KEY (regra, chave)
+)`);
+/* Cada checagem devolve `k` (chave estável), `r` (rótulo) e, quando ajuda, `d` (detalhe).
+   `gravidade`: alta = atrapalha a operação hoje · media = vai atrapalhar · baixa = cadastro
+   incompleto, que é backlog de verdade e não urgência.
+   `aba` é para onde o botão "resolver" leva. */
+type Checagem = { id: string; area: string; titulo: string; porque: string; acao: string;
+                  gravidade: "alta" | "media" | "baixa"; aba: string; sql: string };
+const CHECAGENS: Checagem[] = [
+  /* ---------- ALUNOS ---------- */
+  { id: "aluno_sem_matricula", area: "Alunos", gravidade: "alta", aba: "alunos",
+    titulo: "Aluno ativo sem nenhuma matrícula",
+    porque: "O aluno está com situação ativa mas não está vinculado a estágio nenhum — ele não aparece em ficha, agenda nem entrega.",
+    acao: "Abra o aluno e use \"+ Nova matrícula em estágio\".",
+    sql: `SELECT a.id_matricula k, a.nome r, a.situacao d FROM alunos a
+          JOIN situacoes s ON s.situacao=a.situacao AND s.ativa=1
+          WHERE NOT EXISTS (SELECT 1 FROM aluno_livro al WHERE al.id_matricula=a.id_matricula)
+          ORDER BY a.nome` },
+  { id: "matricula_sem_entrega", area: "Alunos", gravidade: "alta", aba: "estoque",
+    titulo: "Matrícula ativa sem material entregue",
+    porque: "O aluno está matriculado no estágio e não recebeu o material dele (ou devolveu e não recebeu outro).",
+    acao: "Aba Estoque · Entregas: escolha o aluno e entregue um exemplar.",
+    sql: `SELECT al.id_matricula||'|'||al.livro k, a.nome r, al.livro d
+          FROM aluno_livro al JOIN alunos a ON a.id_matricula=al.id_matricula
+          JOIN situacoes s ON s.situacao=a.situacao AND s.ativa=1
+          LEFT JOIN entrega_material e ON e.id_matricula=al.id_matricula AND e.livro=al.livro
+          WHERE e.id IS NULL OR e.devolvida IS NOT NULL ORDER BY a.nome` },
+  { id: "matricula_sem_agenda", area: "Alunos", gravidade: "alta", aba: "alunos",
+    titulo: "Matrícula ativa sem horário na agenda",
+    porque: "Sem dia e hora o aluno não entra em bloco nenhum: some da ficha impressa e das duas telas de frequência.",
+    acao: "Abra o aluno, escolha a aba do estágio e marque os dias na grade.",
+    sql: `SELECT al.id_matricula||'|'||al.livro k, a.nome r, al.livro d
+          FROM aluno_livro al JOIN alunos a ON a.id_matricula=al.id_matricula
+          JOIN situacoes s ON s.situacao=a.situacao AND s.ativa=1
+          WHERE NOT EXISTS (SELECT 1 FROM aulas au WHERE au.id_matricula=al.id_matricula AND au.livro=al.livro)
+          ORDER BY a.nome` },
+  { id: "aula_sem_professor", area: "Alunos", gravidade: "media", aba: "alunos",
+    titulo: "Aula sem professor vinculado",
+    porque: "A ficha impressa sai sem o nome da professora naquele bloco.",
+    acao: "Abra o aluno, na aba do estágio, e preencha Professores.",
+    sql: `SELECT au.id k, a.nome r, au.livro||' · '||au.dia||' '||au.hora d FROM aulas au
+          JOIN alunos a ON a.id_matricula=au.id_matricula
+          JOIN situacoes s ON s.situacao=a.situacao AND s.ativa=1
+          WHERE NOT EXISTS (SELECT 1 FROM aula_professor ap WHERE ap.aula_id=au.id)
+          ORDER BY a.nome, au.dia` },
+  { id: "aluno_sem_historico", area: "Alunos", gravidade: "baixa", aba: "alunos",
+    titulo: "Aluno ativo sem nenhum registro de situação",
+    porque: "Não há quando ele entrou nem em qual estágio — o percurso dele começa em branco.",
+    acao: "Abra o aluno em Informações · Histórico de situação e lance a entrada dele.",
+    sql: `SELECT a.id_matricula k, a.nome r, a.situacao d FROM alunos a
+          JOIN situacoes s ON s.situacao=a.situacao AND s.ativa=1
+          WHERE NOT EXISTS (SELECT 1 FROM aluno_situacao_historico h WHERE h.id_matricula=a.id_matricula)
+          ORDER BY a.nome` },
+  { id: "entrega_sem_data", area: "Alunos", gravidade: "baixa", aba: "estoque",
+    titulo: "Entrega registrada sem data",
+    porque: "Sabe-se que o aluno recebeu, não quando. É o caso das entregas deduzidas das matrículas antigas.",
+    acao: "Aba Estoque · Entregas: preencha a data na linha, quando souber.",
+    sql: `SELECT e.id_matricula||'|'||e.livro k, a.nome r, e.livro d FROM entrega_material e
+          JOIN alunos a ON a.id_matricula=e.id_matricula WHERE e.data IS NULL ORDER BY a.nome` },
+
+  /* ---------- BIBLIOTECA · ESTÁGIOS ---------- */
+  { id: "estagio_sem_estrutura", area: "Estágios", gravidade: "alta", aba: "estagios",
+    titulo: "Estágio sem estrutura definida",
+    porque: "Sem modelo e sem lista própria não há como saber quantas lições o estágio tem.",
+    acao: "Abra o estágio em Estrutura e escolha um modelo (ou monte a lista própria).",
+    sql: `SELECT e.id k, e.nome r, e.categoria d FROM estagio e
+          WHERE e.arquivado IS NULL AND e.modelo_id IS NULL
+          AND NOT EXISTS (SELECT 1 FROM estagio_licao l WHERE l.dono_id=e.id) ORDER BY e.ordem` },
+  { id: "estagio_sem_material", area: "Estágios", gravidade: "media", aba: "estagios",
+    titulo: "Estágio sem material de estoque vinculado",
+    porque: "A matrícula nesse estágio não consegue dizer se há exemplar na prateleira, e a entrega fica sem unidade.",
+    acao: "Abra o estágio em Dados e escolha o material. (Edição aposentada sem estoque é caso legítimo — silencie.)",
+    sql: `SELECT e.id k, e.nome r, COALESCE(e.livro,'sem estágio-ponte') d FROM estagio e
+          WHERE e.arquivado IS NULL AND e.item_estoque_id IS NULL ORDER BY e.ordem` },
+  { id: "estagio_sem_livro", area: "Estágios", gravidade: "media", aba: "estagios",
+    titulo: "Estágio sem estágio-ponte",
+    porque: "Sem o vínculo com `livros` ninguém consegue se matricular nele: matrícula, agenda e ficha passam por aí.",
+    acao: "Abra o estágio em Dados e vincule o material — o estágio-ponte vem dele.",
+    sql: `SELECT e.id k, e.nome r, e.categoria d FROM estagio e
+          WHERE e.arquivado IS NULL AND (e.livro IS NULL OR e.livro='') ORDER BY e.ordem` },
+  { id: "estagio_sem_nome_curto", area: "Estágios", gravidade: "baixa", aba: "estagios",
+    titulo: "Estágio sem nome curto",
+    porque: "O nome curto é o que cabe nas pílulas e nas fichas impressas.",
+    acao: "Abra o estágio em Dados e preencha Nome curto.",
+    sql: `SELECT e.id k, e.nome r, e.categoria d FROM estagio e
+          WHERE e.arquivado IS NULL AND (e.nome_curto IS NULL OR e.nome_curto='') ORDER BY e.ordem` },
+  { id: "estagio_sem_proximo", area: "Estágios", gravidade: "baixa", aba: "estagios",
+    titulo: "Estágio sem próximo na trilha",
+    porque: "A rematrícula não sabe sugerir para onde o aluno vai depois de terminar.",
+    acao: "Aba Estágios · Trilha. (O último estágio de uma linha não tem próximo mesmo — silencie.)",
+    sql: `SELECT e.id k, e.nome r, e.categoria d FROM estagio e
+          WHERE e.arquivado IS NULL AND (e.livro IS NOT NULL AND e.livro<>'')
+          AND NOT EXISTS (SELECT 1 FROM estagio_proximo p WHERE p.de_id=e.id) ORDER BY e.ordem` },
+
+  /* ---------- BIBLIOTECA · ESTOQUE ---------- */
+  { id: "material_abaixo_minimo", area: "Estoque", gravidade: "alta", aba: "estoque",
+    titulo: "Material abaixo do mínimo, sem pedido a caminho",
+    porque: "O saldo já está abaixo do que você definiu como mínimo e não há pedido pendente para repor.",
+    acao: "Aba Estoque · Materiais: \"+ Fazer pedido\".",
+    sql: `SELECT i.id k, i.descricao r,
+            'saldo '||(SELECT COUNT(*) FROM estoque_unidade u WHERE u.item_id=i.id AND u.entrega_id IS NULL AND u.arquivado IS NULL)
+            ||' · mínimo '||i.minimo d
+          FROM estoque_item i WHERE i.arquivado IS NULL AND i.componente=0 AND i.minimo>0
+          AND (SELECT COUNT(*) FROM estoque_unidade u WHERE u.item_id=i.id AND u.entrega_id IS NULL AND u.arquivado IS NULL) < i.minimo
+          ORDER BY i.ordem` },
+  { id: "material_sem_minimo", area: "Estoque", gravidade: "media", aba: "estoque",
+    titulo: "Material sem estoque mínimo definido",
+    porque: "Com mínimo zero o sistema nunca vai avisar que está na hora de pedir esse material.",
+    acao: "Aba Estoque · Materiais: escolha o material e preencha Mínimo.",
+    sql: `SELECT i.id k, i.descricao r, COALESCE(i.livro,'avulso') d FROM estoque_item i
+          WHERE i.arquivado IS NULL AND i.componente=0 AND i.minimo=0 ORDER BY i.ordem` },
+  { id: "material_sem_edicao", area: "Estoque", gravidade: "baixa", aba: "estoque",
+    titulo: "Material de livro sem edição definida",
+    porque: "Sem edição, dois exemplares de anos diferentes ficam indistinguíveis na fila.",
+    acao: "Aba Estoque · Materiais: escolha o material e crie a edição no campo Edições.",
+    sql: `SELECT i.id k, i.descricao r, i.livro d FROM estoque_item i
+          WHERE i.arquivado IS NULL AND i.componente=0 AND i.livro IS NOT NULL
+          AND NOT EXISTS (SELECT 1 FROM estoque_edicao ed WHERE ed.item_id=i.id AND ed.arquivada IS NULL)
+          ORDER BY i.ordem` },
+  { id: "unidade_sem_numero", area: "Estoque", gravidade: "media", aba: "estoque",
+    titulo: "Exemplar sem número de etiqueta",
+    porque: "O número escrito à caneta é o identificador que a mão alcança na prateleira.",
+    acao: "Aba Estoque · Materiais: abra a fila do material e edite o exemplar no lápis.",
+    sql: `SELECT u.id k, i.descricao r, 'entrou '||substr(u.entrada,1,16) d
+          FROM estoque_unidade u JOIN estoque_item i ON i.id=u.item_id
+          WHERE u.arquivado IS NULL AND u.numero IS NULL ORDER BY u.entrada` },
+  { id: "unidade_sem_codigo", area: "Estoque", gravidade: "baixa", aba: "estoque",
+    titulo: "Exemplar sem código de barras",
+    porque: "O código é o que amarra a entrega ao objeto físico quando o exemplar sai.",
+    acao: "Aba Estoque · Materiais: abra a fila e digite o código no lápis do exemplar.",
+    sql: `SELECT u.id k, i.descricao||' nº '||COALESCE(u.numero,'?') r, 'entrou '||substr(u.entrada,1,16) d
+          FROM estoque_unidade u JOIN estoque_item i ON i.id=u.item_id
+          WHERE u.arquivado IS NULL AND (u.codigo IS NULL OR u.codigo='') ORDER BY u.entrada` },
+  { id: "unidade_nao_conferida", area: "Estoque", gravidade: "baixa", aba: "estoque",
+    titulo: "Exemplar na prateleira nunca conferido",
+    porque: "Ninguém confirmou que esse exemplar está fisicamente na caixa que chegou.",
+    acao: "Aba Estoque · Entradas: abra o pedido e use o botão de conferir de cada exemplar.",
+    sql: `SELECT u.id k, i.descricao||' nº '||COALESCE(u.numero,'?') r, 'entrou '||substr(u.entrada,1,16) d
+          FROM estoque_unidade u JOIN estoque_item i ON i.id=u.item_id
+          WHERE u.arquivado IS NULL AND u.entrega_id IS NULL AND u.conferido IS NULL ORDER BY u.entrada` },
+  { id: "pedido_nao_chegou", area: "Estoque", gravidade: "media", aba: "estoque",
+    titulo: "Pedido confirmado que ainda não chegou",
+    porque: "O pedido foi fechado e nenhuma remessa dele entrou — pode ser hora de cobrar.",
+    acao: "Aba Estoque · Entradas: confirme a chegada quando a caixa vier.",
+    sql: `SELECT ev.id k, 'Pedido de '||ev.data r,
+            (SELECT COALESCE(SUM(quantidade),0) FROM estoque_evento_item ei WHERE ei.evento_id=ev.id)||' exemplar(es)' d
+          FROM estoque_evento ev WHERE ev.tipo='pedido' AND ev.arquivado IS NULL AND ev.confirmado=1
+          AND NOT EXISTS (SELECT 1 FROM estoque_evento r2 WHERE r2.tipo='remessa' AND r2.pedido_id=ev.id)
+          ORDER BY ev.data` },
+
+  /* ---------- TURMAS E PROFESSORES ---------- */
+  { id: "turma_sem_professor", area: "Turmas", gravidade: "alta", aba: "turmas",
+    titulo: "Turma ativa sem professor",
+    porque: "A professora faz parte da identidade da turma — é ela que desempata salas gêmeas no mesmo horário.",
+    acao: "Abra a turma e preencha Professores.",
+    sql: `SELECT t.id k, t.id r, COALESCE(t.livro,'multi-estágio')||' · '||t.hora_inicio d FROM turmas t
+          WHERE t.status='Ativa' AND NOT EXISTS (SELECT 1 FROM turma_professor tp WHERE tp.turma_id=t.id)` },
+  { id: "turma_sem_dias", area: "Turmas", gravidade: "alta", aba: "turmas",
+    titulo: "Turma ativa sem dias definidos",
+    porque: "Turma sem dia não casa com aluno nenhum: ela não existe em nenhuma ficha.",
+    acao: "Abra a turma e marque os dias.",
+    sql: `SELECT t.id k, t.id r, COALESCE(t.livro,'multi-estágio')||' · '||t.hora_inicio d FROM turmas t
+          WHERE t.status='Ativa' AND NOT EXISTS (SELECT 1 FROM turma_dia td WHERE td.turma_id=t.id)` },
+  { id: "turma_vazia", area: "Turmas", gravidade: "media", aba: "turmas",
+    titulo: "Turma ativa sem nenhum aluno no horário dela",
+    porque: "A sala está aberta na matriz e ninguém está agendado nela.",
+    acao: "Abra a turma: ou entra aluno, ou ela passa a Inativa.",
+    sql: `SELECT t.id k, t.id r, COALESCE(t.livro,'multi-estágio')||' · '||t.hora_inicio d FROM turmas t
+          WHERE t.status='Ativa' AND NOT EXISTS (
+            SELECT 1 FROM aulas au JOIN turma_dia td ON td.dia=au.dia AND td.turma_id=t.id
+            WHERE au.hora=t.hora_inicio AND (t.livro IS NULL OR au.livro=t.livro))` },
+  { id: "professor_sem_aula", area: "Turmas", gravidade: "baixa", aba: "professores",
+    titulo: "Professor sem nenhuma aula ou turma",
+    porque: "Está cadastrado e não aparece em lugar nenhum — pode ser cadastro antigo.",
+    acao: "Aba Professores: vincule ou remova.",
+    sql: `SELECT f.id k, f.nome r, f.nome_completo d FROM funcionarios f
+          WHERE NOT EXISTS (SELECT 1 FROM aula_professor ap WHERE ap.funcionario_id=f.id)
+            AND NOT EXISTS (SELECT 1 FROM turma_professor tp WHERE tp.funcionario_id=f.id)
+          ORDER BY f.nome` },
+];
+
 /* de qual tabela cada tipo vem, e qual coluna é o NOME que a exclusão vai exigir digitado */
 const ARQUIVAVEIS: Record<string, { tabela: string; rotulo: string }> = {
   material: { tabela: "estoque_item", rotulo: "descricao" },
@@ -1693,7 +1929,7 @@ const instanteSaida = (data: string | null, hora: string | null) =>
    Port 2) aparece assim mesmo, com item nulo, em vez de sumir da lista. */
 function listaEntregas() {
   return A(`SELECT al.id_matricula, al.livro, a.nome, a.situacao,
-                   e.id AS entrega_id, e.data, e.hora, e.deduzida, e.item_id,
+                   e.id AS entrega_id, e.data, e.hora, e.deduzida, e.item_id, e.devolvida,
                    i.id AS item_livro_id, i.descricao AS item_desc
             FROM aluno_livro al
             JOIN alunos a ON a.id_matricula=al.id_matricula
@@ -1704,6 +1940,18 @@ function listaEntregas() {
     idMatricula: r.id_matricula, livro: r.livro, nome: r.nome, situacao: r.situacao,
     entregaId: r.entrega_id ?? null, data: r.data ?? null, hora: r.hora ?? null,
     deduzida: r.deduzida === 1,
+    /* DEVOLVIDA (2026-08-17): a entrega continua na lista — ela aconteceu —, só que marcada. A tela
+       mostra a pílula riscada e o aluno volta a contar como quem está sem o material. */
+    devolvida: r.devolvida ?? null,
+    /* o histórico vem SEMPRE, não só quando o material está devolvido agora: "este aluno já
+       devolveu uma vez e recebeu outro" é informação do balcão, e ela desapareceria da tela no
+       instante em que ele recebe o exemplar novo. Uma busca indexada por entrega, ao lado da que
+       já existe para a unidade. */
+    devolucoes: A(`SELECT data, hora, motivo, unidade_id FROM devolucao_material
+                   WHERE id_matricula=? AND livro=? ORDER BY data DESC, id DESC`,
+                  r.id_matricula, r.livro)
+      .map(d => ({ data: d.data, hora: d.hora || null, motivo: d.motivo || "",
+                   unidadeId: d.unidade_id ?? null })),
     itemId: r.item_id ?? r.item_livro_id ?? null, itemDesc: r.item_desc ?? null,
     /* QUAL exemplar saiu: é o que liga a entrega à etiqueta física. Entrega deduzida das matrículas
        antigas não tem unidade — ninguém registrou qual livro daquela pilha foi para a mão de quem. */
@@ -1714,6 +1962,49 @@ function listaEntregas() {
         })()
       : null,
   }));
+}
+/* ===== QUEM ESTÁ ESPERANDO MATERIAL (2026-08-17) =====
+   Pedido dele: *"notificação quando a remessa chega para o aluno pendente"*.
+   ESPERANDO é o aluno ATIVO cuja matrícula não tem o livro na mão. São dois casos, e os dois
+   contam:
+   - matrícula SEM linha em `entrega_material` — nunca recebeu (é a matrícula feita depois da
+     semeadura, quando a caixa ainda não tinha chegado);
+   - entrega com `devolvida` preenchida — recebeu, devolveu, e está sem de novo.
+   Aluno inativo não entra: `situacoes.ativa=1` é o mesmo filtro de `listaEntregas`, e quem cancelou
+   não está esperando nada. Estágio sem material cadastrado também não — não há o que chegar. */
+function aguardandoDoItem(itemId: number) {
+  return A(`SELECT al.id_matricula, al.livro, a.nome
+            FROM aluno_livro al
+            JOIN alunos a ON a.id_matricula=al.id_matricula
+            JOIN situacoes s ON s.situacao=a.situacao AND s.ativa=1
+            JOIN estoque_item i ON i.livro=al.livro AND i.arquivado IS NULL
+            LEFT JOIN entrega_material e ON e.id_matricula=al.id_matricula AND e.livro=al.livro
+            WHERE i.id=? AND (e.id IS NULL OR e.devolvida IS NOT NULL)
+            ORDER BY a.nome`, itemId)
+    .map(r => ({ idMatricula: r.id_matricula, livro: r.livro, nome: r.nome }));
+}
+/* O AVISO é o cruzamento de duas listas: quem espera e o que tem na prateleira. Um aluno esperando
+   um material que não chegou não é aviso nenhum — é a situação normal de quem acabou de se
+   matricular. O que merece a tela piscando é *"chegou o livro DELE"*: saldo > 0 com gente na fila.
+   `podem` é o que de fato dá para entregar hoje — não adianta anunciar 5 esperando com 2 na
+   prateleira e mandar a recepção descobrir sozinha que só dois saem. */
+function avisosDeChegada() {
+  const itens: any[] = [];
+  for (const i of A(`SELECT id, descricao, livro FROM estoque_item
+                     WHERE arquivado IS NULL AND livro IS NOT NULL`)) {
+    const saldo = saldoItem(i.id);
+    if (saldo <= 0) continue;
+    const esperando = aguardandoDoItem(i.id);
+    if (!esperando.length) continue;
+    itens.push({ itemId: i.id, descricao: i.descricao, livro: i.livro, saldo,
+      esperando, podem: Math.min(saldo, esperando.length) });
+  }
+  itens.sort((a, b) => b.podem - a.podem || a.descricao.localeCompare(b.descricao, "pt"));
+  return { itens,
+    /* o número do sino conta ALUNOS ATENDÍVEIS, não matrículas esperando: é o que a recepção pode
+       resolver agora, e é a promessa que o aviso faz quando ela clicar nele */
+    total: itens.reduce((s, i) => s + i.podem, 0),
+    alunos: new Set(itens.flatMap(i => i.esperando.map((e: any) => e.idMatricula))).size };
 }
 /* quanto ainda está encomendado e não chegou, item a item, percorrendo a linha do tempo: cada
    pedido soma, cada remessa abate o que ela de fato trouxe. Olhar só a DATA da última remessa
@@ -2422,7 +2713,12 @@ const api: Record<string, (a: any) => unknown> = {
          VALUES (?,?,?,'remessa',?,?)`, itemId, rem.id, base + "." + ms, base, n).lastInsertRowid);
       novas.push({ id, entrada: base + "." + ms, numero: n });
     }
-    return { ok: true, unidades: novas, remessaId: rem.id, saldo: saldoItem(itemId) };
+    /* QUEM ESTAVA ESPERANDO ESTE MATERIAL. Vai junto na resposta, e não numa segunda chamada, porque
+       é exatamente neste instante que a informação vale: a caixa acabou de ser aberta e a recepção
+       está com os livros na mão. Descobrir dois dias depois que a Rafaela esperava é tarde. */
+    return { ok: true, unidades: novas, remessaId: rem.id, saldo: saldoItem(itemId),
+      descricao: G("SELECT descricao FROM estoque_item WHERE id=?", itemId)?.descricao || "",
+      esperando: aguardandoDoItem(itemId) };
   },
   /* DESFAZER a chegada de um pedido: some com as unidades que ela criou e com a remessa, e o pedido
      volta ao que era — só os números pedidos, sem nada recebido.
@@ -2465,6 +2761,7 @@ const api: Record<string, (a: any) => unknown> = {
     const rel = agora().slice(11);      // 'HH:MM:SS'
     const base = ev.data + " " + rel;
     let n = 0, seq = 0;
+    const tocados: number[] = [];
     for (const l of A("SELECT item_id, quantidade FROM estoque_evento_item WHERE evento_id=? ORDER BY item_id", eventoId)) {
       let numero = proximoNumero(l.item_id);   // a numeração da etiqueta continua de onde parou
       for (let i = 0; i < l.quantidade; i++) {
@@ -2473,8 +2770,15 @@ const api: Record<string, (a: any) => unknown> = {
            VALUES (?,?,?,'remessa',?,?)`, l.item_id, eventoId, base + "." + ms, agora(), numero++);
         n++;
       }
+      tocados.push(l.item_id);
     }
-    return { ok: true, unidades: n, data: ev.data };
+    /* a remessa inteira pode atender vários materiais de uma vez — o aviso vem agrupado por
+       material, que é como a recepção separa as pilhas na mesa */
+    const esperando = tocados.map(id => ({
+      itemId: id, descricao: G("SELECT descricao FROM estoque_item WHERE id=?", id)?.descricao || "",
+      alunos: aguardandoDoItem(id), saldo: saldoItem(id),
+    })).filter(x => x.alunos.length);
+    return { ok: true, unidades: n, data: ev.data, esperando };
   },
   /* Ajusta um exemplar: o instante de entrada (que é o lugar dele na FILA) e o código de barras da
      etiqueta. O instante é editável a pedido dele — caixa lançada com a data errada tira a ordem do
@@ -2602,7 +2906,10 @@ const api: Record<string, (a: any) => unknown> = {
          VALUES (?,NULL,?,'manual',?,?)`, itemId, entrada, base, n).lastInsertRowid);
       novas.push({ id, entrada, numero: n });
     }
-    return { ok: true, unidades: novas, saldo: saldoItem(itemId), descricao: it.descricao };
+    /* entrada manual também avisa: o exemplar que estava na estante e acabou de ganhar número é
+       tão entregável quanto o que veio na caixa */
+    return { ok: true, unidades: novas, saldo: saldoItem(itemId), descricao: it.descricao,
+      esperando: aguardandoDoItem(itemId) };
   },
   /* Apaga UM exemplar. A entrega, se houver, continua registrada: o aluno recebeu de verdade, e
      apagar o rastro do objeto não desfaz o fato. */
@@ -2656,8 +2963,13 @@ const api: Record<string, (a: any) => unknown> = {
     const hhmm = data
       ? (horaEntrega(hora) ?? (data === dataISO(new Date()) ? agora().slice(11, 16) : null))
       : null;
+    /* `devolvida=NULL` no UPDATE: entregar de novo é o fim do ciclo anterior. Sem isto, o aluno que
+       devolveu e recebeu outro exemplar ficaria com a entrega nova marcada como devolvida — e
+       continuaria na lista de quem está esperando, para sempre. O histórico do que ele devolveu
+       não se perde: vive em `devolucao_material`. */
     R(`INSERT INTO entrega_material (id_matricula,livro,item_id,data,hora,deduzida,momento) VALUES (?,?,?,?,?,0,?)
-       ON CONFLICT(id_matricula,livro) DO UPDATE SET data=excluded.data, hora=excluded.hora, deduzida=0`,
+       ON CONFLICT(id_matricula,livro) DO UPDATE SET data=excluded.data, hora=excluded.hora,
+         deduzida=0, devolvida=NULL`,
       idMatricula, livro, it?.id ?? null, data || null, hhmm, agora());
     /* FILA: sai o exemplar MAIS ANTIGO — "quem chegou primeiro sai primeiro". Se não houver unidade
        na prateleira, a entrega é registrada assim mesmo e o saldo fica devendo: a recepção entregou
@@ -2715,6 +3027,73 @@ const api: Record<string, (a: any) => unknown> = {
     R("DELETE FROM entrega_material WHERE id_matricula=? AND livro=?", idMatricula, livro);
     return { ok: true, saldo: it ? saldoItem(it.id) : null };
   },
+  /* ===== DEVOLVER O MATERIAL AO ESTOQUE (2026-08-17) =====
+     *"devolução de material ao estoque"* — o aluno cancela e devolve o livro.
+     A diferença para `removerEntrega` é o que cada uma AFIRMA. Desfazer diz "esta entrega nunca
+     existiu" e apaga a linha; devolver diz "existiu, durou, e terminou". Por isso aqui nada é
+     apagado: a entrega fica com a data de devolução e o fato vira uma linha em
+     `devolucao_material`, com o exemplar que voltou.
+     O exemplar volta para a prateleira do jeito que `removerEntrega` já fazia — `entrega_id=NULL`
+     sem tocar em `entrada` —, então ele reassume o lugar dele na fila em vez de virar o mais novo.
+     Livro usado que volta é o mais velho da prateleira, e é ele que deve sair primeiro. */
+  devolverMaterial({ idMatricula, livro, data, hora, motivo }: any) {
+    if (!idMatricula || !livro) throw new Error("Matrícula e estágio são obrigatórios.");
+    const ent = G("SELECT * FROM entrega_material WHERE id_matricula=? AND livro=?", idMatricula, livro);
+    if (!ent) throw new Error("Não há entrega registrada para devolver.");
+    if (ent.devolvida) throw new Error("Este material já consta como devolvido em " + ent.devolvida + ".");
+    const d = data || dataISO(new Date());
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) throw new Error("Data de devolução inválida.");
+    /* mesma regra da entrega: quem carimba a hora é o RELÓGIO DO SERVIDOR, e só quando é HOJE.
+       Devolução lançada com data passada é memória — a hora dela ninguém sabe, e 00:00 inventado
+       seria pior que o campo vazio. */
+    const h = horaEntrega(hora) ?? (d === dataISO(new Date()) ? agora().slice(11, 16) : null);
+    /* qual exemplar está voltando: o que saiu nesta entrega. Entrega deduzida das matrículas
+       antigas não tem nenhum ligado, e a devolução acontece do mesmo jeito — o livro voltou para a
+       prateleira ainda que ninguém sabia qual era. */
+    const u = G("SELECT id, numero, codigo FROM estoque_unidade WHERE entrega_id=?", ent.id);
+    R(`INSERT INTO devolucao_material (id_matricula,livro,item_id,unidade_id,data,hora,motivo,momento)
+       VALUES (?,?,?,?,?,?,?,?)`,
+      idMatricula, livro, ent.item_id ?? null, u?.id ?? null, d, h,
+      String(motivo || "").trim() || null, agora());
+    if (u) R("UPDATE estoque_unidade SET entrega_id=NULL, saida=NULL WHERE id=?", u.id);
+    R("UPDATE entrega_material SET devolvida=? WHERE id=?", d, ent.id);
+    const it = ent.item_id ? G("SELECT id FROM estoque_item WHERE id=?", ent.item_id)
+                           : G("SELECT id FROM estoque_item WHERE livro=?", livro);
+    return { ok: true, data: d, hora: h, saldo: it ? saldoItem(it.id) : null,
+      unidade: u ? { id: u.id, numero: u.numero ?? null, codigo: u.codigo || "" } : null };
+  },
+  /* DESFAZER a devolução: o aluno não devolveu, foi engano de digitação. Reata o mesmo exemplar à
+     entrega (se ele ainda estiver livre — outra pessoa pode tê-lo levado nesse meio-tempo, e aí a
+     entrega volta a valer sem exemplar ligado, que é o mesmo estado das 122 deduzidas). */
+  desfazerDevolucao({ idMatricula, livro }: any) {
+    const ent = G("SELECT * FROM entrega_material WHERE id_matricula=? AND livro=?", idMatricula, livro);
+    if (!ent) throw new Error("Entrega não encontrada.");
+    if (!ent.devolvida) throw new Error("Esta entrega não consta como devolvida.");
+    const dev = G(`SELECT * FROM devolucao_material WHERE id_matricula=? AND livro=?
+                   ORDER BY data DESC, id DESC LIMIT 1`, idMatricula, livro);
+    let religou = false;
+    if (dev?.unidade_id) {
+      const u = G("SELECT id FROM estoque_unidade WHERE id=? AND entrega_id IS NULL", dev.unidade_id);
+      if (u) {
+        R("UPDATE estoque_unidade SET entrega_id=?, saida=? WHERE id=?",
+          ent.id, instanteSaida(ent.data ?? null, ent.hora ?? null) ?? agora().slice(0, 16), u.id);
+        religou = true;
+      }
+    }
+    if (dev) R("DELETE FROM devolucao_material WHERE id=?", dev.id);
+    /* `devolvida=NULL`, e NÃO "a devolução anterior volta a valer".
+       Tentei o segundo e está errado — descobri testando o ciclo completo. Uma devolução mais
+       antiga já foi ENCERRADA pela re-entrega que veio depois dela (`entregarMaterial` limpa o
+       `devolvida` justamente por isso): ressuscitá-la marcaria como devolvido um material que o
+       aluno tem na mão. O ciclo antigo continua no histórico, que é onde ele pertence.
+       Desfazer ESTA devolução significa uma coisa só: o aluno segue com o material. */
+    R("UPDATE entrega_material SET devolvida=NULL WHERE id=?", ent.id);
+    const it = G("SELECT id FROM estoque_item WHERE livro=?", livro);
+    return { ok: true, religou, saldo: it ? saldoItem(it.id) : null };
+  },
+  /* O SINO: o que chegou e tem dono esperando. A tela pergunta a cada carga do estoque e ao voltar
+     para a aba — a outra estação do balcão pode ter entregue nesse meio-tempo. */
+  getAvisosEstoque: () => avisosDeChegada(),
   /* Célula da matriz Kits × Peças. Zero (ou vazio) APAGA o vínculo: na matriz, "não tem" é o número
      zero, e ele foi explícito — *"o número já vai dizer se é sim ou não; zero quer dizer que não
      tem"*, sem checkbox. Teto de 10 por precaução dele: não existe kit com dez peças iguais. */
@@ -3004,6 +3383,81 @@ const api: Record<string, (a: any) => unknown> = {
   /* ===== ARQUIVO: uma base só para o que saiu de circulação =====
      Cada tipo sabe de qual tabela vem, como se chama na tela e o que mostrar como rótulo. Assim a
      página de Arquivados não precisa conhecer o esquema de cinco tabelas. */
+  /* ===== CENTRAL DE CONTROLE =====
+     Roda TODAS as checagens e devolve a tela inteira. Uma rota só, como `getEstoque`: são ~23
+     consultas curtas e a página não faz sentido pela metade — o número que ela mostra é a soma.
+     Cada item já vem separado em ABERTO ou SILENCIADO, para a tela não precisar conhecer a regra. */
+  getCentral() {
+    const sil: Record<string, any> = {};
+    for (const s of A("SELECT * FROM aviso_silenciado")) sil[s.regra + " " + s.chave] = s;
+    let orfaos = 0;
+    const vistos: Record<string, boolean> = {};
+    const regras = CHECAGENS.map(c => {
+      let itens: any[] = [];
+      /* uma consulta quebrada não pode derrubar a página inteira: a central existe justamente para
+         quem quer ver o estado do sistema, e sumir em silêncio seria o pior desfecho possível */
+      try { itens = A(c.sql); } catch (e) {
+        return { id: c.id, area: c.area, titulo: c.titulo, porque: c.porque, acao: c.acao,
+          gravidade: c.gravidade, aba: c.aba, erro: (e as Error).message,
+          abertos: [], silenciados: [], total: 0, regraSilenciada: false, motivoRegra: null };
+      }
+      const daRegra = sil[c.id + " *"];
+      const abertos: any[] = [], silenciados: any[] = [];
+      for (const r of itens) {
+        const chave = String(r.k);
+        vistos[c.id + " " + chave] = true;
+        const s = daRegra || sil[c.id + " " + chave];
+        const item = { chave, rotulo: String(r.r ?? ""), detalhe: r.d == null ? null : String(r.d) };
+        if (s) silenciados.push({ ...item, motivo: s.motivo || "", desde: s.momento, porRegra: !!daRegra });
+        else abertos.push(item);
+      }
+      return { id: c.id, area: c.area, titulo: c.titulo, porque: c.porque, acao: c.acao,
+        gravidade: c.gravidade, aba: c.aba, erro: null,
+        abertos, silenciados, total: itens.length,
+        regraSilenciada: !!daRegra, motivoRegra: daRegra?.motivo || null };
+    });
+    /* silêncio de um caso que já não aparece (foi resolvido ou o registro sumiu) vira lixo: ele não
+       atrapalha nada, mas contá-lo deixa a limpeza possível em vez de invisível */
+    for (const k of Object.keys(sil)) if (!k.endsWith(" *") && !vistos[k]) orfaos++;
+    const abertos = regras.reduce((s, r) => s + r.abertos.length, 0);
+    const porArea: Record<string, number> = {};
+    const porGravidade: Record<string, number> = { alta: 0, media: 0, baixa: 0 };
+    for (const r of regras) {
+      porArea[r.area] = (porArea[r.area] || 0) + r.abertos.length;
+      porGravidade[r.gravidade] += r.abertos.length;
+    }
+    return { regras, abertos, porArea, porGravidade, orfaos,
+      silenciados: regras.reduce((s, r) => s + r.silenciados.length, 0) };
+  },
+  /* SILENCIAR: `chave='*'` cala a regra toda, qualquer outra chave cala um caso.
+     O motivo é opcional mas pedido: daqui a três meses, "por que este está calado" é a pergunta. */
+  silenciarAviso({ regra, chave, motivo }: any) {
+    if (!regra || !chave) throw new Error("Regra e caso são obrigatórios.");
+    if (!CHECAGENS.some(c => c.id === regra)) throw new Error("Checagem desconhecida: " + regra);
+    R(`INSERT INTO aviso_silenciado (regra,chave,motivo,momento) VALUES (?,?,?,?)
+       ON CONFLICT(regra,chave) DO UPDATE SET motivo=excluded.motivo, momento=excluded.momento`,
+      regra, String(chave), String(motivo || "").trim() || null, agora());
+    return { ok: true };
+  },
+  reativarAviso({ regra, chave }: any) {
+    const r = R("DELETE FROM aviso_silenciado WHERE regra=? AND chave=?", regra, String(chave));
+    return { ok: true, reativados: r.changes };
+  },
+  /* limpa os silêncios de casos que não existem mais — o único jeito de a tabela não crescer para
+     sempre com decisões sobre registros apagados */
+  limparSilenciosObsoletos() {
+    const vivos: Record<string, boolean> = {};
+    for (const c of CHECAGENS) {
+      try { for (const r of A(c.sql)) vivos[c.id + " " + String(r.k)] = true; } catch { /* regra quebrada não apaga nada */ }
+    }
+    let n = 0;
+    for (const s of A("SELECT regra, chave FROM aviso_silenciado WHERE chave<>'*'")) {
+      if (!vivos[s.regra + " " + s.chave]) {
+        R("DELETE FROM aviso_silenciado WHERE regra=? AND chave=?", s.regra, s.chave); n++;
+      }
+    }
+    return { ok: true, removidos: n };
+  },
   getArquivados() {
     const linhas: any[] = [];
     const push = (tipo: string, origem: string, r: any, rotulo: string, detalhe: string | null) =>

@@ -184,6 +184,29 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
 /* meio centímetro de respiro entre o fio das abas e o que vem embaixo — estava colado */
 .tab-fixa>.pg-corpo{flex:1 1 auto;min-height:0;overflow:auto;scrollbar-gutter:stable;
   padding:19px 0 28px}
+/* ===== AS 7 ÚLTIMAS PÁGINAS (2026-08-17) =====
+   Turmas, Horários, Início, Impressão, Dashboard e as duas de frequência eram o que sobrava
+   rolando pela janela. Cada uma tem a sua forma de topo, e é só isso que muda daqui para baixo —
+   o esqueleto (topo de altura própria + uma região rolável) é o mesmo das outras seis. */
+/* AS DUAS DE FREQUÊNCIA: o `.lc-fixo` já era o topo, só que grudado com `sticky` — e sticky
+   continua ocupando altura, então a página seguia longa. Aqui ele vira item de altura própria e
+   `static`: dentro de um flex que não rola, sticky só atrapalha o cálculo da altura.
+   Quem rola é o `.lc-corpo` da aba visível (check-in ou presenças-de-hoje) — são dois irmãos e só
+   um está na tela, então cada um pode pedir a altura toda sem disputar com o outro. */
+.tab-fixa>.lc-fixo{flex:0 0 auto;position:static}
+.tab-fixa>.lc-corpo{flex:1 1 auto;min-height:0;overflow:auto;scrollbar-gutter:stable;
+  padding-bottom:24px}
+/* DASHBOARD: as pizzas e as pílulas de filtro ficam paradas (são o resumo que se olha ENQUANTO se
+   filtra a grade), e a grade toma o resto. Quem rola dentro dela é o próprio Tabulator, que já tem
+   barra própria — por isso `.dash-grade` NÃO é `.pg-rola`: duas barras uma dentro da outra para a
+   mesma lista é exatamente o que o esqueleto veio evitar. */
+.dash-grade{flex:1 1 auto;min-height:0}
+.tab-fixa .dash-grade>#grade-geral{height:100%}
+.tab-fixa .dash-cards{margin-bottom:10px}
+/* IMPRESSÃO: a folha é larga (A4 deitado) e alta; rola nos dois sentidos dentro da própria caixa */
+.tab-fixa>.pg-corpo>#folha-impressao{overflow:visible}
+/* INÍCIO: a faixa do topo é o cabeçalho desta página — ela não tem `.pg-cab` */
+.tab-fixa>.pg-topo>.home-hero{margin-bottom:0}
 /* duas colunas: a regra valia em `.tab.on.duasCols`, quando a própria aba era o contêiner flex.
    Com o cabeçalho padrão, a aba passou a ter o título em cima e as colunas num invólucro DENTRO
    dela — por isso a classe agora vale sozinha também. A variante `.tab.on` fica para as telas que
@@ -473,7 +496,21 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
 .es-chips .chip:focus-visible{outline:2px solid var(--azul);outline-offset:1px}
 .es-ferramentas .acao{margin:0}
 .es-busca{border:1px solid var(--borda);border-radius:7px;padding:7px 10px;font:inherit;width:210px}
-.es-busca:focus{outline:2px solid var(--azul);outline-offset:-1px;border-color:var(--azul)}
+/* ===== O REALCE DE FOCO TEM DE CABER DENTRO DA PRÓPRIA CAIXA (2026-08-17) =====
+   A busca está alinhada de propósito com a 1ª coluna da tabela (189px = 5cm, medida dele), e esse
+   alinhamento a encosta EXATAMENTE na borda esquerda de `.pg-corpo-abas`, que é `overflow:hidden`
+   por causa do esqueleto fixo. Medido: input em x=186 e borda de recorte em x=186, folga zero.
+   O contorno daqui já era inset (`offset:-1px`), mas a regra GERAL `input:focus` acrescenta
+   `box-shadow:0 0 0 3px` — um halo FORA da borda. Os 3px da esquerda caíam fora da área pintável e
+   o halo aparecia fatiado só naquele lado.
+   Alargar o pai consertaria o corte e estragaria o alinhamento, que é justamente o que ele quer.
+   Então o realce fica todo por dentro: o `box-shadow:none` desliga o halo herdado e sobra o
+   contorno azul de 2px, que não pinta um pixel fora da caixa e portanto não tem o que recortar. */
+.es-busca:focus{outline:2px solid var(--azul);outline-offset:-1px;border-color:var(--azul);
+  box-shadow:none}
+/* mesmo motivo, mesma borda: a 1ª pílula da fileira de cima também encosta no recorte, e `offset:1px`
+   pinta para fora. Inset resolve sem mexer no alinhamento. */
+.es-chips .chip:focus-visible{outline-offset:-2px}
 /* A altura é medida em JS (`esAjustarAltura`), não em `calc(100vh - N)`.
    Com o cálculo fixo a moldura às vezes ficava MAIOR que o espaço restante: a página inteira
    passava a rolar, a moldura subia junto e o cabeçalho grudado ia embora com ela — era o defeito
@@ -864,6 +901,45 @@ th.ev.ultima .es-ev-data{background:var(--marca);color:#fff}
 .es-ent-un{font-size:10.5px;color:#AEB6C0;font-weight:400;font-variant-numeric:tabular-nums;
   flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .es-ent-l .es-bt{margin-left:auto;flex-shrink:0}
+/* ===== DEVOLUÇÃO (2026-08-17) =====
+   A linha da entrega ganhou um segundo botão, então eles passam a andar juntos num bloco — com
+   `margin-left:auto` em CADA botão só o primeiro seria empurrado e o segundo ficaria colado nele,
+   no meio da fileira. */
+.es-ent-acoes{order:2;margin-left:auto;display:flex;gap:6px;flex-shrink:0}
+.es-ent-acoes .es-bt{margin-left:0}
+.es-bt.devolver:hover{border-color:#7A4FBF;color:#7A4FBF;background:#F4EFFB}
+/* devolvido é ROXO, a mesma cor que a legenda já usa para "saiu para aluno": devolver é o fecho
+   normal de um ciclo, não um alerta. Vermelho no app significa problema. */
+.es-pil.devolvida{background:#F4EFFB;color:#7A4FBF}
+/* a data da entrega fica RISCADA quando o material voltou: a entrega aconteceu (por isso continua
+   lá, legível) e terminou (por isso o traço). Some as duas coisas num gesto só. */
+.es-ent-l.devolvida .es-ent-dt,.es-ent-l.devolvida .es-ent-hr{text-decoration:line-through;
+  color:var(--tx3);background:#FAFBFC}
+.es-ent-dev{order:2;flex-basis:100%;font-size:11px;color:#7A4FBF;padding-left:2px}
+.es-ent-dev i{font-style:normal;color:var(--tx3)}
+/* ===== O AVISO DE CHEGADA (2026-08-17) =====
+   Pedido dele: *"notificação quando a remessa chega para o aluno pendente"*.
+   O sino mora no SIDEBAR, e não só dentro do Estoque, porque o momento em que ele importa é aquele
+   em que ninguém está olhando o estoque — a caixa chegou de manhã e a recepção está na tela de
+   presença. Pulsa devagar; contorno e não preenchimento, para não competir com o vermelho de erro. */
+.sb-aviso{display:none;margin-left:6px;min-width:17px;height:17px;padding:0 5px;border-radius:9px;
+  background:var(--es-pedido,#B26A00);color:#fff;font-size:10.5px;font-weight:700;line-height:17px;
+  text-align:center;vertical-align:middle}
+.sb-aviso.on{display:inline-block;animation:sbAviso 2.2s ease-in-out infinite}
+@keyframes sbAviso{0%,100%{box-shadow:0 0 0 0 rgba(178,106,0,.55)}
+  70%{box-shadow:0 0 0 6px rgba(178,106,0,0)}}
+@media (prefers-reduced-motion:reduce){.sb-aviso.on{animation:none}}
+/* a faixa dentro da aba Entregas: quem chegou e tem dono esperando. Só existe quando há o que
+   dizer — faixa vazia explicando que não há avisos é ruído permanente. */
+.es-aviso{display:none;align-items:flex-start;gap:11px;margin:0 0 12px;padding:9px 12px;
+  border:1px solid #F0D9AE;border-left:3px solid var(--es-pedido,#B26A00);border-radius:8px;
+  background:var(--es-pedido-cl,#FDF2E0)}
+.es-aviso.on{display:flex}
+.es-aviso .ic{color:var(--es-pedido,#B26A00);flex-shrink:0;margin-top:1px}
+.es-aviso-tx{font-size:12px;color:#7A4A00;line-height:1.5;min-width:0}
+.es-aviso-tx b{color:#5E3900}
+.es-aviso-tx .quem{color:#8A5A12}
+.es-aviso .es-bt{margin-left:auto;flex-shrink:0;align-self:center}
 /* o nome do aluno cabe numa linha só; a coluna cresceu e o painel encolheu para dar lugar */
 #es-p-entregas .es-tabela th.col-item{width:290px;min-width:290px}
 #es-p-entregas .es-item-nome{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
@@ -1234,12 +1310,64 @@ th.ev.ultima .es-ev-data{background:var(--marca);color:#fff}
   padding-bottom:0}
 /* qualquer painel de aba vira coluna: em cima o que não rola, embaixo o que rola. Serve a Estágios,
    Estoque e a qualquer página que venha depois — o nome `eg-` ficou como apelido do que já existia. */
-.pg-corpo-abas>.eg-painel,.pg-corpo-abas>.es-painel{
+.pg-corpo-abas>.eg-painel,.pg-corpo-abas>.es-painel,.pg-corpo-abas>.pg-painel{
   flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
 .pg-fixo,.eg-fixo{flex:0 0 auto;padding-bottom:12px;border-bottom:1px solid var(--borda);
   margin-bottom:14px}
 .pg-rola,.eg-rola{flex:1 1 auto;min-height:0;overflow:auto;scrollbar-gutter:stable;
   padding-bottom:24px}
+
+/* ===== CENTRAL DE CONTROLE (2026-08-17) =====
+   Uma faixa por regra, recolhida por padrão. Recolhida porque a tela nasceu com 281 casos e 23
+   regras: aberta de saída, ela seria uma parede de texto e ninguém acharia o que importa.
+   A GRAVIDADE é um pontinho colorido à esquerda, não uma cor de fundo — fundo vermelho em 20 faixas
+   faz a tela inteira gritar, e aí nada grita. */
+.ct-barra{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px}
+.ct-barra .ct-dir{margin-left:auto;display:flex;gap:6px}
+.ct-regra{border:1px solid var(--borda);border-radius:10px;background:#fff;margin-bottom:8px;
+  overflow:hidden}
+.ct-regra.aberta{border-color:var(--azul-borda);box-shadow:0 1px 6px rgba(7,29,73,.07)}
+.ct-cab{display:flex;align-items:center;gap:10px;padding:10px 13px;cursor:pointer;user-select:none}
+.ct-cab:hover{background:#F7FAFD}
+.ct-regra.aberta .ct-cab{background:var(--azul-cl);border-bottom:1px solid var(--borda)}
+.ct-pt{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.ct-pt.alta{background:#B3261E}.ct-pt.media{background:#B26A00}.ct-pt.baixa{background:#8A93A0}
+.ct-tit{font-size:13px;font-weight:700;color:var(--marca);min-width:0}
+.ct-area{font-size:10.5px;font-weight:700;color:var(--tx3);background:var(--fundo);
+  border:1px solid var(--borda);border-radius:20px;padding:1px 8px;flex-shrink:0}
+.ct-n{margin-left:auto;font-size:12px;font-weight:700;color:#fff;background:var(--tx3);
+  border-radius:20px;padding:1px 9px;font-variant-numeric:tabular-nums;flex-shrink:0}
+.ct-regra .ct-n.alta{background:#B3261E}.ct-regra .ct-n.media{background:#B26A00}
+.ct-regra.zero .ct-n{background:#DCE3EA;color:var(--tx3)}
+.ct-regra.zero .ct-tit{color:var(--tx2);font-weight:600}
+.ct-seta{color:var(--tx3);flex-shrink:0;transition:transform .18s}
+.ct-regra.aberta .ct-seta{transform:rotate(90deg)}
+.ct-corpo{padding:11px 13px 13px}
+.ct-porque{font-size:12px;color:var(--tx2);line-height:1.5;margin-bottom:3px}
+.ct-acao{font-size:12px;color:var(--azul-esc);line-height:1.5;margin-bottom:10px}
+.ct-itens{display:flex;flex-direction:column;gap:0}
+.ct-item{display:flex;align-items:center;gap:9px;padding:6px 0;border-bottom:1px dashed #EDF1F5;
+  font-size:12.5px}
+.ct-item:last-child{border-bottom:0}
+.ct-item b{color:var(--marca);font-weight:600}
+.ct-item .ct-det{color:var(--tx3);font-size:11.5px;min-width:0;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.ct-item .es-bt{margin-left:auto;flex-shrink:0}
+.ct-mais{font-size:11.5px;color:var(--tx3);padding-top:7px}
+/* silenciado: continua legível, mas visivelmente fora do jogo */
+.ct-item.mudo{opacity:.62}
+.ct-item.mudo b{font-weight:500}
+.ct-mot{font-size:11px;color:#7A4FBF;font-style:italic}
+.ct-vazio{font-size:12px;color:var(--tx3);padding:6px 0}
+.ct-ok{display:flex;align-items:center;gap:9px;padding:13px;border:1px solid #BFE3C8;
+  border-radius:10px;background:var(--es-remessa-cl);color:var(--es-remessa);font-size:13px;
+  font-weight:600;margin-bottom:10px}
+.ct-kpi{display:flex;gap:7px;align-items:center}
+.ct-kpi span{font-size:11px;font-weight:700;border-radius:20px;padding:2px 9px;
+  font-variant-numeric:tabular-nums}
+.ct-kpi .k-alta{background:var(--es-saida-cl);color:#B3261E}
+.ct-kpi .k-media{background:var(--es-pedido-cl);color:#B26A00}
+.ct-kpi .k-baixa{background:var(--fundo);color:var(--tx2);border:1px solid var(--borda)}
 
 /* ===== página de Professores: formulário fixo à esquerda, deck rolável à direita ===== */
 .pf-mestre{display:grid;grid-template-columns:minmax(0,320px) 1fr;gap:22px;
@@ -2606,11 +2734,21 @@ td.lc-est-cel{padding:0!important;border-left:1px solid var(--aba-bd);border-rig
   font-size:12px;color:#7a5900;margin-bottom:10px}
 
 @media print {
-  #sidebar, #load, #impressao-controles { display:none !important; }
+  #sidebar, #load, #impressao-controles, #ao-topo { display:none !important; }
   .tab:not(#tab-impressao) { display:none !important; }
   #tab-impressao { display:block !important; padding:0; }
   #conteudo { padding:0; }
   body { display:block; }
+  /* O ESQUELETO FIXO TEM DE SAIR DO CAMINHO NA IMPRESSORA. `#conteudo.fixo` é `height:100vh` +
+     `overflow:hidden`, que na tela é o que impede a página de rolar — e no papel cortaria tudo
+     depois da primeira folha. Aqui a altura volta a ser a do conteúdo, que é o que a impressora
+     pagina. Mesma coisa para a região rolável: `overflow:auto` no papel também corta. */
+  #conteudo.fixo { height:auto; overflow:visible; display:block; }
+  #tab-impressao.tab-fixa.on { display:block !important; }
+  #tab-impressao .pg-corpo { overflow:visible !important; height:auto; padding:0; }
+  /* o nome da página é da TELA: a folha já tem a própria faixa de título (`.cab-banda`), e
+     "Gerenciar impressão" saindo no alto da ficha é ruído no documento que vai para a parede */
+  #tab-impressao .pg-topo, #tab-impressao .pg-cab { display:none !important; }
 }
 </style>
 </head>
@@ -2619,6 +2757,9 @@ td.lc-est-cel{padding:0!important;border-left:1px solid var(--aba-bd);border-rig
 <button type="button" id="ao-topo" title="Voltar ao topo" onclick="aoTopo()"></button>
 <div id="sidebar">
 <button class="on" onclick="aba('inicio',this)">Início</button>
+<!-- A Central fica no topo, colada no Início: as duas respondem à mesma pergunta de quem chega de
+     manhã — "o que tem para hoje". O contador é o mesmo componente do sino do Estoque. -->
+<button onclick="aba('central',this)">Central<span class="sb-aviso" id="sb-aviso-central" title="pendências abertas na central de controle"></span></button>
 <!-- Frequência: seção recolhível no estilo do Notion. As DUAS telas continuam sempre acessíveis
      (o professor lança na sala e confere o que a recepção marcou; a recepção espia o quadro da
      sala numa manhã sem professor) — o grupo só as junta visualmente. Recepção em cima porque é
@@ -2643,7 +2784,7 @@ td.lc-est-cel{padding:0!important;border-left:1px solid var(--aba-bd);border-rig
 <button type="button" class="sb-cabeca" onclick="sbGrupo('sb-bib')" aria-expanded="true">
 <span class="sb-seta"></span>Biblioteca</button>
 <div class="sb-filhos"><div class="sb-filhos-in">
-<button onclick="aba('estoque',this)">Estoque</button>
+<button onclick="aba('estoque',this)">Estoque<span class="sb-aviso" id="sb-aviso-estoque" title="material que chegou e tem aluno esperando"></span></button>
 <button onclick="aba('estagios',this)">Estágios</button>
 <!-- ARQUIVADOS mora na Biblioteca porque é dela que vem quase tudo o que se arquiva: material,
      exemplar, pedido, estágio e modelo. É a única tela onde a exclusão definitiva existe. -->
@@ -2763,8 +2904,11 @@ td.lc-est-cel{padding:0!important;border-left:1px solid var(--aba-bd);border-rig
 </div>
 
 
-<div id="tab-turmas" class="tab">
+<div id="tab-turmas" class="tab tab-fixa">
+<div class="pg-topo">
 <div class="pg-cab"><h2>Gerenciar turmas</h2><span class="pg-sub">salas: estágio, dias, horário e professoras</span></div>
+</div>
+<div class="pg-corpo">
 <div class="duasCols">
 <div class="form-col">
 <label>Buscar turma</label>
@@ -2794,13 +2938,19 @@ td.lc-est-cel{padding:0!important;border-left:1px solid var(--aba-bd);border-rig
 </div>
 </div>
 </div>
+</div>
 
-<div id="tab-horarios" class="tab">
+<div id="tab-horarios" class="tab tab-fixa">
+<!-- a barra de travamento sobe para o bloco parado: ela é o interruptor da tela inteira, e ir
+     embora ao rolar a matriz era justamente perdê-la de vista na hora de usá-la -->
+<div class="pg-topo">
 <div class="pg-cab"><h2>Gerenciar horários</h2><span class="pg-sub">matriz de dias × horas disponíveis</span></div>
 <div class="mat-lock-bar">
 <button type="button" class="acao sec" id="mat-lock-btn" onclick="matToggleLock()"></button>
 <span id="mat-lock-status"></span>
 </div>
+</div>
+<div class="pg-corpo">
 <div class="horarios-cols">
 <div>
 <div style="font-size:12px;color:#555;margin-bottom:6px">Verde = horário disponível para agendar; cinza = bloqueado. Só horários verdes aparecem nas matrículas.</div>
@@ -2823,6 +2973,7 @@ td.lc-est-cel{padding:0!important;border-left:1px solid var(--aba-bd);border-rig
 </div>
 </div>
 </div>
+</div>
 
 <sl-dialog id="mat-dialog" label="Destravar edição da matriz">
 Os horários da matriz costumam ser fixos e raramente mudam. Confirma que quer editar agora?
@@ -2830,7 +2981,10 @@ Os horários da matriz costumam ser fixos e raramente mudam. Confirma que quer e
 <sl-button slot="footer" variant="primary" onclick="matConfirmarDestrava()">Destravar</sl-button>
 </sl-dialog>
 
-<div id="tab-inicio" class="tab on">
+<!-- Início não tem `.pg-cab`: quem faz o papel de cabeçalho é a faixa do hero, com a data e o botão
+     de lançar presença. É ela que fica parada; o menu de cartões é que rola. -->
+<div id="tab-inicio" class="tab tab-fixa on">
+<div class="pg-topo">
 <div class="home-hero">
 <div class="home-hero-txt">
 <h2>Wizard Naviraí — Recepção</h2>
@@ -2841,10 +2995,13 @@ Os horários da matriz costumam ser fixos e raramente mudam. Confirma que quer e
 <span><b>Lançar presença</b><small id="home-cta-sub">turma de agora</small></span>
 </button>
 </div>
+</div>
+<div class="pg-corpo">
 <div class="home-cards" id="home-cards"></div>
 </div>
+</div>
 
-<div id="tab-presenca" class="tab">
+<div id="tab-presenca" class="tab tab-fixa">
 <div class="lc-fixo">
 <div class="lc-topo">
 <h2 class="pg-titulo-inline">Freq. Sala</h2>
@@ -2890,7 +3047,7 @@ Os horários da matriz costumam ser fixos e raramente mudam. Confirma que quer e
 <!-- Entrada Recep: a MESMA tela do lançador, com a célula em dropdown de status. A recepção diz se
      o aluno veio; a hora de aula é da sala (aba Presença), porque espera na recepção não é aula.
      O código é um só — o modo (LCM/LC_PREF) decide de quais elementos cada aba é dona. -->
-<div id="tab-recepcao" class="tab">
+<div id="tab-recepcao" class="tab tab-fixa">
 <div class="lc-fixo">
 <div class="lc-topo">
 <h2 class="pg-titulo-inline">Freq. Recepção</h2>
@@ -2964,12 +3121,22 @@ Os horários da matriz costumam ser fixos e raramente mudam. Confirma que quer e
 <sl-button slot="footer" onclick="document.getElementById('lc-dialog').hide()">Fechar</sl-button>
 </sl-dialog>
 
-<div id="tab-dashboard" class="tab">
+<!-- As pizzas e as pílulas ficam no bloco PARADO: elas são o resumo que se lê enquanto se filtra a
+     grade, e rolar para ver o efeito de um filtro que ficou lá em cima era o defeito da tela. -->
+<div id="tab-dashboard" class="tab tab-fixa">
+<div class="pg-topo">
 <div class="pg-cab"><h2>Dashboard</h2><span class="pg-sub">gráficos e tabela de todas as matrículas</span></div>
+</div>
+<div class="pg-corpo pg-corpo-abas">
+<div class="pg-painel">
+<div class="pg-fixo">
 <div id="dash" class="dash-cards"></div>
 <div class="visao-filtros">Clique nas pílulas para filtrar a tabela (contagem ao lado de cada opção); os cabeçalhos ordenam.</div>
 <div id="filtros-inicio"></div>
-<div id="grade-geral"></div>
+</div>
+<div class="dash-grade"><div id="grade-geral"></div></div>
+</div>
+</div>
 </div>
 
 <div id="tab-professores" class="tab tab-fixa">
@@ -2996,7 +3163,10 @@ Os horários da matriz costumam ser fixos e raramente mudam. Confirma que quer e
 </div>
 </div>
 
-<div id="tab-impressao" class="tab">
+<!-- Os botões de gerar/imprimir e o seletor de mês sobem para o bloco parado: são o comando da tela,
+     e a folha embaixo é longa — procurá-los rolando de volta ao topo era o incômodo. -->
+<div id="tab-impressao" class="tab tab-fixa">
+<div class="pg-topo">
 <div class="pg-cab"><h2>Gerenciar impressão</h2><span class="pg-sub">fichas de frequência em A4</span></div>
 <div id="impressao-controles">
 <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -3011,7 +3181,10 @@ Os horários da matriz costumam ser fixos e raramente mudam. Confirma que quer e
 <span style="color:var(--tx2)">— a folha sai com as presenças já lançadas na aba Presença (P, X, – não aula); em branco é o que falta preencher à mão.</span>
 </div>
 </div>
+</div>
+<div class="pg-corpo">
 <div id="folha-impressao"></div>
+</div>
 </div>
 
 <div id="tab-estoque" class="tab tab-fixa">
@@ -3072,6 +3245,10 @@ Os horários da matriz costumam ser fixos e raramente mudam. Confirma que quer e
 <span id="es-chips-ent" class="es-chips"></span>
 <div id="es-placar" class="es-placar"></div>
 </div>
+<!-- O AVISO DE CHEGADA: o cruzamento de "chegou" com "tem dono esperando". Fica acima da lista, na
+     aba onde a entrega de fato acontece — o sino do sidebar traz a pessoa até aqui, e aqui está o
+     nome de quem chamar e o botão que já filtra a lista para eles. -->
+<div id="es-aviso-chegada" class="es-aviso"></div>
 <div class="es-fer-mat2">
 <span class="es-busca-cx">
 <input id="es-busca-ent" class="es-busca" placeholder="buscar aluno ou material..." oninput="esRenderEntregas()">
@@ -3188,6 +3365,33 @@ Os horários da matriz costumam ser fixos e raramente mudam. Confirma que quer e
 </div>
 </div>
 
+<!-- ===== CENTRAL DE CONTROLE =====
+     O backlog do sistema: uma varredura das regras da escola que estão sem cumprir. Mesma forma da
+     página de Arquivados (topo fixo + uma região que rola), porque é o mesmo tipo de tela: uma lista
+     de coisas para resolver, com a ação em cada linha. -->
+<div id="tab-central" class="tab tab-fixa">
+<div class="pg-topo">
+<div class="pg-cab"><h2>Central de controle</h2><span class="pg-sub">o que está incompleto ou pendente no sistema</span>
+<div class="pg-dir" id="ct-placar"></div></div>
+</div>
+<div class="pg-corpo pg-corpo-abas">
+<div class="es-painel">
+<div class="pg-fixo">
+<div class="info" style="max-width:940px">Cada faixa é uma <b>pergunta que o sistema faz aos dados</b> — não um erro. Clique para abrir os casos.<br>
+Pendência que é <b>proposital</b> (o último estágio da trilha não tem próximo, a edição aposentada não tem estoque) pode ser <b>silenciada</b>: some daqui e fica registrada com o motivo, para você lembrar depois por que decidiu assim.</div>
+<div class="ct-barra">
+<span id="ct-chips" class="es-chips"></span>
+<span class="ct-dir">
+<button type="button" class="chip" id="ct-bt-sil" onclick="ctVerSilenciados()">ver silenciados</button>
+<button type="button" class="chip" onclick="ctRecarregar()">reverificar</button>
+</span>
+</div>
+</div>
+<div class="pg-rola"><div id="ct-lista"></div></div>
+</div>
+</div>
+</div>
+
 <div id="tab-backup" class="tab tab-fixa">
 <div class="pg-topo">
 <div class="pg-cab"><h2>Backup do banco</h2><span class="pg-sub">cópias no HD e no OneDrive</span></div>
@@ -3222,11 +3426,25 @@ var DOM=null,ALUNOS=[],TURMAS=[];
 var alSel=null,tuSel=null,tuTags;
 var MATRICULAS=[],MATRIC_AULAS={};
 function $(id){return document.getElementById(id)}
-function aoTopo(){window.scrollTo({top:0,behavior:'smooth'})}
+/* ===== VOLTAR AO TOPO, depois que TODAS as páginas ganharam esqueleto fixo (2026-08-17) =====
+   Ele escutava `window.scroll` e media `documentElement.scrollHeight`. Com as 13 abas fixas a
+   JANELA não rola mais em lugar nenhum — o botão simplesmente nunca mais apareceria, e teria
+   morrido em silêncio no dia da conversão. Quem rola agora é uma região dentro da aba, e cada
+   página tem a sua (`.pg-corpo`, `.pg-rola`, `.lc-corpo`, o deck de professores...).
+   Em vez de manter uma lista dessas regiões — que ficaria desatualizada na próxima página —, o
+   botão acompanha QUEM ROLOU POR ÚLTIMO. `scroll` não borbulha, mas é capturável: um único
+   listener em fase de captura vê o evento de qualquer elemento. */
+var ROLADOR=null;
+function aoTopo(){(ROLADOR||window).scrollTo({top:0,behavior:'smooth'})}
 function aoTopoAtualiza(){var b=document.getElementById('ao-topo');if(!b)return;
-var rolavel=document.documentElement.scrollHeight-window.innerHeight;
-b.classList.toggle('on',window.scrollY>160&&rolavel>120)}
-window.addEventListener('scroll',aoTopoAtualiza,{passive:true});
+var y,rolavel;
+if(ROLADOR&&ROLADOR.isConnected){y=ROLADOR.scrollTop;rolavel=ROLADOR.scrollHeight-ROLADOR.clientHeight}
+else{y=window.scrollY;rolavel=document.documentElement.scrollHeight-window.innerHeight}
+b.classList.toggle('on',y>160&&rolavel>120)}
+document.addEventListener('scroll',function(e){
+  var el=e.target;
+  ROLADOR=(el&&el.nodeType===1&&el!==document.documentElement&&el!==document.body)?el:null;
+  aoTopoAtualiza()},{passive:true,capture:true});
 window.addEventListener('resize',aoTopoAtualiza,{passive:true});
 var LOADN=0;function loadOn(){LOADN++;$('load').style.display='block'}
 function loadOff(){LOADN=Math.max(0,LOADN-1);if(!LOADN)$('load').style.display='none'}
@@ -3313,9 +3531,15 @@ setTimeout(function(){
 }
 function dlgConfirmar(o,cb){dlgAbrir({tipo:'confirmar',titulo:o.titulo,texto:o.texto,ok:o.ok||'Confirmar',
   cancelar:o.cancelar,perigo:o.perigo,cb:function(v){cb(v===true)}})}
+/* `undefined` = cancelou (ESC, fundo, botão) e nunca chama o callback. `''` = confirmou com o campo
+   em branco, e por padrão também não chama — a maioria dos usos aqui pede um valor obrigatório
+   (data do pedido, nome do modelo) e um vazio ali seria lixo.
+   `vazioOk:true` inverte isso para os campos OPCIONAIS: o motivo da devolução é um deles, e sem
+   esta saída o botão "Devolver ao estoque" simplesmente não fazia nada quando ninguém digitava
+   nada — a falha mais silenciosa possível, porque o diálogo fecha do mesmo jeito. */
 function dlgTexto(o,cb){dlgAbrir({tipo:'texto',titulo:o.titulo,texto:o.texto,ok:o.ok||'Salvar',
   campo:{label:o.label,valor:o.valor,tipo:o.tipoCampo,dica:o.dica},
-  cb:function(v){if(v!==undefined&&v!=='')cb(v)}})}
+  cb:function(v){if(v===undefined)return;if(v===''&&!o.vazioOk)return;cb(v)}})}
 function dlgEscolher(o,cb){dlgAbrir({tipo:'escolher',titulo:o.titulo,texto:o.texto,opcoes:o.opcoes,
   cb:function(v){if(typeof v==='number')cb(v)}})}
 function dlgAviso(o,cb){dlgAbrir({tipo:'aviso',titulo:o.titulo,texto:o.texto,ok:o.ok||'Entendi',
@@ -3326,6 +3550,9 @@ function aba(n,btn){document.querySelectorAll('.tab').forEach(function(t){t.clas
 /* páginas com esqueleto fixo (topo parado + miolo rolável) pedem que o `#conteudo` tenha a altura
    da janela; as ainda não convertidas precisam do contrário, senão o conteúdo delas fica cortado */
 $('conteudo').classList.toggle('fixo',$('tab-'+n).classList.contains('tab-fixa'));
+/* a região rolável da aba anterior continua no DOM (só escondida), então sem zerar isto o botão
+   "voltar ao topo" seguiria refletindo a rolagem de uma tela que não está mais à vista */
+ROLADOR=null;aoTopoAtualiza();
 /* abrir uma tela que mora numa seção recolhida abre a seção junto: caso contrário a barra ficaria
    sem nenhuma marca do que está aberto, e o usuário não teria como saber onde ele está */
 var grupo=btn.closest?btn.closest('.sb-grupo'):null;
@@ -3338,9 +3565,19 @@ if(n==='horarios')run('getMatriz',[],function(m){MAT=m;matRender();dirty('mat',f
 if(n==='inicio')renderHome();if(n==='dashboard')renderDashboard();if(n==='professores')profCarregar();if(n==='backup')renderBackup();
 /* estoque recarrega a cada abertura: o saldo depende de entregas que a outra estação pode ter
    registrado, e a tela é barata (uma rota só, ~30 itens) */
-if(n==='estoque')esCarregar(function(){esAba(ES_ABA)});
+/* ENTRAR NUMA PÁGINA A DEVOLVE AO ESTADO INICIAL (regra dele, 2026-08-17): *"toda página que eu
+   mudar, ela tem que voltar ao seu estado original, limpo"*. O zerar vem ANTES do carregar, para o
+   render já nascer limpo em vez de piscar a seleção antiga por um quadro. */
+if(n==='estoque'){esZerar();
+  /* um atalho pode ter pedido uma aba/filtro específicos — é intenção de quem clicou, e vence o
+     estado limpo. Consumido aqui, para o próximo acesso pela barra lateral voltar a ser limpo. */
+  if(ES_DESTINO){ES_ABA=ES_DESTINO.aba;ES_FILTRO_ENT=ES_DESTINO.filtroEnt;
+    ES_FILTRO_ENT_ESCOLHIDO=true;ES_DESTINO=null}
+  esCarregar(function(){esAba(ES_ABA)})}
 if(n==='arquivados')arqCarregar();
-if(n==='estagios')egCarregar(function(){egAba(EG_ABA)});
+/* a central zera junto, pela mesma regra: volta com as faixas recolhidas e sem filtro de área */
+if(n==='central'){CT_ABERTA=null;CT_AREA=null;CT_VER_MUDOS=false;ctCarregar()}
+if(n==='estagios'){egZerar();egCarregar(function(){egAba(EG_ABA)})}
 /* as duas abas de lançamento compartilham o código: o modo diz de quais elementos ela é dona */
 if(n==='presenca'||n==='recepcao'){LCM=(n==='recepcao'?'recep':'sala');lcAba('checkin');lcHoje()}}
 /* acha o botão pelo próprio onclick em vez de um mapa de índices — assim adicionar/reordenar abas no
@@ -3414,6 +3651,11 @@ var ALUNOS_OK=false;
 function init(){
 run('getDominios',[],function(d){DOM=d;TURMAS=d.turmas;montar()});
 run('getAlunos',[],function(a){ALUNOS=a;ALUNOS_OK=true});
+/* o sino do estoque é carregado JÁ NA ABERTURA, e não só quando alguém entra no Estoque: o dia em
+   que ele importa é justamente aquele em que ninguém foi olhar o estoque */
+avisosCarregar();
+/* e o contador da central, pelo mesmo motivo: ele diz o tamanho do backlog sem entrar em nada */
+ctCarregar();
 }
 function montar(){
 var sit=$('al-sit');sit.innerHTML='';DOM.situacoes.forEach(function(s){var o=document.createElement('option');o.textContent=s.situacao;sit.appendChild(o)});
@@ -3678,7 +3920,11 @@ ordem.forEach(function(m){
 }
 function matAba(livro){
 MAT_ABA=livro;
-document.querySelectorAll('#mat-lista .mat-abas .pg-aba').forEach(function(b){
+/* `#tab-alunos` e não `#mat-lista`: quando o esqueleto fixo chegou, o trilho passou a ser criado
+   dentro de `#al-mat-abas` (o bloco parado), fora do miolo rolável — e este seletor ficou apontando
+   para o contêiner antigo, então **o realce da aba escolhida nunca acendia**. Os cartões trocavam
+   (é a linha de baixo que faz isso), só o trilho não dizia qual estava aberto. */
+document.querySelectorAll('#tab-alunos .mat-abas .pg-aba').forEach(function(b){
   b.classList.toggle('on',b.dataset.livro===livro)});
 document.querySelectorAll('#mat-lista .matricula-card').forEach(function(c){
   c.style.display=(c.dataset.livro===livro?'':'none')});
@@ -3795,8 +4041,11 @@ if(m.percurso.estado!=='cursando'){
  if(m.percurso.vence)ps.push('contrato vence '+dataCurta(m.percurso.vence));
 }
 resumo.textContent=ps.join(' · ');
-/* leva ao histórico de situação, que é onde a jornada se edita desde que os dois cartões viraram um */
-resumo.onclick=function(ev){ev.stopPropagation();alAba('cadastro');
+/* leva ao histórico de situação, que é onde a jornada se edita desde que os dois cartões viraram um.
+   Estava com o par TROCADO com o de `novaMatriculaEscolhida`: mandava para 'cadastro' e depois
+   tentava rolar até o `#hist-corpo`, que mora na OUTRA aba e estava escondido — o clique não fazia
+   nada visível. O histórico é a aba 'matriculas' (rotulada "Informações"), sub-aba 'situacao'. */
+resumo.onclick=function(ev){ev.stopPropagation();alAba('matriculas');alInfoAba('situacao');
  var el=$('hist-corpo');if(el&&el.scrollIntoView)el.scrollIntoView({block:'center'})};
 corpoIn.appendChild(resumo);
 }
@@ -3910,6 +4159,12 @@ if(r&&r.precisaConfirmar){
    +' primeiro — assim o percurso guarda a passagem por ele.'},
  function(sim){if(sim)gravarMatricula(true)});
  return}
+/* `salvarMatricula` GRAVA SOZINHO no histórico de situação — "Matriculado" no 1º contrato do aluno,
+   "Rematriculado" do 2º em diante — e mexe na situação corrente dele. A tela não sabia disso: só a
+   agenda era recarregada depois, então o registro automático ficava invisível até trocar de aluno.
+   O que veio do servidor fica guardado aqui e é aplicado quando a agenda termina de gravar (a troca
+   de horário pode abrir uma janela no meio do caminho, e o valor tem de sobreviver a ela). */
+SIT_APOS_MATRICULA=(r&&r.criado&&r.registrada)?{situacao:r.situacao,livro:m.livro}:null;
 gravarAgenda(m.livro,lerItensEditor(editor),profsWidget.get(),false)})}
 
 /* a prévia de cada cartão é uma closure própria (cada um tem o seu `meuSeq`, para dois estágios não
@@ -3925,14 +4180,30 @@ return card;
    A decisão fica lá porque só o banco sabe o horário antigo: a tela já foi editada quando o usuário
    clica em salvar, e comparar no cliente compararia o novo com ele mesmo. */
 var TROCA=null;
+/* o que `salvarMatricula` registrou sozinho no histórico, esperando a agenda terminar de gravar */
+var SIT_APOS_MATRICULA=null;
 function gravarAgenda(livro,itens,profs,confirmado){
 run('salvarAgendaLivro',[{idMatricula:alSel.id,livro:livro,professores:profs,itens:itens,confirmado:!!confirmado}],function(r){
 if(r.precisaTroca){TROCA={livro:livro,itens:itens,profs:profs};trocaAbrir(r);return}
 msg('Matrícula de '+livro+' salva — '+r.salvas+' aula(s) na agenda.');
 if(r.trocou)msg('Troca de horário registrada no histórico.');
 if(r.avisos&&r.avisos.length)msg('⚠️ '+r.avisos.join(' · '),true);
+/* A SITUAÇÃO QUE O SERVIDOR REGISTROU SOZINHO passa a aparecer na hora: o campo Status, a pílula
+   Ativado/Desativado e a lista do histórico. Sem isto o registro existia no banco e a tela seguia
+   mostrando a situação antiga — era o que dava a impressão de que nada havia sido lançado. */
+if(SIT_APOS_MATRICULA){
+ var sm=SIT_APOS_MATRICULA;SIT_APOS_MATRICULA=null;
+ $('al-sit').value=sm.situacao;
+ if(alSel)alSel.situacao=sm.situacao;
+ /* a lista em memória também, senão reabrir o aluno pela busca traria a situação velha de volta */
+ var na=ALUNOS.filter(function(x){return String(x.id)===String(alSel.id)})[0];
+ if(na)na.situacao=sm.situacao;
+ alStatus();
+ msg(sm.situacao+' · '+sm.livro+' — lançado no histórico de situação.');
+}
 recarregarMatriculas();
 hhistCarregar();   // a troca acabou de ser gravada: o registro tem de aparecer na hora
+histCarregar();    // e o de situação, que `salvarMatricula` pode ter acabado de alimentar
 })}
 function trocaAbrir(r){
 $('troca-corpo').innerHTML=
@@ -3987,7 +4258,15 @@ box.appendChild(lista);
 function novaMatriculaEscolhida(l){if(!alSel){msg('Salve o cadastro do aluno primeiro.',true);return}
 function segue(){
  MATRICULAS.push({livro:l.nome,modalidade:l.tipoPadrao,vip:false,tipoEncontro:'Presencial'});
- MATRIC_AULAS[l.nome]=[];renderMatriculas();alAba('matriculas')}
+ /* `'cadastro'` e NÃO `'matriculas'`. Este era o bug: em 11/08 as duas abas trocaram de papel e de
+    nome — os cartões de matrícula foram para a que hoje se chama **Cadastro**, e a antiga
+    "Matrículas" virou **Informações** (os três históricos). A chamada aqui ficou apontando para o
+    `data-p` antigo, então escolher um estágio jogava a pessoa no histórico de situação: uma tela
+    que, além de ser a errada, ainda não tem o registro novo — a matrícula só é gravada quando ele
+    clica em Salvar no cartão. Daí a impressão de que o histórico "não era automático". */
+ MATRIC_AULAS[l.nome]=[];renderMatriculas();alAba('cadastro');
+ /* e abre logo a aba do estágio recém-escolhido: é nela que estão modalidade, horário e o Salvar */
+ matAba(l.nome)}
 /* SEM ESTOQUE não impede: é caso corrente na escola — o aluno é vinculado ao estágio seguinte e o
    material chega depois, pelo pedido. Mas tem de ser dito antes, para a recepção já saber que vai
    ficar uma entrega pendente esperando a caixa. */
@@ -4511,16 +4790,81 @@ var n=parseInt(q,10);if(!(n>0)){msg('Informe quantos exemplares estão entrando.
 run('adicionarUnidades',[{itemId:itemId,quantidade:n}],function(r){
  var ns=(r.unidades||[]).map(function(u){return u.numero});
  msg(ns.length+' exemplar(es) deram entrada.');
+ /* a etiqueta vem PRIMEIRO: ele está com os exemplares na mão e precisa dos números para escrever.
+    O aviso de quem está esperando vem depois, quando essa janela fecha — dois diálogos empilhados
+    esconderiam justamente o que ele veio buscar aqui. */
  dlgAviso({titulo:'Escreva na etiqueta',
   texto:it.descricao+'\n\n'+(ns.length===1?'Número ':'Números ')+ns.join(', ')
-   +'\n\nEsses são os números desta entrada, na sequência do material. Escreva um em cada exemplar antes de guardar.'});
+   +'\n\nEsses são os números desta entrada, na sequência do material. Escreva um em cada exemplar antes de guardar.'},
+  function(){if(r.esperando&&r.esperando.length)
+    esAvisoDeChegada([{descricao:it.descricao,alunos:r.esperando}])});
  esCarregar(function(){esRender();esDetalheMaterial()})})})}
 /* '2026-08-06 08:00:00.001' → '06/08 08:00' — o milissegundo importa para a ordem, não para a
    leitura, e mostrá-lo só encheria a linha */
 function esDataHora(ts){var p=String(ts).split(' ');
  return p.length===2?esDataBR(p[0])+' '+p[1].slice(0,5):esDataBR(ts)}
 
-function esCarregar(cb){run('getEstoque',[{}],function(r){ES=r;ES_COR_MAT=null;if(cb)cb();esRender();esAtualizarContadores()})}
+function esCarregar(cb){run('getEstoque',[{}],function(r){ES=r;ES_COR_MAT=null;if(cb)cb();esRender();esAtualizarContadores();avisosCarregar()})}
+/* ===== O AVISO DE CHEGADA (2026-08-17) =====
+   *"notificação quando a remessa chega para o aluno pendente"*.
+   O aviso é o CRUZAMENTO de duas coisas que já existiam soltas: quem está sem o material e o que
+   tem na prateleira. Nenhuma das duas, sozinha, é notícia — aluno esperando um livro que não
+   chegou é a rotina de quem acabou de se matricular. O que merece piscar é *chegou o dele*.
+   Quem faz a conta é o servidor (`getAvisosEstoque`): a mesma pergunta feita no cliente teria de
+   carregar o estoque inteiro só para pintar um número no sidebar. */
+var AVISOS={itens:[],total:0,alunos:0};
+function avisosCarregar(cb){
+/* `fetch` cru e não `run()`: isto roda em segundo plano, na carga da página e a cada abertura do
+   estoque. Uma falha de rede aqui não pode acender o spinner nem disparar torrada de erro — é a
+   mesma regra da sondagem de pontos do lançador. */
+fetch('/api/getAvisosEstoque',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})
+ .then(function(r){return r.json()}).then(function(r){
+   if(r&&!r.erro){AVISOS=r;avisosPintar()}
+   if(cb)cb()}).catch(function(){if(cb)cb()})}
+function avisosPintar(){
+var b=$('sb-aviso-estoque');
+if(b){b.textContent=AVISOS.total||'';b.classList.toggle('on',AVISOS.total>0);
+ b.title=AVISOS.total?(AVISOS.total+' aluno(s) esperando material que já está na prateleira')
+   :'material que chegou e tem aluno esperando'}
+esAvisoFaixa();
+}
+/* a faixa dentro da aba Entregas. Ela NOMEIA as pessoas — um número solto ("3 esperando") obrigaria
+   a recepção a caçar quem são numa lista de 127. Acima de quatro nomes a lista vira "e mais N",
+   senão a faixa cresceria mais que a tabela que ela encima. */
+function esAvisoFaixa(){
+var cx=$('es-aviso-chegada');if(!cx)return;
+if(!AVISOS.total){cx.className='es-aviso';cx.innerHTML='';return}
+var nomes=[];
+AVISOS.itens.forEach(function(i){i.esperando.forEach(function(a){
+  if(nomes.indexOf(a.nome)<0)nomes.push(a.nome)})});
+var mostra=nomes.slice(0,4).join(' · ')+(nomes.length>4?' · e mais '+(nomes.length-4):'');
+var mats=AVISOS.itens.map(function(i){return i.descricao}).join(', ');
+cx.className='es-aviso on';
+cx.innerHTML='<span class="ic">'+icon('package-check',18)+'</span>'
+ +'<span class="es-aviso-tx"><b>Chegou material de quem está esperando.</b> '
+ +escBloco(mats)+' — <span class="quem">'+escBloco(mostra)+'</span></span>'
+ +'<button class="es-bt" onclick="esFiltrarEnt(\'aguardando\')">ver só eles</button>';
+}
+/* DEPOIS DA CAIXA ABERTA: é neste instante que a informação vale, com os livros na mesa. Descobrir
+   dois dias depois que alguém esperava não serve para nada — por isso a chegada abre a janela em
+   vez de só acender o sino. */
+function esAvisoDeChegada(grupos){
+var g=(grupos||[]).filter(function(x){return x.alunos&&x.alunos.length});
+if(!g.length)return false;
+var txt=g.map(function(x){
+  return x.descricao+' — '+x.alunos.map(function(a){return a.nome}).join(', ')}).join('\n');
+var n=g.reduce(function(s,x){return s+x.alunos.length},0);
+dlgAviso({titulo:'Tem aluno esperando este material',
+ texto:n+' aluno(s) estão sem o material que acabou de chegar:\n\n'+txt
+  +'\n\nA aba Entregas abre filtrada por eles.'},
+/* o estado é armado ANTES de trocar de aba, e não depois: `aba('estoque')` recarrega o estoque e só
+   então chama `esAba(ES_ABA)`. Chamar `esAba('entregas')` na sequência disputaria com esse retorno
+   assíncrono e às vezes cairia na aba errada. */
+/* `ES_DESTINO` e não as variáveis direto: entrar na página de Estoque agora a ZERA (regra do
+   "toda página volta ao estado original"), e o zerar apagaria justamente o alvo que este atalho
+   acabou de armar. O destino é um pedido explícito, sobrevive ao zerar e é consumido uma vez só. */
+function(){ES_DESTINO={aba:'entregas',filtroEnt:'aguardando'};abaPor('estoque')});
+return true}
 function esAtualizarContadores(){
 if(!ES)return;
 $('es-n-itens').textContent=ES.itens.length;
@@ -4529,16 +4873,31 @@ $('es-n-kits').textContent=Object.keys(ES.kits||{}).length;
 /* o contador de Entradas conta PEDIDOS em aberto: é a pergunta da aba ("tem coisa a chegar?") */
 $('es-n-rem').textContent=ES.eventos.filter(function(e){
   return e.tipo==='pedido'&&e.situacao&&e.situacao.estado!=='recebido'}).length;
-$('es-n-pend').textContent=ES.entregas.filter(function(e){return !e.entregaId}).length;
+/* o contador da aba Entregas conta quem está SEM o material — e devolvido é estar sem. Antes era
+   só `!entregaId`, o que deixaria o devolvido fora da conta que a própria aba mostra. */
+$('es-n-pend').textContent=ES.entregas.filter(function(e){return !e.entregaId||e.devolvida}).length;
 }
 /* A aba Kits/Peças teve por um tempo dois níveis (Itens e Kits). A de Itens foi FUNDIDA na de
    Materiais, então sobrou só a matriz e a função virou um atalho. */
 function esAbaMat(){esRenderKits()}
+/* ZERAR A PÁGINA DE ESTOQUE, pela mesma regra geral do `egZerar`: entrar na página de novo devolve
+   a tela ao estado inicial. `esAba` já fazia isso entre sub-abas; entrar na página é o gesto maior e
+   não zerava nada, porque se volta na MESMA sub-aba e `p!==ES_ABA` dá falso.
+   Nenhuma digitação nova se perde com isto: `esCarregar` já repinta o formulário do material a
+   partir dos dados do servidor (`esRender` termina em `esDetalheMaterial`), então uma alteração não
+   salva já era descartada ao reabrir a página — a diferença é que agora o painel fica HONESTAMENTE
+   vazio em vez de mostrar um formulário repintado que parece intacto. */
+function esZerar(){ES_ITEM_SEL=null;ES_ALUNO_SEL=null;ES_ABERTAS=[];ES_ABA='contagem';
+  ES_ORIG=null;ES_FILTRO=null;ES_FILTRO_ENT_ESCOLHIDO=false}
+/* aba+filtro pedidos por um ATALHO (hoje só o aviso de chegada). Fica fora do `esZerar` de
+   propósito: é o único estado que representa uma intenção explícita de quem clicou, e não sobra da
+   visita anterior. Consumido — e apagado — na entrada da página. */
+var ES_DESTINO=null;
 function esAba(p){
 /* TROCAR DE ABA ZERA A DE MATERIAIS: ao voltar, os grupos estão recolhidos e o painel limpo.
    Regra dele, e é coerente com a de cima — sair da aba é sair do assunto, e reencontrar um
    formulário aberto de um material que não se lembra de ter escolhido é pior que começar do zero. */
-if(p!==ES_ABA){ES_ABERTAS=[];ES_ITEM_SEL=null}
+if(p!==ES_ABA){ES_ABERTAS=[];ES_ITEM_SEL=null;ES_ALUNO_SEL=null}
 ES_ABA=p;
 document.querySelectorAll('#tab-estoque .pg-aba[data-p]').forEach(function(b){b.classList.toggle('on',b.dataset.p===p)});
 /* `''` e não `'block'`: o painel é `display:flex` pelo CSS (a coluna fixo/rolável do esqueleto), e
@@ -5150,7 +5509,10 @@ if(!ES){esCarregar();return}
    há nenhuma pendente — abrir em "pendentes" mostraria lista vazia justo quando há 127 datas para
    preencher. Só vale enquanto o usuário não escolheu um filtro à mão. */
 if(!ES_FILTRO_ENT_ESCOLHIDO){
-  ES_FILTRO_ENT=ES.entregas.filter(function(e){return e.entregaId&&!e.data}).length?'semdata':'todos';
+  /* o padrão adaptativo ganhou um degrau na frente: se há material na prateleira com dono
+     esperando, é ISSO que a aba tem de abrir mostrando — tem prazo, e as datas em falta não têm. */
+  ES_FILTRO_ENT=AVISOS.total?'aguardando'
+    :(ES.entregas.filter(function(e){return e.entregaId&&!e.data}).length?'semdata':'todos');
 }
 var busca=($('es-busca-ent').value||'').toLowerCase();
 /* AGRUPA POR ALUNO. A tabela plana tinha uma linha por (aluno × estágio): o mesmo nome se repetia
@@ -5161,12 +5523,19 @@ ES.entregas.forEach(function(e){
   var a=porAluno[e.idMatricula]||(porAluno[e.idMatricula]={id:e.idMatricula,nome:e.nome,itens:[]});
   a.itens.push(e)});
 var alunos=Object.keys(porAluno).map(function(k){var a=porAluno[k];
-  a.entregues=a.itens.filter(function(x){return x.entregaId});
+  /* ENTREGUE = tem linha de entrega E não devolveu. O material devolvido continua na história do
+     aluno (a pílula aparece riscada), mas ele está SEM ele — contá-lo aqui diria o contrário. */
+  a.entregues=a.itens.filter(function(x){return x.entregaId&&!x.devolvida});
   a.semdata=a.entregues.filter(function(x){return !x.data}).length;
+  /* AGUARDANDO é a mesma definição do servidor (`aguardandoDoItem`): sem entrega, ou com o
+     material devolvido. As duas pontas precisam concordar, senão a faixa nomeia alguém que o
+     filtro não mostra. */
+  a.aguardando=a.itens.filter(function(x){return !x.entregaId||x.devolvida}).length;
   return a});
 alunos=alunos.filter(function(a){
   if(ES_FILTRO_ENT==='semdata'&&!a.semdata)return false;
   if(ES_FILTRO_ENT==='entregue'&&!a.entregues.length)return false;
+  if(ES_FILTRO_ENT==='aguardando'&&!a.aguardando)return false;
   if(busca&&(a.nome+' '+a.itens.map(function(x){return x.livro}).join(' ')).toLowerCase().indexOf(busca)<0)return false;
   return true});
 alunos.sort(function(x,y){return x.nome.localeCompare(y.nome,'pt')});
@@ -5195,7 +5564,7 @@ alunos.forEach(function(a){
 if(!alunos.length)h+='<tr><td colspan="2" class="es-vazio">nada nesse filtro</td></tr>';
 h+='<tr class="es-rodape"><td colspan="2"></td></tr>';
 $('es-tab-entregas').innerHTML=h+'</tbody>';
-esPlacar();esChipsEnt();esDetalheAluno();esAjustarAltura();
+esPlacar();esChipsEnt();esAvisoFaixa();esDetalheAluno();esAjustarAltura();
 }
 /* escolher o aluno não redesenha a lista — só a classe e o painel, como na aba Materiais */
 function esEscolherAluno(id){
@@ -5215,16 +5584,20 @@ var h='<div class="es-cx"><div class="es-cx-cab">Entregas do aluno'
  +'<span class="es-cx-quem">'+escBloco(linhas[0].nome)+'</span></div><div class="es-cx-corpo">';
 linhas.forEach(function(e){
   var it=e.itemId?esItem(e.itemId):null;
-  var estado=e.entregaId?(e.deduzida?'deduzida':'entregue')
+  /* DEVOLVIDA vem antes de tudo: a entrega existe, aconteceu, e terminou. É um quinto estado, e
+     não "sem entrega" — quem devolveu tem história, quem nunca recebeu não tem. */
+  var estado=e.devolvida?'devolvida'
+   :e.entregaId?(e.deduzida?'deduzida':'entregue')
     :(!it?'semitem':((it.saldo<=0)?'semestoque':'pendente'));
-  var pil=estado==='deduzida'?'<span class="es-pil deduzida" title="Deduzida da matrícula: o aluno está estudando com o estágio, mas ninguém registrou quando ele saiu">deduzida</span>'
+  var pil=estado==='devolvida'?'<span class="es-pil devolvida" title="O aluno recebeu e devolveu — o exemplar voltou para a prateleira">devolvido</span>'
+   :estado==='deduzida'?'<span class="es-pil deduzida" title="Deduzida da matrícula: o aluno está estudando com o estágio, mas ninguém registrou quando ele saiu">deduzida</span>'
    :estado==='entregue'?'<span class="es-pil entregue">entregue</span>'
    :estado==='semitem'?'<span class="es-pil semestoque">estágio sem material</span>'
    :estado==='semestoque'?'<span class="es-pil semestoque">sem estoque</span>'
    :'<span class="es-pil pendente">pendente</span>';
   /* UMA linha por entrega, em lista e não em tabela: estágio · status · data · a unidade que saiu.
      O saldo saiu — é informação do material, não desta entrega. */
-  h+='<div class="es-ent-l">'
+  h+='<div class="es-ent-l'+(estado==='devolvida'?' devolvida':'')+'">'
    +'<b>'+escBloco(e.livro)+'</b>'+pil;
   if(e.entregaId){
    /* `un. <código>_<instante>` é o identificador do exemplar: código e carimbo juntos, que é o par
@@ -5240,8 +5613,40 @@ linhas.forEach(function(e){
     +'<input class="es-ent-hr" type="time" value="'+(e.hora||'')+'"'+(e.data?'':' disabled')
     +' title="hora da entrega — em branco quando ninguém registrou a hora" onchange="'+ch+'">'
     +'</span>'
-    +'<span class="es-ent-un" title="unidade entregue: código de barras e instante de entrada">'+escBloco(un)+'</span>'
-    +'<button class="es-bt desfaz" onclick="esRemoverEntrega(&quot;'+escBloco(e.idMatricula)+'&quot;,&quot;'+escBloco(e.livro)+'&quot;)">desfazer</button>';
+    +'<span class="es-ent-un" title="unidade entregue: código de barras e instante de entrada">'+escBloco(un)+'</span>';
+   var arg='&quot;'+escBloco(e.idMatricula)+'&quot;,&quot;'+escBloco(e.livro)+'&quot;';
+   /* DOIS botões, e a diferença entre eles é o que cada um AFIRMA:
+      "desfazer" = esta entrega nunca aconteceu (erro de lançamento) — apaga a linha;
+      "devolver" = aconteceu e terminou (o aluno cancelou e trouxe o livro) — guarda a história.
+      Depois de devolvido sobra "desfazer devolução", que é o desfazer DESTE gesto; a entrega em si
+      continua lá para ser desfeita à parte, se for o caso. */
+   h+='<span class="es-ent-acoes">'
+    +(e.devolvida
+      /* quem devolveu volta a estar SEM o material, então precisa do caminho de entregar de novo
+         aqui mesmo — a linha dele tem `entregaId`, e sem este botão ela seria a única da tela sem
+         como receber. `entregarMaterial` limpa o `devolvida` sozinho. */
+      ?'<button class="es-bt"'+(it&&it.saldo>0?'':' disabled')
+        +' title="'+(it&&it.saldo>0?'Entregar outro exemplar a este aluno':'Não há exemplar na prateleira')+'"'
+        +' onclick="esEntregar('+arg+')">entregar de novo</button>'
+       +'<button class="es-bt desfaz" title="A devolução foi lançada por engano" onclick="esDesfazerDevolucao('+arg+')">desfazer devolução</button>'
+      :'<button class="es-bt devolver" title="O aluno devolveu o material: o exemplar volta para a prateleira e a entrega fica registrada como encerrada"'
+        +' onclick="esDevolver('+arg+')">devolver</button>'
+       +'<button class="es-bt desfaz" title="Esta entrega foi lançada por engano e nunca aconteceu"'
+        +' onclick="esRemoverEntrega('+arg+')">desfazer</button>')
+    +'</span>';
+   var devs=e.devolucoes||[], d0=devs[0]||null;
+   if(e.devolvida){
+    h+='<span class="es-ent-dev">devolvido em '+esDataBR(e.devolvida)
+     +(d0&&d0.hora?' às '+d0.hora:'')
+     +(d0&&d0.motivo?' <i>— '+escBloco(d0.motivo)+'</i>':'')
+     +(devs.length>1?' <i>('+devs.length+'ª devolução)</i>':'')+'</span>';
+   } else if(devs.length){
+    /* CICLO FECHADO: ele devolveu e já recebeu outro exemplar. A linha está no estado normal
+       ("entregue"), e sem este recado o balcão não teria como saber que este aluno já trocou de
+       livro uma vez — o histórico existe no banco e não apareceria em tela nenhuma. */
+    h+='<span class="es-ent-dev"><i>já devolveu '+devs.length+'× — a última em '
+     +esDataBR(devs[0].data)+(devs[0].motivo?' ('+escBloco(devs[0].motivo)+')':'')+'</i></span>';
+   }
   } else {
    h+='<span class="es-ent-un">ainda não entregue</span>'
     +'<button class="es-bt"'+(estado==='pendente'?'':' disabled')
@@ -5256,8 +5661,10 @@ box.innerHTML=h+'</div></div>';
    Os dois que ficaram são proporções — `x / total` diz mais que um número solto, porque o total é
    o que dá escala ao x. */
 function esPlacar(){
-var tot=ES.entregas.length, ent=ES.entregas.filter(function(e){return e.entregaId}).length;
-var semData=ES.entregas.filter(function(e){return e.entregaId&&!e.data}).length;
+/* "com entregas" = está COM o material agora. Devolvido sai da conta: ele voltou para a prateleira,
+   e contá-lo aqui faria o placar dizer que o aluno tem um livro que está na estante. */
+var tot=ES.entregas.length, ent=ES.entregas.filter(function(e){return e.entregaId&&!e.devolvida}).length;
+var semData=ES.entregas.filter(function(e){return e.entregaId&&!e.devolvida&&!e.data}).length;
 var alunos={};ES.entregas.forEach(function(e){alunos[e.idMatricula]=1});
 function cx(v,r,t){return '<div class="cx"'+(t?' title="'+escBloco(t)+'"':'')+'><b>'+v+'</b><span>'+r+'</span></div>'}
 $('es-placar').innerHTML=
@@ -5269,7 +5676,9 @@ $('es-placar').innerHTML=
    contrário dele na tela, filtrar por entregue é quase a lista inteira — sobra o que ele pediu:
    as que faltam datar, ou tudo. */
 function esChipsEnt(){
-var op=[['semdata','sem data'],['entregue','entregues'],['todos','todos']];
+/* "aguardando" entrou com o aviso de chegada (2026-08-17): é o filtro que o botão da faixa aciona,
+   e o único que responde "quem eu chamo agora". Vem primeiro porque é o que tem prazo. */
+var op=[['aguardando','aguardando'],['semdata','sem data'],['entregue','entregues'],['todos','todos']];
 $('es-chips-ent').innerHTML=op.map(function(o){
   return '<button class="chip'+(ES_FILTRO_ENT===o[0]?' on':'')+'" onclick="esFiltrarEnt(\''+o[0]+'\')">'+o[1]+'</button>'}).join(' ');
 }
@@ -5325,10 +5734,45 @@ run('ajustarEntrega',[{idMatricula:id,livro:livro,data:data||null,hora:hora||nul
   esCarregar(function(){esRenderEntregas()})})}
 function esRemoverEntrega(id,livro){
 dlgConfirmar({titulo:'Desfazer entrega',perigo:true,ok:'Desfazer',
- texto:'Desfazer a entrega de '+livro+'?\n\nO estágio volta a contar como não entregue e o saldo sobe.'},
+ texto:'Desfazer a entrega de '+livro+'?\n\nO estágio volta a contar como não entregue e o saldo sobe.'
+  +'\n\nUse isto quando a entrega foi lançada por ENGANO. Se o aluno recebeu e está devolvendo o'
+  +' material agora, o botão é "devolver" — ele guarda o que aconteceu.'},
 function(sim){if(!sim)return;
 run('removerEntrega',[{idMatricula:id,livro:livro}],function(){
   msg('Entrega desfeita.');esCarregar(function(){esRenderEntregas()})})})}
+/* ===== DEVOLVER O MATERIAL AO ESTOQUE (2026-08-17) =====
+   O motivo é campo LIVRE e opcional. Uma lista fechada ("cancelou · trancou · trocou de estágio")
+   pareceu tentadora e não é: a devolução é rara e o que interessa dela é a frase que a recepção
+   escreveria no caderno. Lista fechada obrigaria a escolher a opção menos errada.
+   A data é pedida porque devolução quase sempre se lança DEPOIS — o aluno deixou o livro no balcão
+   na sexta e o registro acontece na segunda. Nasce em hoje, que é o caso mais comum. */
+function esDevolver(id,livro){
+var e=ES.entregas.filter(function(x){return x.idMatricula===id&&x.livro===livro})[0];
+var un=e&&e.unidade;
+dlgTexto({titulo:'Devolver '+livro+' ao estoque',
+ texto:'A entrega continua registrada — ela aconteceu. O material volta para a prateleira e a linha'
+  +' passa a dizer que foi devolvido.'
+  +(un?'\n\nVolta o exemplar '+(un.numero!=null?'nº '+un.numero:un.codigo||'sem número')
+      +', para o mesmo lugar dele na fila (é o mais antigo, então será o próximo a sair).'
+     :'\n\nEsta entrega não tem exemplar ligado, então nenhum número volta ao estoque — só o'
+      +' registro da devolução.'),
+ label:'Motivo (opcional)',valor:'',ok:'Devolver ao estoque',vazioOk:true},
+function(motivo){
+run('devolverMaterial',[{idMatricula:id,livro:livro,data:isoLocal(new Date()),motivo:motivo||null}],
+function(r){
+  msg('Devolução registrada'+(r.hora?' às '+r.hora:'')
+   +(r.unidade?' — exemplar '+(r.unidade.numero!=null?'nº '+r.unidade.numero:r.unidade.codigo||'sem número')+' de volta na prateleira':'')
+   +(r.saldo!=null?' (saldo '+r.saldo+')':'')+'.');
+  esCarregar(function(){esRenderEntregas()})})})}
+function esDesfazerDevolucao(id,livro){
+dlgConfirmar({titulo:'Desfazer a devolução',perigo:true,ok:'Desfazer devolução',
+ texto:'A entrega de '+livro+' volta a valer como se o aluno ainda estivesse com o material.\n\n'
+  +'O exemplar devolvido é religado a ela, se ninguém o tiver levado nesse meio-tempo.'},
+function(sim){if(!sim)return;
+run('desfazerDevolucao',[{idMatricula:id,livro:livro}],function(r){
+  msg('Devolução desfeita'+(r.religou?' — o exemplar voltou para o aluno.'
+    :' — o exemplar já havia saído para outra pessoa, então a entrega fica sem unidade ligada.'));
+  esCarregar(function(){esRenderEntregas()})})})}
 
 function esCampoItem(id,campo,valor){
 var i=esItem(id);if(!i)return;
@@ -5487,11 +5931,16 @@ dlgConfirmar({titulo:'Confirmar a chegada de tudo?',ok:'Confirmar chegada',
  texto:'Entram '+s.totalFalta+' exemplar(es) de '+faltando.length+' material(is), todos no mesmo instante.\n\n'
   +'Para separar exemplar por exemplar — código de barras e instante próprio — abra cada material e use o botão de carimbar.'},
 function(sim){if(!sim)return;
-var restantes=faltando.length,entraram=0;
+var restantes=faltando.length,entraram=0,grupos=[];
 faltando.forEach(function(k){
  run('receberItemPedido',[{pedidoId:pedidoId,itemId:parseInt(k,10)}],function(r){
   entraram+=r.unidades.length;
-  if(!--restantes){msg(entraram+' exemplar(es) deram entrada.');esCarregar(function(){esRenderRemessas()})}})})})}
+  /* QUEM ESTAVA ESPERANDO vem na resposta de cada material e se acumula: a caixa pode trazer
+     cinco materiais e o aviso tem de ser um só, com as pilhas separadas por material — é assim
+     que elas ficam na mesa. */
+  if(r.esperando&&r.esperando.length)grupos.push({descricao:r.descricao||'',alunos:r.esperando});
+  if(!--restantes){msg(entraram+' exemplar(es) deram entrada.');
+   esCarregar(function(){esRenderRemessas();esAvisoDeChegada(grupos)})}})})})}
 /* CONFERIR: marca o exemplar como conferido contra a caixa. Não toca no instante de chegada — era
    isso que o botão antigo fazia, e era o que embaralhava a fila e a numeração. */
 function esConferir(id,marcar){
@@ -5724,12 +6173,30 @@ var EG_ABA_DET='dados';
    ter dois nomes no mesmo app. */
 var EG_CATS=['Kids','Teens','Ws','Outros Idiomas','Avulsos'];
 
+/* ===== A PÁGINA ABRE LIMPA (2026-08-17) =====
+   Ela escolhia o PRIMEIRO estágio do catálogo sozinha (`EG.estagios[0]`, o TOTS 2) e abria os
+   Dados dele. Ele pediu para parar: *"não quero que isso aconteça; as abas Dados do estágio,
+   Estrutura e Estrutura montada têm que estar limpo também"*.
+   Escolher por conta própria é sempre um chute — e aqui o chute abre um formulário editável de um
+   estágio que ninguém pediu, no meio de uma tela cujo assunto é o catálogo. Sem seleção o
+   `#eg-detalhe` inteiro (KPIs + as três abas) dá lugar a "Escolha um estágio.", que é a verdade.
+   Estágio que SUMIU (arquivado, excluído) também vira `null` em vez de cair no primeiro da lista:
+   pular para outro registro depois de apagar um é o mesmo chute, com a agravante de parecer que o
+   apagado continua ali. */
 function egCarregar(cb){run('getEstagios',[{}],function(r){
   EG=r;
-  if(EG_SEL)EG_SEL=EG.estagios.filter(function(e){return e.id===EG_SEL.id})[0]||EG.estagios[0];
-  else EG_SEL=EG.estagios[0]||null;
+  if(EG_SEL)EG_SEL=EG.estagios.filter(function(e){return e.id===EG_SEL.id})[0]||null;
   $('eg-n').textContent=EG.estagios.length;$('eg-nm').textContent=EG.modelos.length;
   egRender();if(cb)cb()})}
+/* ZERAR A PÁGINA — regra dele, e é geral: *"toda página que eu mudar, ela tem que voltar ao seu
+   estado original, limpo"*. Sair da página é sair do assunto. `egAba` já zerava ao trocar de
+   SUB-aba (catálogo ↔ Modelos ↔ Trilha); faltava o gesto maior, que é entrar na página de novo —
+   ali a comparação `p!==EG_ABA` é falsa (volta-se na mesma sub-aba) e nada era zerado.
+   Por isso o zerar mora numa função própria e é chamado por `aba()`, ANTES de `egCarregar`. */
+function egZerar(){EG_SEL=null;EG_ABERTAS=[];EG_ABA='lista';EG_ABA_DET='dados';EG_MOD_ABERTO=null;
+  /* o painel do modelo tem estado no DOM, não só na variável — fechar a variável sem fechar a
+     classe deixaria a gaveta aberta esperando um modelo que já não está escolhido */
+  var f=$('eg-modelo-form');if(f)f.classList.remove('aberta')}
 function egAba(p){
 /* ANTES de `EG_ABA=p`, senão a comparação é sempre falsa e o zerar nunca acontece.
    Trocar de aba zera o catálogo: volta com os grupos recolhidos e sem estágio escolhido — mesma
@@ -6435,6 +6902,7 @@ return h}
 /* ===== INÍCIO (home: atalhos para as páginas + chamada do lançador) ===== */
 var PAGINAS=[
 /* mesmos nomes do sidebar: a mesma tela não pode ter dois nomes no mesmo app */
+{aba:'central',ic:'triangle-alert',titulo:'Central de controle',desc:'O que está incompleto ou pendente no sistema'},
 {aba:'recepcao',ic:'list-checks',titulo:'Freq. Recepção',desc:'Recepção marca quem veio, quem faltou e feriado'},
 {aba:'presenca',ic:'clipboard-check',titulo:'Freq. Sala',desc:'Entrada e saída da sala, lançadas pelo professor'},
 {aba:'dashboard',ic:'layout-dashboard',titulo:'Dashboard',desc:'Gráficos e tabela de todas as matrículas'},
@@ -7664,6 +8132,126 @@ else gravar()}
 /* ===== ARQUIVADOS: a base do que saiu de circulação =====
    Uma tabela só para os cinco tipos. A 1ª coluna são as AÇÕES, como ele pediu — desarquivar volta
    o registro ao lugar de origem, excluir é definitivo e mora só aqui. */
+/* ===== CENTRAL DE CONTROLE (2026-08-17) =====
+   Pedido dele: um backlog do sistema inteiro — o que está incompleto, e as relações que ficaram pela
+   metade. Quem faz a varredura é o servidor (`getCentral`), porque as perguntas são SQL e porque a
+   mesma resposta alimenta o contador da barra lateral.
+   Aqui só há apresentação e o gesto de silenciar. */
+var CT=null, CT_ABERTA=null, CT_AREA=null, CT_VER_MUDOS=false;
+var CT_TETO=40;   /* quantos casos por regra antes de "e mais N" — 120 linhas de uma vez não se lê */
+function ctCarregar(cb){run('getCentral',[{}],function(r){CT=r;ctPintar();ctRender();if(cb)cb()})}
+/* o contador da barra lateral acompanha o mesmo número da tela; carregado na abertura do app junto
+   com o sino do estoque, para quem chega de manhã ver sem entrar em nada */
+function ctPintar(){
+var b=$('sb-aviso-central');if(!b||!CT)return;
+b.textContent=CT.abertos||'';
+b.classList.toggle('on',CT.abertos>0);
+/* sem pulsar: são 281 pendências de cadastro, não uma urgência — piscar isso o dia inteiro vira
+   ruído. O sino do estoque pulsa porque tem prazo (tem aluno esperando na recepção). */
+b.style.animation='none';
+b.title=CT.abertos?(CT.abertos+' pendência(s) na central de controle'):'nada pendente';
+var p=$('ct-placar');
+if(p)p.innerHTML='<span class="ct-kpi">'
+ +'<span class="k-alta" title="atrapalha a operação hoje">'+CT.porGravidade.alta+' alta</span>'
+ +'<span class="k-media" title="vai atrapalhar">'+CT.porGravidade.media+' média</span>'
+ +'<span class="k-baixa" title="cadastro incompleto — backlog">'+CT.porGravidade.baixa+' baixa</span>'
+ +'</span>';
+}
+function ctRecarregar(){ctCarregar(function(){msg('Sistema reverificado — '+CT.abertos+' pendência(s).')})}
+function ctVerSilenciados(){CT_VER_MUDOS=!CT_VER_MUDOS;ctRender()}
+function ctFiltrar(a){CT_AREA=(CT_AREA===a?null:a);ctRender()}
+/* faixa EXCLUSIVA, como no Estoque e no catálogo de Estágios: abrir uma fecha a outra. Quem abre
+   uma faixa aqui está lendo um problema, e quer um por vez. */
+function ctAbrir(id){CT_ABERTA=(CT_ABERTA===id?null:id);ctRender()}
+function ctRender(){
+var box=$('ct-lista');if(!box||!CT)return;
+/* pílulas por ÁREA, com a contagem de cada uma — é o recorte que ele descreveu ("biblioteca,
+   alunos e turma"), e o número ao lado diz onde está o trabalho */
+var areas=[];CT.regras.forEach(function(r){if(areas.indexOf(r.area)<0)areas.push(r.area)});
+$('ct-chips').innerHTML='<button class="chip'+(CT_AREA?'':' on')+'" onclick="ctFiltrar(null)">todas '
+ +'<span class="n">'+CT.abertos+'</span></button>'
+ +areas.map(function(a){
+   return '<button class="chip'+(CT_AREA===a?' on':'')+'" onclick="ctFiltrar(\''+a+'\')">'
+    +escBloco(a)+' <span class="n">'+(CT.porArea[a]||0)+'</span></button>'}).join('');
+var bs=$('ct-bt-sil');if(bs){bs.classList.toggle('on',CT_VER_MUDOS);
+  bs.textContent=(CT_VER_MUDOS?'ocultar':'ver')+' silenciados ('+CT.silenciados+')'}
+var regras=CT.regras.filter(function(r){return !CT_AREA||r.area===CT_AREA});
+/* regra sem nenhum caso aberto continua na lista, esmaecida: a central também serve para dizer
+   "isto aqui está em dia", e uma regra que some quando zera esconde o que ela vigia */
+var h='';
+if(!CT_AREA&&!CT.abertos)h+='<div class="ct-ok">'+icon('circle-check',18)
+ +'Nada pendente — todas as '+CT.regras.length+' checagens estão em dia.</div>';
+regras.forEach(function(r){
+ var mostra=CT_VER_MUDOS?r.silenciados:r.abertos;
+ var n=r.abertos.length, aberta=CT_ABERTA===r.id;
+ if(CT_VER_MUDOS&&!r.silenciados.length)return;
+ h+='<div class="ct-regra'+(aberta?' aberta':'')+(n?'':' zero')+'">'
+  +'<div class="ct-cab" onclick="ctAbrir(\''+r.id+'\')">'
+  +'<span class="ct-seta">'+icon('chevron-right',14)+'</span>'
+  +'<span class="ct-pt '+r.gravidade+'" title="gravidade '+r.gravidade+'"></span>'
+  +'<span class="ct-tit">'+escBloco(r.titulo)+'</span>'
+  +'<span class="ct-area">'+escBloco(r.area)+'</span>'
+  +(r.regraSilenciada?'<span class="es-pil devolvida" title="'+escBloco(r.motivoRegra||'')+'">regra silenciada</span>':'')
+  +'<span class="ct-n '+(n?r.gravidade:'')+'">'+(CT_VER_MUDOS?r.silenciados.length:n)+'</span>'
+  +'</div>';
+ if(aberta){
+  h+='<div class="ct-corpo">'
+   +'<div class="ct-porque">'+escBloco(r.porque)+'</div>'
+   +'<div class="ct-acao">→ '+escBloco(r.acao)+'</div>';
+  if(r.erro)h+='<div class="ct-vazio" style="color:var(--perigo)">Esta checagem falhou: '+escBloco(r.erro)+'</div>';
+  h+='<div class="es-ferramentas" style="margin:0 0 8px">'
+   +'<button class="es-bt" onclick="abaPor(\''+r.aba+'\')">ir para '+escBloco(r.aba)+'</button>'
+   +(r.regraSilenciada
+     ?'<button class="es-bt" onclick="ctReativar(\''+r.id+'\',\'*\')">reativar a regra</button>'
+     :'<button class="es-bt desfaz" onclick="ctSilenciar(\''+r.id+'\',\'*\',\'\')">silenciar a regra inteira</button>')
+   +'</div>';
+  if(!mostra.length)h+='<div class="ct-vazio">'+(CT_VER_MUDOS?'nada silenciado nesta regra.':'nenhum caso aberto — em dia.')+'</div>';
+  h+='<div class="ct-itens">';
+  mostra.slice(0,CT_TETO).forEach(function(it){
+   h+='<div class="ct-item'+(CT_VER_MUDOS?' mudo':'')+'">'
+    +'<b>'+escBloco(it.rotulo)+'</b>'
+    +(it.detalhe?'<span class="ct-det">'+escBloco(it.detalhe)+'</span>':'')
+    +(CT_VER_MUDOS&&it.motivo?'<span class="ct-mot">'+escBloco(it.motivo)+'</span>':'')
+    +(CT_VER_MUDOS
+      ?(it.porRegra?'<span class="ct-det" style="margin-left:auto">pela regra</span>'
+        :'<button class="es-bt" onclick="ctReativar(\''+r.id+'\','+ctArg(it.chave)+')">reativar</button>')
+      /* o rótulo também vai por `ctArg`: `escBloco` não escapa aspas, e nome de aluno com
+         apóstrofo (D'Ávila) quebraria uma string JS de aspas simples dentro do onclick */
+      :'<button class="es-bt desfaz" onclick="ctSilenciar(\''+r.id+'\','+ctArg(it.chave)+','+ctArg(it.rotulo)+')">silenciar</button>')
+    +'</div>'});
+  if(mostra.length>CT_TETO)h+='<div class="ct-mais">e mais '+(mostra.length-CT_TETO)
+   +' — resolva ou silencie os de cima para os próximos aparecerem.</div>';
+  h+='</div></div>';
+ }
+ h+='</div>'});
+if(!h)h='<div class="ct-vazio">Nada nesse filtro.</div>';
+if(CT.orfaos)h+='<div class="ct-mais">'+CT.orfaos+' silêncio(s) de casos que já não existem. '
+ +'<button class="es-bt" onclick="ctLimpar()">limpar</button></div>';
+box.innerHTML=h;
+}
+/* a chave vai como string entre aspas, e ela pode conter aspas (é `id|livro`, e livro é texto do
+   usuário). `JSON.stringify` + escape do HTML é o único jeito seguro num onclick embutido. */
+function ctArg(v){return '&quot;'+escBloco(String(v)).replace(/"/g,'&quot;')+'&quot;'}
+function ctSilenciar(regra,chave,rotulo){
+var tudo=chave==='*';
+dlgTexto({titulo:tudo?'Silenciar a regra inteira':'Silenciar este caso',
+ texto:(tudo
+   ?'Todos os casos desta regra somem da central, inclusive os que aparecerem depois.'
+   :'"'+rotulo+'" sai da central. A pendência continua existindo — o que muda é que você decidiu que ela é assim de propósito.')
+  +'\n\nO motivo é para você lembrar daqui a três meses por que decidiu isso.',
+ label:'Motivo (opcional)',valor:'',ok:'Silenciar',vazioOk:true},
+function(motivo){
+run('silenciarAviso',[{regra:regra,chave:chave,motivo:motivo||null}],function(){
+  msg(tudo?'Regra silenciada.':'Caso silenciado.');ctCarregar()})})}
+function ctReativar(regra,chave){
+run('reativarAviso',[{regra:regra,chave:chave}],function(){
+  msg('Voltou para a central.');ctCarregar()})}
+function ctLimpar(){
+dlgConfirmar({titulo:'Limpar silêncios obsoletos',ok:'Limpar',
+ texto:'Remove as decisões de silenciar que apontam para casos que não existem mais (resolvidos ou apagados).\n\nNenhuma pendência atual é afetada.'},
+function(sim){if(!sim)return;
+run('limparSilenciosObsoletos',[{}],function(r){msg(r.removidos+' silêncio(s) obsoleto(s) removido(s).');ctCarregar()})})}
+
 var ARQ=[];
 function arqCarregar(){run('getArquivados',[],function(r){ARQ=r||[];arqRender()})}
 function arqRender(){
@@ -7814,7 +8402,9 @@ if(!DOM||!ALUNOS_OK){setTimeout(renderDashboard,150);return} // domínios/alunos
 run('getVisaoGeral',[],function(rows){
 renderDash(rows);renderFiltros(rows);
 if(TABELA_GERAL){TABELA_GERAL.setData(rows);aplicarFiltros();return}
-TABELA_GERAL=new Tabulator('#grade-geral',{data:rows,layout:'fitColumns',height:'62vh',placeholder:'Nenhuma matrícula ainda.',
+/* altura 100% e não `62vh`: com o esqueleto fixo quem manda na altura é a REGIÃO (`.dash-grade`),
+   não a janela. Com `62vh` a grade ora sobrava para fora do miolo, ora deixava faixa vazia embaixo. */
+TABELA_GERAL=new Tabulator('#grade-geral',{data:rows,layout:'fitColumns',height:'100%',placeholder:'Nenhuma matrícula ainda.',
 columns:[
 {title:'Aluno',field:'nome',widthGrow:2,minWidth:180},
 {title:'Situação',field:'situacao',width:110},

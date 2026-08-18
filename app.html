@@ -1630,6 +1630,19 @@ th.ev.ultima .es-ev-data{background:var(--marca);color:#fff}
   border-radius:5px;font-size:12px;font-weight:700;line-height:1}
 .cal-bool.sim{background:var(--es-remessa-cl);color:var(--es-remessa)}
 .cal-bool.nao{background:var(--es-saida-cl);color:var(--es-saida)}
+/* ---- quem fecha o dia, na página de Backup ---- */
+.bk-fecho{margin-top:12px;border:1px solid var(--borda);border-radius:10px;background:#fff;
+  padding:10px 12px;max-width:680px}
+.bk-fecho-cab{font-size:11px;font-weight:800;color:var(--marca);text-transform:uppercase;
+  letter-spacing:.05em;margin-bottom:6px}
+.bk-fecho-txt{font-size:11.5px;color:var(--tx2);line-height:1.5;margin-bottom:7px}
+.bk-fecho-est{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--tx2);
+  margin-bottom:7px;flex-wrap:wrap}
+.bk-fecho-est b{color:var(--marca)}
+.bk-fecho-sel{font-size:10.5px;font-weight:700;border-radius:20px;padding:2px 9px}
+.bk-fecho-sel.sim{background:var(--es-remessa-cl);color:var(--es-remessa)}
+.bk-fecho-sel.nao{background:var(--fundo);color:var(--tx3);border:1px solid var(--borda)}
+.bk-fecho-bt{display:flex;gap:7px;flex-wrap:wrap}
 .cal-obs{display:block;font-size:11px;color:var(--tx3)}
 .cal-cor{width:12px;height:12px;border-radius:4px;display:inline-block;border:1px solid rgba(0,0,0,.12)}
 .cal-nao{color:var(--tx3);font-size:11.5px}
@@ -4018,6 +4031,7 @@ Pendência que é <b>proposital</b> (o último estágio da trilha não tem próx
 <div class="pg-fixo">
 <div class="info" style="max-width:680px">Ao abrir, o app guarda automaticamente 1 cópia do banco por dia. Toda cópia vai <b>sempre</b> para uma pasta oculta do computador e <b>também</b> para o OneDrive quando ele existir (destino preferido).</div>
 <div id="bk-status" style="margin-top:10px"></div>
+<div id="bk-fecho" class="bk-fecho"></div>
 <div style="max-width:560px">
 <label>Pasta do OneDrive para os backups</label>
 <input id="bk-pasta" placeholder="Vazio = padrão (OneDrive\WizardBackup)">
@@ -5361,7 +5375,42 @@ if(!par[1].length)h+='<div style="color:var(--tx3);font-size:12px">Nenhum backup
 par[1].forEach(function(b){h+='<div class="hist-linha"><span>'+escBloco(b.nome)+'</span><small>'+Math.round(b.bytes/1024)+' KB · '+bkFmtData(b.modificado)+'</small></div>'});
 h+='</div>'});
 $('bk-listas').innerHTML=h;
+bkFecho();
 })}
+/* ===== QUEM FECHA O DIA (2026-08-18) =====
+   Fica aqui porque é nesta página que a identidade da estação já mora. O fecho automático marca
+   falta em quem terminou o dia sem lançamento — e numa máquina com cópia atrasada do banco isso
+   vira falta em aluno que esteve presente (aconteceu: 16 num dia só). */
+function bkFecho(){
+run('getEstacaoFecho',[],function(q){
+ var cx=$('bk-fecho');if(!cx)return;
+ cx.innerHTML='<div class="bk-fecho-cab">Quem fecha o dia</div>'
+  +'<div class="bk-fecho-txt">O fecho marca falta automática em quem terminou o dia sem nenhum '
+  +'lançamento. Numa máquina com o banco desatualizado isso vira falta em aluno que veio — por isso '
+  +'ele deve rodar <b>só na estação da recepção</b>.</div>'
+  +'<div class="bk-fecho-est">'
+   +'<span>Esta máquina: <b>'+escBloco(q.aqui||'(nome não disponível)')+'</b></span>'
+   +'<span class="bk-fecho-sel '+(q.estaMaquinaFecha?'sim':'nao')+'">'
+     +(q.estaMaquinaFecha?'fecha o dia':'não fecha')+'</span>'
+  +'</div>'
+  +'<div class="bk-fecho-txt">'
+   +(q.travado?'Designada: <b>'+escBloco(q.alvo)+'</b>'
+     :'<b>Nenhuma designada</b> — hoje qualquer máquina fecha, que é o comportamento antigo.')
+  +'</div>'
+  +'<div class="bk-fecho-bt">'
+   +(q.estaMaquinaFecha&&q.travado?'':'<button class="es-bt" onclick="bkFechoDefinir()">esta máquina é a da recepção</button>')
+   +(q.travado?'<button class="es-bt desfaz" onclick="bkFechoLiberar()">tirar a trava</button>':'')
+  +'</div>';
+})}
+function bkFechoDefinir(){
+run('definirEstacaoFecho',[{}],function(r){
+ msg('Só "'+r.alvo+'" passa a fechar o dia.');bkFecho()})}
+function bkFechoLiberar(){
+dlgConfirmar({titulo:'Tirar a trava do fecho',perigo:true,ok:'Tirar',
+ texto:'Sem trava, QUALQUER máquina que abrir o app fecha o dia. Numa máquina com o banco '
+  +'desatualizado, isso lança falta em aluno que esteve presente.'},
+function(sim){if(!sim)return;
+ run('definirEstacaoFecho',[{alvo:''}],function(){msg('Trava removida.');bkFecho()})})}
 function bkSalvarPasta(){run('salvarPastaBackup',[{pasta:$('bk-pasta').value}],function(r){msg(r.padrao?'Voltou ao padrão'+(r.pasta?': '+r.pasta:' (sem OneDrive neste computador).'):'Pasta salva: '+r.pasta);renderBackup()})}
 function bkAgora(){run('fazerBackupAgora',[],function(r){
 if(r.feitos&&r.feitos.length)msg('Backup salvo em: '+r.feitos.map(function(f){return f.destino}).join(' e ')+'.');

@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>wiztools · Estoque (protótipo)</title>
+<style>
+/* ===== Paleta Wizard by Pearson — os MESMOS tokens do app.html =====
+   Copiados de propósito: o protótipo tem de parecer a mesma casa, senão a avaliação de UI
+   vira avaliação de cor. */
+:root{
+  --marca:#071D49; --marca-md:#1A3A7A; --marca-cl:#E7ECF6;
+  --azul:#33AAE3; --azul-esc:#12678F; --azul-cl:#E4F2FB; --azul-borda:#8FD0F0;
+  --fundo:#F4F6F8; --borda:#DFE3E8; --tx2:#4A5560; --tx3:#5F6771;
+  --ok:#1E7E34; --perigo:#C81D23; --ambar:#E8940C;
+  /* cores por TIPO de coluna: o caderno mistura contagem e pedido na mesma grade, e a cor é
+     o que separa os dois sem precisar de legenda em cada célula */
+  --c-contagem:#1C7099; --c-contagem-cl:#E4F2FB;
+  --c-pedido:#B26A00;   --c-pedido-cl:#FDF2E0;
+  --c-remessa:#1E7E34;  --c-remessa-cl:#E4F4E8;
+  --c-saida:#B3261E;    --c-saida-cl:#FDECEC;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--fundo);color:#202124;
+  font-family:"Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;font-size:13px}
+
+/* ===== barra de topo ===== */
+.topo{background:var(--marca);color:#fff;padding:10px 18px;display:flex;align-items:center;gap:12px}
+.topo .caminho{font-size:12px;opacity:.75}
+.topo h1{margin:0;font-size:16px;font-weight:600;letter-spacing:.2px}
+.topo .prot{margin-left:auto;font-size:11px;background:rgba(255,255,255,.14);
+  padding:3px 9px;border-radius:20px;letter-spacing:.3px}
+
+/* ===== abas ===== */
+.abas{display:flex;gap:2px;padding:0 18px;background:#fff;border-bottom:1px solid var(--borda)}
+.aba{appearance:none;border:0;background:none;font:inherit;font-weight:600;color:var(--tx3);
+  padding:11px 15px 9px;cursor:pointer;border-bottom:3px solid transparent;display:flex;
+  align-items:center;gap:7px}
+.aba:hover{color:var(--marca);background:#fafbfc}
+.aba.on{color:var(--marca);border-bottom-color:var(--azul)}
+.aba .n{background:var(--marca-cl);color:var(--marca);font-size:11px;font-weight:700;
+  padding:1px 6px;border-radius:10px}
+.aba.on .n{background:var(--azul-cl);color:var(--azul-esc)}
+
+.painel{padding:16px 18px 40px}
+.painel[hidden]{display:none}
+
+/* ===== barra de ferramentas ===== */
+.ferramentas{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.bt{appearance:none;font:inherit;font-weight:600;cursor:pointer;border-radius:7px;
+  padding:7px 12px;display:inline-flex;align-items:center;gap:6px;
+  border:1px solid var(--borda);background:#fff;color:var(--tx2)}
+.bt:hover{border-color:var(--azul);color:var(--azul-esc);background:var(--azul-cl)}
+.bt.forte{background:var(--marca);border-color:var(--marca);color:#fff}
+.bt.forte:hover{background:var(--marca-md);border-color:var(--marca-md);color:#fff}
+.bt.contagem:hover{border-color:var(--c-contagem);color:var(--c-contagem);background:var(--c-contagem-cl)}
+.bt.pedido:hover {border-color:var(--c-pedido); color:var(--c-pedido); background:var(--c-pedido-cl)}
+.bt.remessa:hover{border-color:var(--c-remessa);color:var(--c-remessa);background:var(--c-remessa-cl)}
+.espaco{flex:1}
+.busca{border:1px solid var(--borda);border-radius:7px;padding:7px 10px;font:inherit;
+  width:210px;background:#fff}
+.busca:focus{outline:2px solid var(--azul);outline-offset:-1px;border-color:var(--azul)}
+/* chips de categoria: filtro que também ensina a hierarquia dos livros */
+.chip{appearance:none;font:inherit;font-size:12px;font-weight:600;cursor:pointer;
+  border:1px solid var(--borda);background:#fff;color:var(--tx3);border-radius:20px;padding:4px 11px}
+.chip:hover{border-color:var(--azul-borda);color:var(--azul-esc)}
+.chip.on{background:var(--azul-cl);border-color:var(--azul-borda);color:var(--azul-esc)}
+
+/* ===== a grade do caderno ===== */
+.moldura{background:#fff;border:1px solid var(--borda);border-radius:10px;overflow:auto;
+  max-height:calc(100vh - 210px)}
+table{border-collapse:separate;border-spacing:0;width:100%;font-size:13px}
+th,td{padding:0;text-align:left}
+
+/* cabeçalho de duas fileiras: tipo em cima, data embaixo — mesma ideia do cabeçalho de dias
+   do lançador (numeral grande + bolha), traduzida para coluna de evento */
+thead th{position:sticky;top:0;z-index:3;background:#fff;border-bottom:1px solid var(--borda);
+  padding:7px 8px;font-size:11px;font-weight:700;color:var(--tx3);text-transform:uppercase;
+  letter-spacing:.4px;white-space:nowrap;vertical-align:bottom}
+thead th.ev{text-align:center;min-width:74px;border-left:1px solid #EEF1F4}
+.ev-tipo{display:block;font-size:9.5px;letter-spacing:.5px;margin-bottom:3px}
+.ev-data{display:inline-block;font-size:13px;font-weight:700;letter-spacing:0;
+  text-transform:none;padding:2px 7px;border-radius:20px}
+th.tipo-contagem .ev-tipo{color:var(--c-contagem)}
+th.tipo-contagem .ev-data{background:var(--c-contagem-cl);color:var(--c-contagem)}
+th.tipo-pedido .ev-tipo{color:var(--c-pedido)}
+th.tipo-pedido .ev-data{background:var(--c-pedido-cl);color:var(--c-pedido)}
+th.tipo-remessa .ev-tipo{color:var(--c-remessa)}
+th.tipo-remessa .ev-data{background:var(--c-remessa-cl);color:var(--c-remessa)}
+th.tipo-saida .ev-tipo{color:var(--c-saida)}
+th.tipo-saida .ev-data{background:var(--c-saida-cl);color:var(--c-saida)}
+/* a coluna mais recente ganha o destaque que "hoje" tem no lançador */
+th.ev.ultima .ev-data{background:var(--marca);color:#fff}
+
+th.col-item{left:0;z-index:4;min-width:220px;padding-left:14px}
+th.col-fim{text-align:center;min-width:76px;background:#FBFCFD;border-left:1px solid var(--borda)}
+
+tbody td{border-bottom:1px solid #F0F2F5;padding:0}
+/* coluna do item grudada: é a régua de leitura da grade inteira. box-shadow e não border,
+   porque border empurra a célula e a grade "pula" 1px ao rolar */
+td.item{position:sticky;left:0;z-index:2;background:#fff;padding:6px 10px 6px 14px;
+  box-shadow:1px 0 0 var(--borda)}
+tr:hover td{background:#FAFCFE}
+tr:hover td.item{background:#F3F9FD}
+.item-nome{font-weight:600;display:block;line-height:1.25}
+.item-cod{font-size:10.5px;color:var(--tx3);font-variant-numeric:tabular-nums}
+.selo{font-size:9.5px;font-weight:700;letter-spacing:.3px;padding:1px 5px;border-radius:4px;
+  background:var(--marca-cl);color:var(--marca);margin-left:5px;vertical-align:1px}
+.selo.kit{background:#EFE7FA;color:#5B2E9D}
+.selo.prof{background:#FDF2E0;color:var(--c-pedido)}
+
+/* célula de número: o traço do caderno para zero, e nada de "0" — no papel ele escreve "–",
+   e o traço lê como "conferi e não tem", diferente de célula vazia = "não contei" */
+td.qt{text-align:center;border-left:1px solid #F4F6F8;font-variant-numeric:tabular-nums}
+td.qt input{width:100%;border:0;background:none;font:inherit;font-weight:600;
+  font-variant-numeric:tabular-nums;text-align:center;padding:7px 2px;color:#202124}
+td.qt input:hover{background:var(--azul-cl)}
+td.qt input:focus{outline:2px solid var(--azul);outline-offset:-2px;background:#fff;border-radius:4px}
+td.qt.zero input{color:#B6BDC6}
+td.qt.tipo-pedido input{color:var(--c-pedido)}
+td.qt.tipo-remessa input{color:var(--c-remessa)}
+/* saída NÃO é digitada: ela é a soma das entregas feitas a alunos naquele dia. Célula somente de
+   leitura, com o cursor de ajuda para deixar claro que não se edita aqui — edita-se na aba Entregas. */
+td.qt.tipo-saida{color:var(--c-saida);font-weight:600;padding:7px 2px;text-align:center;cursor:help}
+td.qt.tipo-saida.vazia{color:#DDE1E6}
+/* nota de célula (o "3 no 1º ano" a lápis na margem do caderno) */
+td.qt{position:relative}
+.nota-marca{position:absolute;top:2px;right:2px;width:0;height:0;
+  border-top:6px solid var(--ambar);border-left:6px solid transparent;cursor:help}
+
+td.fim{text-align:center;background:#FBFCFD;border-left:1px solid var(--borda);
+  font-weight:700;font-variant-numeric:tabular-nums;padding:7px 6px}
+td.fim.baixo{color:var(--perigo);background:#FDECEC}
+td.sug{text-align:center;background:#FBFCFD;border-left:1px solid #F0F2F5;padding:7px 6px;
+  font-weight:700;color:var(--c-pedido);font-variant-numeric:tabular-nums}
+td.sug.nada{color:#C8CDD4;font-weight:400}
+
+/* faixa de categoria: a hierarquia dos livros aparece como estrutura da tabela, não como
+   uma coluna a mais */
+tr.banda td{background:var(--marca-cl);padding:5px 14px;font-weight:700;font-size:11px;
+  letter-spacing:.6px;text-transform:uppercase;color:var(--marca);
+  position:sticky;left:0;box-shadow:none;border-bottom:1px solid #D5DDEC}
+tr.banda td .cont{font-weight:600;color:var(--marca-md);opacity:.75;margin-left:8px;
+  text-transform:none;letter-spacing:0}
+
+/* ===== tabelas simples (itens, kits, remessas) ===== */
+table.lista thead th{text-align:left;padding:8px 10px}
+table.lista td{padding:7px 10px;border-bottom:1px solid #F0F2F5}
+table.lista tr:hover td{background:#FAFCFE}
+table.lista input,table.lista select{border:1px solid transparent;border-radius:5px;
+  background:none;font:inherit;padding:4px 6px;width:100%}
+table.lista input:hover,table.lista select:hover{border-color:var(--borda);background:#fff}
+table.lista input:focus,table.lista select:focus{outline:2px solid var(--azul);
+  outline-offset:-2px;background:#fff;border-color:transparent}
+.num{text-align:center;font-variant-numeric:tabular-nums}
+.acao-x{appearance:none;border:0;background:none;color:#C8CDD4;cursor:pointer;
+  font-size:15px;line-height:1;padding:3px 6px;border-radius:5px}
+.acao-x:hover{background:#FDECEC;color:var(--perigo)}
+
+/* ===== entregas (saída ligada à matrícula) ===== */
+.pilula{font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;white-space:nowrap}
+.pilula.entregue{background:#E4F4E8;color:var(--c-remessa)}
+.pilula.pendente{background:#EEF1F4;color:var(--tx3)}
+.pilula.semestoque{background:var(--c-saida-cl);color:var(--c-saida)}
+.bt-mini{appearance:none;font:inherit;font-size:12px;font-weight:600;cursor:pointer;
+  border:1px solid var(--borda);background:#fff;color:var(--tx2);border-radius:6px;padding:4px 10px}
+.bt-mini:hover{border-color:var(--c-remessa);color:var(--c-remessa);background:var(--c-remessa-cl)}
+.bt-mini.desfaz:hover{border-color:var(--c-saida);color:var(--c-saida);background:var(--c-saida-cl)}
+.bt-mini[disabled]{opacity:.45;cursor:not-allowed}
+.bt-mini[disabled]:hover{border-color:var(--borda);color:var(--tx2);background:#fff}
+/* placar: o número que o caderno nunca deu — quantos alunos já estão com o livro na mão */
+.placar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.placar .cx{background:#fff;border:1px solid var(--borda);border-radius:10px;padding:9px 14px;min-width:130px}
+.placar .cx b{display:block;font-size:21px;line-height:1.15;font-variant-numeric:tabular-nums}
+.placar .cx span{font-size:11.5px;color:var(--tx3)}
+.placar .cx.alerta{border-color:#F0C2C0;background:var(--c-saida-cl)}
+.placar .cx.alerta b{color:var(--c-saida)}
+
+/* ===== cartões de kit / remessa ===== */
+.cartoes{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:12px}
+.cartao{background:#fff;border:1px solid var(--borda);border-radius:10px;overflow:hidden}
+.cartao-topo{padding:10px 13px;border-bottom:1px solid var(--borda);display:flex;
+  align-items:center;gap:8px;background:#FBFCFD}
+.cartao-topo b{font-size:13.5px}
+.cartao-corpo{padding:8px 13px 12px}
+.linha-kit{display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px dashed #EEF1F4}
+.linha-kit:last-child{border-bottom:0}
+.linha-kit .q{font-weight:700;color:var(--marca);font-variant-numeric:tabular-nums;min-width:22px}
+.linha-kit .n{flex:1}
+
+/* ===== avisos e legenda ===== */
+.aviso{background:#FFF9E8;border:1px solid #F2DFA8;border-radius:8px;padding:9px 12px;
+  margin-bottom:12px;color:#6B5312;font-size:12.5px;line-height:1.5}
+.aviso b{color:#4E3C0A}
+.legenda{margin-top:12px;display:flex;gap:16px;flex-wrap:wrap;font-size:11.5px;color:var(--tx3)}
+.legenda span{display:inline-flex;align-items:center;gap:6px}
+.legenda i{width:10px;height:10px;border-radius:3px;display:inline-block}
+.vazio{padding:26px;text-align:center;color:var(--tx3)}
+</style>
+</head>
+<body>
+
+<div class="topo">
+  <span class="caminho">wiztools ›</span>
+  <h1>Estoque</h1>
+  <span class="prot">protótipo · dados reais do caderno</span>
+</div>
+
+<div class="abas">
+  <button class="aba on" data-p="contagem">Contagem<span class="n" id="n-itens">0</span></button>
+  <button class="aba" data-p="entregas">Entregas<span class="n" id="n-ent">0</span></button>
+  <button class="aba" data-p="itens">Itens<span class="n" id="n-itens2">0</span></button>
+  <button class="aba" data-p="kits">Kits<span class="n" id="n-kits">0</span></button>
+  <button class="aba" data-p="remessas">Remessas<span class="n" id="n-rem">0</span></button>
+</div>
+
+<!-- ===================== ABA CONTAGEM ===================== -->
+<div class="painel" id="p-contagem">
+  <div class="aviso">
+    A grade é o seu caderno. Cada coluna é um <b>evento datado</b>: uma
+    <b>contagem</b> (o que foi conferido na prateleira), um <b>pedido</b> (o que foi encomendado) ou
+    uma <b>remessa</b> (a caixa que chegou) ou as <b>entregas</b> feitas a alunos naquele dia.
+    No caderno, a coluna 05/05 é justamente um pedido — é ela que sugeriu esse modelo.
+    O <b>Saldo</b> não é digitado: é a última contagem, mais as remessas e menos as entregas
+    <b>posteriores a ela</b>. A coluna vermelha não se edita aqui — ela é a soma da aba
+    <b>Entregas</b>; passe o mouse para ver quem levou.
+  </div>
+  <div class="ferramentas">
+    <button class="bt contagem" onclick="novoEvento('contagem')">+ Nova contagem</button>
+    <button class="bt pedido" onclick="novoEvento('pedido')">+ Pedido</button>
+    <button class="bt remessa" onclick="novoEvento('remessa')">+ Remessa</button>
+    <span class="espaco"></span>
+    <span id="chips"></span>
+    <input class="busca" id="busca" placeholder="buscar item…" oninput="render()">
+  </div>
+  <div class="moldura"><table id="grade"></table></div>
+  <div class="legenda">
+    <span><i style="background:var(--c-contagem)"></i>contagem — conferido na prateleira</span>
+    <span><i style="background:var(--c-pedido)"></i>pedido — encomendado à Pearson</span>
+    <span><i style="background:var(--c-remessa)"></i>remessa — caixa recebida</span>
+    <span><i style="background:var(--c-saida)"></i>entregas — livros que foram para alunos (derivada)</span>
+    <span><i style="background:var(--ambar)"></i>célula com observação (passe o mouse)</span>
+    <span style="color:var(--perigo)">saldo abaixo do mínimo</span>
+  </div>
+</div>
+
+<!-- ===================== ABA ENTREGAS ===================== -->
+<div class="painel" id="p-entregas" hidden>
+  <div class="aviso">
+    A saída sai daqui, e não da grade: a recepção não pensa "saíram 3 W4", pensa
+    <b>"entreguei o W4 para a Ana"</b>. A lista vem das <b>matrículas</b> (<code>aluno_livro</code>) —
+    quem está matriculado num livro precisa receber aquele livro. Marcar a entrega dá baixa no
+    estoque e cria uma coluna vermelha na grade da contagem.
+    <b>Isto é o que o caderno nunca deu:</b> a lista de quem ainda está sem o livro na mão.
+    <br><span style="color:#8A6D1F">Nomes deste protótipo são fictícios de propósito —
+    a distribuição por livro é a real do banco (127 matrículas ativas em 22 livros).</span>
+  </div>
+  <div class="placar" id="placar"></div>
+  <div class="ferramentas">
+    <span id="chips-ent"></span>
+    <span class="espaco"></span>
+    <input class="busca" id="busca3" placeholder="buscar aluno ou livro…" oninput="renderEntregas()">
+  </div>
+  <div class="moldura"><table class="lista" id="tab-entregas"></table></div>
+</div>
+
+<!-- ===================== ABA ITENS ===================== -->
+<div class="painel" id="p-itens" hidden>
+  <div class="aviso">
+    O item é o que se conta. Quase todo item é um <b>livro que o wiztools já conhece</b> — por isso a
+    coluna <b>Livro</b> é um vínculo com a tabela <code>livros</code>, e é dela que saem a categoria e a
+    ordem pedagógica da grade. Item que não é livro (Wiz.pen, mochila) fica sem vínculo.
+    <b>Sem leitura de código de barras:</b> o código é curto e digitado à mão, e serve só para buscar.
+  </div>
+  <div class="ferramentas">
+    <button class="bt forte" onclick="novoItem()">+ Novo item</button>
+    <span class="espaco"></span>
+    <input class="busca" id="busca2" placeholder="buscar item…" oninput="renderItens()">
+  </div>
+  <div class="moldura"><table class="lista" id="tab-itens"></table></div>
+</div>
+
+<!-- ===================== ABA KITS ===================== -->
+<div class="painel" id="p-kits" hidden>
+  <div class="aviso">
+    Kit é um item cuja <b>unidade é "kit"</b> — exatamente como no Sponte, onde "Espanhol Anual 6"
+    aparece na mesma lista dos livros com Unidade = Kit. Ele não é uma tabela à parte: é um item com
+    composição. Receber 1 kit dá entrada nos itens que ele contém.
+  </div>
+  <div class="ferramentas">
+    <button class="bt forte" onclick="novoKit()">+ Novo kit</button>
+  </div>
+  <div class="cartoes" id="cartoes-kits"></div>
+</div>
+
+<!-- ===================== ABA REMESSAS ===================== -->
+<div class="painel" id="p-remessas" hidden>
+  <div class="aviso">
+    Remessa é a caixa que chega da Pearson com vários materiais dentro. Registrar a remessa
+    <b>lança entrada em cada item</b> e vira uma coluna verde na grade da contagem — é o vínculo
+    material↔remessa. Se a remessa trouxer um kit, ele se desdobra nos itens que o compõem.
+  </div>
+  <div class="ferramentas">
+    <button class="bt forte" onclick="novoEvento('remessa')">+ Receber remessa</button>
+  </div>
+  <div class="cartoes" id="cartoes-rem"></div>
+</div>
+
+<script>
+/* ===========================================================================
+   PROTÓTIPO — estado em memória, sem servidor e sem localStorage.
+   Recarregar a página volta ao caderno original de propósito: é para testar
+   FLUXO e DESENHO, não para começar a usar como sistema.
+   =========================================================================== */
+
+/* categoria do livro: a MESMA regra do main.ts (categoriaLivro). Repetida aqui porque o
+   protótipo é autocontido; na integração ela vem do servidor e não se duplica.
+   A ordem das faixas é a pedagógica, não alfabética. */
+var FAIXAS = ['Kids','Teens','Ws','Outros Idiomas','Materiais'];
+function categoriaLivro(nome){
+  if(!nome) return 'Materiais';
+  if(/^(Español|Italiano|Port|Kids Esp)/i.test(nome)) return 'Outros Idiomas';
+  if(/^Teens/i.test(nome)) return 'Teens';
+  if(/^W\d/i.test(nome)) return 'Ws';
+  return 'Kids';                       // TOTS, L. Kids, KIDS, Next Gen, Pre-Teens
+}
+
+/* itens: `livro` é o nome exato na tabela `livros` do wizard.db (com a ordem pedagógica real).
+   `min` é o estoque mínimo — o "Est. Mín." do Sponte, que aqui vira a sugestão de pedido. */
+var ITENS = [
+  {id:'i01', cod:'TOT2',  desc:'TOTS 2',      livro:'TOTS 2',    ordem:1,  un:'unidade', fim:'venda', min:1},
+  {id:'i02', cod:'TOT4',  desc:'TOTS 4',      livro:'TOTS 4',    ordem:2,  un:'unidade', fim:'venda', min:1},
+  {id:'i03', cod:'TOT6',  desc:'TOTS 6',      livro:'TOTS 6',    ordem:3,  un:'unidade', fim:'venda', min:1},
+  {id:'i04', cod:'LK2',   desc:'L. Kids 2',   livro:'L. Kids 2', ordem:4,  un:'unidade', fim:'venda', min:2},
+  {id:'i05', cod:'LK4',   desc:'L. Kids 4',   livro:'L. Kids 4', ordem:5,  un:'unidade', fim:'venda', min:2},
+  {id:'i06', cod:'K2',    desc:'KIDS 2',      livro:'KIDS 2',    ordem:7,  un:'unidade', fim:'venda', min:2},
+  {id:'i07', cod:'K4',    desc:'KIDS 4',      livro:'KIDS 4',    ordem:8,  un:'unidade', fim:'venda', min:2},
+  {id:'i08', cod:'NG',    desc:'Next Gen',    livro:'Next Gen',  ordem:9,  un:'unidade', fim:'venda', min:1},
+  {id:'i09', cod:'PRE',   desc:'Pre-Teens',   livro:'Pre-Teens', ordem:10, un:'unidade', fim:'venda', min:2},
+  {id:'i10', cod:'T2',    desc:'Teens 2',     livro:'Teens 2',   ordem:11, un:'unidade', fim:'venda', min:2},
+  {id:'i11', cod:'T4',    desc:'Teens 4',     livro:'Teens 4',   ordem:12, un:'unidade', fim:'venda', min:2},
+  {id:'i12', cod:'T6',    desc:'Teens 6',     livro:'Teens 6',   ordem:13, un:'unidade', fim:'venda', min:1},
+  {id:'i13', cod:'T8',    desc:'Teens 8',     livro:'Teens 8',   ordem:14, un:'unidade', fim:'venda', min:1},
+  {id:'i14', cod:'W2',    desc:'W2',          livro:'W2',        ordem:15, un:'unidade', fim:'venda', min:3},
+  {id:'i15', cod:'W4',    desc:'W4',          livro:'W4',        ordem:16, un:'unidade', fim:'venda', min:3},
+  {id:'i16', cod:'W6',    desc:'W6',          livro:'W6',        ordem:17, un:'unidade', fim:'venda', min:2},
+  {id:'i17', cod:'W8',    desc:'W8',          livro:'W8',        ordem:18, un:'unidade', fim:'venda', min:1},
+  {id:'i18', cod:'W10',   desc:'W10',         livro:'W10',       ordem:19, un:'unidade', fim:'venda', min:1},
+  {id:'i19', cod:'W12',   desc:'W12',         livro:'W12',       ordem:20, un:'unidade', fim:'venda', min:1},
+  {id:'i20', cod:'ESP2',  desc:'Español 2',   livro:'Español 2', ordem:21, un:'unidade', fim:'venda', min:1},
+  {id:'i21', cod:'ESP4',  desc:'Español 4',   livro:'Español 4', ordem:22, un:'unidade', fim:'venda', min:1},
+  {id:'i22', cod:'ESP6',  desc:'Español 6',   livro:'Español 6', ordem:23, un:'unidade', fim:'venda', min:1},
+  {id:'i23', cod:'ITA2',  desc:'Italiano 2',  livro:'Italiano 2',ordem:24, un:'unidade', fim:'venda', min:1},
+  {id:'i24', cod:'ITA4',  desc:'Italiano 4',  livro:'Italiano 4',ordem:25, un:'unidade', fim:'venda', min:1},
+  {id:'i25', cod:'ITA6',  desc:'Italiano 6',  livro:'Italiano 6',ordem:26, un:'unidade', fim:'venda', min:1},
+  /* fora da tabela `livros`: o caderno tem essa linha, e ela mostra que a lista do estoque NÃO é
+     a lista de livros — é maior. Por isso item é tabela própria, e não uma coluna em `livros`. */
+  {id:'i26', cod:'WIZPEN',desc:'Wiz.pen',     livro:null,        ordem:90, un:'unidade', fim:'venda', min:2},
+  {id:'i27', cod:'TGW2',  desc:"Teacher's Guide W2", livro:null, ordem:91, un:'unidade', fim:'professor', min:1},
+  /* item com unidade "kit": é assim que o Sponte trata "Espanhol Anual 6" */
+  {id:'i28', cod:'KESP6', desc:'Espanhol Anual 6', livro:null,   ordem:92, un:'kit',     fim:'venda', min:0}
+];
+
+/* composição dos kits — item de unidade "kit" aponta para itens de unidade "unidade" */
+var KITS = [
+  {itemId:'i28', linhas:[{itemId:'i22', qtd:1},{itemId:'i26', qtd:1}]}
+];
+
+/* eventos: as COLUNAS do caderno, em ordem cronológica.
+   As três primeiras são contagens; a de 05/05 é o pedido escrito no caderno. */
+var EVENTOS = [
+  {id:'e1', tipo:'contagem', data:'2026-02-04', obs:'contagem de fevereiro'},
+  {id:'e2', tipo:'contagem', data:'2026-02-27', obs:''},
+  {id:'e3', tipo:'contagem', data:'2026-04-18', obs:''},
+  {id:'e4', tipo:'pedido',   data:'2026-05-05', obs:'pedido enviado à Pearson'}
+];
+
+/* valores: evento → item → quantidade. Números transcritos da foto do caderno.
+   `null` = célula em branco no papel (ninguém contou), diferente de 0 (contou e não tem). */
+var V = {
+  e1:{i01:0,i02:2,i03:1,i04:4,i05:3,i06:2,i07:4,i08:2,i09:7,i10:6,i11:6,i12:2,i13:1,
+      i14:8,i15:7,i16:1,i17:2,i18:2,i19:2,i20:3,i21:0,i22:1,i23:3,i24:0,i25:1,i26:3},
+  e2:{i01:0,i02:3,i03:1,i04:4,i05:2,i06:3,i07:4,i08:2,i09:7,i10:2,i11:5,i12:2,i13:1,
+      i14:8,i15:4,i16:1,i17:1,i18:1,i19:2,i20:3,i21:0,i22:1,i23:3,i24:0,i25:1,i26:3},
+  e3:{i01:0,i02:2,i03:1,i04:3,i05:1,i06:1,i07:4,i08:2,i09:7,i10:0,i11:4,i12:2,i13:1,
+      i14:5,i15:4,i16:0,i17:1,i18:1,i19:2,i20:2,i21:0,i22:1,i23:2,i24:0,i25:1,i26:1},
+  e4:{i05:3,i06:4,i10:2,i16:1,i26:4}
+};
+
+/* observações por célula — o "3 no 1º ano" a lápis. O caderno usa isso para dizer ONDE o material
+   está e PARA QUAL edição ele conta; as duas coisas cabem numa nota livre nesta altura. */
+var NOTAS = {
+  'e1|i07':'2 da edição antiga + 4 da 3ª edição (leitura da foto está incerta neste ponto)',
+  'e2|i07':'3 antigos + 2 novos',
+  'e3|i07':'3 antigos + 2 novos',
+  'e3|i14':'3 estão na sala do 1º ano'
+};
+
+/* ===========================================================================
+   MATRÍCULAS E ENTREGAS
+   A saída de material é ligada à matrícula, e não digitada como quantidade solta.
+   A lista abaixo imita `aluno_livro`: uma linha por (aluno, livro) ativo.
+   NOMES FICTÍCIOS de propósito — este arquivo pode acabar num repositório público e a maior
+   parte dos alunos da escola é menor de idade. A DISTRIBUIÇÃO por livro é a real, medida no
+   wizard.db em 2026-08-08: 127 matrículas ativas (Matriculado + Rematriculado) em 22 livros.
+   =========================================================================== */
+var POR_LIVRO = {'W2':20,'KIDS 2':13,'Teens 2':12,'L. Kids 4':11,'W4':11,'KIDS 4':10,
+  'L. Kids 2':8,'Italiano 2':5,'Teens 6':5,'W6':5,'Español 4':4,'TOTS 4':4,'Next Gen':3,
+  'Teens 4':3,'W10':3,'Italiano 4':2,'Kids Esp 1':2,'Teens 8':2,'Español 2':1,'Port 2':1,
+  'Pre-Teens':1,'W12':1};
+var NOMES=['Ana','Bruno','Carla','Diego','Elisa','Felipe','Gabi','Heitor','Isa','João','Kel',
+  'Lara','Mateus','Nina','Otávio','Paula','Rafa','Sofia','Tiago','Vera','Yuri','Bia','Caio',
+  'Duda','Enzo','Flávia','Gustavo','Helena','Ígor','Júlia'];
+var SOBRE=['Alves','Barros','Cardoso','Dias','Esteves','Franco','Gomes','Henrique','Iglesias',
+  'Junqueira','Lopes','Moreira','Nunes','Oliveira','Pires','Quirino','Ramos','Silveira','Tavares'];
+var ALUNOS=[];
+(function montarAlunos(){
+  var k=0;
+  Object.keys(POR_LIVRO).forEach(function(livro){
+    for(var i=0;i<POR_LIVRO[livro];i++){
+      ALUNOS.push({id:'a'+(1000+k), nome:NOMES[k%NOMES.length]+' '+SOBRE[(k*7)%SOBRE.length],
+        livro:livro});
+      k++;
+    }
+  });
+})();
+
+/* entrega = uma linha por (aluno, livro) já atendida. Quantidade é sempre 1: é o livro dele.
+   As entregas ANTERIORES à última contagem não mexem no saldo — a contagem já as absorveu.
+   Só as posteriores viram coluna vermelha e descontam. Isso não é detalhe de implementação:
+   é o que impede a mesma saída de ser contada duas vezes. */
+var ENTREGAS=[];
+(function semearEntregas(){
+  /* ~70% já receberam, em datas anteriores à contagem de 18/04 */
+  ALUNOS.forEach(function(al,ix){
+    if(ix%10<7) ENTREGAS.push({id:'g'+ix, alunoId:al.id, data:(ix%3===0?'2026-02-10':
+      (ix%3===1?'2026-03-05':'2026-04-02'))});
+  });
+  /* e um punhado DEPOIS da última contagem, para a coluna de saída existir na grade */
+  var pos=[['W2','2026-04-22'],['W2','2026-04-22'],['KIDS 4','2026-04-22'],
+           ['KIDS 4','2026-04-22'],['Teens 4','2026-04-22'],['W4','2026-04-22'],
+           ['L. Kids 2','2026-05-06'],['Español 2','2026-05-06'],['Italiano 2','2026-05-06']];
+  pos.forEach(function(p,i){
+    var cand=ALUNOS.filter(function(a){return a.livro===p[0]&&!entregaDe(a.id)})[0];
+    if(cand) ENTREGAS.push({id:'gp'+i, alunoId:cand.id, data:p[1]});
+  });
+})();
+function entregaDe(alunoId){
+  return ENTREGAS.filter(function(g){return g.alunoId===alunoId})[0]||null;
+}
+/* o item de estoque que corresponde ao livro do aluno. Pode não existir: há matrícula em
+   'Kids Esp 1' e 'Port 2', que não estão no caderno — e o protótipo mostra isso em vez de esconder. */
+function itemDoLivro(livro){
+  return ITENS.filter(function(i){return i.livro===livro})[0]||null;
+}
+
+/* As saídas NÃO são eventos digitados: são derivadas da lista de entregas — assim a coluna nunca
+   pode discordar da lista, porque ela É a lista, somada por item.
+   E são agregadas POR PERÍODO ENTRE CONTAGENS, não por dia. Com 127 matrículas, uma coluna por dia
+   de entrega encheria a grade de dezenas de colunas e destruiria justamente o que faz o caderno
+   funcionar: caber numa tela. Além disso, o dia exato da entrega não muda conta nenhuma — o que o
+   saldo precisa saber é quanto saiu DESDE A ÚLTIMA CONTAGEM. O dia continua guardado na entrega e
+   aparece no hover; ele só não merece uma coluna. */
+function eventosSaida(){
+  var cont=EVENTOS.filter(function(e){return e.tipo==='contagem'})
+                  .map(function(e){return e.data}).sort();
+  var hoje=new Date().toISOString().slice(0,10);
+  var ultimo=cont.length?cont[cont.length-1]:null;
+  var limites=cont.slice();
+  if(!ultimo||hoje>ultimo) limites.push(hoje);      // o período aberto, que ainda não foi conferido
+
+  var baldes={}, quem={};
+  ENTREGAS.forEach(function(g){
+    var al=ALUNOS.filter(function(a){return a.id===g.alunoId})[0]; if(!al) return;
+    var it=itemDoLivro(al.livro); if(!it) return;
+    var lim=null;
+    for(var i=0;i<limites.length;i++){ if(g.data<=limites[i]){lim=limites[i];break} }
+    if(lim==null) lim=limites[limites.length-1];
+    (baldes[lim]=baldes[lim]||{});
+    baldes[lim][it.id]=(baldes[lim][it.id]||0)+1;
+    (quem[lim]=quem[lim]||[]).push({nome:al.nome,itemId:it.id,data:g.data});
+  });
+  return Object.keys(baldes).map(function(lim){
+    /* ord 0 = fecha num dia de contagem, então desenha ANTES dela (a contagem já a absorveu);
+       ord 2 = período aberto, desenha depois de tudo e é o único que desconta do saldo */
+    var aberta=(ultimo==null||lim>ultimo);
+    return {id:'s|'+lim, tipo:'saida', data:lim, ord:aberta?2:0, aberta:aberta,
+      vals:baldes[lim], quem:quem[lim],
+      obs:aberta?'entregas desde a última contagem':'entregas até a contagem de '+dataBR(lim)};
+  });
+}
+/* linha do tempo completa. A chave de ordenação é data+ord: no MESMO dia, a saída fechada vem
+   antes da contagem e a aberta depois — sem isso, contar e entregar no mesmo dia vira empate e a
+   ordem passa a depender de quem entrou primeiro no array. */
+function chaveEv(e){return e.data+'|'+(e.ord==null?1:e.ord)}
+function eventosTodos(){
+  return EVENTOS.concat(eventosSaida()).sort(function(a,b){
+    return chaveEv(a)<chaveEv(b)?-1:(chaveEv(a)>chaveEv(b)?1:0)});
+}
+function valorDe(ev,itemId){
+  return ev.vals ? (ev.vals[itemId]==null?null:ev.vals[itemId])
+                 : (V[ev.id]?V[ev.id][itemId]:null);
+}
+
+var FILTRO = null;   // categoria selecionada nos chips
+var FILTRO_ENT = 'pendente';
+
+/* ---------- helpers ---------- */
+function $(id){return document.getElementById(id)}
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){
+  return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+function dataBR(iso){var p=iso.split('-');return p[2]+'/'+p[1]}
+function itemPorId(id){return ITENS.filter(function(i){return i.id===id})[0]}
+function catDo(it){return it.livro?categoriaLivro(it.livro):'Materiais'}
+function itensOrdenados(){
+  return ITENS.slice().sort(function(a,b){
+    var fa=FAIXAS.indexOf(catDo(a)),fb=FAIXAS.indexOf(catDo(b));
+    return fa-fb || a.ordem-b.ordem;
+  });
+}
+
+/* SALDO — a regra que o caderno já pratica sem escrever:
+   vale a ÚLTIMA CONTAGEM, mais as remessas que chegaram depois dela, menos as entregas feitas
+   depois dela. Pedido não entra: pedir não é ter.
+   O "depois dela" é o que impede contagem dupla: entrega anterior à contagem já está embutida no
+   número que a pessoa viu na prateleira, e descontá-la de novo tiraria do estoque um livro que
+   já não estava lá. A contagem continua sendo a palavra final — ela zera qualquer deriva. */
+function saldo(itemId){
+  var evs=eventosTodos();
+  var base=null, i;
+  for(i=evs.length-1;i>=0;i--){
+    var q=valorDe(evs[i],itemId);
+    if(evs[i].tipo==='contagem'&&q!=null){base={valor:q,chave:chaveEv(evs[i])};break}
+  }
+  if(!base) return null;
+  var total=base.valor;
+  evs.forEach(function(e){
+    if(chaveEv(e)<=base.chave) return;      // compara data+ord, não só data (ver chaveEv)
+    var q=valorDe(e,itemId); if(q==null) return;
+    if(e.tipo==='remessa') total+=q;
+    else if(e.tipo==='saida') total-=q;
+  });
+  return total;
+}
+/* sugestão de pedido = quanto falta para o mínimo, descontando o que JÁ foi pedido e ainda não
+   chegou. Sem esse desconto o sistema mandaria pedir de novo o que está a caminho — é o erro que
+   o "Fazer Aquisição" do Sponte evita com a coluna Reservado.
+   O acerto entre pedido e remessa é ITEM A ITEM, percorrendo a linha do tempo: cada pedido soma ao
+   pendente daquele item, cada remessa abate o que ela de fato trouxe. A primeira versão disto
+   olhava só a DATA da última remessa e dava o pedido inteiro por atendido — o defeito apareceu no
+   teste: uma remessa que trouxe só W6 e L. Kids 4 quitou também o KIDS 2 encomendado no mesmo
+   pedido. Caixa que chega raramente traz o pedido inteiro, então a regra por data é sempre mentira. */
+function pedidoPendente(itemId){
+  var evs=EVENTOS.slice().sort(function(a,b){return a.data<b.data?-1:1});
+  var pend=0;
+  evs.forEach(function(e){
+    var q=V[e.id]&&V[e.id][itemId]; if(q==null) return;
+    if(e.tipo==='pedido') pend+=q;
+    else if(e.tipo==='remessa') pend=Math.max(0,pend-q);
+  });
+  return pend;
+}
+function sugestao(it){
+  var s=saldo(it.id); if(s==null) return 0;
+  var falta=(it.min||0)-s-pedidoPendente(it.id);
+  return falta>0?falta:0;
+}
+
+/* ---------- grade da contagem ---------- */
+function render(){
+  var evs=eventosTodos();
+  var busca=($('busca').value||'').toLowerCase();
+  var lista=itensOrdenados().filter(function(it){
+    if(FILTRO&&catDo(it)!==FILTRO) return false;
+    if(busca&&(it.desc+' '+it.cod).toLowerCase().indexOf(busca)<0) return false;
+    return true;
+  });
+
+  var h='<thead><tr><th class="col-item">Item</th>';
+  var ROT={contagem:'CONTAGEM',pedido:'PEDIDO',remessa:'REMESSA',saida:'ENTREGAS'};
+  evs.forEach(function(e,ix){
+    /* a coluna de entregas do período ABERTO é a única que ainda mexe no saldo — por isso ela diz
+       "até hoje" em vez de repetir a data da contagem que a fechou */
+    var rot=ROT[e.tipo]+(e.tipo==='saida'&&e.aberta?' ATÉ HOJE':'');
+    h+='<th class="ev tipo-'+e.tipo+(ix===evs.length-1?' ultima':'')+'" title="'+esc(e.obs||rot)+'">'
+      +'<span class="ev-tipo">'+rot+'</span>'
+      +'<span class="ev-data">'+dataBR(e.data)+'</span></th>';
+  });
+  h+='<th class="col-fim">Saldo</th><th class="col-fim">Mín.</th><th class="col-fim">Pedir</th></tr></thead><tbody>';
+
+  var faixaAtual=null, colspan=evs.length+4;
+  lista.forEach(function(it){
+    var cat=catDo(it);
+    if(cat!==faixaAtual){
+      faixaAtual=cat;
+      var n=lista.filter(function(x){return catDo(x)===cat}).length;
+      h+='<tr class="banda"><td colspan="'+colspan+'">'+esc(cat)
+        +'<span class="cont">'+n+' '+(n===1?'item':'itens')+'</span></td></tr>';
+    }
+    var selo=it.un==='kit'?'<span class="selo kit">KIT</span>'
+           :(it.fim==='professor'?'<span class="selo prof">PROFESSOR</span>':'');
+    h+='<tr><td class="item"><span class="item-nome">'+esc(it.desc)+selo+'</span>'
+      +'<span class="item-cod">'+esc(it.cod)+(it.livro?' · livro':' · material')+'</span></td>';
+    evs.forEach(function(e){
+      var q=valorDe(e,it.id);
+      /* coluna de ENTREGAS é derivada: mostra o total e diz de quem, mas não se digita aqui */
+      if(e.tipo==='saida'){
+        var quem=nomesDaSaida(e,it.id);
+        h+='<td class="qt tipo-saida'+(q==null?' vazia':'')+'"'
+          +(quem?' title="'+esc(quem)+'"':'')+'>'+(q==null?'·':'−'+q)+'</td>';
+        return;
+      }
+      var nota=NOTAS[e.id+'|'+it.id];
+      h+='<td class="qt tipo-'+e.tipo+(q===0?' zero':'')+'">'
+        +(nota?'<span class="nota-marca" title="'+esc(nota)+'"></span>':'')
+        +'<input value="'+(q==null?'':(q===0?'–':q))+'" data-e="'+e.id+'" data-i="'+it.id+'"'
+        +' onchange="editar(this)" onfocus="this.select()"></td>';
+    });
+    var s=saldo(it.id), sug=sugestao(it);
+    var baixo=s!=null&&s<(it.min||0);
+    h+='<td class="fim'+(baixo?' baixo':'')+'" title="'+(s==null?'sem contagem':'última contagem + remessas posteriores')+'">'
+      +(s==null?'—':s)+'</td>';
+    h+='<td class="fim" style="font-weight:400;color:var(--tx3)">'+(it.min||0)+'</td>';
+    h+='<td class="sug'+(sug?'':' nada')+'">'+(sug?('+'+sug):'—')+'</td></tr>';
+  });
+  if(!lista.length) h+='<tr><td colspan="'+colspan+'" class="vazio">nenhum item com esse filtro</td></tr>';
+  $('grade').innerHTML=h+'</tbody>';
+  renderChips();
+  $('n-itens').textContent=ITENS.length;
+  $('n-itens2').textContent=ITENS.length;
+  $('n-kits').textContent=KITS.length;
+  $('n-rem').textContent=EVENTOS.filter(function(e){return e.tipo==='remessa'}).length;
+  $('n-ent').textContent=ALUNOS.filter(function(a){return !entregaDe(a.id)}).length;
+}
+
+/* quem levou o quê naquele dia — vira o title da célula de saída, para a grade não virar um
+   número anônimo: o valor de ligar a saída à matrícula é justamente poder responder "quem". */
+function nomesDaSaida(ev,itemId){
+  return (ev.quem||[]).filter(function(q){return q.itemId===itemId})
+    .map(function(q){return q.nome+' ('+dataBR(q.data)+')'}).join(' · ');
+}
+
+function renderChips(){
+  var h='<button class="chip'+(FILTRO?'':' on')+'" onclick="filtrar(null)">todas</button> ';
+  FAIXAS.forEach(function(f){
+    var n=ITENS.filter(function(i){return catDo(i)===f}).length;
+    if(!n) return;
+    h+='<button class="chip'+(FILTRO===f?' on':'')+'" onclick="filtrar(\''+f+'\')">'+f+' '+n+'</button> ';
+  });
+  $('chips').innerHTML=h;
+}
+function filtrar(f){FILTRO=f;render()}
+
+/* célula editada: "–" e vazio são coisas diferentes e o parser preserva a distinção */
+function editar(el){
+  var t=el.value.trim(), q;
+  if(t===''||t==='—') q=null;
+  else if(t==='-'||t==='–') q=0;
+  else { q=parseInt(t.replace(/\D/g,''),10); if(isNaN(q)) q=null }
+  V[el.dataset.e]=V[el.dataset.e]||{};
+  if(q==null) delete V[el.dataset.e][el.dataset.i]; else V[el.dataset.e][el.dataset.i]=q;
+  render();
+}
+
+/* novo evento = nova coluna.
+   A contagem nova nasce PRÉ-CARREGADA com o SALDO ESPERADO, não com a cópia da contagem anterior.
+   A diferença aparece assim que entra uma remessa no meio: a primeira versão copiava o 18/04 e o
+   W6 voltava a 0 depois de ter recebido 3 na caixa de 20/05 — o sistema apagava sozinho o que
+   sabia. Pré-carregar o esperado deixa o trabalho ser o certo: conferir e corrigir onde diverge,
+   que é literalmente o que a pessoa faz de prancheta na mão diante da prateleira. */
+function novoEvento(tipo){
+  var hoje=new Date().toISOString().slice(0,10);
+  var d=prompt('Data d'+(tipo==='contagem'?'a contagem':'o '+tipo)+' (AAAA-MM-DD):',hoje);
+  if(!d) return;
+  var pre={};
+  if(tipo==='contagem')                     // calculado ANTES de existir a coluna nova
+    ITENS.forEach(function(it){var s=saldo(it.id); if(s!=null) pre[it.id]=s});
+  var id='e'+(Date.now()%100000);
+  EVENTOS.push({id:id,tipo:tipo,data:d,obs:''});
+  V[id]=pre;
+  render(); renderRemessas();
+  if(tipo!=='contagem') mudarAba(tipo==='remessa'?'remessas':'contagem');
+}
+
+/* ---------- aba entregas ----------
+   Ordem da lista: PENDENTE primeiro, e dentro dele quem tem livro em estoque antes de quem não
+   tem — porque a ação possível vem antes da ação impossível. Depois, ordem pedagógica do livro e
+   nome. O que não dá para fazer agora não pode ficar no topo empurrando o que dá. */
+function renderEntregas(){
+  var busca=($('busca3').value||'').toLowerCase();
+  /* saldo projetado: o saldo de hoje já desconta as entregas registradas, então para saber se
+     "dá para entregar" basta olhar o saldo corrente item a item */
+  var linhas=ALUNOS.map(function(al){
+    var it=itemDoLivro(al.livro), g=entregaDe(al.id), s=it?saldo(it.id):null;
+    return {al:al, it:it, g:g, s:s,
+      estado: g?'entregue' : (!it?'semitem' : ((s==null||s<=0)?'semestoque':'pendente'))};
+  }).filter(function(l){
+    if(FILTRO_ENT==='pendente'&&l.g) return false;
+    if(FILTRO_ENT==='entregue'&&!l.g) return false;
+    if(busca&&(l.al.nome+' '+l.al.livro).toLowerCase().indexOf(busca)<0) return false;
+    return true;
+  });
+  var pesoEstado={pendente:0,semestoque:1,semitem:2,entregue:3};
+  linhas.sort(function(a,b){
+    return pesoEstado[a.estado]-pesoEstado[b.estado]
+      || (a.it?a.it.ordem:999)-(b.it?b.it.ordem:999)
+      || a.al.nome.localeCompare(b.al.nome,'pt');
+  });
+
+  var h='<thead><tr><th style="min-width:170px">Aluno</th><th>Livro</th>'
+    +'<th>Item de estoque</th><th class="num">Saldo</th><th>Situação</th><th></th></tr></thead><tbody>';
+  linhas.forEach(function(l){
+    var pil = l.estado==='entregue' ? '<span class="pilula entregue">entregue '+dataBR(l.g.data)+'</span>'
+      : l.estado==='semitem' ? '<span class="pilula semestoque">livro sem item de estoque</span>'
+      : l.estado==='semestoque' ? '<span class="pilula semestoque">sem estoque</span>'
+      : '<span class="pilula pendente">pendente</span>';
+    var bt = l.g
+      ? '<button class="bt-mini desfaz" onclick="desfazerEntrega(\''+l.al.id+'\')">desfazer</button>'
+      : '<button class="bt-mini" '+(l.estado==='pendente'?'':'disabled')
+        +' onclick="entregar(\''+l.al.id+'\')">entregar</button>';
+    h+='<tr><td><b>'+esc(l.al.nome)+'</b></td><td>'+esc(l.al.livro)+'</td>'
+      +'<td>'+(l.it?esc(l.it.desc):'<span style="color:var(--c-saida)">— não existe —</span>')+'</td>'
+      +'<td class="num">'+(l.s==null?'—':l.s)+'</td>'
+      +'<td>'+pil+'</td><td style="text-align:right">'+bt+'</td></tr>';
+  });
+  if(!linhas.length) h+='<tr><td colspan="6" class="vazio">nada nesse filtro</td></tr>';
+  $('tab-entregas').innerHTML=h+'</tbody>';
+  renderPlacar(); renderChipsEnt();
+}
+
+function renderPlacar(){
+  var tot=ALUNOS.length, ent=ALUNOS.filter(function(a){return entregaDe(a.id)}).length;
+  var semEstoque=0, semItem=0;
+  ALUNOS.forEach(function(a){
+    if(entregaDe(a.id)) return;
+    var it=itemDoLivro(a.livro);
+    if(!it){semItem++;return}
+    var s=saldo(it.id); if(s==null||s<=0) semEstoque++;
+  });
+  function cx(v,r,alerta){return '<div class="cx'+(alerta?' alerta':'')+'"><b>'+v+'</b><span>'+r+'</span></div>'}
+  $('placar').innerHTML =
+     cx(ent+' / '+tot,'alunos já com o livro')
+    +cx(tot-ent,'ainda pendentes')
+    +cx(semEstoque,'pendentes SEM estoque para entregar',semEstoque>0)
+    +cx(semItem,'em livro que nem existe no estoque',semItem>0);
+}
+function renderChipsEnt(){
+  var op=[['pendente','pendentes'],['entregue','entregues'],['todos','todos']];
+  $('chips-ent').innerHTML=op.map(function(o){
+    return '<button class="chip'+(FILTRO_ENT===o[0]?' on':'')+'" onclick="filtrarEnt(\''+o[0]+'\')">'
+      +o[1]+'</button>'}).join(' ');
+}
+function filtrarEnt(f){FILTRO_ENT=f;renderEntregas()}
+
+/* entregar = criar a linha de entrega com a data de hoje. O estoque cai por consequência, não por
+   digitação — é a diferença entre "registrar que a Ana levou o livro dela" e "dar baixa de 1 W4". */
+function entregar(alunoId){
+  var al=ALUNOS.filter(function(a){return a.id===alunoId})[0]; if(!al) return;
+  var it=itemDoLivro(al.livro); if(!it) return;
+  var s=saldo(it.id);
+  if(s==null||s<=0){alert('Sem '+it.desc+' em estoque para entregar.');return}
+  ENTREGAS.push({id:'g'+Date.now(), alunoId:alunoId, data:new Date().toISOString().slice(0,10)});
+  render(); renderEntregas();
+}
+function desfazerEntrega(alunoId){
+  var g=entregaDe(alunoId); if(!g) return;
+  var al=ALUNOS.filter(function(a){return a.id===alunoId})[0];
+  if(!confirm('Desfazer a entrega de '+al.nome+' ('+al.livro+'), registrada em '+dataBR(g.data)+'?\n\n'
+    +'O livro volta para o estoque.')) return;
+  ENTREGAS=ENTREGAS.filter(function(x){return x.id!==g.id});
+  render(); renderEntregas();
+}
+
+/* ---------- aba itens ---------- */
+function renderItens(){
+  var busca=($('busca2').value||'').toLowerCase();
+  var lista=itensOrdenados().filter(function(it){
+    return !busca||(it.desc+' '+it.cod).toLowerCase().indexOf(busca)>=0});
+  var h='<thead><tr><th style="min-width:190px">Descrição</th><th>Código</th><th>Livro vinculado</th>'
+    +'<th>Categoria</th><th>Unidade</th><th>Finalidade</th><th class="num">Mín.</th>'
+    +'<th class="num">Saldo</th><th></th></tr></thead><tbody>';
+  lista.forEach(function(it){
+    var s=saldo(it.id);
+    h+='<tr><td><input value="'+esc(it.desc)+'" onchange="campo(\''+it.id+'\',\'desc\',this.value)"></td>'
+      +'<td><input value="'+esc(it.cod)+'" onchange="campo(\''+it.id+'\',\'cod\',this.value)"></td>'
+      +'<td>'+(it.livro?esc(it.livro):'<span style="color:#B6BDC6">— não é livro —</span>')+'</td>'
+      +'<td>'+esc(catDo(it))+'</td>'
+      +'<td><select onchange="campo(\''+it.id+'\',\'un\',this.value)">'
+        +'<option'+(it.un==='unidade'?' selected':'')+'>unidade</option>'
+        +'<option'+(it.un==='kit'?' selected':'')+'>kit</option></select></td>'
+      +'<td><select onchange="campo(\''+it.id+'\',\'fim\',this.value)">'
+        +'<option'+(it.fim==='venda'?' selected':'')+'>venda</option>'
+        +'<option'+(it.fim==='consumo'?' selected':'')+'>consumo</option>'
+        +'<option value="professor"'+(it.fim==='professor'?' selected':'')+'>uso do professor</option></select></td>'
+      +'<td class="num"><input class="num" value="'+(it.min||0)+'" onchange="campo(\''+it.id+'\',\'min\',+this.value)"></td>'
+      +'<td class="num"><b>'+(s==null?'—':s)+'</b></td>'
+      +'<td><button class="acao-x" title="excluir" onclick="excluirItem(\''+it.id+'\')">×</button></td></tr>';
+  });
+  $('tab-itens').innerHTML=h+'</tbody>';
+}
+function campo(id,c,v){var it=itemPorId(id);if(it){it[c]=v;render();renderItens();renderKits()}}
+function novoItem(){
+  var d=prompt('Descrição do novo item:');if(!d)return;
+  ITENS.push({id:'n'+(Date.now()%100000),cod:d.slice(0,6).toUpperCase().replace(/\s/g,''),
+    desc:d,livro:null,ordem:95,un:'unidade',fim:'venda',min:0});
+  render();renderItens();
+}
+function excluirItem(id){
+  var it=itemPorId(id);
+  if(!confirm('Excluir "'+it.desc+'"?\n\nAs contagens já registradas para ele também somem da grade.'))return;
+  ITENS=ITENS.filter(function(x){return x.id!==id});
+  KITS=KITS.filter(function(k){return k.itemId!==id});
+  KITS.forEach(function(k){k.linhas=k.linhas.filter(function(l){return l.itemId!==id})});
+  render();renderItens();renderKits();
+}
+
+/* ---------- aba kits ---------- */
+function renderKits(){
+  var h='';
+  KITS.forEach(function(k){
+    var it=itemPorId(k.itemId); if(!it) return;
+    h+='<div class="cartao"><div class="cartao-topo"><b>'+esc(it.desc)+'</b>'
+      +'<span class="selo kit">KIT</span>'
+      +'<span style="margin-left:auto;color:var(--tx3);font-size:11.5px">'+esc(it.cod)+'</span></div>'
+      +'<div class="cartao-corpo">';
+    if(!k.linhas.length) h+='<div style="color:var(--tx3);padding:6px 0">kit sem itens ainda</div>';
+    k.linhas.forEach(function(l){
+      var si=itemPorId(l.itemId);
+      h+='<div class="linha-kit"><span class="q">'+l.qtd+'×</span>'
+        +'<span class="n">'+esc(si?si.desc:'?')+'</span>'
+        +'<span style="color:var(--tx3);font-size:11px">saldo '+(si?(saldo(si.id)==null?'—':saldo(si.id)):'—')+'</span></div>';
+    });
+    h+='<div style="margin-top:9px"><button class="bt" onclick="addAoKit(\''+k.itemId+'\')">+ item no kit</button></div>';
+    h+='</div></div>';
+  });
+  $('cartoes-kits').innerHTML=h||'<div class="vazio">nenhum kit cadastrado</div>';
+}
+function novoKit(){
+  var d=prompt('Descrição do kit (ex.: Espanhol Anual 4):');if(!d)return;
+  var id='k'+(Date.now()%100000);
+  ITENS.push({id:id,cod:d.slice(0,6).toUpperCase().replace(/\s/g,''),desc:d,livro:null,
+    ordem:95,un:'kit',fim:'venda',min:0});
+  KITS.push({itemId:id,linhas:[]});
+  render();renderItens();renderKits();mudarAba('kits');
+}
+function addAoKit(kitId){
+  var op=ITENS.filter(function(i){return i.un!=='kit'})
+    .map(function(i,ix){return (ix+1)+') '+i.desc}).join('\n');
+  var r=prompt('Qual item entra no kit?\n\n'+op+'\n\nDigite o número:');
+  if(!r)return;
+  var alvo=ITENS.filter(function(i){return i.un!=='kit'})[parseInt(r,10)-1];
+  if(!alvo){alert('Número inválido.');return}
+  var q=parseInt(prompt('Quantas unidades de "'+alvo.desc+'" no kit?','1'),10)||1;
+  var k=KITS.filter(function(x){return x.itemId===kitId})[0];
+  k.linhas.push({itemId:alvo.id,qtd:q});
+  renderKits();
+}
+
+/* ---------- aba remessas ---------- */
+function renderRemessas(){
+  var h='';
+  EVENTOS.filter(function(e){return e.tipo==='remessa'})
+    .sort(function(a,b){return a.data<b.data?1:-1}).forEach(function(e){
+    var linhas=Object.keys(V[e.id]||{});
+    h+='<div class="cartao"><div class="cartao-topo">'
+      +'<b>Remessa '+dataBR(e.data)+'</b>'
+      +'<span style="margin-left:auto;color:var(--tx3);font-size:11.5px">'+linhas.length+' item(ns)</span></div>'
+      +'<div class="cartao-corpo">';
+    if(!linhas.length) h+='<div style="color:var(--tx3);padding:6px 0">nada lançado nesta remessa ainda —'
+      +' digite as quantidades na coluna verde da aba Contagem</div>';
+    linhas.forEach(function(iid){
+      var si=itemPorId(iid);
+      h+='<div class="linha-kit"><span class="q">+'+V[e.id][iid]+'</span>'
+        +'<span class="n">'+esc(si?si.desc:'?')+'</span></div>';
+    });
+    h+='</div></div>';
+  });
+  $('cartoes-rem').innerHTML=h||'<div class="vazio">nenhuma remessa registrada — '
+    +'use "+ Receber remessa"</div>';
+}
+
+/* ---------- abas ---------- */
+function mudarAba(p){
+  document.querySelectorAll('.aba').forEach(function(b){b.classList.toggle('on',b.dataset.p===p)});
+  ['contagem','entregas','itens','kits','remessas'].forEach(function(x){$('p-'+x).hidden=(x!==p)});
+  if(p==='entregas')renderEntregas();
+  if(p==='itens')renderItens(); if(p==='kits')renderKits(); if(p==='remessas')renderRemessas();
+}
+document.querySelectorAll('.aba').forEach(function(b){
+  b.onclick=function(){mudarAba(b.dataset.p)}});
+
+render();
+</script>
+</body>
+</html>

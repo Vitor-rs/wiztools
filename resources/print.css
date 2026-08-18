@@ -23,8 +23,26 @@ table.folha.compacta > tbody > tr > td { padding-bottom: 14px; }
 /* .ficha: UMA tabela por bloco de hora — indivisível na impressão */
 table.ficha { border-collapse: collapse; width: 100%; table-layout: fixed; text-align: left;
   font-family: Calibri, Arial, sans-serif; break-inside: avoid; page-break-inside: avoid; }
-col.cA { width: 24.6%; } col.cB { width: 6.9%; } col.cC { width: 8.6%; } col.cD { width: 6.9%; }
-col.cE { width: 3.45%; } col.cQ { width: 11.1%; }
+/* ===== LARGURAS PARA 22 COLUNAS (2026-08-18) =====
+   Folha A4 PAISAGEM, margem 0,5cm = 287mm (~1085px) úteis.
+   As larguras saíram de MEDIÇÃO, não de contagem de letras — foi o erro da primeira tentativa:
+   eu tinha eleito "Italiano 2" (10 caracteres) como o maior nome de livro, mas quem estoura é
+   "Pre-Teens" (9 caracteres, 63px), porque o que conta é o desenho da letra e não quantas são.
+   Pior caso REAL de cada coluna, medido na ficha de agosto/2026 com 116 alunos:
+     Aluno        258px  "Maria Helena Vieira Arevalo Domingues"
+     Dias          59px  "3ª|5ª|Sáb"
+     Livro         63px  "Pre-Teens"
+     Aula          60px  "Conn Vip"
+     Professores  111px  "Lívia, Will.J., Vitor"
+     cabeçalho     21px  "Sáb"  (o código do dia, em cima do número)
+
+   TENSÃO REAL, e vale registrar: 22 colunas + nome inteiro + cabeçalho "Sáb" NÃO cabem todos em
+   A4 paisagem. Some 258+59+63+60+111 e já vão 551px; sobram 534 para 22 casas, que dá 24px —
+   e aí o nome não tem folga nenhuma. A saída foi tirar um ponto do código do dia (9pt -> 8pt),
+   o que deixa a casa confortável em 23px e devolve ~40px para a coluna do aluno.
+   Resultado: só o maior nome da escola quebra em duas linhas (era 1 antes, com 12 colunas). */
+col.cA { width: 23.1%; } col.cB { width: 6.0%; } col.cC { width: 6.4%; } col.cD { width: 6.1%; }
+col.cE { width: 2.15%; } col.cQ { width: 11.1%; }
 tbody.bloco td { border: 1px solid #000; height: 20px; font-size: 11pt; vertical-align: middle; text-align: center; overflow: hidden; }
 tbody.bloco td.nome { text-align: left; }
 tbody.bloco td.aula { white-space: nowrap; }
@@ -33,7 +51,7 @@ tbody.bloco tr.h1 td.hora { font-size: 13pt; text-align: left; }
 tbody.bloco tr.h1 td.titulo, tbody.bloco tr.h1 td.obs { font-size: 12pt; }
 tbody.bloco tr.h2 td { font-weight: bold; }
 /* colunas de data: dia da semana (h1) em cima, número do dia do mês (h2) embaixo */
-tbody.bloco tr.h1 td.dt { font-size: 9pt; text-align: center; }
+tbody.bloco tr.h1 td.dt { font-size: 8pt; text-align: center; }  /* 9->8pt: ver nota das larguras */
 tbody.bloco tr.h2 td.dtn { font-size: 10pt; text-align: center; }
 /* marca vinda do lançador: P presente (verde), X falta (vermelho), – não aula (cinza).
    Tons fechados/corporativos de propósito: nada de neon, que na impressão lava e fica ilegível. */
@@ -45,6 +63,38 @@ tbody.bloco td.marca.m-N { color: #888; font-weight: normal; }
    A célula tem ~1cm: "P 1ªau" mediria quase o dobro e sairia cortado, por isso o rodapé da
    folha traz a legenda por extenso. */
 tbody.bloco td.marca sup { font-size: 6pt; font-weight: bold; vertical-align: super; line-height: 0; }
+
+/* ===== coluna de um dia que NÃO é o desta ficha =====
+   A ficha de Seg/Qua pode ganhar uma coluna de terça: é a reposição de quem faltou na quarta, e a
+   recepção anota exatamente assim à mão. O problema é que as OUTRAS células daquela coluna saíam
+   em branco, iguaizinhas a uma presença esquecida — quem confere a folha lia como desleixo de
+   quem registrou.
+   Solução: o corpo da coluna vira uma faixa hachurada e SEM linhas horizontais, lida como uma
+   célula só, desativada. Quem tem marca continua célula normal e salta da faixa.
+   Como `border-collapse` é collapse, zerar em cima E embaixo é obrigatório: com um lado só, a
+   borda da célula vizinha vence a disputa e a linha reaparece.
+
+   A hachura é pintada no <col>, NÃO na célula. Fundo de <col> é uma área de pintura única para a
+   coluna inteira, então as diagonais correm sem emenda de cima a baixo. Pintada por célula, cada
+   <td> reiniciava o padrão de 45° na própria origem e as linhas não se encontravam entre as
+   fileiras: a faixa saía quebrada em fragmentos, no papel e na tela.
+   Linha de 1px (não 0,5px) a cada 7px: meio pixel cai em fração de pixel de tela — pior ainda no
+   Windows a 125%, onde 0,5px vira 0,625 — e o traço some ou dobra conforme o zoom. 1px é o menor
+   traço que o navegador desenha igual em qualquer escala. */
+col.cE.fora {
+  background-image: repeating-linear-gradient(45deg, #9aa0a6 0 1px, transparent 1px 7px);
+}
+/* célula VAZIA na faixa: some com as linhas horizontais para a coluna se ler como uma peça só.
+   Precisa ser transparente — qualquer fundo aqui taparia a hachura que vem do <col>. */
+tbody.bloco td.fora { border-top: 0; border-bottom: 0; background-color: transparent; }
+/* célula COM marca na faixa: fundo opaco para saltar da hachura, e bordas de volta */
+tbody.bloco td.fora-marca { background-color: #fff; }
+/* o pé do bloco precisa fechar: sem isto o contorno da tabela abria um vão na coluna hachurada */
+tbody.bloco tr:last-child td.fora { border-bottom: 1px solid #000; }
+/* a hachura é imagem de fundo: sem isto o navegador a descarta na impressão a menos que
+   "Gráficos de plano de fundo" esteja ligado na caixa de diálogo. As faixas coloridas do
+   template já dependiam disso; aqui garantimos no CSS. */
+col.cE.fora, tbody.bloco td.fora-marca { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 .ficha-legenda { font-family: Calibri, Arial, sans-serif; font-size: 8pt; color: #333;
   padding: 4px 2px 0; border-top: 1px solid #999; margin-top: 2px; }
 .ficha-legenda sup { font-size: 6pt; font-weight: bold; }

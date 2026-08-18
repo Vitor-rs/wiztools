@@ -31,10 +31,23 @@ function tituloBloco(b) {
    largura — D=60 era estreito e "Conn Vip" quebrava linha, engordando a linha do aluno. As
    larguras de A/B/C/D/Q são fixas por regra; as 12 de presença são estreitas e em número FIXO:
    sobra sempre coluna vazia para lançar reposição/anteposição que aparecer depois. */
-var COLUNAS_FICHA = 12;
-function colgroupFicha() {
+/* ===== 22 COLUNAS (2026-08-18) =====
+   Eram 12 e estavam acabando: com reposição e anteposição entrando na mesma folha, o mês estourava
+   o número de casas e a recepção ficava sem onde marcar. Ele pediu 22.
+   O espaço saiu das quatro colunas de identificação, na medida do que cada uma REALMENTE precisa —
+   medido, não chutado: o maior nome de livro tem 10 caracteres ("Italiano 2", "Kids Esp 1") e o
+   maior rótulo de aula é "Inter Vip". A de Professores não mudou, a pedido dele. */
+var COLUNAS_FICHA = 22;
+/* A hachura da coluna fora do grupo é pintada AQUI, no <col>, e não nas células.
+   Fundo de <col> é uma área de pintura ÚNICA para a coluna inteira, então as diagonais correm sem
+   emenda de cima a baixo. Pintando por célula, cada <td> reinicia o padrão de 45° na própria
+   origem e as linhas não se encontram entre as fileiras — era isso que fazia a faixa sair
+   quebrada, em fragmentos soltos, no papel e na tela. */
+function colgroupFicha(cols) {
+  cols = cols || [];
   var h = '<colgroup><col class="cA"><col class="cB"><col class="cC"><col class="cD">';
-  for (var k = 0; k < COLUNAS_FICHA; k++) h += '<col class="cE">';
+  for (var k = 0; k < COLUNAS_FICHA; k++)
+    h += '<col class="cE' + (cols[k] && cols[k].foraDoGrupo ? ' fora' : '') + '">';
   return h + '<col class="cQ"></colgroup>';
 }
 /* marca impressa a partir do que foi lançado no app: P presente, X falta, – não aula
@@ -68,10 +81,15 @@ function bandaPagina(titulos, mesNome) {
 
 /* linha vazia com as células REAIS (não colspan) — as 2 linhas extras de cada bloco precisam
    das bordas verticais para preencher aluno à mão na recepção. */
-function linhaVaziaFicha() {
-  var h = '<tr>';
-  for (var k = 0; k < COLUNAS_FICHA + 5; k++) h += '<td></td>'; // A B C D + 12 datas + Q
-  return h + '</tr>';
+/* As 2 linhas de preenchimento à mão também entram na faixa hachurada das colunas fora do grupo:
+   a coluna precisa se ler como UMA peça só, do cabeçalho ao pé do bloco. Sem isto, a hachura
+   parava no último aluno e as linhas horizontais voltavam a aparecer nas duas últimas. */
+function linhaVaziaFicha(cols) {
+  cols = cols || [];
+  var h = '<tr><td></td><td></td><td></td><td></td>';           // A B C D
+  for (var k = 0; k < COLUNAS_FICHA; k++)
+    h += '<td' + (cols[k] && cols[k].foraDoGrupo ? ' class="fora"' : '') + '></td>';
+  return h + '<td></td></tr>';                                  // Q
 }
 
 /* UMA <table class="ficha"> completa por bloco de hora. compacto=true: sem as 2 linhas extras
@@ -84,7 +102,7 @@ function blocoHTML(b, opts) {
   opts = opts || {};
   var cols = b.colunas || [];
   var c = CORES[b.tipoKey] || CORES['Conn'];
-  var h = '<table class="ficha' + (opts.compacto ? ' compacta' : '') + '">' + colgroupFicha() + '<tbody class="bloco">';
+  var h = '<table class="ficha' + (opts.compacto ? ' compacta' : '') + '">' + colgroupFicha(cols) + '<tbody class="bloco">';
   h += '<tr class="h1"><td class="hora" style="background:' + c.a + '">Hora: ' + escBloco(b.hora) + ' - ' + escBloco(b.fim) + '</td>';
   h += '<td class="titulo" colspan="3" style="background:' + c.bq + '">' + escBloco(tituloBloco(b)) + '</td>';
   for (var k2 = 0; k2 < COLUNAS_FICHA; k2++)  // cabeçalho de cima: dia da semana daquela data
@@ -100,11 +118,18 @@ function blocoHTML(b, opts) {
     for (var k4 = 0; k4 < COLUNAS_FICHA; k4++) {  // marca já lançada no app (reimpressão não perde o que foi preenchido)
       var p = (cols[k4] && a.presencas) ? a.presencas[cols[k4].data] : null;
       var st = p ? (p.status || p) : null;
-      h += '<td class="marca' + (st ? ' m-' + st : '') + (p && p.parcial ? ' parcial' : '') + '">' + marcaImpressa(p) + '</td>';
+      /* Coluna de dia que NÃO é o desta ficha (reposição/anteposição): a hachura vem do <col>
+         (ver colgroupFicha). A célula VAZIA só apaga as linhas horizontais, para a coluna se ler
+         como uma faixa desativada; a que TEM marca ganha fundo branco e devolve as bordas, para
+         saltar da faixa — é justamente o aluno que veio naquele dia. Sem isso, um branco numa
+         coluna de terça na ficha de Seg/Qua parecia lançamento esquecido. */
+      var naFaixa = cols[k4] && cols[k4].foraDoGrupo;
+      h += '<td class="marca' + (st ? ' m-' + st : '') + (p && p.parcial ? ' parcial' : '')
+        + (naFaixa ? (st ? ' fora-marca' : ' fora') : '') + '">' + marcaImpressa(p) + '</td>';
     }
     h += '<td>' + escBloco((a.profs || []).join(', ') || (b.profs || []).join(', ')) + '</td></tr>';
   });
-  if (!opts.compacto) h += linhaVaziaFicha() + linhaVaziaFicha();
+  if (!opts.compacto) h += linhaVaziaFicha(cols) + linhaVaziaFicha(cols);
   return h + '</tbody></table>';
 }
 

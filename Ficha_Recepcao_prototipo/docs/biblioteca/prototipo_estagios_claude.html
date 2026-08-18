@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>wiztools · Biblioteca › Estágios (protótipo v2)</title>
+<style>
+:root{
+  --marca:#071D49;--marca-md:#1A3A7A;--marca-cl:#E7ECF6;
+  --azul:#33AAE3;--azul-esc:#12678F;--azul-cl:#E4F2FB;--azul-borda:#8FD0F0;
+  --fundo:#F4F6F8;--borda:#DFE3E8;--tx2:#4A5560;--tx3:#5F6771;
+  --ok:#1E7E34;--perigo:#C81D23;--ambar:#B26A00;
+  --t-input:#1C7099;   --t-input-bg:#E4F2FB;
+  --t-output:#6B4FA3;  --t-output-bg:#F0EAFA;
+  --t-review:#1E7E34;  --t-review-bg:#E4F4E8;
+  --t-especial:#B26A00;--t-especial-bg:#FDF2E0;
+  --t-remind:#B3261E;  --t-remind-bg:#FDECEC;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--fundo);color:#202124;font-size:13px;
+  font-family:"Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif}
+.topo{background:var(--marca);color:#fff;padding:10px 18px;display:flex;align-items:center;gap:12px}
+.topo .caminho{font-size:12px;opacity:.75}
+.topo h1{margin:0;font-size:16px;font-weight:600}
+.topo .prot{margin-left:auto;font-size:11px;background:rgba(255,255,255,.14);padding:3px 9px;border-radius:20px}
+.corpo{display:flex;align-items:flex-start}
+
+/* sidebar só para mostrar onde o módulo mora */
+.sb{width:172px;flex-shrink:0;background:#fff;border-right:2px solid var(--marca);min-height:100vh;padding-top:8px}
+.sb button{display:block;width:100%;text-align:left;border:0;background:none;padding:11px 16px;
+  cursor:pointer;font-weight:bold;color:var(--tx2);border-left:3px solid transparent;font-size:12.5px}
+.sb button.on{color:var(--marca);background:#E9EEF5;border-left-color:var(--marca)}
+.sb .grupo{padding:11px 16px 5px;font-size:10.5px;font-weight:700;color:var(--tx3);
+  text-transform:uppercase;letter-spacing:.06em;display:flex;align-items:center;gap:6px}
+.sb .seta{width:0;height:0;border-left:5px solid currentColor;border-top:4px solid transparent;
+  border-bottom:4px solid transparent;transform:rotate(90deg)}
+.sb .filho{padding-left:30px!important;font-size:12px}
+
+.pg{flex:1;min-width:0;padding:16px 18px 50px}
+.pg-cab{display:flex;align-items:flex-end;gap:16px;border-bottom:1px solid var(--borda);margin:0 0 14px}
+.pg-cab h2{margin:0;font-size:17px;font-weight:700;color:var(--marca);padding:2px 0 12px}
+.pg-cab .sub{font-size:12px;color:var(--tx3);padding-bottom:14px;margin-left:-8px}
+.pg-abas{display:flex;gap:2px;margin:0 0 16px;border-bottom:1px solid #E7ECF1}
+.pg-aba{appearance:none;border:0;background:none;font:inherit;font-weight:600;color:var(--tx3);
+  padding:8px 15px 9px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;
+  border-radius:7px 7px 0 0}
+.pg-aba:hover{color:var(--marca);background:#F5F8FB}
+.pg-aba.on{color:var(--marca);border-bottom-color:var(--azul);background:#F0F7FD}
+.painel[hidden]{display:none}
+.info{background:var(--azul-cl);border:1px solid #CDE7F7;border-radius:8px;padding:9px 12px;
+  margin:0 0 14px;line-height:1.55;max-width:1000px}
+.aviso{background:#FFF9E8;border:1px solid #F2DFA8;border-radius:8px;padding:9px 12px;
+  margin:0 0 14px;line-height:1.55;color:#6B5312;max-width:1000px}
+.aviso b{color:#4E3C0A}
+
+.mestre{display:grid;grid-template-columns:330px 1fr;gap:16px;align-items:start}
+@media (max-width:1150px){.mestre{grid-template-columns:1fr}}
+.cx{background:#fff;border:1px solid var(--borda);border-radius:10px;overflow:hidden}
+.cx-cab{padding:9px 13px;border-bottom:1px solid var(--borda);background:#FBFCFD;
+  font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--tx3);
+  display:flex;align-items:center;gap:8px}
+.cx-corpo{padding:12px 14px}
+.lista{max-height:72vh;overflow:auto}
+.lin{display:flex;align-items:center;gap:7px;width:100%;text-align:left;border:0;background:none;
+  font:inherit;padding:7px 13px;cursor:pointer;border-bottom:1px solid #F0F2F5}
+.lin:hover{background:#FAFCFE}
+.lin.on{background:var(--azul-cl)}
+.lin b{flex:1;font-size:12.5px}
+.lin small{color:var(--tx3);font-size:10.5px;white-space:nowrap}
+.faixa{background:var(--marca-cl);padding:5px 13px;font-size:10.5px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.5px;color:var(--marca)}
+
+.p{display:inline-block;border-radius:10px;padding:1px 8px;font-size:10.5px;font-weight:700;
+  line-height:17px;white-space:nowrap}
+.p.entrada{background:#E4F4E8;color:var(--ok)}
+.p.legado{background:#EFEFEF;color:#5F6771}
+.p.novo{background:var(--azul-cl);color:var(--azul-esc)}
+.p.cinza{background:#EEF1F4;color:var(--tx3)}
+.p.off{background:#F4F6F8;color:#9AA3AD;border:1px dashed var(--borda)}
+
+.caps{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(268px,1fr))}
+.cap{border:1px solid var(--borda);border-radius:9px;overflow:hidden;background:#fff}
+.cap h4{margin:0;padding:6px 11px;background:#FBFCFD;border-bottom:1px solid var(--borda);
+  font-size:11.5px;color:var(--marca);display:flex;align-items:center;gap:6px}
+.cap h4 span{margin-left:auto;font-weight:400;color:var(--tx3);font-size:10.5px}
+.licoes{display:flex;flex-wrap:wrap;gap:4px;padding:9px 11px}
+.lic{display:flex;align-items:center;gap:4px;border-radius:5px;padding:2px 6px;font-size:10.5px;
+  font-weight:600;font-variant-numeric:tabular-nums}
+.lic i{font-style:normal;opacity:.6;font-weight:400}
+.lic.input{background:var(--t-input-bg);color:var(--t-input)}
+.lic.output{background:var(--t-output-bg);color:var(--t-output)}
+.lic.review{background:var(--t-review-bg);color:var(--t-review)}
+.lic.especial{background:var(--t-especial-bg);color:var(--t-especial)}
+.lic.remind{background:var(--t-remind-bg);color:var(--t-remind)}
+
+.kpis{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:12px}
+.kpi{background:#fff;border:1px solid var(--borda);border-radius:9px;padding:8px 13px;min-width:92px}
+.kpi b{display:block;font-size:19px;line-height:1.15;font-variant-numeric:tabular-nums;color:var(--marca)}
+.kpi span{font-size:11px;color:var(--tx3)}
+
+dl.campos{display:grid;grid-template-columns:auto 1fr;gap:5px 14px;margin:0;font-size:12.5px}
+dl.campos dt{color:var(--tx3);white-space:nowrap}
+dl.campos dd{margin:0;font-weight:600}
+.vazio{color:var(--ambar);font-weight:600}
+
+.trilha{display:flex;flex-direction:column;gap:14px}
+.trilha-cat{background:#fff;border:1px solid var(--borda);border-radius:10px;padding:12px 14px}
+.trilha-cat h4{margin:0 0 9px;font-size:12px;color:var(--marca);text-transform:uppercase;letter-spacing:.5px}
+.trilha-fila{display:flex;flex-wrap:wrap;gap:7px;align-items:center}
+.no{border:1px solid var(--borda);border-radius:8px;padding:6px 11px;background:#fff;font-weight:600;font-size:12px}
+.no.entrada{border-color:#9FD8B2;box-shadow:inset 0 -3px 0 #9FD8B2}
+.no.legado{opacity:.55;border-style:dashed}
+.seta{color:var(--tx3)}
+.equiv{margin-top:10px;padding-top:10px;border-top:1px dashed var(--borda);font-size:12px;color:var(--tx2)}
+
+code{background:#F1F4F7;border-radius:4px;padding:1px 5px;font-size:11.5px;font-family:Consolas,Menlo,monospace}
+pre{background:#0F1B33;color:#DCE6F5;border-radius:9px;padding:13px 15px;overflow:auto;
+  font-family:Consolas,Menlo,monospace;font-size:11.5px;line-height:1.55;margin:0 0 14px;max-width:1000px}
+pre .c{color:#7E93B8}
+pre .k{color:#7FD0F0}
+h3.sec{font-size:13.5px;color:var(--marca);margin:20px 0 8px}
+ul.lt{margin:0 0 14px;padding-left:18px;line-height:1.7;max-width:1000px}
+ul.lt li{margin-bottom:4px}
+.fora{background:#fff;border:1px solid var(--borda);border-left:3px solid #C8CDD4;border-radius:8px;
+  padding:10px 13px;margin-bottom:8px;max-width:1000px;color:var(--tx3)}
+.fora b{color:var(--tx2)}
+</style></head><body>
+
+<div class="topo">
+  <span class="caminho">wiztools › Biblioteca ›</span>
+  <h1>Estágios</h1>
+  <span class="prot">protótipo v2 · escopo fechado em 2026-08-09</span>
+</div>
+
+<div class="corpo">
+<div class="sb">
+  <button>Início</button>
+  <div class="grupo"><span class="seta"></span>Frequência</div>
+  <button class="filho">Freq. Recepção</button>
+  <button class="filho">Freq. Sala</button>
+  <button>Dashboard</button>
+  <button>Alunos</button>
+  <button>Turmas</button>
+  <button>Horários</button>
+  <button>Professores</button>
+  <button>Impressão</button>
+  <div class="grupo"><span class="seta"></span>Biblioteca</div>
+  <button class="filho">Estoque</button>
+  <button class="filho on">Estágios</button>
+  <button>Backup</button>
+</div>
+
+<div class="pg">
+<div class="pg-cab"><h2>Gerenciar estágios</h2>
+<span class="sub">o livro como estrutura pedagógica — o livro físico fica no Estoque</span></div>
+
+<div class="pg-abas">
+  <button class="pg-aba on" data-p="estagios">Estágios</button>
+  <button class="pg-aba" data-p="modelos">Modelos</button>
+  <button class="pg-aba" data-p="trilha">Trilha</button>
+  <button class="pg-aba" data-p="esquema">Esquema</button>
+  <button class="pg-aba" data-p="escopo">Escopo</button>
+</div>
+
+<div class="painel" id="p-estagios">
+<div class="info">
+<b>O estágio não guarda lição digitada.</b> Ele guarda um <b>modelo</b> e as lições são geradas —
+tudo à direita sai de seis campos. As únicas lições digitadas são as <b>especiais</b> e as
+<b>remind</b>, porque elas não seguem regra nenhuma.
+</div>
+<div class="mestre">
+  <div class="cx"><div class="cx-cab">Estágios <span id="n-est" style="margin-left:auto"></span></div>
+    <div class="lista" id="lista-est"></div></div>
+  <div id="detalhe"></div>
+</div>
+</div>
+
+<div class="painel" id="p-modelos" hidden>
+<div class="info">
+Três modelos cobrem a Wizard inteira. A conta que revela isso: <b>todo livro tem exatamente 60
+lições comuns</b> — muda só o agrupamento, e daí quantas revisões existem.
+</div>
+<div id="modelos"></div>
+</div>
+
+<div class="painel" id="p-trilha" hidden>
+<div class="info">
+Sequência <b>recomendada</b>, nunca obrigatória. Nó com base verde é porta de entrada; tracejado é
+legado. O aluno pode saltar: quem está no Teens 2 pode ir para o W4 em vez do Teens 4.
+</div>
+<div class="trilha" id="trilha"></div>
+</div>
+
+<div class="painel" id="p-esquema" hidden><div id="esquema"></div></div>
+<div class="painel" id="p-escopo" hidden><div id="escopo"></div></div>
+</div>
+</div>
+
+<script>
+/* ===========================================================================
+   v2 — escopo fechado com o Vitor em 2026-08-09.
+   Fora do módulo: atividades, checking sentences, tags, objetivos, gramática,
+   grafo semântico, variantes A/B/HA e o par semestral/anual.
+   =========================================================================== */
+var MODELOS=[
+ {id:'cap11',nome:'Capítulo de 11',licoesCap:10,capitulos:6,
+  desc:'5 ímpares (input) + 5 pares (output) + 1 review',familia:'Tots e Little Kids'},
+ {id:'cap7',nome:'Capítulo de 7',licoesCap:6,capitulos:10,
+  desc:'3 ímpares (input) + 3 pares (output) + 1 review',familia:'Kids, Pre-Teens, Teens e W'},
+ {id:'cap7i',nome:'Capítulo de 7 · outros idiomas',licoesCap:6,capitulos:10,
+  desc:'igual ao padrão, sem lição especial de abertura',familia:'Espanhol e Italiano'}
+];
+function modelo(id){return MODELOS.filter(function(m){return m.id===id})[0]}
+
+/* kit: o que vem na caixa quando o livro é pedido. Wiz.me/Wiz.tab não são item de caixa —
+   o acesso abre sozinho na matrícula. Wiz.pen é comprada à parte. */
+function kit(o){return o}
+var K_TOTS ={sb:true,wb:false,pasta:'mochila',wizpen:true,acesso:[]};
+var K_KIDS ={sb:true,wb:true, pasta:'mochila',wizpen:true,acesso:['Wiz.me','Wiz.tab']};
+var K_ADUL ={sb:true,wb:true, pasta:'pasta',  wizpen:false,acesso:['Wiz.me','Wiz.tab']};
+var K_IDIOM={sb:true,wb:true, pasta:'pasta',  wizpen:false,acesso:[]};
+
+/* escala: DESATIVADA em Kids e outros idiomas (a Wizard não define subnível de criança);
+   ATIVADA em Teens e W, onde a tabela vem impressa atrás do livro. */
+function esc0(){return {ativa:false,cefr:null,gse:null}}
+function esc1(){return {ativa:true,cefr:null,gse:null}}
+
+var ESTAGIOS=[
+ /* ---- Kids ---- */
+ {sig:'TOTS 2',nome:'TOTS 2',idioma:'Inglês',cat:'Kids',grupo:'Tots',pos:1,modelo:'cap11',
+  especiais:['Welcome Lesson','Classroom Talk'],remind:4,numeracao:'reinicia',entrada:true,
+  idade:[3,4],edicao:{nome:'Oficial',ano:null},status:'ativo',material:K_TOTS,escala:esc0()},
+ {sig:'TOTS 4',nome:'TOTS 4',idioma:'Inglês',cat:'Kids',grupo:'Tots',pos:2,modelo:'cap11',
+  especiais:['Welcome Back Lesson'],remind:4,numeracao:'continua',entrada:false,
+  idade:null,edicao:{nome:'Oficial',ano:null},status:'ativo',material:K_TOTS,escala:esc0()},
+ {sig:'TOTS 6',nome:'TOTS 6',idioma:'Inglês',cat:'Kids',grupo:'Tots',pos:3,modelo:'cap11',
+  especiais:['Welcome Back Lesson'],remind:4,numeracao:'continua',entrada:false,
+  idade:null,edicao:{nome:'Oficial',ano:null},status:'ativo',material:K_TOTS,escala:esc0()},
+ {sig:'L. Kids 2',nome:'Little Kids 2',idioma:'Inglês',cat:'Kids',grupo:'Little Kids',pos:4,modelo:'cap11',
+  especiais:['Welcome Lesson'],remind:4,numeracao:'reinicia',entrada:true,
+  idade:null,edicao:{nome:'Oficial',ano:null},status:'ativo',material:K_KIDS,escala:esc0()},
+ {sig:'L. Kids 4',nome:'Little Kids 4',idioma:'Inglês',cat:'Kids',grupo:'Little Kids',pos:5,modelo:'cap11',
+  especiais:['Welcome Back Lesson'],remind:4,numeracao:'continua',entrada:false,
+  idade:null,edicao:{nome:'Oficial',ano:null},status:'ativo',material:K_KIDS,escala:esc0()},
+ {sig:'KIDS 2',nome:'Kids 2',idioma:'Inglês',cat:'Kids',grupo:'Kids',pos:6,modelo:'cap7',
+  especiais:['Welcome Lesson'],remind:0,numeracao:'reinicia',entrada:true,
+  idade:null,edicao:{nome:'3rd Edition',ano:2020},status:'ativo',material:K_KIDS,escala:esc0()},
+ {sig:'KIDS 4',nome:'Kids 4',idioma:'Inglês',cat:'Kids',grupo:'Kids',pos:7,modelo:'cap7',
+  especiais:['Welcome Lesson'],remind:0,numeracao:'reinicia',entrada:true,
+  idade:null,edicao:{nome:'3rd Edition',ano:2020},status:'ativo',material:K_KIDS,escala:esc0()},
+ /* a MESMA posição na trilha, edição antiga: a numeração dele CONTINUA (61-120) — é a exceção
+    que prova que numeração é dado da edição, não regra derivável do "é porta de entrada" */
+ {sig:'KIDS 4 (2014)',nome:'Kids 4 — edição antiga',idioma:'Inglês',cat:'Kids',grupo:'Kids',pos:7,
+  modelo:'cap7',especiais:['Welcome Lesson'],remind:0,numeracao:'continua',entrada:false,
+  idade:null,edicao:{nome:'Antiga',ano:2014},status:'legado',material:K_KIDS,escala:esc0(),
+  nota:'Resta 1 exemplar no estoque, guardado para um caso muito específico. Numeração 61–120, ao contrário da 3rd Edition.'},
+ {sig:'Next Gen',nome:'NEW K6 (Next Generation)',idioma:'Inglês',cat:'Kids',grupo:'Next Generation',pos:8,
+  modelo:'cap7',especiais:['Useful Language'],remind:0,numeracao:'reinicia',entrada:true,
+  idade:null,edicao:{nome:'Oficial',ano:2014},status:'legado',material:K_KIDS,escala:esc0(),
+  nota:'Desligado pela franqueadora. Ainda há alunos nele (~8 meses) e saldo em estoque. Substituído pelo Pre-Teens.'},
+ {sig:'Pre-Teens',nome:'Pre-Teens',idioma:'Inglês',cat:'Kids',grupo:'Pre-Teens',pos:8,modelo:'cap7',
+  especiais:['Welcome Lesson'],remind:0,numeracao:'reinicia',entrada:true,
+  idade:null,edicao:{nome:'Oficial',ano:2025},status:'lancamento',material:K_KIDS,escala:esc0(),
+  nota:'Lançado nos últimos dois meses. Substitui o Next Generation.'},
+ /* ---- Teens ---- */
+ {sig:'Teens 2',nome:'New Teens 2',idioma:'Inglês',cat:'Teens',grupo:'Teens 3rd',pos:1,modelo:'cap7',
+  especiais:['Useful Language'],remind:0,numeracao:'reinicia',entrada:true,
+  idade:null,edicao:{nome:'3rd Edition',ano:null},status:'ativo',material:K_ADUL,escala:esc1()},
+ {sig:'Teens 4',nome:'New Teens 4',idioma:'Inglês',cat:'Teens',grupo:'Teens 3rd',pos:2,modelo:'cap7',
+  especiais:['Welcome Back Lesson'],remind:0,numeracao:'continua',entrada:false,
+  idade:null,edicao:{nome:'3rd Edition',ano:null},status:'ativo',material:K_ADUL,escala:esc1()},
+ {sig:'Teens 6',nome:'New Teens 6',idioma:'Inglês',cat:'Teens',grupo:'Teens 3rd',pos:3,modelo:'cap7',
+  especiais:['Welcome Back Lesson'],remind:0,numeracao:'continua',entrada:false,
+  idade:null,edicao:{nome:'3rd Edition',ano:null},status:'ativo',material:K_ADUL,escala:esc1()},
+ {sig:'Teens 8',nome:'New Teens 8',idioma:'Inglês',cat:'Teens',grupo:'Teens 3rd',pos:4,modelo:'cap7',
+  especiais:['Welcome Back Lesson'],remind:0,numeracao:'continua',entrada:false,
+  idade:null,edicao:{nome:'3rd Edition',ano:null},status:'ativo',material:K_ADUL,escala:esc1()},
+ /* ---- W ---- */
+ {sig:'W2',nome:'New W2',idioma:'Inglês',cat:'W',grupo:'W New',pos:1,modelo:'cap7',
+  especiais:['Useful Language'],remind:0,numeracao:'reinicia',entrada:true,
+  idade:null,edicao:{nome:'New',ano:null},status:'ativo',material:K_ADUL,escala:esc1()},
+ {sig:'W4',nome:'New W4',idioma:'Inglês',cat:'W',grupo:'W New',pos:2,modelo:'cap7',
+  especiais:['Welcome Back Lesson'],remind:0,numeracao:'continua',entrada:false,
+  idade:null,edicao:{nome:'New',ano:null},status:'ativo',material:K_ADUL,escala:esc1()},
+ {sig:'W6',nome:'New W6',idioma:'Inglês',cat:'W',grupo:'W New',pos:3,modelo:'cap7',
+  especiais:['Welcome Back Lesson'],remind:0,numeracao:'continua',entrada:false,
+  idade:null,edicao:{nome:'New',ano:null},status:'ativo',material:K_ADUL,escala:esc1()},
+ {sig:'W8',nome:'New W8',idioma:'Inglês',cat:'W',grupo:'W New',pos:4,modelo:'cap7',
+  especiais:['Welcome Back Lesson'],remind:0,numeracao:'continua',entrada:false,
+  idade:null,edicao:{nome:'New',ano:null},status:'ativo',material:K_ADUL,escala:esc1()},
+ {sig:'W10',nome:'New W10',idioma:'Inglês',cat:'W',grupo:'W New',pos:5,modelo:'cap7',
+  especiais:['Welcome Back Lesson'],remind:0,numeracao:'continua',entrada:false,
+  idade:null,edicao:{nome:'New',ano:null},status:'ativo',material:K_ADUL,escala:esc1(),
+  nota:'Destino de quem termina o Teens 8 — não repete W2 a W8.'},
+ {sig:'W12',nome:'New W12',idioma:'Inglês',cat:'W',grupo:'W New',pos:6,modelo:'cap7',
+  especiais:['Welcome Back Lesson'],remind:0,numeracao:'continua',entrada:false,
+  idade:null,edicao:{nome:'New',ano:null},status:'ativo',material:K_ADUL,escala:esc1(),
+  nota:'Último livro da Wizard.'},
+ /* ---- outros idiomas ---- */
+ {sig:'Español 2',nome:'Español 2',idioma:'Espanhol',cat:'Outros Idiomas',grupo:'Spanish',pos:1,modelo:'cap7i',
+  especiais:[],remind:0,numeracao:'reinicia',entrada:true,
+  idade:null,edicao:{nome:'Oficial',ano:null},status:'ativo',material:K_IDIOM,escala:esc0()},
+ {sig:'Español 4',nome:'Español 4',idioma:'Espanhol',cat:'Outros Idiomas',grupo:'Spanish',pos:2,modelo:'cap7i',
+  especiais:[],remind:0,numeracao:'continua',entrada:false,
+  idade:null,edicao:{nome:'Oficial',ano:null},status:'ativo',material:K_IDIOM,escala:esc0()},
+ {sig:'Español 6',nome:'Español 6',idioma:'Espanhol',cat:'Outros Idiomas',grupo:'Spanish',pos:3,modelo:'cap7i',
+  especiais:[],remind:0,numeracao:'continua',entrada:false,
+  idade:null,edicao:{nome:'Oficial',ano:null},status:'ativo',material:K_IDIOM,escala:esc0()},
+ {sig:'Italiano 2',nome:'Italiano 2',idioma:'Italiano',cat:'Outros Idiomas',grupo:'Italian',pos:1,modelo:'cap7i',
+  especiais:[],remind:0,numeracao:'reinicia',entrada:true,
+  idade:null,edicao:{nome:'Oficial',ano:null},status:'ativo',material:K_IDIOM,escala:esc0()},
+ {sig:'Italiano 4',nome:'Italiano 4',idioma:'Italiano',cat:'Outros Idiomas',grupo:'Italian',pos:2,modelo:'cap7i',
+  especiais:[],remind:0,numeracao:'continua',entrada:false,
+  idade:null,edicao:{nome:'Oficial',ano:null},status:'ativo',material:K_IDIOM,escala:esc0()},
+ {sig:'Italiano 6',nome:'Italiano 6',idioma:'Italiano',cat:'Outros Idiomas',grupo:'Italian',pos:3,modelo:'cap7i',
+  especiais:[],remind:0,numeracao:'continua',entrada:false,
+  idade:null,edicao:{nome:'Oficial',ano:null},status:'ativo',material:K_IDIOM,escala:esc0()}
+];
+var EQUIV=[['Teens 2','W2'],['Teens 4','W4'],['Teens 6','W6'],['Teens 8','W8']];
+
+/* ===== o gerador ===== */
+function gerarLicoes(e){
+ var m=modelo(e.modelo),out=[],idx=1,base=0;
+ if(e.numeracao==='continua'){
+   /* posição do livro dentro do grupo × 60, porque todo livro tem 60 lições comuns */
+   var irmaos=ESTAGIOS.filter(function(x){return x.grupo===e.grupo&&x.status!=='legado'});
+   var pos=irmaos.map(function(x){return x.sig}).indexOf(e.sig);
+   base=(pos<0?1:pos)*60;
+ }
+ e.especiais.forEach(function(n){out.push({idx:idx++,rotulo:n,tipo:'especial',cap:0})});
+ for(var c=1;c<=m.capitulos;c++){
+   for(var l=1;l<=m.licoesCap;l++){
+     var n=base+(c-1)*m.licoesCap+l;
+     out.push({idx:idx++,rotulo:String(n),tipo:(l%2?'input':'output'),cap:c})}
+   out.push({idx:idx++,rotulo:'Review '+c,tipo:'review',cap:c})}
+ for(var r=1;r<=e.remind;r++)out.push({idx:idx++,rotulo:'Remind '+r,tipo:'remind',cap:0});
+ return out;
+}
+function resumo(e){
+ var ls=gerarLicoes(e),m=modelo(e.modelo),por={};
+ ls.forEach(function(l){por[l.tipo]=(por[l.tipo]||0)+1});
+ /* mapear o RÓTULO, não a lição: `.map(Number)` converteria o objeto e daria NaN */
+ var nums=ls.filter(function(l){return /^\d+$/.test(l.rotulo)}).map(function(l){return +l.rotulo});
+ return {total:ls.length,por:por,comuns:(por.input||0)+(por.output||0),capitulos:m.capitulos,
+   de:nums.length?Math.min.apply(null,nums):null,ate:nums.length?Math.max.apply(null,nums):null};
+}
+
+function $(id){return document.getElementById(id)}
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){
+  return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+var SEL=ESTAGIOS[0];
+
+function renderLista(){
+ var h='',cat=null;
+ ESTAGIOS.forEach(function(e,i){
+  if(e.cat!==cat){cat=e.cat;h+='<div class="faixa">'+esc(cat)+'</div>'}
+  h+='<button class="lin'+(e.sig===SEL.sig?' on':'')+'" onclick="escolher('+i+')">'
+   +'<b>'+esc(e.nome)+'</b>'
+   +(e.entrada?'<span class="p entrada">entrada</span>':'')
+   +(e.status==='legado'?'<span class="p legado">legado</span>':'')
+   +(e.status==='lancamento'?'<span class="p novo">novo</span>':'')
+   +'<small>'+resumo(e).total+'</small></button>'});
+ $('lista-est').innerHTML=h;
+ $('n-est').textContent=ESTAGIOS.length+' estágios';
+}
+function escolher(i){SEL=ESTAGIOS[i];renderLista();renderDetalhe()}
+
+function renderDetalhe(){
+ var e=SEL,m=modelo(e.modelo),r=resumo(e),ls=gerarLicoes(e),h='';
+ if(e.nota)h+='<div class="aviso"><b>'+esc(e.nome)+':</b> '+esc(e.nota)+'</div>';
+ h+='<div class="kpis">'
+  +'<div class="kpi"><b>'+r.total+'</b><span>lições · hora-aula</span></div>'
+  +'<div class="kpi"><b>'+r.capitulos+'</b><span>capítulos</span></div>'
+  +'<div class="kpi"><b>'+r.comuns+'</b><span>lições comuns</span></div>'
+  +'<div class="kpi"><b>'+(r.por.review||0)+'</b><span>revisões</span></div>'
+  +(r.de?'<div class="kpi"><b>'+r.de+'–'+r.ate+'</b><span>numeração</span></div>':'')
+  +'</div>';
+
+ var mat=e.material;
+ h+='<div class="cx" style="margin-bottom:14px"><div class="cx-cab">Identificação</div><div class="cx-corpo">'
+  +'<dl class="campos">'
+  +'<dt>Idioma</dt><dd>'+esc(e.idioma)+'</dd>'
+  +'<dt>Categoria · grupo</dt><dd>'+esc(e.cat)+' · '+esc(e.grupo)+'</dd>'
+  +'<dt>Edição</dt><dd>'+esc(e.edicao.nome)+(e.edicao.ano?' · '+e.edicao.ano:' <span class="vazio">· ano a preencher</span>')+'</dd>'
+  +'<dt>Modelo</dt><dd>'+esc(m.nome)+' <span style="font-weight:400;color:var(--tx3)">('+esc(m.desc)+')</span></dd>'
+  +'<dt>Numeração</dt><dd>'+(e.numeracao==='reinicia'?'reinicia na lição 1':'continua o grupo — '+r.de+' a '+r.ate)+'</dd>'
+  +'<dt>Porta de entrada</dt><dd>'+(e.entrada?'sim — aceita quem nunca fez o idioma':'não — só continuação')+'</dd>'
+  +'<dt>Faixa etária</dt><dd>'+(e.idade?e.idade[0]+' a '+e.idade[1]+' anos':'<span class="vazio">a preencher</span>')+'</dd>'
+  +'<dt>CEFR · GSE</dt><dd>'+(e.escala.ativa
+      ?'<span class="p cinza">ativa</span> <span class="vazio">mín. e máx. a preencher</span>'
+      :'<span class="p off">desativada</span> <span style="font-weight:400;color:var(--tx3)">'
+       +(e.cat==='Kids'?'a Wizard não define subnível de criança':'não se aplica a outros idiomas')+'</span>')+'</dd>'
+  +'<dt>Contrato</dt><dd>1 ano a partir da matrícula, em qualquer data</dd>'
+  +'<dt>Kit do livro</dt><dd>'
+    +'<span class="p cinza">Student’s Book</span> '
+    +(mat.wb?'<span class="p cinza">Workbook</span> ':'')
+    +'<span class="p cinza">'+esc(mat.pasta)+'</span> '
+    +(mat.wizpen?'<span class="p cinza">Wiz.pen (avulso)</span> ':'')
+    +'</dd>'
+  +'<dt>Acesso na matrícula</dt><dd>'+(mat.acesso.length
+     ?mat.acesso.map(function(a){return '<span class="p cinza">'+esc(a)+'</span>'}).join(' ')
+     :'<span style="font-weight:400;color:var(--tx3)">nenhum</span>')+'</dd>'
+  +'<dt>Item de estoque</dt><dd>'+esc(e.sig)+' <span style="font-weight:400;color:var(--tx3)">— vínculo com o módulo Estoque</span></dd>'
+  +'</dl></div></div>';
+
+ var caps={};ls.forEach(function(l){(caps[l.cap]=caps[l.cap]||[]).push(l)});
+ h+='<div class="cx"><div class="cx-cab">Estrutura gerada'
+  +'<span style="margin-left:auto;font-weight:400;text-transform:none;letter-spacing:0">'
+  +'só as especiais e as remind são digitadas</span></div><div class="cx-corpo">';
+ if(caps[0]){
+  h+='<div style="margin-bottom:10px"><div style="font-size:11px;color:var(--tx3);margin-bottom:5px">'
+   +'FORA DOS CAPÍTULOS</div><div class="licoes" style="padding:0">';
+  caps[0].forEach(function(l){h+=lic(l)});h+='</div></div>'}
+ h+='<div class="caps">';
+ Object.keys(caps).filter(function(k){return k!=='0'}).forEach(function(k){
+  h+='<div class="cap"><h4>Capítulo '+k+'<span>'+caps[k].length+' lições</span></h4><div class="licoes">';
+  caps[k].forEach(function(l){h+=lic(l)});h+='</div></div>'});
+ h+='</div></div></div>';
+ $('detalhe').innerHTML=h;
+}
+function lic(l){
+ var R={input:'ímpar · input',output:'par · output',review:'revisão',especial:'especial',remind:'remind'};
+ return '<span class="lic '+l.tipo+'" title="índice '+l.idx+' · '+R[l.tipo]+'"><i>'+l.idx+'</i>'+esc(l.rotulo)+'</span>';
+}
+
+function renderModelos(){
+ var h='';
+ MODELOS.forEach(function(m){
+  var usa=ESTAGIOS.filter(function(e){return e.modelo===m.id});
+  h+='<div class="cx" style="margin-bottom:14px"><div class="cx-cab">'+esc(m.nome)
+   +'<span style="margin-left:auto;font-weight:400;text-transform:none;letter-spacing:0">'+esc(m.familia)+'</span></div>'
+   +'<div class="cx-corpo"><div class="kpis">'
+   +'<div class="kpi"><b>'+m.capitulos+'</b><span>capítulos</span></div>'
+   +'<div class="kpi"><b>'+m.licoesCap+'+1</b><span>lições por capítulo</span></div>'
+   +'<div class="kpi"><b>'+(m.capitulos*m.licoesCap)+'</b><span>lições comuns</span></div>'
+   +'<div class="kpi"><b>'+m.capitulos+'</b><span>revisões</span></div></div>'
+   +'<div style="color:var(--tx2);margin-bottom:9px">'+esc(m.desc)+'</div>'
+   +'<div style="font-size:11px;color:var(--tx3);margin-bottom:5px">USADO POR '+usa.length+' ESTÁGIOS</div>'
+   +'<div class="trilha-fila">';
+  usa.forEach(function(e){h+='<span class="no'+(e.entrada?' entrada':'')+(e.status==='legado'?' legado':'')+'">'+esc(e.sig)+'</span>'});
+  h+='</div></div></div>'});
+ $('modelos').innerHTML=h;
+}
+
+function fila(es){
+ var pos={};es.forEach(function(e){(pos[e.pos]=pos[e.pos]||[]).push(e)});
+ var ks=Object.keys(pos).sort(function(a,b){return a-b}),h='';
+ ks.forEach(function(k,i){
+  if(i)h+='<span class="seta">→</span>';
+  pos[k].forEach(function(e,j){
+   if(j)h+='<span class="seta" style="font-size:11px">ou</span>';
+   h+='<span class="no'+(e.entrada?' entrada':'')+(e.status==='legado'?' legado':'')+'">'+esc(e.sig)+'</span>'})});
+ return h;
+}
+function renderTrilha(){
+ var h='';
+ ['Kids','Teens','W','Outros Idiomas'].forEach(function(cat){
+  var es=ESTAGIOS.filter(function(e){return e.cat===cat});
+  if(!es.length)return;
+  h+='<div class="trilha-cat"><h4>'+esc(cat)+'</h4>';
+  if(cat==='Outros Idiomas'){
+   var ids=[];es.forEach(function(e){if(ids.indexOf(e.idioma)<0)ids.push(e.idioma)});
+   ids.forEach(function(id){
+    h+='<div style="margin-bottom:8px"><div style="font-size:11px;color:var(--tx3);margin-bottom:4px">'
+     +esc(id)+'</div><div class="trilha-fila">'+fila(es.filter(function(e){return e.idioma===id}))+'</div></div>'});
+  } else h+='<div class="trilha-fila">'+fila(es)+'</div>';
+  if(cat==='Kids')h+='<div class="equiv"><b>Next Generation ou Pre-Teens</b> ocupam o mesmo lugar — '
+   +'o segundo substitui o primeiro, e o aluno pode ir para a edição mais nova sem ter feito a antiga. '
+   +'O <b>Kids 4</b> também aparece duas vezes: a 3rd Edition e a de 2014, que numera diferente.</div>';
+  if(cat==='Teens')h+='<div class="equiv"><b>Equivalências:</b> '
+   +EQUIV.map(function(p){return p[0]+' ≡ '+p[1]}).join(' · ')
+   +'. Um aluno no Teens 2 pode seguir para o <b>W4</b> em vez do Teens 4 — a trilha sugere, não obriga.</div>';
+  if(cat==='W')h+='<div class="equiv"><b>Salto:</b> quem termina o Teens 8 vai direto ao '
+   +'<b>W10</b> e depois W12, sem repetir W2 a W8.</div>';
+  if(cat==='Outros Idiomas')h+='<div class="equiv">Três livros por idioma, numeração corre entre eles. '
+   +'Sem lição especial de abertura e sem escala CEFR/GSE.</div>';
+  h+='</div>'});
+ $('trilha').innerHTML=h;
+}
+
+function renderEsquema(){
+ $('esquema').innerHTML=
+ '<div class="info"><b>Cinco tabelas.</b> Sem JSON livre, sem catálogo de atividades, sem tags. '
+ +'A flexibilidade vem do <b>modelo</b> (as lições são geradas) e da <b>edição</b> (livro novo é '
+ +'linha nova, não migração).</div>'
+ +'<pre><span class="c">-- a FORMA do livro. Três linhas cobrem a Wizard inteira.</span>\n'
+ +'<span class="k">estagio_modelo</span>(id, nome, licoes_por_capitulo, capitulos)\n\n'
+ +'<span class="c">-- o estágio. Não guarda lições: guarda a receita delas.</span>\n'
+ +'<span class="k">estagio</span>(id, sigla, nome, idioma, categoria, grupo, modelo_id,\n'
+ +'        numeracao,          <span class="c">-- reinicia | continua  (é DADO, não regra:</span>\n'
+ +'                            <span class="c">   o Kids 4 de 2014 continua e o 3rd Edition reinicia)</span>\n'
+ +'        entrada,            <span class="c">-- 1 = aceita quem nunca fez o idioma</span>\n'
+ +'        idade_min, idade_max,\n'
+ +'        escala_ativa, cefr_min, cefr_max, gse_min, gse_max,\n'
+ +'        edicao_nome, edicao_ano,\n'
+ +'        status,             <span class="c">-- ativo | legado | lancamento</span>\n'
+ +'        item_estoque_id)    <span class="c">-- ponte com o módulo Estoque</span>\n\n'
+ +'<span class="c">-- as ÚNICAS lições digitadas: especiais e remind. Não seguem regra nenhuma.</span>\n'
+ +'<span class="c">-- posicao = \'abertura\' (entra antes do capítulo 1) | \'flutuante\' (remind)</span>\n'
+ +'<span class="k">estagio_licao_extra</span>(id, estagio_id, ordem, rotulo, posicao)\n\n'
+ +'<span class="c">-- trilha: LISTA, não coluna. Do Kids 4 pode-se ir ao Next Gen OU ao Pre-Teens.</span>\n'
+ +'<span class="k">estagio_proximo</span>(de_id, para_id)\n'
+ +'<span class="c">-- equivalência simétrica: T2 ≡ W2. Permite o salto Teens 2 → W4.</span>\n'
+ +'<span class="k">estagio_equivalente</span>(a_id, b_id)</pre>'
+
+ +'<h3 class="sec">A lição não é tabela</h3>'
+ +'<ul class="lt">'
+ +'<li>Índice, rótulo, tipo e capítulo <b>saem do modelo por cálculo</b>. Guardar 71 linhas por '
+ +'estágio × 26 estágios = 1.800 linhas que nunca mudam e que o próprio esquema já sabe produzir.</li>'
+ +'<li>Se um dia uma lição precisar de conteúdo próprio, aí sim nasce a tabela <code>licao</code> — '
+ +'e só com as lições que foram de fato editadas.</li>'
+ +'</ul>'
+
+ +'<h3 class="sec">A ponte com o aluno</h3>'
+ +'<div class="aviso">É a parte que muda o que já existe. Hoje <code>aluno_livro</code> some quando '
+ +'o aluno troca de livro; para o histórico acumular, a matrícula precisa de <b>estado e datas</b>.</div>'
+ +'<pre><span class="k">aluno_estagio</span>(id_matricula, estagio_id,\n'
+ +'   estado,        <span class="c">-- cursando | encerrado | trancado | evadido</span>\n'
+ +'   data_inicio,   <span class="c">-- o contrato de 1 ano conta daqui</span>\n'
+ +'   data_fim,      <span class="c">-- preenchida ao encerrar; até lá é o livro ATUAL</span>\n'
+ +'   licao_atual,\n'
+ +'   PRIMARY KEY (id_matricula, estagio_id, data_inicio))</pre>'
+ +'<ul class="lt">'
+ +'<li>O <b>livro atual</b> vira consulta (<code>estado=\'cursando\'</code>). A Rafaela com inglês e '
+ +'espanhol ao mesmo tempo deixa de ser exceção.</li>'
+ +'<li>Encerrar é <b>preencher <code>data_fim</code></b>, nunca apagar. O histórico acumula sozinho.</li>'
+ +'<li>Casa com a <b>situação por livro</b> que entrou em <code>aluno_situacao_historico</code> nesta '
+ +'semana: lá é a linha do tempo, aqui é o estado corrente.</li>'
+ +'<li>Sai de graça o alerta de <b>contrato vencendo</b> (<code>data_inicio + 1 ano</code>) e a '
+ +'<b>sugestão de livro por idade</b> ao cadastrar o aluno, cruzando <code>idade_min/max</code> com '
+ +'a data de nascimento.</li>'
+ +'</ul>';
+}
+
+function renderEscopo(){
+ $('escopo').innerHTML=
+ '<div class="info">Fechado com você em 2026-08-09. O que está fora <b>não é esquecimento</b>: é '
+ +'trabalho de outro módulo, para depois que o sistema estiver maduro.</div>'
+ +'<h3 class="sec">Dentro</h3>'
+ +'<ul class="lt">'
+ +'<li><b>Catálogo</b> de estágios com edição (nome + ano), status, faixa etária e escala.</li>'
+ +'<li><b>Modelos</b> de estrutura — três, gerando toda a Wizard.</li>'
+ +'<li><b>Trilha</b>: próximo (lista) e equivalência (simétrica), sempre como sugestão.</li>'
+ +'<li><b>Histórico do aluno</b> por estágio, com estado e datas.</li>'
+ +'<li><b>Vínculo com o Estoque</b> — o estágio aponta para o item que se conta na prateleira.</li>'
+ +'</ul>'
+ +'<h3 class="sec">Fora</h3>'
+ +'<div class="fora"><b>Variantes A / B / HA</b> — A e B são metades do livro (dá para comprar meio '
+ +'livro depois de um nivelamento) e HA é a versão para hispanohablantes. Sua unidade nunca usou '
+ +'nenhuma das três. Junto vai o par <b>semestral/anual</b> e o campo "Estágio Padrão (De-Para)": '
+ +'trabalhamos só com anual.</div>'
+ +'<div class="fora"><b>Atividades, checking sentences, tags, objetivos, gramática e o grafo '
+ +'semântico</b> — cada livro é um conteúdo inteiro, e o grafo de conhecimento viraria "um cérebro '
+ +'de tão grande". Fica para depois que o administrativo estiver redondo; talvez com biblioteca de '
+ +'Python, talvez nem seja necessário.</div>'
+ +'<div class="fora"><b>Campos livres em JSON</b> — sem conteúdo por lição, não há o que guardar '
+ +'solto. Colunas nomeadas dão conta.</div>'
+ +'<h3 class="sec">O que ainda falta você preencher</h3>'
+ +'<ul class="lt">'
+ +'<li><b>Faixas etárias</b> — só o TOTS 2 (3 a 4 anos) está definido. As outras ficam em branco e '
+ +'editáveis; é o que vai alimentar a sugestão de livro por idade na matrícula.</li>'
+ +'<li><b>CEFR e GSE</b> dos Teens e dos Ws — a tabela está impressa atrás de cada livro. Nos Kids '
+ +'e nos outros idiomas a escala já nasce desativada.</li>'
+ +'<li><b>Ano das edições</b> onde ainda não sabemos.</li>'
+ +'</ul>';
+}
+
+var ABAS=['estagios','modelos','trilha','esquema','escopo'];
+function abrirAba(p){
+ if(ABAS.indexOf(p)<0)p='estagios';
+ document.querySelectorAll('.pg-aba').forEach(function(x){x.classList.toggle('on',x.dataset.p===p)});
+ ABAS.forEach(function(x){$('p-'+x).hidden=(x!==p)});
+ if(location.hash.slice(1)!==p)history.replaceState(null,'','#'+p);
+}
+document.querySelectorAll('.pg-aba').forEach(function(b){b.onclick=function(){abrirAba(b.dataset.p)}});
+window.addEventListener('hashchange',function(){abrirAba(location.hash.slice(1))});
+
+renderLista();renderDetalhe();renderModelos();renderTrilha();renderEsquema();renderEscopo();
+abrirAba(location.hash.slice(1));
+</script>
+</body></html>

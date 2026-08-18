@@ -7,8 +7,10 @@ CREATE TABLE IF NOT EXISTS config (   -- preferências do app (ex.: backup_onedr
   valor TEXT NOT NULL
 );
 CREATE TABLE situacoes (
-  situacao TEXT PRIMARY KEY,          -- Matriculado, Rematriculado, Cancelado, Encerrado, Trancado, Evadido
+  situacao TEXT PRIMARY KEY,          -- Matriculado, Rematriculado, Retornado, Cancelado, Encerrado, Trancado, Evadido
   ativa    INTEGER NOT NULL DEFAULT 0 -- 1 = aluno Ativado (regra que deriva o Status)
+  -- Retornado é a contraparte de Trancado: pausou o curso no meio do livro e voltou. Não confundir
+  -- com Rematriculado, que é quem TERMINOU o livro e seguiu para o próximo.
 );
 CREATE TABLE dias (
   nome  TEXT PRIMARY KEY,  -- Segunda..Domingo
@@ -141,7 +143,11 @@ CREATE TABLE aluno_situacao_historico (  -- linha do tempo manual: quando o alun
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   id_matricula TEXT NOT NULL REFERENCES alunos(id_matricula) ON DELETE CASCADE,
   situacao TEXT NOT NULL REFERENCES situacoes(situacao),
-  data TEXT NOT NULL                     -- 'AAAA-MM-DD', digitada manualmente pela recepção
+  data TEXT NOT NULL,                    -- 'AAAA-MM-DD', digitada manualmente pela recepção
+  livro TEXT                             -- de QUAL curso é esta situação (quem faz 2 livros pode
+                                         -- estar trancado num e ativo no outro). Texto solto, como
+                                         -- presenca.livro: trocar de livro não apaga o histórico.
+                                         -- NULL = registro geral ou anterior a esta coluna.
 );
 
 /* ===== índices ===== (o banco nasceu sem nenhum: toda consulta era varredura de tabela) */
@@ -158,7 +164,7 @@ CREATE INDEX IF NOT EXISTS ix_aula_prof_func ON aula_professor(funcionario_id);
 CREATE INDEX IF NOT EXISTS ix_turma_dia_dia ON turma_dia(dia);
 CREATE INDEX IF NOT EXISTS ix_aluno_livro_livro ON aluno_livro(livro);
 CREATE INDEX IF NOT EXISTS ix_hist_matricula ON aluno_situacao_historico(id_matricula);
-CREATE UNIQUE INDEX IF NOT EXISTS ux_hist_unico ON aluno_situacao_historico(id_matricula, situacao, data);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_hist_unico ON aluno_situacao_historico(id_matricula, situacao, data, IFNULL(livro,''));
 
 /* ===== derivados (as fórmulas da planilha viram VIEWs) ===== */
 CREATE VIEW v_alunos AS                -- Status derivado da situação

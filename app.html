@@ -58,21 +58,51 @@
 html{scrollbar-gutter:stable}
 body{margin:0;color:#202124;font-size:13px;display:flex;min-height:100vh;background:var(--fundo)}
 /* flex-column para a etiqueta da estação poder descer até o rodapé (margin-top:auto) */
-#sidebar{width:168px;flex-shrink:0;background:#fff;border-right:2px solid var(--v);position:sticky;top:0;align-self:flex-start;height:100vh;overflow-y:auto;padding-top:8px;display:flex;flex-direction:column}
-#sidebar button{display:block;width:100%;text-align:left;border:0;background:none;padding:12px 16px;cursor:pointer;font-weight:bold;color:var(--tx2);border-left:3px solid transparent;font-size:13px}
-#sidebar button.on{color:var(--v);background:var(--cz);border-left-color:var(--v)}
+/* ===== BARRA LATERAL EM ÁRVORE (2026-08-18) =====
+   Pedido dele, no estilo do Notion: um CABEÇALHO azul-escuro com a marca e a escola, e embaixo o
+   corpo em azul-claro dividido por fios finos em regiões lógicas — panorama · frequência ·
+   gerenciar · biblioteca · avulsos. Largura subiu de 168 para 196px para caber o ícone sem
+   apertar o rótulo. Fixa: ele disse que não precisa recolher. */
+#sidebar{width:196px;flex-shrink:0;background:var(--sb-corpo);border-right:1px solid #C9DCEC;
+  position:sticky;top:0;align-self:flex-start;height:100vh;overflow-y:auto;
+  display:flex;flex-direction:column;padding-top:0}
+#sidebar button{display:flex;align-items:center;gap:9px;width:100%;text-align:left;border:0;
+  background:none;padding:8px 14px;cursor:pointer;font-weight:600;color:var(--sb-tx);
+  border-left:3px solid transparent;font-size:12.5px;line-height:1.3}
+#sidebar button .ic{display:inline-flex;width:16px;height:16px;flex-shrink:0;opacity:.72}
+#sidebar button.on{color:var(--sb-on);background:#fff;border-left-color:var(--sb-on);font-weight:700}
+#sidebar button.on .ic{opacity:1}
+/* ---- cabeçalho: a faixa escura com a marca ---- */
+.sb-cabecalho{background:var(--sb-cab);padding:11px 12px 8px;flex:0 0 auto}
+.sb-marca{display:flex;align-items:center;gap:9px;margin-bottom:9px}
+.sb-logo{width:32px;height:32px;border-radius:50%;object-fit:cover;flex-shrink:0;background:#fff}
+/* marca de reserva enquanto a logo oficial não estiver em resources/logo-wizard.png */
+.sb-logo-alt{display:flex;align-items:center;justify-content:center;width:32px;height:32px;
+  border-radius:50%;background:#C8102E;color:#fff;font-weight:800;font-size:15px;flex-shrink:0;
+  letter-spacing:-.02em}
+.sb-escola{display:flex;flex-direction:column;min-width:0;line-height:1.2}
+.sb-escola b{font-size:11.5px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis}
+.sb-escola small{font-size:10px;color:#A9C6E4;letter-spacing:.04em;text-transform:uppercase}
+#sidebar .sb-inicio{color:#D7E7F6;padding:7px 10px;border-radius:7px;border-left:0;font-weight:700}
+#sidebar .sb-inicio:hover{background:rgba(255,255,255,.10)}
+#sidebar .sb-inicio.on{background:rgba(255,255,255,.16);color:#fff;border-left:0}
+/* ---- corpo ---- */
+.sb-corpo{flex:1 1 auto;min-height:0;padding:8px 0 4px}
+.sb-fio{height:1px;background:#C9DCEC;margin:7px 12px}
 /* ponto discreto na aba que esta máquina normalmente usa — as duas continuam clicáveis */
 #sidebar button.desta-maquina::after{content:"";display:inline-block;width:5px;height:5px;
   border-radius:50%;background:var(--azul);margin-left:6px;vertical-align:middle}
-#sidebar button:hover{background:var(--cz)}
+#sidebar button:hover{background:#E3EFF9}
 /* ===== seção recolhível do sidebar (estilo Notion) =====
    O cabeçalho é um rótulo de contexto, não uma página: fonte menor, caixa alta e sem a borda
    esquerda que marca aba selecionada — assim ninguém tenta clicar nele esperando abrir tela.
    Os filhos recuam para o olho ler a hierarquia sem precisar de linha-guia. */
 .sb-grupo{display:flex;flex-direction:column}
-#sidebar .sb-cabeca{display:flex;align-items:center;gap:6px;padding:11px 16px 5px;
-  font-size:10.5px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.06em;
+#sidebar .sb-cabeca{display:flex;align-items:center;gap:6px;padding:8px 14px 4px;
+  font-size:10px;font-weight:800;color:var(--sb-sec);text-transform:uppercase;letter-spacing:.07em;
   border-left:3px solid transparent}
+#sidebar .sb-cabeca .ic-sec{width:14px;height:14px;opacity:.65}
 #sidebar .sb-cabeca:hover{background:transparent;color:var(--marca)}
 .sb-seta{width:0;height:0;border-left:5px solid currentColor;border-top:4px solid transparent;
   border-bottom:4px solid transparent;transition:transform .16s ease-out;transform-origin:30% 50%}
@@ -84,10 +114,13 @@ body{margin:0;color:#202124;font-size:13px;display:flex;min-height:100vh;backgro
 /* o invólucro interno é obrigatório: com os dois botões soltos, `grid-template-rows:0fr` só
    colapsaria a PRIMEIRA linha e o segundo botão continuaria visível */
 .sb-filhos-in{overflow:hidden;min-height:0}
-#sidebar .sb-filhos button{padding-left:30px;font-size:12.5px}
+#sidebar .sb-filhos button{padding-left:26px;font-size:12.5px}
 @media (prefers-reduced-motion:reduce){.sb-filhos,.sb-seta{transition:none}}
 #conteudo{flex:1;min-width:0;padding-bottom:40px}
 label{display:block;margin:8px 0 2px;font-weight:600;font-size:11px;color:#555;text-transform:uppercase;letter-spacing:.02em}
+/* o PRIMEIRO rótulo de uma coluna não soma a própria margem ao vão de 19px do miolo — era ele que
+   punha a busca de Turmas a 39px do fio em vez de 19 */
+.tab-fixa>.pg-corpo label:first-child,.form-col>label:first-child{margin-top:0}
 input,select{width:100%;padding:7px;border:1px solid #d5d8dc;border-radius:8px;font-size:13px}
 input:focus,select:focus{outline:none;border-color:var(--v);box-shadow:0 0 0 3px rgba(7,29,73,.12)}
 button.acao{background:var(--v);color:#fff;border:0;border-radius:8px;padding:9px 14px;margin:10px 6px 0 0;cursor:pointer;font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.08);display:inline-flex;align-items:center;gap:6px;vertical-align:middle}
@@ -144,6 +177,8 @@ button.sec{background:#eee;color:#333;box-shadow:none}button.perigo{background:v
 /* estágio sem material cadastrado: não é zero, é "não sei" */
 .sug-est.sem{background:#EEF1F4;color:var(--tx3)}
 .info{background:var(--azul-cl);border-radius:6px;padding:8px;margin-top:8px;font-size:12px}
+/* recado que ABRE o miolo (Central, Arquivados, Backup) não soma os 8px próprios ao vão de 19 */
+.pg-fixo>.info:first-child,.tab-fixa>.pg-corpo>.info:first-child{margin-top:0}
 .aviso{background:#fef7e0}
 .checks{display:flex;flex-wrap:wrap;gap:6px}
 .checks label{display:flex;align-items:center;gap:3px;text-transform:none;font-weight:normal;margin:0;font-size:12px;border:1px solid #ccc;border-radius:6px;padding:4px 7px;cursor:pointer}
@@ -180,7 +215,14 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
 .tab.tab-fixa.on{display:flex;flex-direction:column;min-height:0;flex:1;padding-bottom:0}
 /* `min-height:0` é o que permite ao miolo encolher: sem ele um filho flex nunca fica menor que o
    próprio conteúdo, o container estoura a janela e a rolagem volta a ser da página. */
-.tab-fixa>.pg-topo,.tab-fixa>.al-topo{flex:0 0 auto;position:static}
+/* `padding-bottom:0`: os 2px do `.pg-topo` existiam para o conteúdo não vazar por baixo do bloco
+   GRUDADO ao rolar. Com o esqueleto fixo ele deixou de ser sticky (`position:static` aqui mesmo),
+   então os 2px viraram sobra — e sobra que entrava na conta do vão, deixando tudo em 21 onde a
+   regra pede 19. */
+.tab-fixa>.pg-topo,.tab-fixa>.al-topo{flex:0 0 auto;position:static;padding-bottom:0}
+/* o que mora DENTRO do bloco fixo, abaixo do cabeçalho, obedece ao mesmo vão: são a barra de
+   travamento dos Horários e os botões da Impressão, que sem isto ficavam colados no fio */
+.tab-fixa>.pg-topo>.mat-lock-bar,.tab-fixa>.pg-topo>#impressao-controles{margin-top:19px}
 /* meio centímetro de respiro entre o fio das abas e o que vem embaixo — estava colado */
 .tab-fixa>.pg-corpo{flex:1 1 auto;min-height:0;overflow:auto;scrollbar-gutter:stable;
   padding:19px 0 28px}
@@ -214,6 +256,10 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
 .tab.on.duasCols,.tab.on .duasCols{display:flex;gap:22px;align-items:flex-start}
 .form-col{width:430px;flex-shrink:0;min-width:0}
 .preview-col{flex:1;min-width:300px;position:sticky;top:14px}
+/* o `top:14px` foi afinado quando quem rolava era a JANELA. Dentro do esqueleto fixo quem rola é o
+   miolo, e esses 14px punham a prévia 14px abaixo do formulário ao lado — as duas colunas têm de
+   começar na mesma linha, no vão de 19px. */
+.tab-fixa .preview-col{top:0}
 .preview-col h3{margin-top:0}
 .prev-box{border:1px solid var(--borda);border-radius:8px;padding:8px;background:var(--fundo);overflow:auto}
 .prev-vazio{color:var(--tx3);font-size:12px;padding:14px;text-align:center}
@@ -263,10 +309,31 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
    o trilho de abas nele. `.al-topo` continua existindo porque a de Alunos gruda MAIS que isso —
    leva junto a busca e a fileira do cadastro. */
 .al-topo,.pg-topo{position:sticky;top:0;z-index:20;background:var(--fundo);padding-bottom:2px}
-.al-topo .pg-cab,.pg-topo .pg-cab{margin-bottom:10px}
+/* ===== O VÃO PADRÃO DE 5mm = 19px (2026-08-17) =====
+   Regra dele: *"todo o conteúdo de abas tem que estar afastado cinco milímetros da borda inferior,
+   e não pode ser menos"*. 19px é a conversão que a casa já usa (0,50cm = 19px, o mesmo número do
+   detalhe colado na lista, no Estoque).
+   Quem entrega esses 19px é o `padding-top` do `.pg-corpo`, que já era 19. O que estragava a conta
+   eram as margens que vinham DEPOIS dele — por isso as barras de ferramentas perderam a margem de
+   topo, mais abaixo.
+   O `margin-bottom` do cabeçalho é o vão entre o TÍTULO e o TRILHO DE ABAS, e só existe onde há
+   trilho: em página sem abas ele era 10px mortos somados aos 19, jogando o conteúdo para 31+. Agora
+   os 10px moram no próprio trilho. */
+.pg-topo .pg-cab{margin-bottom:0}
+/* Alunos é a exceção: entre o fio do cabeçalho e o trilho mora a BUSCA, então aqui o
+   `margin-bottom` é o vão até ela — e ele é o mesmo 19px de todo o resto. Antes eram 10, que é o
+   "muito colado" que ele apontou. */
+.al-topo .pg-cab{margin-bottom:19px}
+/* o trilho de Alunos mora DENTRO do bloco fixo, então a margem dele empurrava o miolo para 35px do
+   fio (16 dela + 19 do `.pg-corpo`). Zerada, os 19px voltam a ser o vão — e a fileira do cadastro,
+   que vem logo abaixo do trilho no mesmo bloco, ganha os mesmos 19. */
+.al-topo .al-abas{margin-bottom:0}
+#al-faixa-cx{margin-top:19px}
 /* o trilho de abas é a última coisa do bloco grudado: sem zerar a margem dele sobra um vão por onde
    o conteúdo aparece deslizando por baixo */
-.pg-topo .pg-abas{margin-bottom:0}
+/* os 10px que saíram do cabeçalho moram aqui: é a distância título → trilho, e ela só faz sentido
+   quando o trilho existe */
+.pg-topo .pg-abas{margin:10px 0 0}
 .al-abas{display:flex;align-items:center}
 /* os três botões no trilho das abas, encostados à direita */
 .al-abas .al-acoes{margin-left:auto;padding-bottom:6px}
@@ -466,13 +533,20 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
   --es-saida:#B3261E;    --es-saida-cl:#FDECEC;
 }
 /* as abas do estoque passaram a usar .pg-abas/.pg-aba, o componente padrão do cabeçalho */
-.es-ferramentas{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:12px 0}
+/* SEM margem de topo: os 19px do `.pg-corpo` são o vão padrão, e qualquer margem aqui se somava a
+   eles — era isso que jogava as pílulas do Estoque para 33/37px do fio. */
+.es-ferramentas{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 12px}
 /* TRÊS REGIÕES na barra de Materiais: filtros à esquerda, busca no centro, ação à direita.
    As laterais têm a mesma base flexível, e é isso que mantém a busca no centro de verdade — sem
    isso ela desliza conforme o número de pílulas. */
 /* 1ª fileira: filtros e ação, na mesma altura. `nowrap` nas DUAS pontas — era o "Complementos"
    pulando de linha que quebrava o alinhamento com o botão. */
-.es-fer-mat{align-items:center;gap:12px;flex-wrap:nowrap;margin:12px 0 8px}
+/* `flex-start` e não `center`: pedido dele — *"não precisa ser alinhados verticalmente no meio, mas
+   pelo topo, acho que é melhor ainda"*. Centralizado, o vizinho mais ALTO da fileira empurrava o
+   mais baixo para baixo: na aba Entregas os cartões do placar têm 57px e as pílulas 30, então elas
+   desciam 12px e ficavam num vão diferente do resto do app. Pelo topo, os dois começam na mesma
+   linha e o vão de 19px vale para a fileira inteira. */
+.es-fer-mat{align-items:flex-start;gap:12px;flex-wrap:nowrap;margin:0 0 8px}
 .es-fer-mat .es-chips{flex:1 1 auto;min-width:0;display:flex;flex-wrap:nowrap;gap:6px;
   overflow-x:auto;scrollbar-width:none}
 .es-fer-mat .es-chips::-webkit-scrollbar{display:none}
@@ -710,7 +784,8 @@ th.ev.ultima .es-ev-data{background:var(--marca);color:#fff}
   line-height:1;padding:3px 6px;border-radius:5px}
 .es-x:hover{background:#FDECEC;color:var(--perigo)}
 /* respiro entre o texto explicativo e os cartões: colados, os dois blocos se liam como um só */
-.es-placar{display:flex;gap:10px;flex-wrap:wrap;margin:16px 0 4px}
+/* sem margem de topo: o placar divide a fileira com as pílulas e os dois começam pelo topo */
+.es-placar{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 4px}
 .es-placar .cx{background:#fff;border:1px solid var(--borda);border-radius:10px;padding:9px 14px;min-width:128px}
 .es-placar .cx b{display:block;font-size:21px;line-height:1.15;font-variant-numeric:tabular-nums}
 .es-placar .cx span{font-size:11.5px;color:var(--tx3)}
@@ -1270,6 +1345,12 @@ th.ev.ultima .es-ev-data{background:var(--marca);color:#fff}
 .dlg{background:#fff;border-radius:12px;box-shadow:0 12px 40px rgba(7,29,73,.28);
   width:min(440px,100%);max-height:calc(100vh - 40px);overflow:auto;
   transform:translateY(8px) scale(.98);transition:transform .16s ease-out}
+/* ===== JANELA LARGA (2026-08-17) =====
+   O formulário da marcação não cabia nos 440px: a janela rolava nos DOIS eixos e as barras de
+   rolagem esquadrejavam os cantos direito e inferior — era o "só o canto de cima à esquerda
+   redondo" que ele viu. Deitada (larga e baixa, "como um monitor") o conteúdo cabe e **nada rola**:
+   quem rola, se precisar, é só a lista de trechos lá dentro. */
+.dlg.dlg-larga{width:min(920px,100%);overflow:visible}
 .dlg-fundo.on .dlg{transform:none}
 @media (prefers-reduced-motion:reduce){.dlg-fundo,.dlg{transition:none}}
 .dlg-cab{display:flex;align-items:flex-start;gap:10px;padding:16px 18px 0}
@@ -1300,6 +1381,9 @@ th.ev.ultima .es-ev-data{background:var(--marca);color:#fff}
   --lc-review:#1E7E34;  --lc-review-bg:#E4F4E8;
   --lc-esp:#B26A00;     --lc-esp-bg:#FDF2E0;
   --lc-rem:#B3261E;     --lc-rem-bg:#FDECEC;
+  /* ---- barra lateral: cabeçalho escuro, corpo claro, texto do azul da marca ---- */
+  --sb-cab:#0B2E5C;     --sb-corpo:#EEF6FC;   --sb-tx:#1D4E7E;
+  --sb-on:#0B6E99;      --sb-sec:#6F92B4;
 }
 /* ===== dentro da aba de Estágios: fixo em cima, rolável embaixo =====
    `.eg-painel` vira coluna da altura do miolo; `.eg-fixo` não rola e `.eg-rola` é o único que rola.
@@ -1316,6 +1400,374 @@ th.ev.ultima .es-ev-data{background:var(--marca);color:#fff}
   margin-bottom:14px}
 .pg-rola,.eg-rola{flex:1 1 auto;min-height:0;overflow:auto;scrollbar-gutter:stable;
   padding-bottom:24px}
+
+/* ===== CALENDÁRIO LETIVO (2026-08-17) =====
+   Layout do protótipo dele: 12 cartões de mês numa grade 4×3, e cada mês numa grade FIXA de 7
+   colunas × 7 fileiras (cabeçalho + 6 semanas). Fixa de propósito: um mês que começa no domingo
+   precisa de 6 semanas, e cartão que encolhe conforme o mês faria a grade dançar ao trocar de ano.
+   As cores são as do app (paleta Wizard), não as do wireframe. */
+.cal-barra{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+/* o recado azul estava colado nos botões logo abaixo */
+#cal-fx-datas .info,#cal-fx-fontes .info{margin-bottom:14px}
+/* trilho das sub-abas da configuração: cola no vão padrão e separa do que vem abaixo */
+.cal-sub-abas{margin:0 0 14px}
+.cal-ano{display:flex;align-items:center;gap:6px}
+.cal-ano b{font-size:19px;font-weight:700;color:var(--marca);font-variant-numeric:tabular-nums;
+  min-width:64px;text-align:center}
+.cal-nav{appearance:none;width:26px;height:26px;border-radius:7px;border:1px solid var(--borda);
+  background:#fff;color:var(--marca);cursor:pointer;font-size:15px;line-height:1;padding:0}
+.cal-nav:hover{border-color:var(--azul);background:var(--azul-cl)}
+/* ===== BOTÃO HOJE (2026-08-17) =====
+   Era um `chip` cinza retangular — ele disse que "parecia o Windows 98". Agora é azul da casa, com
+   o ícone de alvo: ele não navega, ele LOCALIZA. */
+.cal-hoje-bt{appearance:none;display:inline-flex;align-items:center;gap:6px;cursor:pointer;
+  border:1px solid var(--azul);background:var(--azul-cl);color:var(--azul-esc);
+  border-radius:20px;padding:4px 13px 4px 10px;font:inherit;font-size:12px;font-weight:700;
+  transition:background .14s,box-shadow .14s,transform .09s}
+.cal-hoje-bt .ic{display:inline-flex;width:14px;height:14px}
+.cal-hoje-bt:hover{background:#fff;box-shadow:0 2px 8px rgba(7,29,73,.13)}
+.cal-hoje-bt:active{transform:translateY(1px)}
+.cal-legenda{display:flex;gap:12px;flex-wrap:wrap;margin-left:auto;font-size:11.5px;color:var(--tx2)}
+.cal-legenda span{display:inline-flex;align-items:center;gap:5px}
+.cal-legenda i{width:10px;height:10px;border-radius:3px;display:inline-block}
+.cal-fds{display:flex;gap:14px;margin-left:auto;align-items:center}
+.cal-fds .chk{margin:0;font-size:12px;display:flex;align-items:center;gap:6px;white-space:nowrap}
+.cal-fds .chk input{width:auto;margin:0}
+.cal-grade{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;
+  align-content:start;padding-bottom:8px}
+@media (max-width:1500px){.cal-grade{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:1120px){.cal-grade{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:760px){.cal-grade{grid-template-columns:minmax(0,1fr)}}
+.cal-mes{border:1px solid var(--borda);border-radius:11px;background:#fff;overflow:hidden;
+  box-shadow:0 1px 3px rgba(7,29,73,.05)}
+/* nome do mês à ESQUERDA e em caixa alta — correção dele sobre o protótipo, que centralizava */
+.cal-mes h4{margin:0;padding:9px 12px 8px;font-size:12.5px;font-weight:700;color:var(--marca);
+  letter-spacing:.06em;text-transform:uppercase;border-bottom:1px solid var(--borda);
+  display:flex;align-items:baseline;gap:7px}
+.cal-mes h4 small{font-size:10.5px;font-weight:600;color:var(--tx3);letter-spacing:0;
+  margin-left:auto;text-transform:none}
+.cal-tab{width:100%;border-collapse:collapse;table-layout:fixed}
+.cal-tab th{font-size:10px;font-weight:700;color:var(--tx2);padding:5px 0;text-align:center;
+  background:var(--fundo);border-bottom:1px solid var(--borda);letter-spacing:.03em}
+.cal-tab th.fds{color:var(--azul-esc);background:var(--azul-cl)}
+.cal-tab td{height:26px;text-align:center;font-size:11.5px;color:#1a2233;
+  font-variant-numeric:tabular-nums;padding:0}
+/* fileiras alternadas — o "intercalar" que ele pediu */
+.cal-tab tbody tr:nth-child(even) td{background:#FBFCFD}
+.cal-tab td.fds{background:#F4F8FC}
+.cal-tab tbody tr:nth-child(even) td.fds{background:#EFF5FB}
+/* dia de outro mês: presente para a grade não quebrar, esmaecido para não competir */
+.cal-tab td.fora{color:#C6CDD6}
+/* ===== PONTO E FAIXA (2026-08-17) =====
+   A bolinha saiu. Data específica vira um QUADRADO de pontas arredondadas; intervalo vira uma
+   FAIXA contínua que atravessa as células, como marca-texto — pedido dele, nas palavras dele.
+   A célula é o palco (`position:relative`) e a marca é pintada por baixo do número. */
+.cal-tab td{position:relative}
+.cal-d{display:inline-flex;align-items:center;justify-content:center;
+  width:21px;height:21px;line-height:1;position:relative;z-index:2}
+/* PONTO: quadradinho de pontas redondas, centrado na célula */
+.cal-ponto{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  width:22px;height:22px;border-radius:7px;z-index:1}
+/* FAIXA: encosta nas duas bordas para emendar na célula vizinha; as pontas só nos extremos.
+   `inset:2px 0` deixa um fio acima e abaixo, para fileiras seguidas não colarem uma na outra. */
+.cal-faixa{position:absolute;top:2px;bottom:2px;left:0;right:0;z-index:1}
+.cal-faixa.ini{left:3px;border-top-left-radius:7px;border-bottom-left-radius:7px}
+.cal-faixa.fim{right:3px;border-top-right-radius:7px;border-bottom-right-radius:7px}
+/* o número por cima da marca: em cor escura ele some no vermelho, então acompanha o contraste */
+.cal-tab td.marcado .cal-d{font-weight:700}
+.cal-tab td.marcado.claro .cal-d{color:#fff}
+/* ===== O DIA COM MAIS DE UMA MARCAÇÃO (2026-08-17) =====
+   Era um pinguinho vermelho no canto — ele não gostou, e tinha razão: vermelho ali significava
+   "erro" sem querer significar. Virou um SUBLINHADO grosso sob o número, pulsando na cor da outra
+   marcação. Fica claro que aquele dia guarda mais de uma coisa, e a cor já diz qual é. */
+.cal-mais{position:absolute;left:50%;transform:translateX(-50%);bottom:3px;
+  width:15px;height:2.5px;border-radius:2px;z-index:3;animation:calPulsa 1.9s ease-in-out infinite}
+@keyframes calPulsa{0%,100%{opacity:.45;width:12px}50%{opacity:1;width:17px}}
+/* HOJE: anel azul com brilho respirando — sutil, para achar o dia sem procurar */
+.cal-tab td.hoje .cal-d{box-shadow:inset 0 0 0 2px var(--azul);border-radius:7px;font-weight:700;
+  animation:calHojeBrilha 2.6s ease-in-out infinite}
+@keyframes calHojeBrilha{
+  0%,100%{box-shadow:inset 0 0 0 2px var(--azul),0 0 0 0 rgba(51,170,227,.42)}
+  50%{box-shadow:inset 0 0 0 2px var(--azul),0 0 0 4px rgba(51,170,227,0)}}
+/* O NÚMERO E O SUBLINHADO NÃO CAPTURAM O MOUSE: eles ficam POR CIMA da marca (z-index 2 e 3), e o
+   popover é da marca. Sem isto, o ponteiro sobre o próprio número acertaria o número e a bolha não
+   abriria — o inverso do defeito que ele apontou, e igualmente errado. */
+.cal-d,.cal-mais{pointer-events:none}
+/* a mãozinha só sobre a cor: é onde há o que ler no hover e o que abrir no duplo clique */
+.cal-ponto,.cal-faixa{cursor:pointer}
+/* ===== O DESTINO SE ANUNCIA (2026-08-17) =====
+   Chegar num lugar sem saber onde se chegou é o mesmo que não navegar. Nos dois sentidos o alvo
+   pulsa ~1,6s e para sozinho — tempo de o olho encontrar, curto o bastante para não virar enfeite. */
+.cal-tab td.dia-alvo{position:relative;z-index:4}
+.cal-tab td.dia-alvo .cal-d{animation:calAlvoDia 1.6s ease-out}
+@keyframes calAlvoDia{
+  0%,100%{box-shadow:inset 0 0 0 2px var(--azul),0 0 0 0 rgba(51,170,227,0)}
+  15%,55%{box-shadow:inset 0 0 0 2px var(--azul),0 0 0 6px rgba(51,170,227,.5)}
+  35%,75%{box-shadow:inset 0 0 0 2px var(--azul),0 0 0 0 rgba(51,170,227,.15)}}
+.cal-tabela tr.cal-alvo>td{animation:calAlvoLinha 1.6s ease-out}
+@keyframes calAlvoLinha{
+  0%,100%{background:transparent}
+  15%,55%{background:#FFF3C4}
+  35%,75%{background:#FFFBEB}}
+/* a linha inteira é clicável em duplo, então avisa disso */
+.cal-linha-nav{cursor:pointer}
+/* ===== A PRÓXIMA MARCAÇÃO (2026-08-17) =====
+   Fio azul fino em cima e embaixo, fechando nas pontas, com um brilho que respira devagar. Não é
+   alarme — é um "olhe aqui": a linha continua legível e as vizinhas não perdem nada.
+   O fundo entra porque as três primeiras colunas são grudadas e têm fundo branco próprio; sem ele,
+   a faixa clara acabaria no meio da linha. */
+.cal-tabela tr.proxima>td{background:#F2F9FE !important;
+  border-top:1px solid var(--azul);border-bottom:1px solid var(--azul);
+  animation:calProxBrilha 3.2s ease-in-out infinite}
+.cal-tabela tr.proxima>td:first-child{border-left:1px solid var(--azul);
+  border-top-left-radius:7px;border-bottom-left-radius:7px}
+.cal-tabela tr.proxima>td:last-child{border-right:1px solid var(--azul);
+  border-top-right-radius:7px;border-bottom-right-radius:7px}
+@keyframes calProxBrilha{
+  0%,100%{box-shadow:0 0 0 0 rgba(51,170,227,0)}
+  50%{box-shadow:0 0 7px 0 rgba(51,170,227,.42)}}
+.cal-prox-selo{display:inline-flex;align-items:center;gap:3px;margin-left:7px;vertical-align:1px;
+  font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;
+  color:var(--azul-esc);background:#fff;border:1px solid var(--azul);border-radius:20px;
+  padding:1px 7px 1px 5px}
+.cal-prox-selo svg{opacity:.8}
+@media (prefers-reduced-motion:reduce){.cal-tabela tr.proxima>td{animation:none}}
+@media (prefers-reduced-motion:reduce){
+  .cal-tab td.dia-alvo .cal-d,.cal-tabela tr.cal-alvo>td{animation:none}
+  .cal-tab td.dia-alvo .cal-d{box-shadow:inset 0 0 0 2px var(--azul),0 0 0 5px rgba(51,170,227,.4)}
+  .cal-tabela tr.cal-alvo>td{background:#FFF3C4}}
+/* ---- popover do dia ---- */
+.cal-pop{position:fixed;z-index:9000;background:#fff;border:1px solid var(--borda);
+  border-radius:10px;box-shadow:0 6px 22px rgba(7,29,73,.17);padding:8px 10px;min-width:190px;
+  max-width:300px;pointer-events:none;opacity:0;transform:translateY(3px);
+  transition:opacity .12s,transform .12s}
+.cal-pop.on{opacity:1;transform:translateY(0)}
+.cal-pop-cab{font-size:10.5px;font-weight:700;color:var(--tx3);text-transform:uppercase;
+  letter-spacing:.04em;margin-bottom:5px}
+.cal-pop-l{display:flex;align-items:center;gap:7px;padding:3px 0;font-size:12px;flex-wrap:wrap}
+.cal-pop-c{width:11px;height:11px;border-radius:4px;flex:0 0 auto;
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.12)}
+.cal-pop-l b{color:var(--marca);font-weight:600;min-width:0}
+.cal-pop-t{font-size:10.5px;color:var(--tx3)}
+.cal-pop-a{font-size:10px;font-weight:700;border-radius:20px;padding:1px 7px;margin-left:auto}
+.cal-pop-a.sim{background:var(--es-remessa-cl);color:var(--es-remessa)}
+.cal-pop-a.nao{background:var(--es-saida-cl);color:var(--es-saida)}
+/* ===== CROSSHAIR DO "HOJE" (2026-08-17) =====
+   Ao clicar em Hoje, a coluna do dia da semana e a fileira daquela semana acendem em amarelo, e o
+   cruzamento em laranja — é o gesto do Kanban e da tabela do Estoque, aqui só que temporário.
+   Dura ~2,2s com entrada e saída suaves, e some sozinho: é um sinalizador, não um estado. */
+.cal-tab td.mira-col,.cal-tab td.mira-lin{background:#FFF7DB !important;
+  animation:calMiraEntra .35s ease-out both}
+.cal-tab td.mira-cruz{background:#FFD9A6 !important}
+.cal-tab td.mira-cruz .cal-d{font-weight:800;color:#7A3E00}
+.cal-mes.mira-mes{box-shadow:0 0 0 2px var(--azul-borda),0 4px 18px rgba(7,29,73,.13)}
+@keyframes calMiraEntra{from{opacity:0}to{opacity:1}}
+.cal-tab td.mira-saindo{transition:background .55s ease-in;background:transparent !important}
+.cal-mes.mira-saindo{transition:box-shadow .55s ease-in;box-shadow:none}
+@media (prefers-reduced-motion:reduce){
+  .cal-mais,.cal-tab td.hoje .cal-d{animation:none}
+  .cal-tab td.mira-col,.cal-tab td.mira-lin{animation:none}}
+.cal-mes-pe{display:flex;gap:8px;padding:6px 10px 8px;border-top:1px solid #F1F4F7;
+  font-size:10.5px;color:var(--tx3)}
+.cal-mes-pe b{color:var(--marca);font-variant-numeric:tabular-nums}
+/* ---- TABELA de marcações (2026-08-17, correção dele: era lista de cartões) ---- */
+.cal-tabela{font-size:12.5px}
+.cal-tabela th{white-space:nowrap}
+.cal-tabela td{vertical-align:middle;padding:5px 8px}
+/* quadradinho de cor CHEIO e maior — ele viu uma "régua" fina e quer enxergar a cor */
+.cal-tabela .c-cor{width:34px;text-align:center}
+.cal-tabela .cal-cor{width:18px;height:18px;border-radius:5px;vertical-align:middle}
+/* Descrição também não quebra: "Nossa Senhora de Fátima (padroeira)" dobrava a fileira e a tabela
+   ficava com duas alturas diferentes. Corta com reticências e o nome inteiro fica no `title`. */
+.cal-tabela .c-ds{width:300px;max-width:300px}
+.cal-tabela td.c-ds .c-ds-l{display:flex;align-items:center;min-width:0}
+.cal-tabela td.c-ds b{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap}
+/* TIPO mais larga e sem quebrar: "Ponto facultativo" estava caindo em duas linhas e engordava a
+   fileira inteira. `nowrap` + reticências — a frase sai inteira, e se um dia não couber, corta no
+   fim em vez de quebrar. */
+/* mais larga porque agora cabem VÁRIOS tipos na mesma célula (férias + recesso) */
+.cal-tabela .c-tp{width:196px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cal-tabela .c-tp .cal-tag+.cal-tag{margin-left:4px}
+/* Quando estreitou: cabem "01/01" e "24/12 a 31/12", que é o mais longo que aparece */
+.cal-tabela .c-qd{width:118px;font-variant-numeric:tabular-nums;color:var(--tx2);white-space:nowrap}
+.cal-tabela .c-qd.outroAno{color:var(--tx3);font-style:italic}
+.cal-tabela .c-rep{width:118px;color:var(--tx2);white-space:nowrap}
+.cal-tabela .c-amb{width:122px;color:var(--tx3);white-space:nowrap}
+.cal-tabela .c-ab{width:52px;text-align:center}
+.cal-tabela .c-or{width:92px}
+.cal-tabela .c-ac{width:150px;text-align:right;white-space:nowrap}
+/* os dois botões estavam encostados um no outro */
+.cal-tabela .c-ac .es-bt+.es-bt{margin-left:7px}
+.cal-tabela td b{color:var(--marca);font-weight:600}
+/* ===== COLUNAS GRUDADAS (pedido dele sobre a coluna Tipo) =====
+   Descrição e Tipo ficam à esquerda mesmo com a tabela rolando de lado: são as duas que dizem O QUE
+   é a linha, e sem elas as outras colunas viram números sem dono. `z-index` acima do corpo e abaixo
+   do cabeçalho, que já é sticky na vertical. */
+/* os deslocamentos vêm do JS (`calGrudar`), MEDIDOS depois do render — chumbar `left:286px` aqui
+   grudava no lugar errado, porque a largura real da coluna Descrição depende do conteúdo. */
+.cal-tabela th.c-ds,.cal-tabela td.c-ds{position:sticky;z-index:1;background:#fff}
+.cal-tabela th.c-tp,.cal-tabela td.c-tp{position:sticky;z-index:1;background:#fff}
+.cal-tabela th.c-cor,.cal-tabela td.c-cor{position:sticky;left:0;z-index:1;background:#fff}
+.cal-tabela thead th.c-cor,.cal-tabela thead th.c-ds,.cal-tabela thead th.c-tp{z-index:3}
+/* o fio que marca onde termina o bloco grudado */
+.cal-tabela th.c-tp,.cal-tabela td.c-tp{box-shadow:1px 0 0 var(--borda)}
+.cal-tabela tbody tr:hover td.c-cor,.cal-tabela tbody tr:hover td.c-ds,
+.cal-tabela tbody tr:hover td.c-tp{background:#FBFCFD}
+/* ===== O CABEÇALHO TEM DE FICAR PARADO (2026-08-17) =====
+   `thead th` já era `sticky`, e mesmo assim sumia ao rolar. A causa: quem rolava era a `.pg-rola`,
+   e a moldura (que é o scrollport do sticky) subia inteira junto — sticky só gruda dentro do
+   PRÓPRIO contêiner de rolagem. Agora a moldura é que rola, com a altura do miolo, e a `.pg-rola`
+   deixa de rolar. Aí o `top:0` do cabeçalho passa a valer.
+   *É a mesma armadilha do `.es-moldura` do Estoque, e a razão de lá a altura ser medida.* */
+#cal-p-config .pg-rola{overflow:hidden;display:flex;flex-direction:column;padding-bottom:0}
+#cal-lista{display:flex;flex-direction:column;min-height:0;flex:1 1 auto}
+#cal-lista .es-moldura{flex:1 1 auto;min-height:0;overflow:auto;scrollbar-gutter:stable}
+#cal-fontes-box{overflow:auto;min-height:0;flex:1 1 auto;padding-bottom:16px}
+.cal-tabela thead th{position:sticky;top:0;z-index:2}
+/* ✓ / ✗ da coluna Aula: selo de leitura, não campo */
+.cal-bool{display:inline-flex;align-items:center;justify-content:center;width:19px;height:19px;
+  border-radius:5px;font-size:12px;font-weight:700;line-height:1}
+.cal-bool.sim{background:var(--es-remessa-cl);color:var(--es-remessa)}
+.cal-bool.nao{background:var(--es-saida-cl);color:var(--es-saida)}
+.cal-obs{display:block;font-size:11px;color:var(--tx3)}
+.cal-cor{width:12px;height:12px;border-radius:4px;display:inline-block;border:1px solid rgba(0,0,0,.12)}
+.cal-nao{color:var(--tx3);font-size:11.5px}
+.cal-org{font-size:10.5px;color:var(--tx3)}
+.cal-org.ext{color:var(--azul-esc);font-weight:700}
+/* ---- painel das fontes automáticas ---- */
+.cal-fontes{margin-top:16px;border:1px solid var(--borda);border-radius:10px;background:#fff;
+  overflow:hidden;max-width:1100px}
+.cal-fontes-cab{display:flex;align-items:center;gap:12px;padding:9px 12px;background:var(--fundo);
+  border-bottom:1px solid var(--borda);font-size:12.5px;font-weight:700;color:var(--marca)}
+.cal-fontes-cab .es-bt{margin-left:auto}
+.cal-hora{font-size:11.5px;font-weight:600;color:var(--tx2);display:flex;align-items:center;gap:6px}
+.cal-hora input{width:56px;text-align:center;font-variant-numeric:tabular-nums;padding:3px 4px;
+  font-size:12px;height:25px}
+.cal-fonte{display:flex;align-items:center;gap:12px;padding:7px 12px;font-size:12px;
+  border-bottom:1px solid #F1F4F7}
+.cal-fonte .chk{margin:0;display:flex;align-items:center;gap:7px;min-width:0;flex:1 1 auto}
+.cal-fonte .chk input{width:auto;margin:0}
+.cal-fonte b{font-weight:600;color:var(--marca)}
+.cal-fonte-st{font-size:10.5px;font-weight:700;border-radius:20px;padding:1px 8px;
+  background:var(--fundo);color:var(--tx3);flex-shrink:0}
+.cal-fonte-st.bom{background:var(--es-remessa-cl);color:var(--es-remessa)}
+.cal-fonte-st.ruim{background:var(--es-saida-cl);color:var(--es-saida)}
+.cal-fonte-qd,.cal-fonte-n{font-size:11px;color:var(--tx3);white-space:nowrap;
+  font-variant-numeric:tabular-nums}
+.cal-fonte-erro{font-size:11px;color:var(--es-saida);overflow:hidden;text-overflow:ellipsis}
+.cal-fonte-pe{padding:9px 12px;font-size:11.5px;color:var(--tx2);line-height:1.55}
+.cal-fonte-pe b{color:var(--marca)}
+/* campo do token: `type=password` porque é segredo, e a tela nunca o recebe de volta preenchido */
+.cal-token{display:flex;align-items:center;gap:8px;padding:9px 12px;flex-wrap:wrap;
+  border-bottom:1px solid #F1F4F7;background:#FBFCFD}
+.cal-token label{margin:0;font-size:11px;white-space:nowrap}
+.cal-token input{width:250px;padding:4px 8px;font-size:12px;height:27px}
+.cal-token #cal-uf{width:48px;text-align:center;text-transform:uppercase}
+.cal-token-ok{font-size:10.5px;font-weight:700;color:var(--es-remessa);
+  background:var(--es-remessa-cl);border-radius:20px;padding:2px 9px}
+.cal-token-nao{font-size:10.5px;font-weight:700;color:var(--tx3)}
+/* ===== FORMULÁRIO DA MARCAÇÃO, refeito (2026-08-17) =====
+   Era uma grade de dez campos com metade escondida conforme a repetição — ele disse, e é verdade,
+   que estava "mal feito e mal centralizado". Agora são LINHAS de rótulo + campo, largura única, e o
+   miolo é o editor de trechos. */
+/* DEITADO: duas colunas, largura maior e altura menor — "como um monitor", nas palavras dele.
+   `min-width` saiu: era ele que estourava os 440px da janela e ligava as duas barras de rolagem. */
+.cf-form{display:flex;flex-direction:column;gap:13px}
+.cf-cols{display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);gap:22px;align-items:start}
+@media (max-width:820px){.cf-cols{grid-template-columns:minmax(0,1fr)}}
+.cf-col{display:flex;flex-direction:column;gap:13px;min-width:0}
+/* a coluna dos trechos é a única que rola, e só quando passa de ~6 linhas */
+.cf-col-tr #cf-trechos{max-height:246px;overflow:auto;scrollbar-gutter:stable;
+  border:1px solid var(--borda);border-radius:9px;padding:2px 9px}
+.cf-col-tr .cf-sec{border-top:0;padding-top:0;margin-top:0}
+.cf-linha{display:flex;flex-direction:column;gap:5px}
+.cf-linha>label{margin:0;display:flex;align-items:baseline;gap:8px}
+.cf-linha>label small{font-size:10.5px;font-weight:600;color:var(--tx3);text-transform:none;
+  letter-spacing:0}
+.cf-linha.dupla{flex-direction:row;gap:20px}
+.cf-linha.dupla>div{flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:5px}
+.cf-linha input,.cf-linha select{width:100%}
+.cf-aula{margin:0;font-size:12.5px;text-transform:none;font-weight:500;letter-spacing:0;
+  display:flex;align-items:center;gap:7px;color:var(--tx1,#1a2233)}
+.cf-aula input{width:auto;margin:0}
+.cf-sec{font-size:11px;font-weight:700;color:var(--marca);text-transform:uppercase;
+  letter-spacing:.04em;border-top:1px solid var(--borda);padding-top:12px;margin-top:2px;
+  display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
+.cf-sec small{font-size:10.5px;font-weight:500;color:var(--tx3);text-transform:none;letter-spacing:0}
+/* ---- uma linha por trecho ---- */
+.cf-trecho{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px dashed #EDF1F5}
+.cf-trecho:last-child{border-bottom:0}
+.cf-modo{width:146px;flex:0 0 auto;font-size:12px;height:29px;padding:3px 6px}
+.cf-campos{display:flex;align-items:center;gap:6px;flex:1 1 auto;min-width:0;flex-wrap:wrap}
+.cf-campos input{width:auto;padding:4px 7px;font-size:12px;height:29px}
+.cf-campos input[type=date]{width:132px}
+.cf-campos em{font-style:normal;font-size:11px;color:var(--tx3);flex:0 0 auto}
+.cf-campos .cf-nota{font-size:10.5px}
+.cf-par{display:inline-flex;align-items:center;gap:3px}
+.cf-par input{width:42px;text-align:center;font-variant-numeric:tabular-nums}
+.cf-par i{font-style:normal;color:var(--tx3);font-size:11px}
+.cf-off{width:76px;text-align:center;font-variant-numeric:tabular-nums}
+/* selects miúdos do modo "dia da semana": a linha inteira tem de caber sem quebrar */
+.cf-mini{width:auto;min-width:56px;padding:3px 4px;font-size:11.5px;height:27px}
+.cf-conta{font-size:10.5px;font-weight:700;color:var(--azul-esc);background:var(--azul-cl);
+  border-radius:20px;padding:2px 9px;white-space:nowrap;flex:0 0 auto}
+.cf-conta.zero{background:var(--fundo);color:var(--tx3)}
+.cf-x{appearance:none;border:1px solid var(--borda);background:#fff;color:var(--tx3);
+  border-radius:6px;width:25px;height:25px;cursor:pointer;font-size:11px;line-height:1;
+  flex:0 0 auto;padding:0}
+.cf-x:hover{border-color:var(--perigo);background:#FDECEC;color:var(--perigo)}
+.cf-pe{display:flex;align-items:center;gap:12px;padding-top:9px;flex-wrap:wrap}
+.cf-total{font-size:11.5px;color:var(--tx2);margin-left:auto}
+/* ---- cor: um quadrado grande que abre o espectro, e a lista das já usadas ao lado ---- */
+.cf-cor-cx{display:flex;align-items:flex-start;gap:10px}
+/* o `input type=color` fica INVISÍVEL por dentro do quadrado: o clique abre o seletor do sistema,
+   mas quem se vê é um quadrado do tamanho e do raio da casa, não a régua cinza do navegador */
+.cf-cor-atual{position:relative;flex:0 0 auto;width:38px;height:38px;border-radius:9px;
+  cursor:pointer;box-shadow:inset 0 0 0 1px rgba(0,0,0,.15),0 1px 3px rgba(0,0,0,.12);
+  margin:0;overflow:hidden}
+.cf-cor-atual:hover{box-shadow:inset 0 0 0 1px rgba(0,0,0,.15),0 0 0 3px var(--azul-cl)}
+.cf-cor-atual input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;
+  padding:0;border:0}
+.cf-cores{display:flex;gap:5px;flex-wrap:wrap;flex:1 1 auto;min-width:0;max-height:82px;overflow:auto}
+/* cada cor guardada é um par: o quadrado que seleciona e o ✕ que a tira da lista */
+.cf-cor-w{position:relative;display:inline-flex;flex:0 0 auto}
+.cf-cor-op{appearance:none;border:2px solid transparent;border-radius:7px;width:26px;height:26px;
+  cursor:pointer;padding:0;box-shadow:inset 0 0 0 1px rgba(0,0,0,.12)}
+.cf-cor-w.on .cf-cor-op{border-color:var(--marca)}
+.cf-cor-x{position:absolute;top:-5px;right:-5px;width:14px;height:14px;border-radius:50%;
+  border:1px solid var(--borda);background:#fff;color:var(--tx3);font-size:8px;line-height:1;
+  cursor:pointer;padding:0;display:none;align-items:center;justify-content:center}
+.cf-cor-w:hover .cf-cor-x{display:flex}
+.cf-cor-x:hover{border-color:var(--perigo);color:var(--perigo);background:#FDECEC}
+.cf-cores-reset{margin-left:auto;appearance:none;border:0;background:none;cursor:pointer;
+  font:inherit;font-size:10px;font-weight:600;color:var(--tx3);text-transform:none;letter-spacing:0;
+  text-decoration:underline;padding:0}
+.cf-cores-reset:hover{color:var(--azul-esc)}
+.cf-linha>label{width:100%}
+/* ---- cabeçalhos ordenáveis ---- */
+.ord-th{cursor:pointer;user-select:none}
+.ord-th:hover{color:var(--azul-esc)}
+.ord{display:inline-block;width:11px;font-size:9px;color:var(--tx3)}
+.ord.on{color:var(--azul-esc)}
+/* caixas de tipo no formulário da marcação */
+.cf-tipos{display:flex;flex-wrap:wrap;gap:6px 16px;padding:2px 0}
+.cf-tipos .chk{margin:0;font-size:12px;display:flex;align-items:center;gap:6px;white-space:nowrap;
+  text-transform:none;font-weight:500;color:var(--tx1,#1a2233);letter-spacing:0}
+.cf-tipos .chk input{width:auto;margin:0}
+.cf-tipos-aviso{flex-basis:100%;font-size:11px;color:#8A5A12;min-height:14px}
+.cal-tag{font-size:10px;font-weight:700;border-radius:20px;padding:1px 8px;text-transform:uppercase;
+  letter-spacing:.03em;flex-shrink:0}
+.cal-tag.feriado{background:var(--es-saida-cl);color:#B3261E}
+.cal-tag.facultativo{background:var(--es-pedido-cl);color:#B26A00}
+.cal-tag.ferias{background:#E8F1FD;color:var(--azul-esc)}
+.cal-tag.recesso{background:#EDE7F8;color:#7A4FBF}
+.cal-tag.ponte{background:#FFF3C4;color:#8A5A12}
+.cal-tag.evento{background:var(--fundo);color:var(--tx2)}
+.cal-amb{font-size:10.5px;color:var(--tx3);white-space:nowrap}
+.cal-linha .es-bt{flex-shrink:0}
+.cal-linha .cal-acoes{margin-left:auto;display:flex;gap:6px;flex-shrink:0}
+.cal-abre{font-size:10.5px;font-weight:700;color:var(--es-remessa);white-space:nowrap}
 
 /* ===== CENTRAL DE CONTROLE (2026-08-17) =====
    Uma faixa por regra, recolhida por padrão. Recolhida porque a tela nasceu com 281 casos e 23
@@ -1368,10 +1820,42 @@ th.ev.ultima .es-ev-data{background:var(--marca);color:#fff}
 .ct-kpi .k-alta{background:var(--es-saida-cl);color:#B3261E}
 .ct-kpi .k-media{background:var(--es-pedido-cl);color:#B26A00}
 .ct-kpi .k-baixa{background:var(--fundo);color:var(--tx2);border:1px solid var(--borda)}
+/* trilho das três abas da Central */
+.ct-abas{margin:12px 0 0}
+/* ===== O CASO LEVA AO RECURSO (2026-08-17) ===== */
+.ct-item.vai{cursor:pointer;border-radius:7px;margin:0 -6px;padding-left:6px;padding-right:6px;
+  transition:background .12s}
+.ct-item.vai:hover{background:var(--azul-cl)}
+.ct-item.vai:hover b{color:var(--azul-esc)}
+/* o alvo pisca ao chegar, como o crosshair do calendário: chegar sem saber onde chegou é o mesmo
+   que não navegar */
+.ct-alvo{animation:ctAlvo 1.8s ease-out;border-radius:8px}
+@keyframes ctAlvo{
+  0%,100%{box-shadow:0 0 0 0 rgba(51,170,227,0);background:transparent}
+  15%,55%{box-shadow:0 0 0 4px rgba(51,170,227,.45);background:#EAF6FE}
+  35%,75%{box-shadow:0 0 0 1px rgba(51,170,227,.2);background:#F5FBFE}}
+@media (prefers-reduced-motion:reduce){.ct-alvo{animation:none;box-shadow:0 0 0 3px rgba(51,170,227,.4)}}
+/* o "final" do material, herdado e travado na tela do estágio */
+.eg-herdado{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--tx2);
+  background:var(--fundo);border:1px dashed var(--borda);border-radius:8px;padding:7px 10px}
+.eg-herdado input{width:auto;margin:0}
+.eg-herdado small{display:block;font-size:10.5px;color:var(--tx3);line-height:1.35}
+.eg-herdado input:disabled{cursor:not-allowed}
+/* o "último da coleção" no formulário do material */
+.es-final .es-final-cx{display:flex;align-items:flex-start;gap:7px}
+.es-final input{width:auto;margin:2px 0 0}
+.es-final small{font-size:10.5px;color:var(--tx3);line-height:1.35}
 
 /* ===== página de Professores: formulário fixo à esquerda, deck rolável à direita ===== */
 .pf-mestre{display:grid;grid-template-columns:minmax(0,320px) 1fr;gap:22px;
   grid-template-rows:minmax(0,1fr)}
+/* ACHADO 2026-08-17, medindo o vão: a página estava EMPILHANDO as duas colunas.
+   O elemento é `class="es-painel pf-mestre"`, e `.pg-corpo-abas>.es-painel` (0,2,0) vence
+   `.pf-mestre` (0,1,0) — então o `display:flex;flex-direction:column` do esqueleto anulava o grid
+   e o deck de professores caía embaixo do formulário, a 239px do fio em vez de 19.
+   Defeito antigo, de quando Professores ganhou o esqueleto fixo; só apareceu porque fui medir.
+   Conserto pelo mesmo peso de seletor, vindo depois. */
+.pg-corpo-abas>.pf-mestre{display:grid}
 @media (max-width:900px){.pf-mestre{grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr)}}
 .pf-form{min-width:0;overflow:auto;scrollbar-gutter:stable;padding-right:4px}
 .pf-form h3{margin:0 0 4px}
@@ -1591,15 +2075,44 @@ th.ev.ultima .es-ev-data{background:var(--marca);color:#fff}
 .eg-lic-tab td{padding:3px 6px;border-bottom:1px solid #F1F4F7;vertical-align:middle}
 .eg-lic-tab tr:last-child td{border-bottom:0}
 .eg-lic-tab tbody tr:hover td{background:#FBFCFD}
-.eg-lic-tab .c-idx{width:58px;text-align:center;color:var(--marca);font-variant-numeric:tabular-nums;
+.eg-lic-tab .c-idx{width:52px;text-align:center;color:var(--marca);font-variant-numeric:tabular-nums;
   font-size:12px;font-weight:700}
-.eg-lic-tab .c-idx .idx-in{width:46px;text-align:center;font-variant-numeric:tabular-nums;
-  font-weight:700;color:var(--marca)}
+/* ===== O Nº É UM SELO, NÃO UM CAMPO (2026-08-17) =====
+   Ele era `input type="number"`, com as setinhas — e foi ali que veio a edição acidental que
+   bagunçou a estrutura. Agora é a POSIÇÃO, calculada, e um quadradinho de pontas redondas diz isso
+   sem convidar ao clique. O mesmo selo serve ao Bloco quando a linha é só de leitura. */
+.eg-idx{display:inline-block;min-width:26px;padding:2px 6px;border-radius:7px;
+  background:var(--fundo);border:1px solid var(--borda);color:var(--marca);
+  font-variant-numeric:tabular-nums;font-weight:700;font-size:11.5px;line-height:1.5}
+.eg-ro{color:var(--tx3);font-size:12px}
 .eg-lic-tab .c-sigla input{width:66px;text-align:center;font-weight:600;
   font-variant-numeric:tabular-nums}
-.eg-lic-tab .c-bloco input{width:56px;text-align:center;font-variant-numeric:tabular-nums}
+/* BLOCO: digitado direto. Sem `type="number"` não há setinha para esbarrar, e o campo encolheu
+   para a largura de dois dígitos — que é tudo o que um número de bloco tem. */
+.eg-lic-tab .c-bloco{width:64px;text-align:center}
+.eg-lic-tab .c-bloco input.bl-in{width:38px;text-align:center;border-radius:7px;
+  font-variant-numeric:tabular-nums;font-weight:700;color:var(--marca);padding:4px 2px}
 .eg-lic-tab .c-tipo select{width:104px}
-.eg-lic-tab .c-acoes{width:96px;white-space:nowrap;text-align:right}
+.eg-lic-tab .c-acoes{width:118px;white-space:nowrap;text-align:right}
+/* TRAVA no cabeçalho da coluna de ações — em cima dos botões mais destrutivos, que é onde ele
+   pediu. Travada é discreta; liberada fica âmbar, porque é um estado que não se quer esquecer. */
+.eg-trava{display:inline-flex;align-items:center;gap:5px;appearance:none;cursor:pointer;
+  border:1px solid var(--borda);background:#fff;color:var(--tx2);border-radius:20px;
+  padding:3px 9px;font:inherit;font-size:10.5px;font-weight:700;text-transform:none;
+  letter-spacing:0}
+.eg-trava:hover{border-color:var(--azul-borda);color:var(--marca)}
+.eg-trava.on{background:var(--es-pedido-cl,#FDF2E0);border-color:#F0D9AE;color:#8A5A12}
+/* linha travada: os campos continuam legíveis (é `readonly`, não `disabled`), mas sem moldura de
+   campo — assim a tabela travada se lê como uma TABELA, e não como um formulário desabilitado */
+.eg-lic-tab input[readonly]{background:transparent;border-color:transparent;cursor:default}
+.eg-lic-tab input[readonly]:focus{outline:none}
+.eg-lic-tab select:disabled{background:transparent;border-color:transparent;color:var(--tx2);
+  appearance:none;cursor:default;text-align:left}
+.eg-lic-tab .mv:disabled{opacity:.3;cursor:default}
+.eg-lic-tab .mv:disabled:hover{border-color:var(--borda);background:#fff;color:var(--tx2)}
+/* linha gerada pela fórmula: existe para ser lida, não editada */
+.eg-lic-tab tr.gerada td{background:#FCFDFE}
+.eg-lic-tab tr.gerada:hover td{background:#F7FAFD}
 .eg-lic-tab input,.eg-lic-tab select{padding:4px 6px;font-size:12.5px;height:27px}
 .eg-lic-tab .c-desc input{width:100%}
 /* SETAS EVIDENTES: eram ↑↓ de 13px sem moldura, quase invisíveis numa fileira cheia de campos.
@@ -2756,42 +3269,75 @@ td.lc-est-cel{padding:0!important;border-left:1px solid var(--aba-bd);border-rig
 <div id="load"></div>
 <button type="button" id="ao-topo" title="Voltar ao topo" onclick="aoTopo()"></button>
 <div id="sidebar">
-<button class="on" onclick="aba('inicio',this)">Início</button>
-<!-- A Central fica no topo, colada no Início: as duas respondem à mesma pergunta de quem chega de
-     manhã — "o que tem para hoje". O contador é o mesmo componente do sino do Estoque. -->
-<button onclick="aba('central',this)">Central<span class="sb-aviso" id="sb-aviso-central" title="pendências abertas na central de controle"></span></button>
-<!-- Frequência: seção recolhível no estilo do Notion. As DUAS telas continuam sempre acessíveis
-     (o professor lança na sala e confere o que a recepção marcou; a recepção espia o quadro da
-     sala numa manhã sem professor) — o grupo só as junta visualmente. Recepção em cima porque é
-     ela quem responde primeiro "veio ou não veio". -->
+<!-- ===== CABEÇA DA BARRA (2026-08-18) =====
+     Faixa mais escura com a marca e a escola, e o Início logo abaixo dela — pedido dele, no estilo
+     do Notion: um cabeçalho que diz ONDE se está, e a árvore embaixo.
+     A LOGO vem de `resources/logo-wizard.png` se o arquivo existir; se não, entra a marca de
+     reserva desenhada aqui. Não baixei a logo oficial da internet: é marca registrada da escola e
+     o arquivo bom é o que ele tem em mãos — basta soltá-lo nesse caminho. -->
+<div class="sb-cabecalho">
+<div class="sb-marca">
+<img src="resources/logo-wizard.png" alt="" class="sb-logo"
+     onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+<span class="sb-logo-alt" aria-hidden="true">W</span>
+<span class="sb-escola"><b>Wizard by Pearson</b><small>Naviraí</small></span>
+</div>
+<button class="on sb-inicio" onclick="aba('inicio',this)"><span class="ic"></span>Início</button>
+</div>
+
+<nav class="sb-corpo">
+<!-- PANORAMA: as três telas que respondem "como está a escola hoje" -->
+<button onclick="aba('dashboard',this)"><span class="ic"></span>Dashboard</button>
+<button onclick="aba('central',this)"><span class="ic"></span>Central<span class="sb-aviso" id="sb-aviso-central" title="pendências abertas na central de controle"></span></button>
+<button onclick="aba('calendario',this)"><span class="ic"></span>Calendário</button>
+
+<div class="sb-fio"></div>
+<!-- Frequência: seção recolhível. As DUAS telas continuam sempre acessíveis (o professor lança na
+     sala e confere o que a recepção marcou; a recepção espia o quadro da sala numa manhã sem
+     professor) — o grupo só as junta visualmente. Recepção em cima porque é ela quem responde
+     primeiro "veio ou não veio". -->
 <div class="sb-grupo aberto" id="sb-freq">
 <button type="button" class="sb-cabeca" onclick="sbGrupo('sb-freq')" aria-expanded="true">
 <span class="sb-seta"></span>Frequência</button>
 <div class="sb-filhos"><div class="sb-filhos-in">
-<button onclick="aba('recepcao',this)">Freq. Recepção</button>
-<button onclick="aba('presenca',this)">Freq. Sala</button>
+<button onclick="aba('recepcao',this)"><span class="ic"></span>Freq. Recepção</button>
+<button onclick="aba('presenca',this)"><span class="ic"></span>Freq. Sala</button>
 </div></div>
 </div>
-<button onclick="aba('dashboard',this)">Dashboard</button>
-<button onclick="aba('alunos',this)">Alunos</button>
-<button onclick="aba('turmas',this)">Turmas</button>
-<button onclick="aba('horarios',this)">Horários</button>
-<button onclick="aba('professores',this)">Professores</button>
-<button onclick="aba('impressao',this)">Impressão</button>
+
+<div class="sb-fio"></div>
+<!-- GERENCIAR: os cadastros que a recepção mexe no dia a dia -->
+<div class="sb-grupo aberto" id="sb-ger">
+<button type="button" class="sb-cabeca" onclick="sbGrupo('sb-ger')" aria-expanded="true">
+<span class="sb-seta"></span>Gerenciar</button>
+<div class="sb-filhos"><div class="sb-filhos-in">
+<button onclick="aba('alunos',this)"><span class="ic"></span>Alunos</button>
+<button onclick="aba('turmas',this)"><span class="ic"></span>Turmas</button>
+<button onclick="aba('horarios',this)"><span class="ic"></span>Horários</button>
+<button onclick="aba('professores',this)"><span class="ic"></span>Professores</button>
+</div></div>
+</div>
+
+<div class="sb-fio"></div>
 <!-- Biblioteca junta o que é MATERIAL: o estoque conta o livro físico, os estágios descrevem a
-     estrutura pedagógica dele. Mesmo grupo recolhível da Frequência. -->
+     estrutura pedagógica dele. -->
 <div class="sb-grupo aberto" id="sb-bib">
 <button type="button" class="sb-cabeca" onclick="sbGrupo('sb-bib')" aria-expanded="true">
 <span class="sb-seta"></span>Biblioteca</button>
 <div class="sb-filhos"><div class="sb-filhos-in">
-<button onclick="aba('estoque',this)">Estoque<span class="sb-aviso" id="sb-aviso-estoque" title="material que chegou e tem aluno esperando"></span></button>
-<button onclick="aba('estagios',this)">Estágios</button>
+<button onclick="aba('estoque',this)"><span class="ic"></span>Estoque<span class="sb-aviso" id="sb-aviso-estoque" title="material que chegou e tem aluno esperando"></span></button>
+<button onclick="aba('estagios',this)"><span class="ic"></span>Estágios</button>
 <!-- ARQUIVADOS mora na Biblioteca porque é dela que vem quase tudo o que se arquiva: material,
      exemplar, pedido, estágio e modelo. É a única tela onde a exclusão definitiva existe. -->
-<button onclick="aba('arquivados',this)">Arquivados</button>
+<button onclick="aba('arquivados',this)"><span class="ic"></span>Arquivados</button>
 </div></div>
 </div>
-<button onclick="aba('backup',this)">Backup</button>
+
+<div class="sb-fio"></div>
+<!-- AVULSOS: não pertencem a nenhum escopo — são ferramentas da casa -->
+<button onclick="aba('impressao',this)"><span class="ic"></span>Impressão</button>
+<button onclick="aba('backup',this)"><span class="ic"></span>Backup</button>
+</nav>
 <div id="estacao-tag" class="estacao-tag"></div>
 </div>
 <div id="conteudo">
@@ -3365,6 +3911,69 @@ Os horários da matriz costumam ser fixos e raramente mudam. Confirma que quer e
 </div>
 </div>
 
+<!-- ===== CALENDÁRIO LETIVO =====
+     Do protótipo dele (Wizard Tools.pdf, p.4-19). Duas abas: o panorama do ano e a configuração.
+     A grade de cada mês é 7 colunas × 7 fileiras (1 de cabeçalho + 6 semanas), SEMPRE — cartão que
+     muda de altura conforme o mês faria a grade de 4×3 dançar. -->
+<div id="tab-calendario" class="tab tab-fixa">
+<div class="pg-topo">
+<div class="pg-cab"><h2>Calendário letivo</h2><span class="pg-sub">feriados, férias e o que fecha a escola</span>
+<div class="pg-dir" id="cal-dir"></div></div>
+<div class="pg-abas">
+<button class="pg-aba on" data-p="ano" onclick="calAba('ano')">Calendário</button>
+<button class="pg-aba" data-p="config" onclick="calAba('config')">Configuração<span class="n" id="cal-n">0</span></button>
+</div>
+</div>
+<div class="pg-corpo pg-corpo-abas">
+
+<div id="cal-p-ano" class="es-painel">
+<div class="pg-fixo">
+<div class="cal-barra">
+<div class="cal-ano">
+<button type="button" class="cal-nav" onclick="calAno(-1)" title="ano anterior">‹</button>
+<b id="cal-ano-txt">—</b>
+<button type="button" class="cal-nav" onclick="calAno(1)" title="próximo ano">›</button>
+<button type="button" class="cal-hoje-bt" onclick="calHoje()"><span class="ic"></span>Hoje</button>
+</div>
+<div id="cal-legenda" class="cal-legenda"></div>
+</div>
+</div>
+<div class="pg-rola"><div id="cal-grade" class="cal-grade"></div></div>
+</div>
+
+<!-- DUAS SUB-ABAS: as datas de um lado, a plumbing das APIs do outro. O painel de fontes estava no
+     pé da mesma rolagem e ficava escondido atrás de 20 linhas de tabela. -->
+<div id="cal-p-config" class="es-painel" style="display:none">
+<div class="pg-fixo">
+<div class="pg-abas cal-sub-abas">
+<button class="pg-aba on" data-s="datas" onclick="calSub('datas')">Datas<span class="n" id="cal-n2">0</span></button>
+<button class="pg-aba" data-s="fontes" onclick="calSub('fontes')">Fontes automáticas</button>
+</div>
+<div id="cal-fx-datas">
+<div class="info" style="max-width:940px">Uma marcação pode valer <b>uma vez só</b>, <b>todo ano no mesmo dia</b> (Natal, aniversário da cidade) ou <b>acompanhar a Páscoa</b> — que é como Carnaval, Sexta-feira Santa e Corpus Christi andam de ano para ano sem ninguém recadastrar nada.<br>
+Os feriados nacionais, o estadual de MS e os dois municipais de Naviraí já vêm cadastrados.</div>
+<div class="cal-barra">
+<button class="acao" style="margin:0" onclick="calNova()">+ Nova marcação</button>
+<span class="cal-fds">
+<label class="chk"><input type="checkbox" id="cal-sab" onchange="calSalvarConfig()"> Sábado é dia de aula</label>
+<label class="chk"><input type="checkbox" id="cal-dom" onchange="calSalvarConfig()"> Domingo é dia de aula</label>
+</span>
+</div>
+</div>
+<div id="cal-fx-fontes" style="display:none">
+<div class="info" style="max-width:940px">Todo dia, no horário abaixo, o sistema consulta estas fontes e <b>acrescenta só o que falta</b>. Nada que você cadastrou ou editou é sobrescrito, e <b>o que você excluir não volta</b>.<br>
+Ponto facultativo entra como <b>“a escola abre”</b> — fechar em 24/12 ou 28/10 é decisão da direção, não da lei.</div>
+</div>
+</div>
+<div class="pg-rola">
+<div id="cal-lista"></div>
+<div id="cal-fontes-box" style="display:none"></div>
+</div>
+</div>
+
+</div>
+</div>
+
 <!-- ===== CENTRAL DE CONTROLE =====
      O backlog do sistema: uma varredura das regras da escola que estão sem cumprir. Mesma forma da
      página de Arquivados (topo fixo + uma região que rola), porque é o mesmo tipo de tela: uma lista
@@ -3382,9 +3991,15 @@ Pendência que é <b>proposital</b> (o último estágio da trilha não tem próx
 <div class="ct-barra">
 <span id="ct-chips" class="es-chips"></span>
 <span class="ct-dir">
-<button type="button" class="chip" id="ct-bt-sil" onclick="ctVerSilenciados()">ver silenciados</button>
 <button type="button" class="chip" onclick="ctRecarregar()">reverificar</button>
 </span>
+</div>
+<!-- TRÊS ABAS: o que precisa de você, o que está em dia, e o que você calou. O "ver silenciados"
+     era um botão solto na barra e virou aba, que é onde ele já procurava. -->
+<div class="pg-abas ct-abas">
+<button type="button" class="pg-aba on" data-a="alertas" onclick="ctAba('alertas')">Alertas<span class="n">0</span></button>
+<button type="button" class="pg-aba" data-a="resolvidos" onclick="ctAba('resolvidos')">Resolvidos<span class="n">0</span></button>
+<button type="button" class="pg-aba" data-a="silenciados" onclick="ctAba('silenciados')">Silenciados<span class="n">0</span></button>
 </div>
 </div>
 <div class="pg-rola"><div id="ct-lista"></div></div>
@@ -3499,6 +4114,9 @@ function dlgAbrir(o){
 var d=dlgMontar();
 DLG_FOCO=document.activeElement;
 d.tipo=o.tipo||'confirmar';d.cb=o.cb||null;
+/* a janela nasce ESTREITA sempre: quem precisa de largura (o formulário da marcação) pede depois,
+   e assim nenhuma janela herda o tamanho da anterior */
+d.cx.classList.remove('dlg-larga');
 d.fundo.classList.toggle('perigo',!!o.perigo);
 d.ic.innerHTML=icon(o.perigo?'triangle-alert':'info',17);
 d.tit.textContent=o.titulo||(o.perigo?'Confirmar':'Aviso');
@@ -3576,7 +4194,10 @@ if(n==='estoque'){esZerar();
   esCarregar(function(){esAba(ES_ABA)})}
 if(n==='arquivados')arqCarregar();
 /* a central zera junto, pela mesma regra: volta com as faixas recolhidas e sem filtro de área */
-if(n==='central'){CT_ABERTA=null;CT_AREA=null;CT_VER_MUDOS=false;ctCarregar()}
+if(n==='central'){CT_ABERTA=null;CT_AREA=null;CT_VER_MUDOS=false;CT_ABA='alertas';ctCarregar()}
+/* o calendário volta ao ano corrente e à aba do panorama */
+if(n==='calendario'){CAL_ANO=new Date().getFullYear();CAL_ABA='ano';CAL_SUB='datas';calAba('ano');
+  calCarregar();calFontesCarregar()}
 if(n==='estagios'){egZerar();egCarregar(function(){egAba(EG_ABA)})}
 /* as duas abas de lançamento compartilham o código: o modo diz de quais elementos ela é dona */
 if(n==='presenca'||n==='recepcao'){LCM=(n==='recepcao'?'recep':'sala');lcAba('checkin');lcHoje()}}
@@ -3609,6 +4230,33 @@ var topo=document.getElementById('ao-topo');if(topo)topo.innerHTML=icon('arrow-u
 var ant=document.getElementById(p+'-ant');if(ant)ant.innerHTML=icon('chevron-left',20);
 var prox=document.getElementById(p+'-prox');if(prox)prox.innerHTML=icon('chevron-right',20)});
 document.querySelectorAll('.lc-busca-ic').forEach(function(el){el.innerHTML=icon('search',15)});
+/* o alvo do botão Hoje do calendário: ele LOCALIZA o dia, não navega */
+document.querySelectorAll('.cal-hoje-bt .ic').forEach(function(el){el.innerHTML=icon('crosshair',13)});
+sbIcones();
+}
+/* ===== ÍCONES DO SIDEBAR (2026-08-18) =====
+   Um por item, à esquerda, escolhido pelo que a tela FAZ e não pelo nome dela. O mapa é por
+   `aba('x')` — o mesmo caminho que o `abaPor` usa para achar o botão —, então acrescentar uma
+   página é acrescentar uma linha aqui, sem mexer no HTML. */
+var SB_ICONES={inicio:'house',dashboard:'layout-dashboard',central:'triangle-alert',
+ calendario:'calendar-days',recepcao:'list-checks',presenca:'clipboard-check',
+ alunos:'users',turmas:'graduation-cap',horarios:'calendar-clock',professores:'presentation',
+ estoque:'package',estagios:'clipboard-list',arquivados:'archive',
+ impressao:'printer',backup:'hard-drive'};
+function sbIcones(){
+document.querySelectorAll('#sidebar button .ic').forEach(function(el){
+ var b=el.parentNode, m=String(b.getAttribute('onclick')||'').match(/aba\('([a-z]+)'/);
+ var nome=m?SB_ICONES[m[1]]:null;
+ if(nome)el.innerHTML=icon(nome,15);
+});
+/* os cabeçalhos de seção levam o ícone do assunto, não uma seta a mais — a seta já existe */
+var cab={'sb-freq':'clock','sb-ger':'settings','sb-bib':'library'};
+Object.keys(cab).forEach(function(id){
+ var g=$(id);if(!g)return;
+ var c=g.querySelector('.sb-cabeca');if(!c||c.querySelector('.ic-sec'))return;
+ var sp=document.createElement('span');sp.className='ic ic-sec';sp.innerHTML=icon(cab[id],14);
+ c.insertBefore(sp,c.querySelector('.sb-seta').nextSibling);
+});
 }
 
 /* prévia ao vivo: mesmo container renderiza a tabela .ficha em miniatura via blocos.js */
@@ -4751,7 +5399,10 @@ var ES_ALUNO_SEL=null;
    quem edita e impedia o "cancelar". Quem grava é o botão Salvar, que acende ao detectar mudança. */
 function esCampo(it,campo,rot,tipo,dica){
 var v=it[campo];v=(v==null?'':v);
-return '<label><span>'+rot+'</span><input'+(tipo==='num'?' type="number"':'')
+/* `data-campo` marca a caixa pelo NOME do atributo: é por ele que a Central acha o campo certo para
+   piscar ao chegar ("leve-me ao estoque mínimo deste material"). Sem uma âncora estável, a
+   navegação teria de contar posições de `<label>`, que mudam à primeira reordenação. */
+return '<label data-campo="'+campo+'"><span>'+rot+'</span><input'+(tipo==='num'?' type="number"':'')
  +' value="'+escBloco(String(v))+'" placeholder="'+escBloco(dica)+'"></label>'}
 /* '2026-08-06 08:00:00.001' → '2026-08-06T08:00' (o que o input datetime-local aceita) */
 function esParaInput(ts){var p=String(ts).split(' ');
@@ -5175,6 +5826,15 @@ h+='<div class="es-cad">'
      return '<option value="'+t[0]+'"'+(it.finalidade===t[0]?' selected':'')+'>'+t[1]+'</option>'}).join('')
    +'</select></label>'
  +esCampo(it,'minimo','Mínimo','num','0')
+ /* ===== MATERIAL FINAL (2026-08-17) =====
+    Decisão dele: quem diz que um estágio é o ÚLTIMO da coleção é o MATERIAL, e é aqui que se
+    decide. O W12 não tem próximo porque não existe nada depois dele — marcado aqui, ele para de
+    aparecer em "estágio sem próximo na trilha" na Central, e a tela do estágio mostra o mesmo
+    fato, travado. */
+ +'<label class="es-final" data-campo="final"><span>Último da coleção</span>'
+   +'<span class="es-final-cx"><input type="checkbox"'+(it.final?' checked':'')
+   +' onchange="esCampoItem('+it.id+',&quot;final&quot;,this.checked)">'
+   +'<small>não existe estágio depois dele — sai da checagem de trilha</small></span></label>'
  /* Salvar/cancelar no espaço que o código de barras deixou. O salvar só acende quando há mudança
     de verdade — e volta a apagar se a mudança for desfeita. */
  +'<div class="es-cad-acoes">'
@@ -5234,7 +5894,7 @@ box.querySelectorAll('.es-cad input,.es-cad select').forEach(function(el){
    A PADRÃO leva um ponto: é a edição que o material mostra como sua e que o estágio espelha. */
 function esCampoEdicoes(it,eds){
 var ativas=eds.filter(function(e){return !e.arquivada});
-var h='<label class="es-cad-ed"><span>Edições <small>nome e ano</small></span>'
+var h='<label class="es-cad-ed" data-campo="edicoes"><span>Edições <small>nome e ano</small></span>'
  +'<div class="es-edcx" onclick="esEdPainel(event,'+it.id+')">';
 if(!ativas.length)h+='<span class="es-ed-vazio">sem edição — clique para cadastrar</span>';
 ativas.forEach(function(e){
@@ -5778,7 +6438,7 @@ function esCampoItem(id,campo,valor){
 var i=esItem(id);if(!i)return;
 var p={id:id,descricao:i.descricao,codigo:i.codigo,livro:i.livro,unidade:i.unidade,tipo:i.tipo,
   finalidade:i.finalidade,minimo:i.minimo,ativo:i.ativo,ordem:i.ordem,componente:i.componente,
-  edicaoNome:i.edicaoNome,edicaoAno:i.edicaoAno};
+  edicaoNome:i.edicaoNome,edicaoAno:i.edicaoAno,final:i.final};
 p[campo]=valor;
 /* virar KIT torna o item contável; virar PEÇA não decide sozinho se ele se conta — a Wiz.pen é
    peça e se conta, então `componente` fica como estava e é editado à parte */
@@ -6404,10 +7064,16 @@ h+='<div class="eg-cx" style="margin-bottom:14px"><div class="eg-cx-cab">Dados d
     espaço é apertado — a ficha de frequência é o caso que ele citou */
  +egC('Nome longo','<input id="eg-nome" value="'+escBloco(e.nome)+'" placeholder="Little Kids 4">','larga')
  +egC('Nome curto','<input id="eg-nomecurto" value="'+escBloco(e.nomeCurto)+'" placeholder="L. Kids 4">')
+ /* FINAL é HERDADO do material e por isso vem TRAVADO: duas telas editando o mesmo fato é como
+    elas divergem. A legenda diz onde se decide, em vez de deixar o usuário procurar. */
+ +egC('Último da coleção','<span class="eg-herdado"><input type="checkbox" disabled'
+   +(e.finalDoItem?' checked':'')+'><span>'+(e.finalDoItem?'Sim':'Não')
+   +'<small>definido no material, na aba Estoque · Materiais</small></span></span>')
  +egC('Idioma','<input id="eg-idioma" value="'+escBloco(e.idioma)+'">')
  +egC('Categoria','<select id="eg-cat">'+EG_CATS.map(function(c){
      return '<option'+(c===e.categoria?' selected':'')+'>'+c+'</option>'}).join('')+'</select>')
- +egC('Grupo','<input id="eg-grupo" value="'+escBloco(e.grupo)+'">')
+ /* o campo Grupo saiu em 2026-08-17: era um segundo eixo de agrupamento que ninguém lia, e a
+    categoria já responde por ele. Ordem dele — *"categoria já é o suficiente"*. */
  /* ESCOLHER O MODELO PERGUNTA SE APLICA. Antes o select só trocava o `modelo_id` e a estrutura vinha
     da fórmula; quem quisesse a lista pronta tinha de ir na aba Estrutura e clicar em "partir da
     estrutura gerada". Agora o gesto é um só: escolheu o modelo, ele oferece carimbar a estrutura no
@@ -6619,7 +7285,7 @@ function egSalvar(){
 var v=function(id){var el=$(id);return el?el.value.trim():''};
 run('salvarEstagio',[{id:EG_SEL.id,sigla:v('eg-sigla'),nome:v('eg-nome'),nomeCurto:v('eg-nomecurto'),
  idioma:v('eg-idioma'),
- categoria:v('eg-cat'),grupo:v('eg-grupo'),modeloId:v('eg-modelo'),licaoInicial:v('eg-licini'),
+ categoria:v('eg-cat'),modeloId:v('eg-modelo'),licaoInicial:v('eg-licini'),
  entrada:$('eg-entrada').checked,ordem:v('eg-ordem'),idadeMin:v('eg-idmin'),idadeMax:v('eg-idmax'),
  escalaAtiva:$('eg-escala').checked,cefrMin:v('eg-cefrmin'),cefrMax:v('eg-cefrmax'),
  gseMin:v('eg-gsemin'),gseMax:v('eg-gsemax'),
@@ -6743,46 +7409,90 @@ run('salvarModelo',[{nome:nome,licoesPorCapitulo:6,capitulos:10}],function(r){
 var EG_TIPOS=[['input','ímpar · input'],['output','par · output'],['review','revisão'],
   ['especial','especial'],['remind','remind / recall']];
 var EG_GERADAS={};
+/* ===== TRAVA DE EDIÇÃO (2026-08-17) =====
+   Ele editou por acidente e bagunçou a estrutura: *"eu não quero isso não... coloca um botão toggle
+   de editável e não editável"*. A tabela nasce TRAVADA e o cadeado fica no cabeçalho vazio, em cima
+   dos botões de subir/descer/excluir — que é onde ele pediu, e é a coluna cujas ações são as mais
+   destrutivas.
+   A trava vale para tudo o que MUDA a lista: sigla, descrição, bloco, tipo e as três ações. O nº não
+   entra porque deixou de ser editável de vez (é a posição, e ela se recalcula sozinha).
+   Chave por alvo: destravar a tabela de um modelo não destrava a do estágio. */
+var EG_LIC_EDIT={};
+function egLicChave(alvo,alvoId){return alvo+'|'+alvoId}
+function egLicTravar(alvo,alvoId){
+var k=egLicChave(alvo,alvoId);
+EG_LIC_EDIT[k]=!EG_LIC_EDIT[k];
+egLicRecarregar(alvo,alvoId);
+if(EG_LIC_EDIT[k])msg('Edição liberada — a tabela aceita alterações.');
+}
 function egTabelaLicoes(alvo,alvoId,lista,geradas){
 EG_GERADAS[alvo+'|'+alvoId]=geradas||[];
+var editavel=!!EG_LIC_EDIT[egLicChave(alvo,alvoId)];
+/* `readonly` e não `disabled` nos campos: readonly deixa LER, selecionar e copiar o valor, que é o
+   que se faz com a tabela travada. `disabled` esmaeceria o texto e a tornaria difícil de consultar.
+   No `select` não existe readonly, então ali é `disabled` mesmo. */
+var tv=editavel?'':' readonly tabindex="-1"';
+var td=editavel?'':' disabled';
 /* UMA coluna de número, não duas. `#` (posição) e `Número` (rótulo pedagógico) coincidiam nas dez
    primeiras linhas e por isso pareciam redundantes; divergiam na primeira Review, que ocupa posição
    e não tem número. A posição ficou como o Nº — que é o índice de verdade — e a identidade
    pedagógica passou para a SIGLA ("L10", "R1", "L11"), que é texto e diz mais.
    O Nº é EDITÁVEL SÓ NO ESTÁGIO: no modelo ele é a sequência do template e não há o que customizar.
    Digitar um número move a lição para aquela posição e empurra as vizinhas. */
-var noEstagio=(alvo!=='modelo');
 var h='<div class="eg-lic-moldura"><table class="eg-lic-tab">'
- +'<thead><tr><th class="c-idx" title="posição da lição na fila — é o índice que conta hora-aula">N<sup>o</sup></th>'
+ +'<thead><tr><th class="c-idx" title="posição da lição na fila — recalculada sozinha a cada mudança de ordem">N<sup>o</sup></th>'
  +'<th class="c-sigla" title="nome curto da lição, como aparece nas telas apertadas">Sigla</th>'
  +'<th class="c-desc">Descrição</th>'
- +'<th class="c-bloco">Bloco</th><th class="c-tipo">Tipo</th><th class="c-acoes"></th></tr></thead><tbody>';
-if(!lista.length)
- h+='<tr><td colspan="6" style="padding:14px;color:var(--tx3)">Nenhuma lição digitada — '
-  +'a estrutura vem da fórmula. Use os botões abaixo para começar.</td></tr>';
+ +'<th class="c-bloco">Bloco</th><th class="c-tipo">Tipo</th>'
+ +'<th class="c-acoes"><button type="button" class="eg-trava'+(editavel?' on':'')+'"'
+  +' title="'+(editavel?'A tabela está aceitando alterações — clique para travar de novo'
+    :'A tabela está travada contra edição acidental — clique para liberar')+'"'
+  +' onclick="egLicTravar(\''+alvo+'\','+alvoId+')">'
+  +icon(editavel?'lock-open':'lock',13)+'<span>'+(editavel?'editando':'travada')+'</span></button>'
+ +'</th></tr></thead><tbody>';
+/* SEM LISTA DIGITADA, a tabela mostra o que a FÓRMULA gera, em vez de ficar vazia. Ele apontou:
+   *"todo o conteúdo estrutura de livro é uma lista já por padrão, ela tem que ser gerada
+   automaticamente dependendo do início e do fim, porque elas estão vazias"*. As linhas geradas não
+   têm id no banco — são cálculo — então entram só de leitura, com a aparência esmaecida, e o botão
+   do rodapé continua sendo o caminho para virá-las lista editável. */
+var previa=(!lista.length&&geradas&&geradas.length)?geradas:null;
+if(previa){
+ previa.forEach(function(g){
+  var ehNum=/^\d+$/.test(g.rotulo);
+  h+='<tr class="t-'+g.tipo+' gerada">'
+   +'<td class="c-idx"><span class="eg-idx">'+g.idx+'</span></td>'
+   +'<td class="c-sigla"><span class="eg-ro">—</span></td>'
+   +'<td class="c-desc"><span class="eg-ro">'+escBloco(ehNum?('Lesson '+g.rotulo):g.rotulo)+'</span></td>'
+   +'<td class="c-bloco">'+(g.cap?'<span class="eg-idx">'+g.cap+'</span>':'<span class="eg-ro">—</span>')+'</td>'
+   +'<td class="c-tipo"><span class="eg-ro">'+escBloco((EG_TIPOS.filter(function(t){return t[0]===g.tipo})[0]||['','?'])[1])+'</span></td>'
+   +'<td class="c-acoes"></td></tr>'});
+}
+else if(!lista.length)
+ h+='<tr><td colspan="6" style="padding:14px;color:var(--tx3)">Nenhuma lição digitada e nenhuma '
+  +'fórmula para gerar — escolha um modelo, ou use “+ lição” abaixo.</td></tr>';
 lista.forEach(function(l,i){
  var q="'"+alvo+"',"+l.id;
  h+='<tr class="t-'+l.tipo+(EG_LIC_PISCA===l.id?' movida':'')+'" data-l="'+l.id+'">'
-  +'<td class="c-idx">'
-   +(noEstagio
-     ?'<input class="idx-in" type="number" min="1" value="'+(i+1)+'"'
-       +' title="a posição na fila — digite outra para mover a lição para lá"'
-       +' onchange="egLicPosicao('+q+',this.value)" onfocus="this.select()">'
-     :'<span>'+(i+1)+'</span>')
-  +'</td>'
-  +'<td class="c-sigla"><input value="'+escBloco(l.sigla||'')+'" placeholder="L'+(i+1)+'"'
+  /* O Nº DEIXOU DE SER EDITÁVEL (ordem dele). Ele é a POSIÇÃO na fila e se recalcula sozinho a
+     cada subida, descida ou exclusão — digitar nele era um segundo jeito de reordenar, e foi por
+     ali que veio a bagunça acidental. Quem reordena são as setas. */
+  +'<td class="c-idx"><span class="eg-idx" title="posição na fila — automática">'+(i+1)+'</span></td>'
+  +'<td class="c-sigla"><input value="'+escBloco(l.sigla||'')+'" placeholder="L'+(i+1)+'"'+tv
    +' onchange="egLicSalvar('+q+',\'sigla\',this.value)"></td>'
-  +'<td class="c-desc"><input value="'+escBloco(l.descricao)+'"'
+  +'<td class="c-desc"><input value="'+escBloco(l.descricao)+'"'+tv
    +' onchange="egLicSalvar('+q+',\'descricao\',this.value)"></td>'
-  +'<td class="c-bloco"><input value="'+(l.bloco==null?'':l.bloco)+'" type="number" min="1"'
-   +' placeholder="—" onchange="egLicSalvar('+q+',\'bloco\',this.value)"></td>'
-  +'<td class="c-tipo"><select onchange="egLicSalvar('+q+',\'tipo\',this.value)">'
+  /* BLOCO: digitado direto, sem as setinhas do `type="number"` — foi nelas que ele esbarrou.
+     `inputmode="numeric"` mantém o teclado numérico no celular sem trazer o spinner. */
+  +'<td class="c-bloco"><input class="bl-in" value="'+(l.bloco==null?'':l.bloco)+'"'
+   +' inputmode="numeric" maxlength="2" placeholder="—"'+tv
+   +' onchange="egLicSalvar('+q+',\'bloco\',this.value)"></td>'
+  +'<td class="c-tipo"><select'+td+' onchange="egLicSalvar('+q+',\'tipo\',this.value)">'
    +EG_TIPOS.map(function(t){return '<option value="'+t[0]+'"'+(t[0]===l.tipo?' selected':'')+'>'+t[1]+'</option>'}).join('')
    +'</select></td>'
   +'<td class="c-acoes">'
-   +'<button class="mv seta" title="subir uma posição" onclick="egLicMover('+q+',\'cima\')">▲</button>'
-   +'<button class="mv seta" title="descer uma posição" onclick="egLicMover('+q+',\'baixo\')">▼</button>'
-   +'<button class="mv x" title="remover" onclick="egLicExcluir('+q+')">✕</button>'
+   +'<button class="mv seta"'+td+' title="subir uma posição" onclick="egLicMover('+q+',\'cima\')">▲</button>'
+   +'<button class="mv seta"'+td+' title="descer uma posição" onclick="egLicMover('+q+',\'baixo\')">▼</button>'
+   +'<button class="mv x"'+td+' title="remover" onclick="egLicExcluir('+q+')">✕</button>'
   +'</td></tr>'});
 h+='</tbody></table></div>';
 var qa="'"+alvo+"',"+alvoId;
@@ -6792,10 +7502,12 @@ var qa="'"+alvo+"',"+alvoId;
 h+='<div class="eg-lic-rod">'
  +'<button class="es-bt" onclick="egLicNova('+qa+')">+ lição</button>'
  +(alvo==='modelo'&&geradas&&geradas.length&&!lista.length
-   ?'<button class="es-bt" onclick="egLicMaterializar('+qa+')">partir da fórmula ('+geradas.length+' lições)</button>':'')
+   ?'<button class="es-bt" onclick="egLicMaterializar('+qa+')">tornar editável ('+geradas.length+' lições)</button>':'')
  +(lista.length?'<button class="es-bt desfaz" onclick="egLicLimpar('+qa+')">apagar a lista e voltar ao gerado</button>':'')
- +'<span class="eg-lic-cont">'+(lista.length?lista.length+' lição(ões) digitada(s)':'nada digitado')+'</span>'
- +'</div>';
+ +'<span class="eg-lic-cont">'
+   +(lista.length?lista.length+' lição(ões) digitada(s)'
+     :(previa?previa.length+' lição(ões) geradas pela fórmula — só leitura':'nada digitado'))
+ +'</span></div>';
 return h}
 /* `EG_GERADAS` guarda a estrutura que o botão "partir de" vai copiar: o servidor não recalcula
    nada, copia o que esta tela já está mostrando — o gerador continua existindo num lugar só */
@@ -6831,12 +7543,10 @@ run('moverLicaoEstrutura',[{alvo:alvo,id:id,direcao:dir}],function(r){
  egLicRecarregar(alvo,egLicDono(alvo))})}
 /* digitar outro Nº MOVE a lição para aquela posição — o índice é a fila, então mudá-lo é mudar de
    lugar. É o caminho para levar uma lição para longe sem clicar cinquenta vezes na seta. */
-function egLicPosicao(alvo,id,valor){
-var n=parseInt(valor,10);
-if(!(n>0)){egLicRecarregar(alvo,egLicDono(alvo));return}
-run('salvarLicaoEstrutura',[{alvo:alvo,id:id,ordem:n}],function(){
- egPiscar(id);
- egLicRecarregar(alvo,egLicDono(alvo))})}
+/* `egLicPosicao` (digitar o Nº para mover a lição) SAIU em 2026-08-17: o número virou automático e
+   quem reordena são as setas. Era o segundo caminho para reordenar, e foi por ele que veio a
+   edição acidental que ele relatou. A rota `salvarLicaoEstrutura` continua aceitando `ordem` —
+   é o que as setas usam. */
 function egLicMaterializar(alvo,alvoId){
 var geradas=EG_GERADAS[alvo+'|'+alvoId]||[];
 if(!geradas.length){msg('Não há estrutura gerada para copiar.',true);return}
@@ -6903,6 +7613,7 @@ return h}
 var PAGINAS=[
 /* mesmos nomes do sidebar: a mesma tela não pode ter dois nomes no mesmo app */
 {aba:'central',ic:'triangle-alert',titulo:'Central de controle',desc:'O que está incompleto ou pendente no sistema'},
+{aba:'calendario',ic:'calendar-clock',titulo:'Calendário letivo',desc:'Feriados, férias e o que fecha a escola'},
 {aba:'recepcao',ic:'list-checks',titulo:'Freq. Recepção',desc:'Recepção marca quem veio, quem faltou e feriado'},
 {aba:'presenca',ic:'clipboard-check',titulo:'Freq. Sala',desc:'Entrada e saída da sala, lançadas pelo professor'},
 {aba:'dashboard',ic:'layout-dashboard',titulo:'Dashboard',desc:'Gráficos e tabela de todas as matrículas'},
@@ -8132,12 +8843,947 @@ else gravar()}
 /* ===== ARQUIVADOS: a base do que saiu de circulação =====
    Uma tabela só para os cinco tipos. A 1ª coluna são as AÇÕES, como ele pediu — desarquivar volta
    o registro ao lugar de origem, excluir é definitivo e mora só aqui. */
+/* ===== CALENDÁRIO LETIVO (2026-08-17) =====
+   Quem calcula as datas é o SERVIDOR (`getCalendario`): as três formas de repetição e a Páscoa
+   moram lá, num lugar só. Aqui é desenho e edição. */
+var CAL=null, CAL_FONTES=null, CAL_ANO=new Date().getFullYear(), CAL_ABA='ano';
+var CAL_MESES=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro',
+  'Outubro','Novembro','Dezembro'];
+/* segunda → domingo, como no protótipo dele */
+var CAL_DOW=['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
+var CAL_TIPOS=[['feriado','Feriado'],['facultativo','Ponto facultativo'],['ferias','Férias'],
+  ['recesso','Recesso'],['ponte','Ponte / emenda'],['evento','Evento']];
+var CAL_AMBITOS=[['nacional','Nacional'],['estadual','Estadual (MS)'],['municipal','Municipal (Naviraí)'],
+  ['escola','Da escola']];
+/* `CAL_REPS` saiu com o select "Quando se repete": a repetição deixou de ser um campo da
+   marcação e virou o MODO de cada trecho. */
+function calRot(lista,v){var x=lista.filter(function(t){return t[0]===v})[0];return x?x[1]:v}
+function calAba(p){
+CAL_ABA=p;
+document.querySelectorAll('#tab-calendario .pg-topo .pg-aba').forEach(function(b){
+  b.classList.toggle('on',b.dataset.p===p)});
+['ano','config'].forEach(function(x){$('cal-p-'+x).style.display=(x===p?'':'none')});
+calRender();
+}
+function calCarregar(cb){run('getCalendario',[{ano:CAL_ANO}],function(r){CAL=r;calRender();if(cb)cb()})}
+function calAno(d){CAL_ANO+=d;calCarregar()}
+/* ===== "HOJE" LOCALIZA, não navega (2026-08-17) =====
+   Ele descreveu o gesto inteiro: rolar até o mês, acender a coluna do dia da semana e a fileira da
+   semana em amarelo, o cruzamento em laranja, e sumir sozinho depois de ~2s.
+   Se o ano já é o corrente não recarrega — só mira, e o clique responde na hora. */
+function calHoje(){
+var y=new Date().getFullYear();
+if(CAL_ANO!==y||!CAL){CAL_ANO=y;calCarregar(function(){calAba('ano');calMira()})}
+else{calAba('ano');calMira()}
+}
+var CAL_MIRA_T=null;
+function calMiraLimpar(){
+document.querySelectorAll('.mira-col,.mira-lin,.mira-cruz,.mira-mes,.mira-saindo')
+ .forEach(function(el){el.classList.remove('mira-col','mira-lin','mira-cruz','mira-mes','mira-saindo')});
+}
+function calMira(){
+if(CAL_MIRA_T){clearTimeout(CAL_MIRA_T.a);clearTimeout(CAL_MIRA_T.b);CAL_MIRA_T=null}
+calMiraLimpar();
+var hoje=isoLocal(new Date());
+var alvo=null;
+document.querySelectorAll('#cal-grade .cal-mes').forEach(function(cx){
+ if(alvo)return;
+ var td=cx.querySelector('td[data-iso="'+hoje+'"]:not(.fora)');
+ if(td)alvo={cx:cx,td:td}});
+if(!alvo){msg('O dia de hoje não está neste ano.',true);return}
+var td=alvo.td, tr=td.parentElement, tab=alvo.cx.querySelector('.cal-tab');
+var col=[].indexOf.call(tr.children,td);
+/* a coluna inteira do dia da semana (todas as fileiras) e a fileira inteira da semana */
+[].forEach.call(tab.querySelectorAll('tbody tr'),function(linha){
+ var c=linha.children[col];if(c)c.classList.add('mira-col')});
+[].forEach.call(tr.children,function(c){c.classList.add('mira-lin')});
+td.classList.add('mira-cruz');
+alvo.cx.classList.add('mira-mes');
+/* rola até o mês — sem isso a mira acende fora da vista quando dezembro está lá embaixo */
+if(alvo.cx.scrollIntoView)alvo.cx.scrollIntoView({block:'center',behavior:'smooth'});
+/* apaga sozinho: 2,2s aceso, depois meio segundo de desvanecimento */
+CAL_MIRA_T={a:setTimeout(function(){
+  document.querySelectorAll('.mira-col,.mira-lin,.mira-cruz,.mira-mes')
+   .forEach(function(el){el.classList.add('mira-saindo')});
+ },2200), b:setTimeout(calMiraLimpar,2800)};
+}
+function calSalvarConfig(){
+run('salvarConfigCalendario',[{sabadoUtil:$('cal-sab').checked,domingoUtil:$('cal-dom').checked}],
+function(){calCarregar(function(){msg('Configuração salva.')})})}
+function calRender(){
+if(!CAL)return;
+$('cal-ano-txt').textContent=CAL.ano;
+$('cal-n').textContent=CAL.marcacoes.length;
+$('cal-sab').checked=CAL.sabadoUtil;$('cal-dom').checked=CAL.domingoUtil;
+$('cal-dir').innerHTML='<span class="ct-kpi"><span class="k-baixa" title="dias em que a escola abre, '
+ +'descontando fins de semana não úteis e tudo o que fecha">'+CAL.letivos+' dias letivos em '+CAL.ano+'</span></span>';
+if(CAL_ABA==='ano')calGrade();else calLista();
+}
+/* ---- o panorama do ano ---- */
+function calGrade(){
+var hoje=isoLocal(new Date());
+/* legenda pelos tipos que REALMENTE aparecem neste ano — legenda com item que não está na tela
+   é ruído */
+var usados={};CAL.marcacoes.forEach(function(m){if(m.datas.length)usados[m.tipo]=m.cor||'#8A93A0'});
+$('cal-legenda').innerHTML=CAL_TIPOS.filter(function(t){return usados[t[0]]})
+ .map(function(t){return '<span><i style="background:'+usados[t[0]]+'"></i>'+t[1]+'</span>'}).join('')
+ +'<span><i style="box-shadow:inset 0 0 0 2px var(--azul);background:#fff"></i>hoje</span>';
+var h='';
+CAL.meses.forEach(function(m){
+ var letivos=m.dias.filter(function(d){return d.letivo}).length;
+ /* ===== PONTO vs FAIXA (2026-08-17) =====
+    Ordem dele: *"quando é data específica, um quadradinho de pontas arredondadas; quando é
+    intervalo, uma cobrinha que vai esticando, como marca-texto"*.
+    Para saber se um dia é ponto ou meio de faixa, é preciso olhar os VIZINHOS — daí este mapa de
+    quais células cada marcação cobre. Só dias DO MÊS entram: a mesma data em dois cartões leria
+    como duas ocorrências. */
+ var cobre={};
+ m.dias.forEach(function(d,i){ if(d.doMes) d.marcas.forEach(function(x){
+   (cobre[x.id]=cobre[x.id]||{})[i]=1 }) });
+ h+='<div class="cal-mes"><h4>'+CAL_MESES[m.mes-1]+'<small>'+letivos+' letivos</small></h4>'
+  +'<table class="cal-tab"><thead><tr>'
+  +CAL_DOW.map(function(d,i){return '<th'+(i>=5?' class="fds"':'')+'>'+d+'</th>'}).join('')
+  +'</tr></thead><tbody>';
+ for(var s=0;s<6;s++){
+  h+='<tr>';
+  for(var c=0;c<7;c++){
+   var i=s*7+c, d=m.dias[i];
+   var cls=[];
+   if(!d.doMes)cls.push('fora');
+   if(d.dow>=5)cls.push('fds');
+   if(d.iso===hoje)cls.push('hoje');
+   /* `dona` é declarada AQUI e zerada a cada célula: com `var` dentro do `if` ela é da função
+      inteira, e uma célula sem marcação herdaria a dona da célula anterior — o duplo clique
+      abriria a marcação errada num dia em branco. */
+   var marca='',titulo='',estilo='',dona=null;
+   if(d.doMes&&d.marcas.length){
+    /* o `title` do navegador saiu: ele pediu um popover, que cabe mais texto e não espera um
+       segundo para aparecer. O conteúdo viaja no `data-` e a bolha é montada no hover. */
+    /* `.replace(/"/g,'&quot;')` NÃO É OPCIONAL: `escBloco` escapa `&`, `<` e `>`, mas **não aspas**
+       — e JSON é feito de aspas. Sem isto o atributo termina no primeiro `"` do JSON, o
+       `JSON.parse` falha e o popover não abre (falhando em silêncio, que foi como apareceu). */
+    titulo=' data-pop="'+escBloco(JSON.stringify(d.marcas.map(function(x){
+      return {n:x.nome,c:x.cor||'#8A93A0',t:x.tipo,f:x.fecha}}))).replace(/"/g,'&quot;')+'"';
+    /* quem PINTA a célula: se houver uma marcação em faixa (com vizinho do mesmo lado da fileira),
+       é ela — assim o intervalo não se parte quando um feriado pontual cai dentro dele. As demais
+       viram um pinguinho por cima. */
+    var donaAntes=false,donaDepois=false;
+    d.marcas.forEach(function(x){
+     var cv=cobre[x.id]||{};
+     var antes=(c>0)&&!!cv[i-1], depois=(c<6)&&!!cv[i+1];
+     var ehFaixa=antes||depois;
+     if(!dona||(ehFaixa&&!(donaAntes||donaDepois))){dona=x;donaAntes=antes;donaDepois=depois}
+    });
+    var cor=dona.cor||'#8A93A0';
+    estilo='background:'+cor+';color:'+esTextoSobre(cor);
+    if(donaAntes||donaDepois){
+     /* FAIXA: encosta nas bordas da célula para emendar na vizinha. As pontas arredondadas só nos
+        extremos do trecho — e a quebra de semana conta como extremo, senão a faixa "vazaria" para
+        fora da fileira. */
+     marca='<span class="cal-faixa'+(donaAntes?'':' ini')+(donaDepois?'':' fim')+'" style="'+estilo+'"></span>';
+    }else{
+     marca='<span class="cal-ponto" style="'+estilo+'"></span>';
+    }
+    cls.push('marcado');
+    if(esTextoSobre(cor)==='#fff')cls.push('claro');
+    /* as OUTRAS marcações do dia, quando houver: um pinguinho no canto, para o dia não mentir que
+       só tem uma coisa acontecendo */
+    var extras=d.marcas.filter(function(x){return x.id!==dona.id});
+    if(extras.length)marca+='<span class="cal-mais" style="background:'
+      +(extras[0].cor||'#8A93A0')+'"></span>';
+   }
+   /* `data-marc` = a marcação DONA da célula (a da faixa, quando há uma). É ela que o duplo clique
+      abre na tabela — é a que está pintada e, portanto, a que ele acha que clicou. */
+   h+='<td class="'+cls.join(' ')+'" data-iso="'+d.iso+'"'
+     +(dona?' data-marc="'+dona.id+'"':'')+titulo+'>'
+     +marca+'<span class="cal-d">'+d.n+'</span></td>';
+  }
+  h+='</tr>';
+ }
+ h+='</tbody></table></div>';
+});
+$('cal-grade').innerHTML=h;
+calPopLigar();
+}
+/* ===== POPOVER DO DIA (2026-08-17) =====
+   No lugar do `title` do navegador: aparece na hora (o nativo espera ~1s), cabe o tipo e o "tem
+   aula" de cada marcação, e segue o desenho da casa. Um elemento só, reposicionado — criar e
+   destruir a cada célula encheria o DOM numa grade de 504 dias.
+   Delegação no contêiner: a grade é redesenhada a cada ano, e ouvinte por célula vazaria. */
+var CAL_POP=null;
+function calPopLigar(){
+var g=$('cal-grade');if(!g||g.dataset.pop)return;
+g.dataset.pop='1';
+/* O GATILHO É A COR, NÃO A CÉLULA (corrigido 2026-08-17, apontado por ele).
+   Estava em `td[data-pop]`, então o popover abria em qualquer canto da célula. Medido: o quadrado
+   ocupa 22×22 numa célula de 69×26 — **27% da área**, ou seja, 73% do gatilho era em lugar nenhum.
+   Agora o alvo é a marca (`.cal-ponto` / `.cal-faixa`); o número e o sublinhado ficam transparentes
+   ao mouse (CSS), para o ponteiro sobre o número acertar a marca que está por baixo. */
+var alvoMarca=function(el){return el&&el.closest?el.closest('.cal-ponto,.cal-faixa'):null};
+g.addEventListener('mouseover',function(ev){
+ var mk=alvoMarca(ev.target);
+ if(!mk){calPopFechar();return}
+ var td=mk.closest('td[data-pop]');
+ if(!td){calPopFechar();return}
+ calPopAbrir(td)});
+g.addEventListener('mouseout',function(ev){
+ var mk=alvoMarca(ev.target);
+ if(mk&&(!ev.relatedTarget||!mk.contains(ev.relatedTarget)))calPopFechar()});
+/* DUPLO CLIQUE na cor leva à linha da marcação na tabela de configuração */
+g.addEventListener('dblclick',function(ev){
+ var mk=alvoMarca(ev.target);if(!mk)return;
+ var td=mk.closest('td[data-marc]');if(!td)return;
+ calIrParaTabela(Number(td.dataset.marc))});
+/* rolar com a bolha aberta a deixaria pendurada no lugar errado */
+var rola=g.closest('.pg-rola');if(rola)rola.addEventListener('scroll',calPopFechar,{passive:true});
+}
+function calPopFechar(){if(CAL_POP){CAL_POP.remove();CAL_POP=null}}
+/* ===== NAVEGAÇÃO NOS DOIS SENTIDOS (2026-08-17) =====
+   Pedido dele: da tabela para o calendário e do calendário para a tabela, sempre com duplo clique e
+   com o destino se anunciando por um instante — *"pra eu saber onde eu tô mexendo"*.
+   Duplo e não simples nos dois lados: a linha da tabela tem botões e campos, e a célula do
+   calendário tem o popover no hover; um clique simples que navegasse atrapalharia os dois. */
+var CAL_ALVO_T=null;
+function calPiscarAlvo(el,classe){
+if(CAL_ALVO_T){clearTimeout(CAL_ALVO_T);CAL_ALVO_T=null}
+document.querySelectorAll('.cal-alvo,.dia-alvo').forEach(function(x){
+  x.classList.remove('cal-alvo','dia-alvo')});
+if(!el)return;
+el.classList.add(classe);
+if(el.scrollIntoView)el.scrollIntoView({block:'center',behavior:'smooth'});
+CAL_ALVO_T=setTimeout(function(){el.classList.remove(classe)},1600);
+}
+/* TABELA → CALENDÁRIO, na primeira data da marcação no ano aberto (num intervalo, o dia em que
+   ele começa — foi o que ele pediu) */
+function calIrParaCalendario(id){
+var m=(CAL.marcacoes.filter(function(x){return x.id===id})[0]);
+if(!m)return;
+if(!m.datas||!m.datas.length){
+  msg('"'+m.nome+'" não cai em nenhum dia de '+CAL_ANO+'.',true);return}
+/* ONDE O TRECHO COMEÇA, e não simplesmente a primeira data do ano.
+   Nas férias que viram o ano os dois não coincidem: em 2026 a primeira data é 01/01 — a CAUDA das
+   férias que começaram em dezembro de 2025 —, e cair ali seria mostrar o fim de uma coisa em vez do
+   começo dela. Começo = dia cujo anterior NÃO pertence à marcação. Se nenhum começa neste ano
+   (marcação inteiramente herdada), aí sim vale a primeira data. */
+var conj={};m.datas.forEach(function(d){conj[d]=1});
+var comecos=m.datas.filter(function(d){
+  var v=new Date(d+'T12:00:00Z');v.setUTCDate(v.getUTCDate()-1);
+  return !conj[v.toISOString().slice(0,10)]});
+/* A VIRADA DO ANO precisa ser dita à mão: `m.datas` só tem os dias DESTE ano, então 01/01 parece um
+   começo — o dia anterior (31/12 do ano passado) simplesmente não está na lista. A assinatura de
+   uma marcação que atravessa é ter 01/01 E 31/12 no mesmo ano; nesse caso o 1º de janeiro é cauda,
+   e o começo de verdade é o da outra ponta. */
+if(comecos.length>1&&conj[CAL_ANO+'-01-01']&&conj[CAL_ANO+'-12-31']&&comecos[0]===CAL_ANO+'-01-01')
+  comecos.shift();
+var iso=comecos[0]||m.datas[0];
+calAba('ano');
+/* o desenho da grade é síncrono, mas a aba só fica visível depois — um quadro de espera basta */
+setTimeout(function(){
+ var td=document.querySelector('#cal-grade td[data-iso="'+iso+'"]:not(.fora)');
+ if(!td){msg('Não achei '+esDataBR(iso)+' na grade.',true);return}
+ calPiscarAlvo(td,'dia-alvo');
+ msg(m.nome+' — '+esDataBR(iso)+(m.datas.length>1?' (primeiro de '+m.datas.length+' dias)':''));
+},60);
+}
+/* CALENDÁRIO → TABELA: abre a configuração na linha daquela marcação, que pulsa e para */
+function calIrParaTabela(id){
+var m=(CAL.marcacoes.filter(function(x){return x.id===id})[0]);
+if(!m)return;
+calPopFechar();
+calAba('config');
+if(typeof calSub==='function')calSub('datas');
+setTimeout(function(){
+ var tr=document.querySelector('#cal-lista tr[data-id="'+id+'"]');
+ if(!tr){msg('Não achei a linha de "'+m.nome+'".',true);return}
+ calPiscarAlvo(tr,'cal-alvo');
+},60);
+}
+function calPopAbrir(td){
+calPopFechar();
+var lista;try{lista=JSON.parse(td.dataset.pop)}catch(e){return}
+if(!lista||!lista.length)return;
+var p=document.createElement('div');p.className='cal-pop';
+var iso=td.dataset.iso||'';
+p.innerHTML='<div class="cal-pop-cab">'+escBloco(esDataBR(iso))+'</div>'
+ +lista.map(function(x){
+   return '<div class="cal-pop-l"><span class="cal-pop-c" style="background:'+x.c+'"></span>'
+    +'<b>'+escBloco(x.n)+'</b>'
+    +'<span class="cal-pop-t">'+escBloco(calRot(CAL_TIPOS,x.t))+'</span>'
+    +'<span class="cal-pop-a '+(x.f?'nao':'sim')+'">'+(x.f?'sem aula':'tem aula')+'</span></div>'}).join('');
+document.body.appendChild(p);
+var r=td.getBoundingClientRect(), pr=p.getBoundingClientRect();
+/* acima da célula por padrão; se não couber, abaixo. E encostado na janela pelas laterais. */
+var top=r.top-pr.height-8; if(top<8)top=r.bottom+8;
+var left=r.left+r.width/2-pr.width/2;
+left=Math.max(8,Math.min(left,window.innerWidth-pr.width-8));
+p.style.top=Math.round(top)+'px';p.style.left=Math.round(left)+'px';
+p.classList.add('on');
+CAL_POP=p;
+}
+/* ---- a lista de marcações ---- */
+function calQuando(m){
+if(m.repeticao==='anual')return ('0'+m.dia).slice(-2)+'/'+('0'+m.mes).slice(-2)+' · todo ano';
+if(m.repeticao==='pascoa'){var n=m.offsetPascoa;
+ return (m.primeira?esDataBR(m.primeira):'—')+' · '
+  +(n===0?'Páscoa':(n<0?(-n)+' dias antes da Páscoa':n+' dias depois da Páscoa'))}
+return m.primeira?(esDataBR(m.primeira)+(m.duracao>1?' + '+(m.duracao-1)+' dia(s)':'')):'—';
+}
+/* TABELA, não cartões — pedido dele: *"eu prefiro tabela, com colunas com os atributos de cada
+   evento, e os botões de ação lá no final, na direita de cada coisa registrada"*, que é como o
+   protótipo dele já era. Ordenada pela data em que cai NESTE ano: é a leitura natural de um
+   calendário, e junta sozinha o que acontece na mesma época. */
+/* ORDENAÇÃO por Descrição e por Quando (pedido dele). Padrão: **Quando, decrescente** — *"o mais
+   atual primeiro, o que já passou lá embaixo"*. Marcação sem data no ano aberto vai sempre para o
+   fim, nas duas direções: ela não tem lugar na linha do tempo, e intercalá-la confundiria a leitura. */
+var CAL_ORD='quando', CAL_ORD_DESC=true;
+function calOrdenar(col){
+if(CAL_ORD===col)CAL_ORD_DESC=!CAL_ORD_DESC;
+else{CAL_ORD=col;CAL_ORD_DESC=(col==='quando')}
+calLista()}
+function calSeta(col){
+if(CAL_ORD!==col)return '<span class="ord"></span>';
+return '<span class="ord on">'+(CAL_ORD_DESC?'▾':'▴')+'</span>'}
+/* ===== A PRÓXIMA MARCAÇÃO (2026-08-17) =====
+   Pedido dele: *"eu não sei qual é o próximo dia que tem férias, feriado"*. A tabela passa a
+   apontar UMA linha — a de data mais próxima a partir de hoje.
+   **Uma só, nunca três**: quando duas marcações caem no mesmo dia (as duas do Carnaval são o caso),
+   o desempate é pelo `id`, que é estável — sem isso a linha apontada mudaria a cada reordenação.
+   Ano PASSADO não tem "próxima" (já passou tudo); ano futuro tem, e é a primeira dele — nos dois
+   casos a conta é a mesma, "a primeira data ≥ hoje", e é ela que responde certo sozinha. */
+function calProxima(){
+if(!CAL||!CAL.marcacoes||!CAL.marcacoes.length)return null;
+var hoje=isoLocal(new Date()),melhor=null;
+CAL.marcacoes.forEach(function(m){
+ var d=(m.datas||[]).filter(function(x){return x>=hoje})[0];
+ if(!d)return;
+ if(!melhor||d<melhor.data||(d===melhor.data&&m.id<melhor.id))melhor={data:d,id:m.id};
+});
+return melhor}
+function calLista(){
+var prox=calProxima();
+var ms=CAL.marcacoes.slice().sort(function(a,b){
+ var r;
+ if(CAL_ORD==='descricao')r=String(a.nome||'').localeCompare(String(b.nome||''),'pt');
+ else{
+  var pa=a.primeira||'', pb=b.primeira||'';
+  if(!pa&&!pb)r=0; else if(!pa)return 1; else if(!pb)return -1;
+  else r=pa.localeCompare(pb);
+ }
+ return CAL_ORD_DESC?-r:r});
+var h='<div class="es-moldura"><table class="es-tabela lista cal-tabela"><thead><tr>'
+ +'<th class="c-cor"></th>'
+ +'<th class="c-ds ord-th" onclick="calOrdenar(\'descricao\')" title="ordenar por descrição">Descrição'+calSeta('descricao')+'</th>'
+ +'<th class="c-tp">Tipo</th>'
+ +'<th class="c-qd ord-th" onclick="calOrdenar(\'quando\')" title="ordenar por data">Quando'+calSeta('quando')+'</th>'
+ +'<th class="c-rep">Repete</th><th class="c-amb">Âmbito</th>'
+ +'<th class="c-ab" title="a escola tem aula neste dia?">Aula</th>'
+ +'<th class="c-or">Origem</th><th class="c-ac">Ações</th>'
+ +'</tr></thead><tbody>';
+ms.forEach(function(m){
+ /* DUPLO CLIQUE LEVA AO CALENDÁRIO, na primeira data desta marcação no ano aberto (pedido dele).
+    Duplo e não simples: a linha tem botões e campos, e um clique simples que navega tornaria a
+    tabela um campo minado. */
+ var ehProxima=!!(prox&&prox.id===m.id);
+ h+='<tr class="cal-linha-nav'+(ehProxima?' proxima':'')+'" data-id="'+m.id+'"'
+  +' ondblclick="calIrParaCalendario('+m.id+')"'
+  +' title="'+(ehProxima?'É a próxima marcação a partir de hoje. ':'')
+  +'Clique duas vezes para ver no calendário">'
+  +'<td class="c-cor"><span class="cal-cor" style="background:'+(m.cor||'#C6CDD6')+'"></span></td>'
+
+  /* nome e selo na MESMA linha flex: o `<b>` é `display:block` com reticências, então um irmão solto
+     cairia para baixo e a fileira ficaria com o dobro da altura */
+  +'<td class="c-ds" title="'+escBloco(m.nome)+'"><span class="c-ds-l"><b>'+escBloco(m.nome)+'</b>'
+    +(ehProxima?'<span class="cal-prox-selo" title="a próxima a partir de hoje">'
+       +icon('crosshair',10)+'próxima</span>':'')+'</span>'
+    +(m.observacao?'<span class="cal-obs">'+escBloco(m.observacao)+'</span>':'')+'</td>'
+  /* TODOS os tipos, não só o principal: uma data pode ser férias E recesso, e esconder o segundo
+     faria a tabela mentir sobre o que ele cadastrou */
+  +'<td class="c-tp">'+(m.tipos||[m.tipo]).map(function(t){
+      return '<span class="cal-tag '+t+'">'+calRot(CAL_TIPOS,t)+'</span>'}).join('')+'</td>'
+  +'<td class="c-qd'+(m.primeira?'':' outroAno')+'"'
+    +(m.primeira?'':' title="não cai no ano aberto"')+'>'+escBloco(calQuandoCurto(m))+'</td>'
+  +'<td class="c-rep">'+escBloco(calRepete(m))+'</td>'
+  +'<td class="c-amb">'+escBloco(calRot(CAL_AMBITOS,m.ambito))+'</td>'
+  /* ✓ / ✗ no lugar de "sim/não" (pedido dele). É um SELO de leitura, não um checkbox de verdade:
+     um checkbox clicável aqui convidaria a mudar sem passar pelo formulário, e ele foi explícito
+     que a edição é pelas ações. */
+  +'<td class="c-ab">'+(m.fecha
+    ?'<span class="cal-bool nao" title="a escola não abre neste dia">✕</span>'
+    :'<span class="cal-bool sim" title="tem aula normal">✓</span>')+'</td>'
+  /* de onde veio: o que a sincronização trouxe fica marcado, para ele saber o que é dele e o que
+     chegou de fora — e para não estranhar uma linha que apareceu sozinha às 15:30 */
+  +'<td class="c-or">'+(m.origem==='manual'?'<span class="cal-org">você</span>'
+    :m.origem==='semente'?'<span class="cal-org">de fábrica</span>'
+    :'<span class="cal-org ext" title="veio da sincronização automática">'+escBloco(m.origem)+'</span>')+'</td>'
+  +'<td class="c-ac">'
+   +'<button class="es-bt" onclick="calEditar('+m.id+')">editar</button>'
+   +'<button class="es-bt desfaz" onclick="calExcluir('+m.id+')">excluir</button>'
+  +'</td></tr>'});
+if(!ms.length)h+='<tr><td colspan="9" class="es-vazio">Nenhuma marcação cadastrada.</td></tr>';
+$('cal-lista').innerHTML=h+'</tbody></table></div>';
+calGrudar();
+var n2=$('cal-n2');if(n2)n2.textContent=ms.length;
+/* o painel das fontes saiu do pé desta rolagem e virou sub-aba própria */
+var fb=$('cal-fontes-box');if(fb)fb.innerHTML=calFontesHTML();
+}
+/* AS COLUNAS GRUDADAS PRECISAM DO `left` MEDIDO, não chutado: a largura real da coluna Descrição
+   depende do conteúdo, e um `left` fixo no CSS gruda no lugar errado (medi 473px onde o CSS dizia
+   286). Uma passada depois do render resolve, e o `resize` refaz a conta. */
+function calGrudar(){
+var tab=document.querySelector('.cal-tabela');if(!tab)return;
+var cab=tab.querySelectorAll('thead th');
+if(cab.length<3)return;
+var x=0;
+['c-cor','c-ds','c-tp'].forEach(function(cls,i){
+ var th=cab[i];if(!th)return;
+ tab.querySelectorAll('.'+cls).forEach(function(el){el.style.left=x+'px'});
+ x+=th.getBoundingClientRect().width;
+});
+}
+window.addEventListener('resize',function(){if(CAL_ABA==='config')calGrudar()});
+/* sub-abas da configuração: as DATAS de um lado, a plumbing das APIs do outro */
+var CAL_SUB='datas';
+function calSub(s){
+CAL_SUB=s;
+document.querySelectorAll('#tab-calendario .cal-sub-abas .pg-aba').forEach(function(b){
+  b.classList.toggle('on',b.dataset.s===s)});
+$('cal-fx-datas').style.display=(s==='datas'?'':'none');
+$('cal-fx-fontes').style.display=(s==='fontes'?'':'none');
+$('cal-lista').style.display=(s==='datas'?'':'none');
+$('cal-fontes-box').style.display=(s==='fontes'?'':'none');
+}
+/* A DATA, curta. `primeira` é onde ela cai NO ANO ABERTO, e é nula quando a marcação é de uma vez
+   só num outro ano — a tabela de configuração lista TODAS, então cair no "—" esconderia justamente
+   o dado principal de quem veio de uma sincronização de 2028. Nesse caso mostra a data real, com o
+   ano, e esmaecida para dizer "não é deste ano". */
+function calQuandoCurto(m){
+if(m.primeira){
+ var s=esDataBR(m.primeira);
+ if(m.datas.length>1)s+=' a '+esDataBR(m.datas[m.datas.length-1]);
+ return s}
+if(m.repeticao==='nenhuma'&&m.dataIni)
+ return esDataBR(m.dataIni)+(m.dataFim?' a '+esDataBR(m.dataFim):'');
+return '—';
+}
+/* resume os TRECHOS, e não mais as colunas antigas: com vários trechos a coluna passa a dizer
+   quantos são, que é a informação nova e a que explica um "Quando" com várias faixas */
+function calRepete(m){
+var ts=m.trechos||[];
+if(ts.length>1)return ts.length+' trechos';
+var t=ts[0];
+if(!t)return 'uma vez';
+if(t.modo==='anual')return 'todo ano · '+('0'+t.dia).slice(-2)+'/'+('0'+t.mes).slice(-2)
+  +(t.diaFim&&t.mesFim?' a '+('0'+t.diaFim).slice(-2)+'/'+('0'+t.mesFim).slice(-2):'');
+if(t.modo==='semana'){var o=(CF_ORD.filter(function(x){return x[0]===(t.semN||1)})[0]||[0,''])[1];
+ var w=(CF_DOW.filter(function(x){return x[0]===t.semDow})[0]||[0,'?'])[1];
+ var me=(CF_MES.filter(function(x){return x[0]===t.mes})[0]||[0,'?'])[1];
+ return 'todo ano · '+o+' '+w+' de '+me}
+if(t.modo==='pascoa'){var n=Number(t.offIni)||0;
+ return (n===0?'Páscoa':(n<0?'Páscoa −'+(-n)+'d':'Páscoa +'+n+'d'))
+  +(t.offFim!=null&&t.offFim!==''?' …'+t.offFim:'')}
+return 'uma vez';
+}
+/* ---- o painel das fontes externas, no pé da configuração ---- */
+function calFontesHTML(){
+if(!CAL_FONTES)return '';
+var f=CAL_FONTES;
+var h='<div class="cal-fontes"><div class="cal-fontes-cab">Fontes automáticas'
+ +'<span class="cal-hora">atualiza todo dia às '
+ +'<input id="cal-hora" value="'+escBloco(f.hora)+'" maxlength="5" onchange="calSalvarHora()"></span>'
+ +'<button class="es-bt" onclick="calSincronizar()">sincronizar agora</button></div>';
+f.fontes.forEach(function(x){
+ h+='<div class="cal-fonte">'
+  +'<label class="chk"><input type="checkbox"'+(x.ativa?' checked':'')
+   +' onchange="calAtivarFonte(\''+x.id+'\',this.checked)"> <b>'+escBloco(x.nome)+'</b></label>'
+  +'<span class="cal-fonte-st '+(x.status==='erro'?'ruim':(x.status?'bom':''))+'">'
+   +(x.status==='erro'?'falhou':(x.status?'ok':'ainda não rodou'))+'</span>'
+  +'<span class="cal-fonte-qd">'+(x.ultimaSync?esDataHora(x.ultimaSync):'—')+'</span>'
+  +'<span class="cal-fonte-n">'+(x.status==='ok'?x.achados+' lidos · '+x.novos+' novos':'')+'</span>'
+  +(x.erro?'<span class="cal-fonte-erro" title="'+escBloco(x.erro)+'">'+escBloco(x.erro.slice(0,60))+'</span>':'')
+  +'</div>'});
+/* O TOKEN vive aqui, e só aqui. A tela nunca recebe o valor de volta — o servidor manda só as
+   pontas mascaradas, o bastante para ele reconhecer qual é sem o segredo trafegar de novo. */
+h+='<div class="cal-token">'
+ +'<label>Token do Invertexto</label>'
+ +'<input id="cal-token" type="password" autocomplete="off" placeholder="'
+  +(f.temToken?escBloco(f.tokenMascarado)+' — digite outro para trocar':'cole o token aqui')+'">'
+ +'<label>UF</label><input id="cal-uf" maxlength="2" value="'+escBloco(f.uf||'MS')+'">'
+ +'<button class="es-bt" onclick="calSalvarToken()">salvar</button>'
+ +(f.temToken?'<span class="cal-token-ok">configurado</span>':'<span class="cal-token-nao">sem token — esta fonte não roda</span>')
+ +'</div>'
+ +'<div class="cal-fonte-pe" style="padding-bottom:0">O token fica <b>só neste computador</b>, '
+ +'dentro do banco (que não vai para o GitHub). Na outra estação, cadastre de novo.</div>';
+h+='<div class="cal-fonte-pe">Só ACRESCENTA o que falta: nada que você cadastrou ou editou é '
+ +'sobrescrito, e o que você excluir não volta na próxima rodada. '
+ +'<b>'+f.importados+'</b> data(s) já conferidas com as fontes.';
+if(f.ultimas.length)h+='<br>Última rodada: '+escBloco(esDataHora(f.ultimas[0].momento))
+ +' ('+escBloco(f.ultimas[0].gatilho)+') — '+escBloco(f.ultimas[0].resumo||'');
+h+='</div></div>';
+return h;
+}
+function calSalvarToken(){
+var t=$('cal-token').value.trim(), u=$('cal-uf').value.trim();
+var p={uf:u};
+/* campo vazio = "não mexi no token", não "apague o token" — senão salvar a UF derrubaria a fonte */
+if(t)p.token=t;
+run('salvarTokenCalendario',[p],function(){
+ $('cal-token').value='';
+ msg('Token e UF salvos.');calFontesCarregar()})}
+function calSalvarHora(){
+run('salvarFonteCalendario',[{hora:$('cal-hora').value.trim()}],function(){
+ msg('Horário salvo.');calFontesCarregar()})}
+function calAtivarFonte(id,ativa){
+run('salvarFonteCalendario',[{id:id,ativa:ativa}],function(){calFontesCarregar()})}
+function calFontesCarregar(cb){
+run('getFontesCalendario',[{}],function(r){CAL_FONTES=r;
+ if(CAL_ABA==='config'){calLista();calSub(CAL_SUB)}
+ if(cb)cb()})}
+function calSincronizar(){
+msg('Consultando as fontes...');
+run('sincronizarCalendario',[{gatilho:'manual'}],function(r){
+ msg(r.novos?(r.novos+' data(s) nova(s) trazida(s).'):'Nada novo — o calendário já está em dia.');
+ if(r.fontesErro)msg(r.fontesErro+' fonte(s) falharam — veja o detalhe na tabela.',true);
+ calFontesCarregar(function(){calCarregar()})})}
+/* ---- o formulário, numa janela própria (o app não usa prompt do navegador) ---- */
+function calNova(){calForm(null)}
+function calEditar(id){calForm((CAL.marcacoes.filter(function(m){return m.id===id})[0])||null)}
+/* ===== O EDITOR DE TRECHOS (2026-08-17) =====
+   Ele descreveu o caso que o formulário antigo não sabia representar: *"um evento dura do dia 1 até
+   o dia 4, aí se repete dia 7, aí de novo dia 9, aí dura do 11 até o 17, aí no 21 e no 25"*.
+   A resposta é parar de perguntar "quando se repete" (que ele também não entendia, e com razão: era
+   um resto do modelo antigo) e passar a montar a marcação como uma LISTA DE TRECHOS, cada um ponto
+   ou intervalo. Feriado fixo é um trecho; férias é um trecho; o exemplo dele são cinco. */
+var CF_TRECHOS=[];
+var CF_MODOS=[['data','Data ou período'],['anual','Todo ano (dia fixo)'],
+  ['semana','Todo ano (dia da semana)'],['pascoa','Ligado à Páscoa']];
+/* n=-1 é "o último do mês", que é como se fala "última sexta de novembro" */
+var CF_ORD=[[1,'1ª'],[2,'2ª'],[3,'3ª'],[4,'4ª'],[5,'5ª'],[-1,'última']];
+var CF_DOW=[[1,'segunda'],[2,'terça'],[3,'quarta'],[4,'quinta'],[5,'sexta'],[6,'sábado'],[0,'domingo']];
+var CF_MES=[[1,'jan'],[2,'fev'],[3,'mar'],[4,'abr'],[5,'mai'],[6,'jun'],
+  [7,'jul'],[8,'ago'],[9,'set'],[10,'out'],[11,'nov'],[12,'dez']];
+function cfSel(lista,v,i,campo,vazio){
+return '<select class="cf-mini" onchange="cfSet('+i+',\''+campo+'\',this.value)">'
+ +(vazio?'<option value="">'+vazio+'</option>':'')
+ +lista.map(function(o){return '<option value="'+o[0]+'"'+(String(o[0])===String(v)?' selected':'')
+   +'>'+o[1]+'</option>'}).join('')+'</select>'}
+/* o n-ésimo dia da semana de um mês — espelha `nEsimoDow` do servidor */
+function cfNEsimoDow(ano,mes,dow,n){
+var dias=[],d=new Date(Date.UTC(ano,mes-1,1));
+while(d.getUTCMonth()===mes-1){
+ if(d.getUTCDay()===dow)dias.push(d.toISOString().slice(0,10));
+ d.setUTCDate(d.getUTCDate()+1)}
+if(!dias.length)return null;
+return n===-1?dias[dias.length-1]:(dias[n-1]||null)}
+/* ===== CORES: ESCOLHA LIVRE + AS JÁ USADAS (2026-08-17) =====
+   A paleta fixa de 10 era limitada demais — ele quer *"escolher a cor que eu quiser"* e que as
+   escolhidas *"vão ficando guardadas numa listinha"*. Então: o seletor nativo abre o espectro
+   inteiro, e cada cor usada entra numa lista que fica no `localStorage` desta máquina (é preferência
+   de quem usa, não dado da escola — não tem por que ocupar o banco nem viajar no backup).
+   As dez antigas viram só a semente da lista, não o teto dela. */
+var CF_CORES_CHAVE='wiz-cal-cores';
+var CF_CORES_SEMENTE=['#B3261E','#E65100','#B26A00','#2E7D32','#0B6E99','#33AAE3','#7A4FBF','#C2185B','#455A64','#8A93A0'];
+function cfCoresLer(){
+try{var v=JSON.parse(localStorage.getItem(CF_CORES_CHAVE)||'null');
+ if(v&&v.length)return v}catch(e){}
+return CF_CORES_SEMENTE.slice()}
+function cfCoresGravar(l){
+/* teto de 24: a lista é atalho, não arquivo — passando disso ela vira outra parede para procurar */
+try{localStorage.setItem(CF_CORES_CHAVE,JSON.stringify(l.slice(0,24)))}catch(e){}}
+/* ===== ESCOLHER ≠ GUARDAR (corrigido 2026-08-17) =====
+   Este era o bug que ele viu: `input type=color` dispara `oninput` a CADA QUADRO do arrasto dentro
+   do seletor. Como cada disparo entrava na lista, arrastar do vermelho ao azul gravava dezenas de
+   tons intermediários — a lista "explodia" em quadradinhos quase iguais.
+   Agora escolher só PINTA (pré-visualização viva, nada gravado). A cor entra na lista quando a
+   marcação é **salva** — que é como ele descreveu: *"eu escolho uma cor, aperto salvar, e ele
+   guarda aquela cor como preset"*. De quebra a lista passa a significar algo melhor: são as cores
+   REALMENTE em uso no calendário, não as que o dedo atravessou. */
+function cfCorEscolher(c){
+c=String(c||'').toLowerCase();
+if(!/^#[0-9a-f]{6}$/.test(c))return;
+CF_TRECHOS.cor=c;
+cfPintarCores()}
+/* chamada UMA vez, quando a marcação é gravada */
+function cfCorGuardar(c){
+c=String(c||'').toLowerCase();
+if(!/^#[0-9a-f]{6}$/.test(c))return;
+var l=cfCoresLer().filter(function(x){return String(x).toLowerCase()!==c});
+l.unshift(c);cfCoresGravar(l)}
+/* volta a lista ao conjunto de fábrica — a saída para quem já ficou com a lista poluída.
+   SEM caixa de confirmação de propósito: a janela do app é uma só, e uma confirmação aqui tomaria
+   o lugar do formulário e jogaria fora o que ele já tivesse digitado. O gesto é leve (a lista é
+   atalho, não dado) e refazível — perguntar custaria mais do que o próprio erro. */
+function cfCoresRestaurar(){
+var antes=cfCoresLer().length;
+try{localStorage.removeItem(CF_CORES_CHAVE)}catch(e){}
+cfPintarCores();
+msg('Lista de cores restaurada ('+antes+' → '+cfCoresLer().length+'). As cores das marcações não mudaram.');}
+function cfCorApagar(ev,c){
+ev.stopPropagation();
+var l=cfCoresLer().filter(function(x){return String(x).toLowerCase()!==String(c).toLowerCase()});
+cfCoresGravar(l);cfPintarCores()}
+function cfPintarCores(){
+var box=$('cf-cores');if(!box)return;
+var atual=String(CF_TRECHOS.cor||'#B3261E').toLowerCase();
+var lista=cfCoresLer();
+/* a cor em uso entra na lista mesmo que tenha sido apagada dela — senão a tela mostraria uma
+   seleção que não existe em lugar nenhum */
+if(lista.map(String).map(function(x){return x.toLowerCase()}).indexOf(atual)<0)lista=[atual].concat(lista);
+box.innerHTML=lista.map(function(c){
+ var on=String(c).toLowerCase()===atual;
+ return '<span class="cf-cor-w'+(on?' on':'')+'">'
+  +'<button type="button" class="cf-cor-op" style="background:'+escBloco(c)+'" title="'+escBloco(c)+'"'
+  +' onclick="cfCorEscolher(\''+escBloco(c)+'\')"></button>'
+  +'<button type="button" class="cf-cor-x" title="tirar esta cor da lista"'
+  +' onclick="cfCorApagar(event,\''+escBloco(c)+'\')">✕</button></span>'}).join('');
+var p=$('cf-cor-pick');if(p)p.value=atual;
+var a=$('cf-cor-atual');if(a)a.style.background=atual;
+}
+/* Páscoa no cliente, só para a PRÉVIA (quem calcula de verdade é o servidor) — algoritmo de Meeus,
+   o mesmo de lá, para os dois não discordarem na tela */
+function cfPascoa(y){var a=y%19,b=Math.floor(y/100),c=y%100,d=Math.floor(b/4),e=b%4,
+ f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,
+ l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451),mes=Math.floor((h+l-7*m+114)/31),
+ dia=((h+l-7*m+114)%31)+1;
+ return y+'-'+('0'+mes).slice(-2)+'-'+('0'+dia).slice(-2)}
+function cfMais(iso,n){var d=new Date(iso+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+n);
+ return d.toISOString().slice(0,10)}
+/* uma ocorrência ancorada num ano, sem recorte (espelha `ocorrenciaDoTrecho` do servidor) */
+function cfOcorrencia(t,ancora){
+var ini=null,fim=null;
+if(t.modo==='anual'){
+ if(!t.dia||!t.mes)return[];
+ ini=ancora+'-'+('0'+t.mes).slice(-2)+'-'+('0'+t.dia).slice(-2);
+ if(t.diaFim&&t.mesFim){fim=ancora+'-'+('0'+t.mesFim).slice(-2)+'-'+('0'+t.diaFim).slice(-2);
+  if(fim<ini)fim=(ancora+1)+'-'+('0'+t.mesFim).slice(-2)+'-'+('0'+t.diaFim).slice(-2)}
+}else if(t.modo==='semana'){
+ if(!t.mes||t.semDow===''||t.semDow==null)return[];
+ ini=cfNEsimoDow(ancora,Number(t.mes),Number(t.semDow),Number(t.semN)||1);
+ if(!ini)return[];
+ if(t.mesFim&&t.semDowFim!==''&&t.semDowFim!=null){
+  fim=cfNEsimoDow(ancora,Number(t.mesFim),Number(t.semDowFim),Number(t.semNFim)||1);
+  if(fim&&fim<ini)fim=cfNEsimoDow(ancora+1,Number(t.mesFim),Number(t.semDowFim),Number(t.semNFim)||1)}
+}else if(t.modo==='pascoa'){
+ if(t.offIni===''||t.offIni==null)return[];
+ var p=cfPascoa(ancora);ini=cfMais(p,Number(t.offIni)||0);
+ if(t.offFim!==''&&t.offFim!=null)fim=cfMais(p,Number(t.offFim));
+}else{
+ if(!t.dataIni)return[];ini=t.dataIni;fim=t.dataFim||null}
+var out=[];
+if(!fim||fim<=ini)out.push(ini);
+else{var a=new Date(ini+'T12:00:00Z').getTime(),b=new Date(fim+'T12:00:00Z').getTime();
+ var n=Math.round((b-a)/86400000)+1;if(n>800)n=800;
+ for(var i=0;i<n;i++)out.push(cfMais(ini,i))}
+return out}
+/* quantos dias este trecho rende no ano aberto — é a resposta que ele quer ver ANTES de salvar.
+   Considera a âncora do ano E a do anterior: férias de 15/dez a 20/jan pertencem aos dois anos, e
+   sem isso a prévia mentiria justamente no caso mais comum da escola. */
+function cfDiasDoTrecho(t,ano){
+var vistas={};
+[ano-1,ano].forEach(function(ancora){
+ cfOcorrencia(t,ancora).forEach(function(d){if(d.indexOf(String(ano))===0)vistas[d]=1})});
+return Object.keys(vistas).sort()}
+function cfLinhaTrecho(t,i){
+var num='inputmode="numeric" maxlength="2"';
+var campos;
+if(t.modo==='anual')
+ campos='<span class="cf-par"><input '+num+' value="'+(t.dia||'')+'" placeholder="dd" onchange="cfSet('+i+',\'dia\',this.value)">'
+  +'<i>/</i><input '+num+' value="'+(t.mes||'')+'" placeholder="mm" onchange="cfSet('+i+',\'mes\',this.value)"></span>'
+  +'<em>até</em>'
+  +'<span class="cf-par"><input '+num+' value="'+(t.diaFim||'')+'" placeholder="dd" onchange="cfSet('+i+',\'diaFim\',this.value)">'
+  +'<i>/</i><input '+num+' value="'+(t.mesFim||'')+'" placeholder="mm" onchange="cfSet('+i+',\'mesFim\',this.value)"></span>';
+else if(t.modo==='semana')
+ /* "2ª sexta de dez até 2º domingo de jan" — a regra das férias da escola, escrita como se fala */
+ campos=cfSel(CF_ORD,t.semN||1,i,'semN')+cfSel(CF_DOW,t.semDow,i,'semDow','—')
+  +'<em>de</em>'+cfSel(CF_MES,t.mes,i,'mes','—')
+  +'<em>até</em>'
+  +cfSel(CF_ORD,t.semNFim||1,i,'semNFim')+cfSel(CF_DOW,t.semDowFim,i,'semDowFim','—')
+  +'<em>de</em>'+cfSel(CF_MES,t.mesFim,i,'mesFim','—');
+else if(t.modo==='pascoa')
+ campos='<input class="cf-off" inputmode="numeric" value="'+(t.offIni==null?'':t.offIni)+'" placeholder="-48" onchange="cfSet('+i+',\'offIni\',this.value)">'
+  +'<em>até</em>'
+  +'<input class="cf-off" inputmode="numeric" value="'+(t.offFim==null?'':t.offFim)+'" placeholder="opcional" onchange="cfSet('+i+',\'offFim\',this.value)">'
+  +'<em class="cf-nota">dias da Páscoa</em>';
+else
+ campos='<input type="date" value="'+(t.dataIni||'')+'" onchange="cfSet('+i+',\'dataIni\',this.value)">'
+  +'<em>até</em>'
+  +'<input type="date" value="'+(t.dataFim||'')+'" onchange="cfSet('+i+',\'dataFim\',this.value)">';
+var dias=cfDiasDoTrecho(t,CAL_ANO);
+return '<div class="cf-trecho">'
+ +'<select class="cf-modo" onchange="cfSet('+i+',\'modo\',this.value)">'
+ +CF_MODOS.map(function(x){return '<option value="'+x[0]+'"'+(x[0]===t.modo?' selected':'')+'>'+x[1]+'</option>'}).join('')
+ +'</select>'
+ +'<div class="cf-campos">'+campos+'</div>'
+ +'<span class="cf-conta'+(dias.length?'':' zero')+'">'+(dias.length?dias.length+(dias.length>1?' dias':' dia'):'—')+'</span>'
+ +'<button type="button" class="cf-x" title="'
+ +(CF_TRECHOS.length>1?'remover este período':'este é o único período — remove a marcação inteira')
+ +'" onclick="cfDel('+i+')">✕</button>'
+ +'</div>'}
+function cfPintar(){
+var box=$('cf-trechos');if(!box)return;
+box.innerHTML=CF_TRECHOS.map(cfLinhaTrecho).join('');
+var tot={};CF_TRECHOS.forEach(function(t){cfDiasDoTrecho(t,CAL_ANO).forEach(function(d){tot[d]=1})});
+var n=Object.keys(tot).length;
+$('cf-total').textContent=n?('Ao todo '+n+' dia(s) em '+CAL_ANO+'.'):'Nenhum dia em '+CAL_ANO+' ainda.';
+}
+function cfSet(i,campo,valor){
+var t=CF_TRECHOS[i];if(!t)return;
+t[campo]=valor;
+/* trocar o modo limpa os campos do modo anterior: guardar "dia 25" de um trecho que virou intervalo
+   de datas só produziria confusão na hora de salvar */
+if(campo==='modo'){['dataIni','dataFim','dia','mes','diaFim','mesFim','offIni','offFim',
+  'semN','semDow','semNFim','semDowFim'].forEach(function(k){t[k]=''})}
+cfPintar()}
+function cfAdd(){CF_TRECHOS.push({modo:'data',dataIni:'',dataFim:''});cfPintar()}
+/* id da marcação aberta no formulário — nulo quando é uma nova */
+var CF_ID=null;
+function cfDel(i){
+if(CF_TRECHOS.length>1){CF_TRECHOS.splice(i,1);cfPintar();return}
+/* ===== O BECO SEM SAÍDA VIROU CAMINHO (2026-08-17) =====
+   Tirar o ÚNICO período só podia dar erro, e a mensagem mandava de volta sem dizer para onde ir.
+   Mas quem clica ali quase sempre quer o que ele queria: sumir com a marcação. Então a pergunta
+   passa a ser a de verdade — e ela EXECUTA, em vez de mandar procurar outro botão.
+   Marcação ainda não salva não tem o que excluir: aí basta dizer que precisa de um período. */
+if(!CF_ID){msg('A marcação precisa de ao menos um período.',true);return}
+var nome=($('cf-nome')&&$('cf-nome').value.trim())||'esta marcação';
+var id=CF_ID;
+dlgFechar();   /* a janela é uma só; a pergunta ocupa o lugar do formulário */
+dlgConfirmar({titulo:'Excluir a marcação?',perigo:true,ok:'Excluir',
+ texto:'"'+nome+'" tem só este período — tirar ele é o mesmo que excluir a marcação inteira.'
+  +'\n\nEla some de todos os anos do calendário.'},
+function(sim){if(!sim)return;
+ run('excluirMarcacao',[{id:id}],function(){msg('Marcação excluída.');calCarregar()})})}
+/* `cfCor` saiu: a paleta fixa virou escolha livre + lista das já usadas (ver `cfCorEscolher`) */
+function calForm(m){
+var e=m||{tipo:'feriado',ambito:'escola',fecha:true,cor:'#B3261E'};
+var sel=function(id,lista,v){return '<select id="'+id+'">'+lista.map(function(t){
+  return '<option value="'+t[0]+'"'+(t[0]===v?' selected':'')+'>'+t[1]+'</option>'}).join('')+'</select>'};
+/* TIPO VIROU MÚLTIPLA ESCOLHA (2026-08-17): as férias de fim de ano são férias E recesso, e podem
+   engolir um feriado por dentro. Caixas em vez de `select`, porque com seis opções o gesto é
+   "marque quantas valerem" e não "escolha uma". */
+var tipos=(e.tipos&&e.tipos.length)?e.tipos:[e.tipo||'feriado'];
+var caixas='<div class="cf-tipos">'+CAL_TIPOS.map(function(t){
+  return '<label class="chk"><input type="checkbox" class="cf-tp" value="'+t[0]+'"'
+   +(tipos.indexOf(t[0])>=0?' checked':'')+' onchange="calTiposMudou()"> '+t[1]+'</label>'}).join('')
+ +'<div class="cf-tipos-aviso" id="cf-aviso-ferias"></div></div>';
+/* os trechos do registro que está sendo editado; marcação nova começa com um trecho de data */
+CF_TRECHOS=(m&&m.trechos&&m.trechos.length)
+  ? m.trechos.map(function(t){return {modo:t.modo,dataIni:t.dataIni||'',dataFim:t.dataFim||'',
+      dia:t.dia||'',mes:t.mes||'',diaFim:t.diaFim||'',mesFim:t.mesFim||'',
+      offIni:(t.offIni==null?'':t.offIni),offFim:(t.offFim==null?'':t.offFim),
+      semN:(t.semN==null?'':t.semN),semDow:(t.semDow==null?'':t.semDow),
+      semNFim:(t.semNFim==null?'':t.semNFim),semDowFim:(t.semDowFim==null?'':t.semDowFim)}})
+  : [{modo:'data',dataIni:'',dataFim:''}];
+CF_TRECHOS.cor=e.cor||'#B3261E';
+CF_ID=(m&&m.id)||null;
+/* DUAS COLUNAS: à esquerda o que a marcação É, à direita QUANDO ela acontece. Em coluna única a
+   janela ficava alta e rolava; deitada, cabe inteira na tela. */
+var swatches='<div class="cf-cor-cx">'
+ +'<label class="cf-cor-atual" id="cf-cor-atual" title="escolher qualquer cor">'
+ +'<input type="color" id="cf-cor-pick" oninput="cfCorEscolher(this.value)"></label>'
+ +'<div class="cf-cores" id="cf-cores"></div></div>';
+var corpo='<div class="cf-form"><div class="cf-cols">'
+ +'<div class="cf-col">'
+   +'<div class="cf-linha"><label>Descrição</label>'
+   +'<input id="cf-nome" value="'+escBloco(e.nome||'')+'" placeholder="Ex.: Férias de fim de ano"></div>'
+   +'<div class="cf-linha"><label>Tipo <small>marque quantos valerem</small></label>'+caixas+'</div>'
+   +'<div class="cf-linha"><label>Âmbito</label>'+sel('cf-amb',CAL_AMBITOS,e.ambito)+'</div>'
+   +'<div class="cf-linha"><label>Tem aula?</label>'
+   +'<label class="chk cf-aula"><input type="checkbox" id="cf-abre"'+(e.fecha?'':' checked')
+   +'> sim, a escola abre normalmente</label></div>'
+   +'<div class="cf-linha"><label>Cor no calendário '
+   +'<small>clique no quadrado grande para qualquer cor · a cor entra na lista ao salvar</small>'
+   +'<button type="button" class="cf-cores-reset" onclick="cfCoresRestaurar()">restaurar padrão</button>'
+   +'</label>'+swatches+'</div>'
+ +'</div>'
+ /* ===== O CORAÇÃO DO FORMULÁRIO ===== */
+ +'<div class="cf-col cf-col-tr">'
+   +'<div class="cf-sec">Quando acontece'
+   +'<small>um período, uma data solta, ou vários</small></div>'
+   +'<div id="cf-trechos"></div>'
+   +'<div class="cf-pe">'
+     +'<button type="button" class="es-bt" onclick="cfAdd()">+ acrescentar data ou período</button>'
+     +'<span id="cf-total" class="cf-total"></span>'
+   +'</div>'
+ +'</div>'
+ +'</div></div>';
+/* a janela da casa serve de MOLDURA (fundo escurecido, ESC, foco de volta a quem abriu); o corpo
+   é montado à mão porque `dlgTexto` só sabe de um campo, e aqui são dez */
+dlgAviso({titulo:(m?'Editar marcação':'Nova marcação'),texto:''},null);
+var d=DLG;
+if(!d||!d.fundo.classList.contains('on')){msg('Não consegui abrir a janela.',true);return}
+d.corpo.innerHTML=corpo;
+/* `display:''` É OBRIGATÓRIO AQUI — era o bug da "janela em branco". `dlgAbrir` faz
+   `corpo.style.display = texto ? 'block' : 'none'`, e como esta janela abre SEM texto (o conteúdo é
+   o formulário, montado logo abaixo), o corpo nascia escondido e o formulário ia para dentro de um
+   `display:none`. Aparecia um retângulo branco. */
+d.corpo.style.display='';
+d.pe.innerHTML='<button class="acao sec" onclick="dlgFechar()">Cancelar</button>'
+ +'<button class="acao dlg-ok" onclick="calGravar('+(m?m.id:'null')+')">'+(m?'Salvar':'Inserir')+'</button>';
+d.cx.classList.add('dlg-larga');   /* deitada: cabe sem rolar */
+cfPintar();cfPintarCores();
+calTiposMudou();
+}
+/* FÉRIAS E RECESSO NÃO TÊM AULA — a regra é do servidor, e aqui a tela só mostra que ela vai valer,
+   travando a caixa. Deixar o campo editável e o servidor decidir por cima seria pior: ele marcaria
+   "tem aula" e o sistema o desmentiria em silêncio. */
+function calTiposMudou(){
+var marcados=[...document.querySelectorAll('.cf-tp:checked')].map(function(c){return c.value});
+var fecha=marcados.indexOf('ferias')>=0||marcados.indexOf('recesso')>=0;
+var ab=$('cf-abre'),av=$('cf-aviso-ferias');
+if(ab){ab.disabled=fecha;if(fecha)ab.checked=false}
+if(av)av.textContent=fecha?'Férias e recesso nunca têm aula — o dia entra como fechado.':'';
+}
+function calGravar(id){
+var v=function(x){var el=$(x);return el?el.value.trim():''};
+var tipos=[].slice.call(document.querySelectorAll('.cf-tp:checked')).map(function(c){return c.value});
+if(!tipos.length){msg('Marque ao menos um tipo.',true);return}
+run('salvarMarcacao',[{id:id||undefined,nome:v('cf-nome'),tipos:tipos,ambito:v('cf-amb'),
+ trechos:CF_TRECHOS.map(function(t){return {modo:t.modo,dataIni:t.dataIni,dataFim:t.dataFim,
+   dia:t.dia,mes:t.mes,diaFim:t.diaFim,mesFim:t.mesFim,offIni:t.offIni,offFim:t.offFim,
+   semN:t.semN,semDow:t.semDow,semNFim:t.semNFim,semDowFim:t.semDowFim}}),
+ cor:CF_TRECHOS.cor,fecha:!$('cf-abre').checked}],
+function(r){dlgFechar();
+ /* SÓ AQUI a cor entra na lista de atalhos: guardar durante o arrasto era o que a multiplicava */
+ cfCorGuardar(CF_TRECHOS.cor);
+ msg('Marcação salva'+(r&&r.trechos>1?' com '+r.trechos+' trechos':'')+'.'
+  +(r&&r.fechaForcado?' Férias/recesso: entrou como dia sem aula.':''));
+ calCarregar()})}
+function calExcluir(id){
+var m=(CAL.marcacoes.filter(function(x){return x.id===id})[0])||{};
+dlgConfirmar({titulo:'Excluir marcação',perigo:true,ok:'Excluir',
+ texto:'Excluir "'+(m.nome||'')+'"?\n\nEla some de todos os anos do calendário.'},
+function(sim){if(!sim)return;
+run('excluirMarcacao',[{id:id}],function(){msg('Marcação excluída.');calCarregar()})})}
+/* `calConferir` saiu em 2026-08-17: a sub-aba Fontes automáticas faz o mesmo, todo dia, com três
+   fontes em vez de uma. Botão que refaz pior o que já roda sozinho é decisão a mais para o usuário. */
+
 /* ===== CENTRAL DE CONTROLE (2026-08-17) =====
    Pedido dele: um backlog do sistema inteiro — o que está incompleto, e as relações que ficaram pela
    metade. Quem faz a varredura é o servidor (`getCentral`), porque as perguntas são SQL e porque a
    mesma resposta alimenta o contador da barra lateral.
    Aqui só há apresentação e o gesto de silenciar. */
 var CT=null, CT_ABERTA=null, CT_AREA=null, CT_VER_MUDOS=false;
+/* ===== TRÊS ABAS (2026-08-17) =====
+   Ele pediu: *"as que têm zero, ou seja, que estão resolvidas, ficam meio que arquivadas"*.
+   `alertas` (padrão) · `resolvidos` (as regras zeradas — a prova de que estão em dia) ·
+   `silenciados`. O "ver silenciados" que era um botão virou aba, que é onde ele já procurava. */
+var CT_ABA='alertas';
+function ctAba(a){
+CT_ABA=a;CT_VER_MUDOS=(a==='silenciados');CT_ABERTA=null;
+document.querySelectorAll('#tab-central .ct-abas .pg-aba').forEach(function(b){
+  b.classList.toggle('on',b.dataset.a===a)});
+ctRender()}
+/* ===== NAVEGAÇÃO PROFUNDA (2026-08-17) =====
+   *"Se eu apertar num livro aqui, ele vai me levar lá nesse material, no campo do estoque mínimo, e
+   dá um pisca."* O destino e o alvo vêm do SERVIDOR (ver `destino`/`alvo` em `getCentral`), porque
+   só o banco sabe transformar um `aula.id` no aluno dono dela.
+   Cada ramo abaixo é "abra a página, selecione o recurso, pisque o campo". O `setTimeout` existe
+   porque a página só termina de desenhar depois da rota que ela dispara ao abrir. */
+/* ===== O PISCA TEM DE SOBREVIVER AO REPAINT (achado testando, 2026-08-17) =====
+   A página de destino se redesenha depois de aberta (o `esCarregar` da entrada chega atrasado e
+   repinta o `#es-detalhe`), e o repaint levava a classe embora — o campo era encontrado, marcado, e
+   apagado meio segundo depois. Medido: o `Mínimo` existia desde os 900ms e nunca acendia.
+   Por isso o pisca PROCURA o elemento por até ~2,5s e o remarca algumas vezes: quem chega por um
+   atalho tem de ver o destino, e o custo de reaplicar uma classe é zero. */
+function ctPiscar(achar,ms){
+var tentativas=0, total=ms||1800, fim=Date.now()+total;
+var aplicar=function(){
+ var el=(typeof achar==='function')?achar():achar;
+ if(!el){ if(++tentativas<25) return setTimeout(aplicar,100); return }
+ document.querySelectorAll('.ct-alvo').forEach(function(x){if(x!==el)x.classList.remove('ct-alvo')});
+ el.classList.add('ct-alvo');
+ if(tentativas<2&&el.scrollIntoView)el.scrollIntoView({block:'center',behavior:'smooth'});
+ tentativas++;
+ if(Date.now()<fim)setTimeout(aplicar,250);
+ else setTimeout(function(){
+   var f=(typeof achar==='function')?achar():achar; if(f)f.classList.remove('ct-alvo')},60);
+};
+aplicar()}
+function ctCampo(campo){
+if(!campo)return null;
+/* campo do material vem por `data-campo`; os demais são ids diretos da tela de destino */
+return document.querySelector('#es-detalhe [data-campo="'+campo+'"]')||$(campo)||null}
+function ctIr(destino,alvo,campo,rotulo){
+if(!destino||!alvo){msg('Este alerta ainda não tem atalho.',true);return}
+var esperar=function(fn,ms){setTimeout(fn,ms||420)};
+if(destino==='aluno'||destino==='aluno-historico'){
+ abaPor('alunos');
+ esperar(function(){
+  var a=(ALUNOS||[]).filter(function(x){return String(x.id)===String(alvo)})[0];
+  if(!a){msg('Aluno '+alvo+' não está na lista.',true);return}
+  alCarregar(a);
+  esperar(function(){
+   if(destino==='aluno-historico'){alAba('matriculas');alInfoAba('situacao');
+    ctPiscar(function(){return $('hist-corpo')},2200)}
+   else ctPiscar(function(){return $('al-quem')||$('al-nome')},2200);
+   msg(rotulo||a.nome);
+  },700);
+ });
+ return}
+if(destino==='entrega'){
+ /* o aluno da entrega: a aba Entregas do Estoque, com ele já escolhido */
+ ES_DESTINO={aba:'entregas',filtroEnt:'todos'};
+ abaPor('estoque');
+ esperar(function(){
+  esEscolherAluno(String(alvo));
+  esperar(function(){
+   ctPiscar(function(){return document.querySelector('#es-tab-entregas tr.linha.sel')
+     ||$('es-ent-detalhe')},2400);msg(rotulo||'');
+  },400);
+ },900);
+ return}
+if(destino==='material'){
+ ES_DESTINO={aba:'contagem',filtroEnt:'todos'};
+ abaPor('estoque');
+ esperar(function(){
+  /* abre a faixa do grupo do material, senão a linha dele fica escondida na sanfona */
+  var it=(ES&&ES.itens||[]).filter(function(x){return String(x.id)===String(alvo)})[0];
+  if(it&&it.categoria&&ES_ABERTAS.indexOf(it.categoria)<0){ES_ABERTAS.push(it.categoria);esRender()}
+  esEscolherMaterial(Number(alvo));
+  esperar(function(){
+   ctPiscar(function(){return ctCampo(campo)||$('es-detalhe')},2600);
+   msg(rotulo||(it?it.descricao:''));
+  },450);
+ },900);
+ return}
+if(destino==='pedido'){
+ ES_DESTINO={aba:'remessas',filtroEnt:'todos'};abaPor('estoque');
+ esperar(function(){ctPiscar(function(){return $('es-p-remessas')},2000);msg(rotulo||'')},1000);
+ return}
+if(destino==='estagio'||destino==='estagio-trilha'){
+ abaPor('estagios');
+ esperar(function(){
+  if(destino==='estagio-trilha'){egAba('trilha');
+   esperar(function(){ctPiscar(function(){return $('eg-p-trilha')},2200);msg(rotulo||'')},450);return}
+  var e=(EG&&EG.estagios||[]).filter(function(x){return String(x.id)===String(alvo)})[0];
+  if(!e){msg('Estágio não encontrado.',true);return}
+  /* a sanfona do catálogo: sem abrir a categoria, a linha do estágio não existe na tela */
+  if(EG_ABERTAS.indexOf(e.categoria)<0)EG_ABERTAS.push(e.categoria);
+  egEscolher(e.id);
+  esperar(function(){
+   if(campo==='estrutura'){egAbaDet('estrutura');esperar(function(){ctPiscar(function(){return $('eg-detalhe')},2200)},350)}
+   else{egAbaDet('dados');esperar(function(){ctPiscar(function(){return ctCampo(campo)||$('eg-detalhe')},2400)},350)}
+   msg(rotulo||e.nome);
+  },500);
+ },900);
+ return}
+if(destino==='turma'){
+ abaPor('turmas');
+ esperar(function(){
+  var t=(DOM&&DOM.turmas||[]).filter(function(x){return String(x.id)===String(alvo)})[0];
+  if(t&&typeof tuCarregar==='function')tuCarregar(t);
+  ctPiscar(function(){return $('tu-titulo')},2200);msg(rotulo||alvo);
+ },900);
+ return}
+if(destino==='professor'){
+ abaPor('professores');
+ esperar(function(){
+  var cartao=document.querySelector('#pf-lista .pf-card[data-id="'+alvo+'"]');
+  if(cartao)cartao.click();
+  ctPiscar(function(){return cartao||$('pf-titulo')},2200);msg(rotulo||'');
+ },900);
+ return}
+msg('Atalho não mapeado para "'+destino+'".',true)}
 var CT_TETO=40;   /* quantos casos por regra antes de "e mais N" — 120 linhas de uma vez não se lê */
 function ctCarregar(cb){run('getCentral',[{}],function(r){CT=r;ctPintar();ctRender();if(cb)cb()})}
 /* o contador da barra lateral acompanha o mesmo número da tela; carregado na abertura do app junto
@@ -8173,18 +9819,39 @@ $('ct-chips').innerHTML='<button class="chip'+(CT_AREA?'':' on')+'" onclick="ctF
  +areas.map(function(a){
    return '<button class="chip'+(CT_AREA===a?' on':'')+'" onclick="ctFiltrar(\''+a+'\')">'
     +escBloco(a)+' <span class="n">'+(CT.porArea[a]||0)+'</span></button>'}).join('');
-var bs=$('ct-bt-sil');if(bs){bs.classList.toggle('on',CT_VER_MUDOS);
-  bs.textContent=(CT_VER_MUDOS?'ocultar':'ver')+' silenciados ('+CT.silenciados+')'}
+/* as abas contam o que cada uma tem, para ele decidir onde olhar sem entrar */
+var nRe=CT.regras.filter(function(r){return !r.abertos.length&&!r.silenciados.length}).length;
+document.querySelectorAll('#tab-central .ct-abas .pg-aba').forEach(function(b){
+ var q=b.dataset.a==='alertas'?CT.abertos:(b.dataset.a==='resolvidos'?nRe:CT.silenciados);
+ var sp=b.querySelector('.n');if(sp)sp.textContent=q});
 var regras=CT.regras.filter(function(r){return !CT_AREA||r.area===CT_AREA});
+/* ===== AS TRES ABAS FILTRAM, E A ORDEM MUDA COM ELAS =====
+   Alertas: so quem tem caso aberto, **do maior numero para o menor** (pedido dele: "as de maior
+   importancia, com maior numero de ocorrencias, em primeiro lugar"), com a gravidade desempatando.
+   Resolvidos: as zeradas — a tela tambem serve para dizer "isto esta em dia".
+   Silenciados: as que tem caso calado. */
+var PESO={alta:0,media:1,baixa:2};
+if(CT_ABA==='alertas'){
+ regras=regras.filter(function(r){return r.abertos.length});
+ regras.sort(function(a,b){return b.abertos.length-a.abertos.length
+   ||PESO[a.gravidade]-PESO[b.gravidade]||a.titulo.localeCompare(b.titulo,'pt')});
+}else if(CT_ABA==='resolvidos'){
+ regras=regras.filter(function(r){return !r.abertos.length&&!r.silenciados.length});
+ regras.sort(function(a,b){return PESO[a.gravidade]-PESO[b.gravidade]||a.titulo.localeCompare(b.titulo,'pt')});
+}else{
+ regras=regras.filter(function(r){return r.silenciados.length});
+ regras.sort(function(a,b){return b.silenciados.length-a.silenciados.length});
+}
 /* regra sem nenhum caso aberto continua na lista, esmaecida: a central também serve para dizer
    "isto aqui está em dia", e uma regra que some quando zera esconde o que ela vigia */
 var h='';
-if(!CT_AREA&&!CT.abertos)h+='<div class="ct-ok">'+icon('circle-check',18)
- +'Nada pendente — todas as '+CT.regras.length+' checagens estão em dia.</div>';
+if(CT_ABA==='alertas'&&!regras.length)h+='<div class="ct-ok">'+icon('circle-check',18)
+ +'Nada pendente'+(CT_AREA?' em '+escBloco(CT_AREA):'')+' — as checagens estão em dia.</div>';
+if(CT_ABA==='resolvidos'&&!regras.length)h+='<div class="ct-vazio">Nenhuma checagem zerada por aqui.</div>';
+if(CT_ABA==='silenciados'&&!regras.length)h+='<div class="ct-vazio">Nada silenciado.</div>';
 regras.forEach(function(r){
  var mostra=CT_VER_MUDOS?r.silenciados:r.abertos;
  var n=r.abertos.length, aberta=CT_ABERTA===r.id;
- if(CT_VER_MUDOS&&!r.silenciados.length)return;
  h+='<div class="ct-regra'+(aberta?' aberta':'')+(n?'':' zero')+'">'
   +'<div class="ct-cab" onclick="ctAbrir(\''+r.id+'\')">'
   +'<span class="ct-seta">'+icon('chevron-right',14)+'</span>'
@@ -8208,16 +9875,22 @@ regras.forEach(function(r){
   if(!mostra.length)h+='<div class="ct-vazio">'+(CT_VER_MUDOS?'nada silenciado nesta regra.':'nenhum caso aberto — em dia.')+'</div>';
   h+='<div class="ct-itens">';
   mostra.slice(0,CT_TETO).forEach(function(it){
-   h+='<div class="ct-item'+(CT_VER_MUDOS?' mudo':'')+'">'
+   /* O CASO É CLICÁVEL: leva ao recurso, já selecionado e piscando. O alvo e o destino vêm do
+      servidor, então esta linha não precisa saber o formato da chave de cada regra. */
+   var podeIr=!CT_VER_MUDOS&&r.destino&&it.alvo;
+   h+='<div class="ct-item'+(CT_VER_MUDOS?' mudo':'')+(podeIr?' vai':'')+'"'
+    +(podeIr?' title="ir para este registro" onclick="ctIr(&quot;'+escBloco(r.destino)+'&quot;,'
+      +ctArg(it.alvo)+','+(r.campo?'&quot;'+escBloco(r.campo)+'&quot;':'null')+','+ctArg(it.rotulo)+')"':'')
+    +'>'
     +'<b>'+escBloco(it.rotulo)+'</b>'
     +(it.detalhe?'<span class="ct-det">'+escBloco(it.detalhe)+'</span>':'')
     +(CT_VER_MUDOS&&it.motivo?'<span class="ct-mot">'+escBloco(it.motivo)+'</span>':'')
     +(CT_VER_MUDOS
       ?(it.porRegra?'<span class="ct-det" style="margin-left:auto">pela regra</span>'
-        :'<button class="es-bt" onclick="ctReativar(\''+r.id+'\','+ctArg(it.chave)+')">reativar</button>')
+        :'<button class="es-bt" onclick="event.stopPropagation();ctReativar(\''+r.id+'\','+ctArg(it.chave)+')">reativar</button>')
       /* o rótulo também vai por `ctArg`: `escBloco` não escapa aspas, e nome de aluno com
          apóstrofo (D'Ávila) quebraria uma string JS de aspas simples dentro do onclick */
-      :'<button class="es-bt desfaz" onclick="ctSilenciar(\''+r.id+'\','+ctArg(it.chave)+','+ctArg(it.rotulo)+')">silenciar</button>')
+      :'<button class="es-bt desfaz" onclick="event.stopPropagation();ctSilenciar(\''+r.id+'\','+ctArg(it.chave)+','+ctArg(it.rotulo)+')">silenciar</button>')
     +'</div>'});
   if(mostra.length>CT_TETO)h+='<div class="ct-mais">e mais '+(mostra.length-CT_TETO)
    +' — resolva ou silencie os de cima para os próximos aparecerem.</div>';

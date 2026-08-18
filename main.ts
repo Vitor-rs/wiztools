@@ -358,6 +358,15 @@ addColuna("estoque_item", "tipo", "TEXT NOT NULL DEFAULT 'unidade'");
    Vale para kit e material tipo livro; para a Wiz.pen não faz sentido, e o campo simplesmente fica
    vazio nela ("ela é autocontida", nas palavras dele). */
 addColuna("estoque_item", "edicao_nome", "TEXT");
+/* ===== MATERIAL FINAL (2026-08-17) =====
+   Ordem dele: *"tem um estágio que é final, o W12; ele não tem nada depois dele porque é o último
+   livro da Wizard. Então coloca um atributo lá nos materiais"*.
+   Mora no MATERIAL e não no estágio, também por decisão dele — é o material que é o último da
+   coleção, e o estágio apenas herda. Na tela do estágio o campo aparece TRAVADO, apontando para
+   onde se decide; duas telas editando o mesmo fato é como elas divergem.
+   Consequência imediata: a checagem "estágio sem próximo na trilha" para de acusar o último — ele
+   não tem próximo por definição, e um alerta permanente que não se resolve é ruído. */
+addColuna("estoque_item", "final", "INTEGER NOT NULL DEFAULT 0");
 addColuna("estoque_item", "edicao_ano", "INTEGER");
 /* "unidade" SAIU do vocabulário (2026-08-10, dele): *"unidade é a mesma coisa que item — quantos
    itens de W2 temos, quantas unidades de W2 temos, é o mesmo termo"*. Sobram duas naturezas:
@@ -577,180 +586,595 @@ db.exec(`CREATE TABLE IF NOT EXISTS aviso_silenciado (
   momento TEXT NOT NULL,
   PRIMARY KEY (regra, chave)
 )`);
+/* ===== CALENDÁRIO LETIVO (2026-08-17) =====
+   Do protótipo em PowerPoint dele (`resources/Wizard Tools.pdf`, páginas 4-19), de anos atrás.
+
+   POR QUE NÃO USEI BIBLIOTECA — ele pediu para eu procurar, e procurei. FullCalendar, Tui.calendar
+   e afins são feitos para AGENDA: arrastar evento, visão de semana/dia, colisão de horário. O que
+   ele quer é um PANORAMA ANUAL estático — 12 cartões de mês, grade fixa 7×7, segunda a domingo, dia
+   de fora do mês esmaecido. Isso é aritmética de data, não interação: as ~40 linhas abaixo fazem o
+   que a biblioteca faria, sem 200KB, sem CDN (o app é offline por princípio) e sem brigar com um
+   layout que já vem desenhado.
+
+   AS DATAS MÓVEIS SÃO CALCULADAS, NÃO BAIXADAS. Carnaval, Sexta-feira Santa e Corpus Christi
+   andam todo ano porque dependem da Páscoa, e a Páscoa se calcula (algoritmo de Meeus/Butcher).
+   Calculando, o calendário de 2031 sai certo sem internet e sem ninguém cadastrar nada — que é a
+   parte "o sistema tem que ser inteligente pra se adaptar" do pedido dele.
+   A BrasilAPI entra só como CONFERÊNCIA, num botão, e nunca no caminho crítico: servidor que
+   depende de rede para abrir uma tela é servidor que trava quando a rede cai. */
+function pascoa(ano: number): string {
+  /* Meeus/Butcher — vale para todo o calendário gregoriano */
+  const a = ano % 19, b = Math.floor(ano / 100), c = ano % 100;
+  const d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25);
+  const g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30;
+  const i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7;
+  const m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const mes = Math.floor((h + l - 7 * m + 114) / 31);
+  const dia = ((h + l - 7 * m + 114) % 31) + 1;
+  return `${ano}-${("0" + mes).slice(-2)}-${("0" + dia).slice(-2)}`;
+}
+/* soma dias a uma data ISO sem passar por fuso: UTC puro, senão o horário de verão de algum ano
+   antigo desloca a conta em um dia */
+function maisDias(iso: string, n: number): string {
+  const d = new Date(iso + "T12:00:00Z");
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+db.exec(`CREATE TABLE IF NOT EXISTS calendario_marcacao (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  nome TEXT NOT NULL,
+  tipo TEXT NOT NULL CHECK (tipo IN ('feriado','facultativo','ferias','recesso','ponte','evento')),
+  ambito TEXT NOT NULL DEFAULT 'escola' CHECK (ambito IN ('nacional','estadual','municipal','escola')),
+  -- COMO a data se repete. Foi assim que o "É anual? Sim/Não" do protótipo virou três casos:
+  --   'nenhuma' = data única, num ano só (usa data_ini/data_fim)
+  --   'anual'   = todo ano no mesmo dia/mês (usa mes/dia)
+  --   'pascoa'  = todo ano a N dias da Páscoa (usa offset_pascoa) — Carnaval, Corpus Christi...
+  repeticao TEXT NOT NULL DEFAULT 'nenhuma' CHECK (repeticao IN ('nenhuma','anual','pascoa')),
+  data_ini TEXT, data_fim TEXT,        -- repeticao='nenhuma'
+  mes INTEGER, dia INTEGER,            -- repeticao='anual'
+  offset_pascoa INTEGER,               -- repeticao='pascoa'
+  duracao INTEGER NOT NULL DEFAULT 1,  -- dias corridos, para férias e recessos
+  fecha INTEGER NOT NULL DEFAULT 1 CHECK (fecha IN (0,1)),  -- 1 = a escola não abre
+  cor TEXT,
+  observacao TEXT,
+  arquivado TEXT,
+  momento TEXT NOT NULL
+)`);
+db.exec("CREATE INDEX IF NOT EXISTS ix_cal_rep ON calendario_marcacao(repeticao)");
+/* ===== A MARCAÇÃO VIROU UM CONJUNTO DE TRECHOS (2026-08-17) =====
+   Ele descreveu o caso que o modelo antigo não sabia representar: *"um evento dura do dia 1 até o
+   dia 4, aí se repete dia 7, aí de novo dia 9, aí dura do 11 até o 17, aí no 21 e no 25"*. E
+   apontou o incômodo certo: *"esse 'quando se repete' com Páscoa é coisa antiga, não estou
+   entendendo a lógica"*.
+
+   O modelo velho amarrava UMA data a UMA regra de repetição, e ainda pedia "duração em dias" — que
+   ele também recusou: *"é melhor data início e fim"*. Com isso, férias eram difíceis e o exemplo
+   acima era impossível.
+
+   Agora: **uma marcação tem N TRECHOS, e cada trecho é um ponto ou um intervalo.** Isso engole tudo
+   o que existia, sem caso especial:
+     · feriado fixo  → 1 trecho anual de um dia
+     · férias        → 1 trecho de intervalo
+     · Carnaval      → 1 trecho ancorado na Páscoa
+     · o exemplo dele → 5 trechos na mesma marcação
+   O `modo` continua respondendo "como este trecho acha a data no ano", que é a única coisa que a
+   repetição realmente significava — só que agora por trecho, e sempre com início E fim. */
+db.exec(`CREATE TABLE IF NOT EXISTS calendario_trecho (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  marcacao_id INTEGER NOT NULL REFERENCES calendario_marcacao(id) ON DELETE CASCADE,
+  ordem INTEGER NOT NULL DEFAULT 1,
+  modo TEXT NOT NULL CHECK (modo IN ('data','anual','pascoa','semana')),
+  data_ini TEXT, data_fim TEXT,        -- modo 'data'   (fim nulo = um dia só)
+  dia INTEGER, mes INTEGER,            -- modo 'anual'
+  dia_fim INTEGER, mes_fim INTEGER,    -- modo 'anual', quando é intervalo
+  off_ini INTEGER, off_fim INTEGER     -- modo 'pascoa' (dias a contar da Páscoa)
+)`);
+db.exec("CREATE INDEX IF NOT EXISTS ix_trecho_marc ON calendario_trecho(marcacao_id)");
+/* ===== MODO 'semana': o N-ésimo DIA DA SEMANA de um mês (2026-08-17) =====
+   As férias da Wizard não são uma data, são uma REGRA: *"começamos na segunda sexta-feira de
+   dezembro e voltamos na segunda segunda-feira de janeiro"*. Guardar 11/12 fixo estaria certo em
+   2026 e errado em todos os outros anos — a segunda sexta cai em 10/12 em 2027, 08/12 em 2028 e
+   14/12 em 2029. Com a regra, o calendário acerta sozinho para sempre, que é o ponto do módulo.
+   `n` = 1..5, ou -1 para "o último do mês" (o caso do "última sexta"). */
+for (const c of ["sem_n", "sem_dow", "sem_n_fim", "sem_dow_fim"])
+  addColuna("calendario_trecho", c, "INTEGER");
+/* o n-ésimo `dow` (0=domingo … 6=sábado) do mês; n=-1 devolve o último */
+function nEsimoDow(ano: number, mes: number, dow: number, n: number): string | null {
+  const dias: string[] = [];
+  const d = new Date(Date.UTC(ano, mes - 1, 1));
+  while (d.getUTCMonth() === mes - 1) {
+    if (d.getUTCDay() === dow) dias.push(d.toISOString().slice(0, 10));
+    d.setUTCDate(d.getUTCDate() + 1);
+  }
+  if (!dias.length) return null;
+  return n === -1 ? dias[dias.length - 1] : (dias[n - 1] || null);
+}
+
+/* UMA ocorrência do trecho, ancorada num ano (sem recorte) */
+function ocorrenciaDoTrecho(t: any, ancora: number): string[] {
+  let ini: string | null = null, fim: string | null = null;
+  if (t.modo === "anual") {
+    if (!t.mes || !t.dia) return [];
+    ini = `${ancora}-${("0" + t.mes).slice(-2)}-${("0" + t.dia).slice(-2)}`;
+    if (t.dia_fim && t.mes_fim) {
+      fim = `${ancora}-${("0" + t.mes_fim).slice(-2)}-${("0" + t.dia_fim).slice(-2)}`;
+      /* intervalo anual que vira o ano (15/dez a 20/jan): o fim é no ano SEGUINTE */
+      if (fim < ini) fim = `${ancora + 1}-${("0" + t.mes_fim).slice(-2)}-${("0" + t.dia_fim).slice(-2)}`;
+    }
+  } else if (t.modo === "semana") {
+    if (!t.mes || !t.sem_dow == null) return [];
+    ini = nEsimoDow(ancora, Number(t.mes), Number(t.sem_dow), Number(t.sem_n) || 1);
+    if (!ini) return [];
+    if (t.mes_fim && t.sem_dow_fim != null) {
+      fim = nEsimoDow(ancora, Number(t.mes_fim), Number(t.sem_dow_fim), Number(t.sem_n_fim) || 1);
+      /* fim antes do início = a regra vira o ano (2ª sexta de dez → 2º domingo de jan) */
+      if (fim && fim < ini)
+        fim = nEsimoDow(ancora + 1, Number(t.mes_fim), Number(t.sem_dow_fim), Number(t.sem_n_fim) || 1);
+    }
+  } else if (t.modo === "pascoa") {
+    const p = pascoa(ancora);
+    ini = maisDias(p, Number(t.off_ini) || 0);
+    if (t.off_fim != null && t.off_fim !== "") fim = maisDias(p, Number(t.off_fim));
+  } else {
+    if (!t.data_ini) return [];
+    ini = t.data_ini; fim = t.data_fim || null;
+  }
+  const out: string[] = [];
+  if (!fim || fim <= ini!) out.push(ini!);
+  else {
+    const a = new Date(ini! + "T12:00:00Z").getTime();
+    const b = new Date(fim + "T12:00:00Z").getTime();
+    let n = Math.round((b - a) / 86400000) + 1;
+    if (n > 800) n = 800;                       // intervalo digitado errado não gera milhares
+    for (let i = 0; i < n; i++) out.push(maisDias(ini!, i));
+  }
+  return out;
+}
+/* as datas de UM trecho dentro de um ano.
+   ===== A OCORRÊNCIA DO ANO ANTERIOR TAMBÉM CONTA (achado testando, 2026-08-17) =====
+   As férias anuais da Wizard vão de 15/dez a 20/jan. Olhando só a ocorrência ancorada em 2027,
+   janeiro de 2027 sumia — ele pertence às férias que COMEÇARAM em dezembro de 2026. Medido: 17 dias
+   por ano em vez de 37. Por isso a conta considera a âncora do ano pedido E a do ano anterior, e só
+   então recorta. Vale para 'anual' e para 'pascoa' (a Páscoa de janeiro não existe, mas um offset
+   grande o bastante criaria o mesmo caso). */
+function datasDoTrecho(t: any, ano: number): string[] {
+  const vistas = new Set<string>();
+  for (const ancora of [ano - 1, ano])
+    for (const d of ocorrenciaDoTrecho(t, ancora))
+      if (d.startsWith(String(ano))) vistas.add(d);
+  return [...vistas].sort();
+}
+/* MIGRAÇÃO: cada marcação antiga vira UM trecho equivalente. Roda uma vez; marcação que já tem
+   trecho é ignorada, então subir o app de novo é inerte. */
+function migrarTrechos() {
+  const semTrecho = A(`SELECT m.* FROM calendario_marcacao m
+     WHERE NOT EXISTS (SELECT 1 FROM calendario_trecho t WHERE t.marcacao_id=m.id)`);
+  for (const m of semTrecho) {
+    if (m.repeticao === "anual") {
+      R("INSERT INTO calendario_trecho (marcacao_id,ordem,modo,dia,mes) VALUES (?,1,'anual',?,?)",
+        m.id, m.dia, m.mes);
+    } else if (m.repeticao === "pascoa") {
+      const d = Math.max(1, m.duracao || 1);
+      R("INSERT INTO calendario_trecho (marcacao_id,ordem,modo,off_ini,off_fim) VALUES (?,1,'pascoa',?,?)",
+        m.id, m.offset_pascoa, d > 1 ? (Number(m.offset_pascoa) + d - 1) : null);
+    } else {
+      /* 'nenhuma': o fim vinha de `data_fim` OU de `duracao` — os dois viram um fim explícito */
+      let fim = m.data_fim || null;
+      if (!fim && (m.duracao || 1) > 1 && m.data_ini) fim = maisDias(m.data_ini, m.duracao - 1);
+      R("INSERT INTO calendario_trecho (marcacao_id,ordem,modo,data_ini,data_fim) VALUES (?,1,'data',?,?)",
+        m.id, m.data_ini, fim);
+    }
+  }
+  if (semTrecho.length) console.log(`   calendário: ${semTrecho.length} marcação(ões) migradas para trechos`);
+}
+/* de onde a marcação veio: 'manual' (ele digitou), 'semente' (nasceu com o módulo) ou o id de uma
+   fonte externa. É o que permite atualizar o que veio de fora sem encostar no que é dele. */
+addColuna("calendario_marcacao", "origem", "TEXT NOT NULL DEFAULT 'manual'");
+addColuna("calendario_marcacao", "chave_externa", "TEXT");
+/* ===== ORQUESTRAÇÃO DE FONTES (2026-08-17) =====
+   Pedido dele: *"não depender só de uma API... pode pegar mais outras, do Brasil, fora do Brasil"*.
+
+   O QUE A PESQUISA ACHOU, e por que só duas entraram:
+   - **BrasilAPI** (`brasilapi.com.br`) — nacionais, grátis, sem chave. Simples e estável.
+   - **Nager.Date** (`date.nager.at`) — internacional, grátis, sem chave. Traz duas coisas que a
+     BrasilAPI não tem: `counties` (recorte por estado, ex. `BR-SP`) e `types`, que separa
+     `Public` de `Bank`/`Optional` — ou seja, **feriado de ponto facultativo**, que é justamente a
+     nuance que ele pediu.
+   - `dadosbr.github.io/feriados` — tem só 9 nacionais e **cinco** estados (ES, MG, RJ, SP, TO):
+     conferido, NÃO tem MS. Ficou de fora por ser redundante e ter formato próprio.
+   - feriados.dev, feriadosapi.com, Invertexto — cobrem município, mas TODAS exigem chave/plano.
+
+   **Estadual de MS e municipais de Naviraí não têm API gratuita confiável** — vêm de lei local.
+   Já estão semeados como `anual`, e por serem de data fixa nunca precisam de atualização. Raspar o
+   site da prefeitura seria fragilidade em troca de nada: o dado não se move.
+
+   A tabela existe para a fonte ser DADO, não código — acrescentar uma quarta é uma linha aqui. */
+db.exec(`CREATE TABLE IF NOT EXISTS calendario_fonte (
+  id TEXT PRIMARY KEY,
+  nome TEXT NOT NULL,
+  url TEXT NOT NULL,              -- com {ano} no lugar do ano
+  ativa INTEGER NOT NULL DEFAULT 1 CHECK (ativa IN (0,1)),
+  ultima_sync TEXT,
+  ultimo_status TEXT,             -- 'ok' | 'erro'
+  ultimo_erro TEXT,
+  achados INTEGER NOT NULL DEFAULT 0,   -- quantos itens a fonte devolveu na última vez
+  novos INTEGER NOT NULL DEFAULT 0      -- quantos viraram marcação
+)`);
+/* LIVRO-CAIXA do que já veio de fora, uma linha por chave externa vista.
+   É ele que faz a sincronização RESPEITAR EXCLUSÃO: se ele apagou um feriado importado, a chave
+   continua aqui e a próxima rodada não o traz de volta. Sem isto, o que ele apaga hoje reaparece
+   amanhã às 15:30 — e ele nunca mais confiaria na tela. */
+db.exec(`CREATE TABLE IF NOT EXISTS calendario_importado (
+  fonte TEXT NOT NULL,
+  chave TEXT NOT NULL,            -- 'YYYY-MM-DD|nome normalizado'
+  visto_em TEXT NOT NULL,
+  virou_marcacao INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (fonte, chave)
+)`);
+db.exec(`CREATE TABLE IF NOT EXISTS calendario_sync (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  momento TEXT NOT NULL,
+  gatilho TEXT NOT NULL,          -- 'automatico' | 'manual'
+  anos TEXT, fontes_ok INTEGER, fontes_erro INTEGER, novos INTEGER, resumo TEXT
+)`);
+function semearFontes() {
+  const f = (id: string, nome: string, url: string) =>
+    R("INSERT OR IGNORE INTO calendario_fonte (id,nome,url) VALUES (?,?,?)", id, nome, url);
+  f("brasilapi", "BrasilAPI — feriados nacionais", "https://brasilapi.com.br/api/feriados/v1/{ano}");
+  f("nager", "Nager.Date — feriados do Brasil (com ponto facultativo)", "https://date.nager.at/api/v3/PublicHolidays/{ano}/BR");
+  /* ===== INVERTEXTO (2026-08-17) — a melhor das três, e a única com ESTADUAL =====
+     Ele criou a conta e o token. É a que responde mais perto do que a escola precisa:
+       · `type` separa **feriado** de **facultativo** de forma explícita (as outras não, ou só por
+         inferência de `types`);
+       · `level` separa **nacional** de **estadual**, e com `state=MS` traz a Criação do Estado
+         (11/10) com a lei — o buraco que nenhuma fonte gratuita cobria;
+       · traz o que as outras duas ignoram: Quarta-feira de Cinzas, Dia do Servidor Público (28/10)
+         e as vésperas de 24/12 e 31/12, que são justamente os dias em que a escola fecha mais cedo.
+     PRECISA DE TOKEN, e o token é SEGREDO: mora em `config`, nunca no código. Ver `urlDaFonte`. */
+  f("invertexto", "Invertexto — nacionais + estaduais de {uf}",
+    "https://api.invertexto.com/v1/holidays/{ano}?token={token}&state={uf}");
+}
+/* ===== O TOKEN NÃO ENTRA NO REPOSITÓRIO =====
+   `github.com/Vitor-rs/wiztools` é PÚBLICO. Uma chave de API no código-fonte vira chave de API na
+   internet no primeiro `git push`. Ela mora na tabela `config`, dentro do `wizard.db` — que o
+   `.gitignore` barra (`*.db`) e que portanto nunca sai daqui.
+   Consequência prática, e é o certo: o token é POR INSTALAÇÃO. A recepção e o notebook têm bancos
+   diferentes, então cada máquina recebe o dela pela tela. */
+const cfg = (chave: string) => G("SELECT valor FROM config WHERE chave=?", chave)?.valor || "";
+function urlDaFonte(f: any, ano: number): string | null {
+  let u = f.url.replace("{ano}", String(ano));
+  if (u.includes("{token}")) {
+    const t = cfg("cal_token_invertexto");
+    if (!t) return null;                      // sem token a fonte simplesmente não roda
+    u = u.replace("{token}", encodeURIComponent(t));
+  }
+  return u.replace(/\{uf\}/g, cfg("cal_uf") || "MS");
+}
+/* normaliza o nome para comparar: acento, caixa e pontuação variam entre as fontes e fariam a mesma
+   data entrar duas vezes com nomes quase iguais */
+const chaveFeriado = (data: string, nome: string) =>
+  data + "|" + String(nome || "").toLowerCase().normalize("NFD")
+    .replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+/* ADAPTADOR por fonte: cada uma fala um dialeto, e o resto do módulo não precisa saber disso. */
+function normalizarFonte(id: string, bruto: any[]): any[] {
+  if (id === "brasilapi")
+    return (bruto || []).map(x => ({ data: x.date, nome: x.name, tipo: "feriado", ambito: "nacional" }));
+  if (id === "invertexto")
+    return (bruto || []).map(x => ({
+      data: x.date, nome: x.name,
+      /* `type` já vem no vocabulário certo: feriado | facultativo */
+      tipo: x.type === "facultativo" ? "facultativo" : "feriado",
+      ambito: x.level === "estadual" ? "estadual" : "nacional",
+      /* a lei vira observação — é o "por que este dia é feriado" que nenhuma outra fonte dá */
+      observacao: x.law || null,
+    }));
+  if (id === "nager")
+    return (bruto || []).map(x => ({
+      data: x.date, nome: x.localName || x.name,
+      /* AQUI está o ganho da segunda fonte: 'Bank'/'Optional' viram ponto facultativo, e só
+         'Public' é feriado de verdade. A BrasilAPI chama tudo de feriado. */
+      tipo: (x.types || []).includes("Public") ? "feriado" : "facultativo",
+      /* `counties` restringe a um estado (ex.: BR-SP). Só interessa o que vale em MS ou no país. */
+      ambito: x.global === false ? "estadual" : "nacional",
+      counties: x.counties || null,
+    })).filter(x => !x.counties || x.counties.includes("BR-MS"));
+  return [];
+}
+/* AS DATAS QUE UMA MARCAÇÃO OCUPA NAQUELE ANO. Um lugar só resolve os três modos de repetição —
+   a tela, a contagem de dias letivos e o que vier depois pedem sempre a mesma resposta. */
+/* AS DATAS DE UMA MARCAÇÃO = a união das datas dos seus trechos.
+   O caminho antigo continua abaixo como rede de segurança: marcação sem trecho (só existiria se a
+   migração falhasse no meio) ainda responde pelo modelo velho, em vez de sumir da tela. */
+function datasDaMarcacao(m: any, ano: number): string[] {
+  const trechos = A("SELECT * FROM calendario_trecho WHERE marcacao_id=? ORDER BY ordem, id", m.id);
+  if (trechos.length) {
+    const vistas = new Set<string>();
+    for (const t of trechos) for (const d of datasDoTrecho(t, ano)) vistas.add(d);
+    return [...vistas].sort();
+  }
+  return datasPeloModeloAntigo(m, ano);
+}
+function datasPeloModeloAntigo(m: any, ano: number): string[] {
+  let inicio: string | null = null, dur = Math.max(1, m.duracao || 1);
+  if (m.repeticao === "anual") {
+    if (!m.mes || !m.dia) return [];
+    inicio = `${ano}-${("0" + m.mes).slice(-2)}-${("0" + m.dia).slice(-2)}`;
+  } else if (m.repeticao === "pascoa") {
+    inicio = maisDias(pascoa(ano), Number(m.offset_pascoa) || 0);
+  } else {
+    if (!m.data_ini) return [];
+    /* ===== FÉRIAS QUE ATRAVESSAM O ANO NOVO (corrigido 2026-08-17) =====
+       Aqui havia um `return []` quando `data_ini` não era do ano pedido — e isso apagava JANEIRO
+       das férias da escola, que é justamente como a Wizard tira férias: *"entramos na metade de
+       dezembro e voltamos na metade de janeiro"*. Medido antes do conserto: 15/12/2026 a
+       20/01/2027 são 37 dias, e a tela mostrava 17 em 2026 e **ZERO em 2027**.
+       Agora o intervalo INTEIRO é gerado e só depois se recorta o ano — o mesmo registro pinta o
+       fim de dezembro numa folha e o começo de janeiro na outra. */
+    inicio = m.data_ini;
+    if (m.data_fim) {
+      const a = new Date(m.data_ini + "T12:00:00Z").getTime();
+      const b = new Date(m.data_fim + "T12:00:00Z").getTime();
+      dur = Math.max(1, Math.round((b - a) / 86400000) + 1);
+    }
+    /* guarda de sanidade: intervalo digitado errado (2026→2035) não pode gerar milhares de dias */
+    if (dur > 800) dur = 800;
+  }
+  const out: string[] = [];
+  for (let i = 0; i < dur; i++) out.push(maisDias(inicio!, i));
+  return out.filter(d => d.startsWith(String(ano)));
+}
+/* ===== UMA DATA PODE SER VÁRIAS COISAS (2026-08-17) =====
+   Ordem dele: *"às vezes uma data pode ser tudo isso — férias, recesso, feriado"*. As férias de fim
+   de ano da Wizard são férias E recesso ao mesmo tempo, e podem engolir o Natal por dentro.
+   `tipo` continua sendo o tipo PRINCIPAL (é ele que dá a cor, a pílula e a legenda, e é ele que o
+   CHECK da tabela conhece); `tipos` guarda o conjunto. Assim nada rio abaixo precisou mudar, e não
+   foi preciso reconstruir a tabela só para afrouxar um CHECK. */
+addColuna("calendario_marcacao", "tipos", "TEXT");
+db.exec("UPDATE calendario_marcacao SET tipos=tipo WHERE tipos IS NULL OR tipos=''");
+const TIPOS_CAL = ["feriado", "facultativo", "ferias", "recesso", "ponte", "evento"];
+/* FÉRIAS E RECESSO NÃO TÊM AULA, ponto. Ele foi categórico: *"não tem como férias ser aula"*.
+   A regra vive no servidor e não no formulário, senão a próxima tela que gravar uma marcação
+   poderia contradizê-la. */
+const FECHA_SEMPRE = ["ferias", "recesso"];
+function normalizarTipos(tipos: any, tipoUnico: any): { tipo: string; tipos: string; fecha: boolean | null } {
+  let lista: string[] = Array.isArray(tipos) ? tipos.map(String)
+    : String(tipos || tipoUnico || "evento").split(",");
+  lista = lista.map(t => t.trim()).filter(t => TIPOS_CAL.includes(t));
+  if (!lista.length) lista = [String(tipoUnico || "evento")];
+  /* o principal é o que aparece: a ordem de TIPOS_CAL é a de peso (feriado manda sobre evento) */
+  lista.sort((a, b) => TIPOS_CAL.indexOf(a) - TIPOS_CAL.indexOf(b));
+  const fechaForcado = lista.some(t => FECHA_SEMPRE.includes(t)) ? true : null;
+  return { tipo: lista[0], tipos: lista.join(","), fecha: fechaForcado };
+}
+/* O QUE JÁ NASCE SABIDO. Feriado nacional é lei federal e não muda; estadual e municipal vêm de lei
+   local, e é por isso que NÃO existe API confiável para eles — precisam ser ditos uma vez.
+   Fontes conferidas para Naviraí-MS: criação do estado 11/10; padroeira 13/05; aniversário do
+   município 11/11 (Lei Estadual 1944/1963). */
+const CAL_SEMENTE: any[] = [
+  // nacionais de data fixa
+  ["Confraternização Universal", "feriado", "nacional", "anual", 1, 1],
+  ["Tiradentes", "feriado", "nacional", "anual", 4, 21],
+  ["Dia do Trabalho", "feriado", "nacional", "anual", 5, 1],
+  ["Independência do Brasil", "feriado", "nacional", "anual", 9, 7],
+  ["Nossa Senhora Aparecida", "feriado", "nacional", "anual", 10, 12],
+  ["Finados", "feriado", "nacional", "anual", 11, 2],
+  ["Proclamação da República", "feriado", "nacional", "anual", 11, 15],
+  ["Consciência Negra", "feriado", "nacional", "anual", 11, 20],
+  ["Natal", "feriado", "nacional", "anual", 12, 25],
+  // estadual e municipais
+  ["Criação de Mato Grosso do Sul", "feriado", "estadual", "anual", 10, 11],
+  ["Nossa Senhora de Fátima (padroeira)", "feriado", "municipal", "anual", 5, 13],
+  ["Aniversário de Naviraí", "feriado", "municipal", "anual", 11, 11],
+];
+/* as móveis, por deslocamento a partir da Páscoa */
+const CAL_SEMENTE_PASCOA: any[] = [
+  ["Carnaval (segunda)", "facultativo", "nacional", -48],
+  ["Carnaval (terça)", "facultativo", "nacional", -47],
+  ["Quarta-feira de Cinzas", "facultativo", "nacional", -46],
+  ["Sexta-feira Santa", "feriado", "nacional", -2],
+  ["Páscoa", "feriado", "nacional", 0],
+  ["Corpus Christi", "facultativo", "nacional", 60],
+];
+function semearCalendario() {
+  if (G("SELECT 1 FROM config WHERE chave='calendario_semeado'")) return;
+  const ins = (nome: string, tipo: string, amb: string, rep: string,
+               mes: any, dia: any, off: any, cor: string) =>
+    R(`INSERT INTO calendario_marcacao (nome,tipo,ambito,repeticao,mes,dia,offset_pascoa,duracao,fecha,cor,origem,momento)
+       VALUES (?,?,?,?,?,?,?,1,1,?,'semente',?)`, nome, tipo, amb, rep, mes, dia, off, cor, agora());
+  for (const [nome, tipo, amb, rep, mes, dia] of CAL_SEMENTE)
+    ins(nome, tipo, amb, rep, mes, dia, null, amb === "nacional" ? "#B3261E" : amb === "estadual" ? "#7A4FBF" : "#0F7B6C");
+  for (const [nome, tipo, amb, off] of CAL_SEMENTE_PASCOA)
+    ins(nome, tipo, amb, "pascoa", null, null, off, tipo === "feriado" ? "#B3261E" : "#B26A00");
+  R("INSERT INTO config (chave,valor) VALUES ('calendario_semeado',?)", agora());
+  console.log(`   calendário letivo semeado: ${CAL_SEMENTE.length + CAL_SEMENTE_PASCOA.length} marcações`);
+}
+/* a CHAMADA de `semearCalendario` mora lá embaixo, junto das outras semeaduras: `agora` é um
+   `const` declarado adiante, e chamar daqui morre na zona morta temporal — foi o que aconteceu
+   na primeira subida. Regra da casa: semeadura roda no bloco de boot, nunca no meio do arquivo. */
+
 /* Cada checagem devolve `k` (chave estável), `r` (rótulo) e, quando ajuda, `d` (detalhe).
    `gravidade`: alta = atrapalha a operação hoje · media = vai atrapalhar · baixa = cadastro
    incompleto, que é backlog de verdade e não urgência.
    `aba` é para onde o botão "resolver" leva. */
+/* `destino` diz O QUE o caso é (aluno, material, estágio…) e `campo` qual caixa deve piscar ao
+   chegar. Quem resolve o ALVO é o SQL, na coluna `a`: só o banco sabe virar um `aula.id` no aluno
+   dono dela, e fazer o cliente adivinhar isso a partir da chave seria decorar o formato de cada
+   regra em dois lugares. */
 type Checagem = { id: string; area: string; titulo: string; porque: string; acao: string;
-                  gravidade: "alta" | "media" | "baixa"; aba: string; sql: string };
+                  gravidade: "alta" | "media" | "baixa"; aba: string; sql: string;
+                  destino?: string; campo?: string };
 const CHECAGENS: Checagem[] = [
   /* ---------- ALUNOS ---------- */
-  { id: "aluno_sem_matricula", area: "Alunos", gravidade: "alta", aba: "alunos",
+  { id: "aluno_sem_matricula", destino: "aluno", area: "Alunos", gravidade: "alta", aba: "alunos",
     titulo: "Aluno ativo sem nenhuma matrícula",
     porque: "O aluno está com situação ativa mas não está vinculado a estágio nenhum — ele não aparece em ficha, agenda nem entrega.",
     acao: "Abra o aluno e use \"+ Nova matrícula em estágio\".",
-    sql: `SELECT a.id_matricula k, a.nome r, a.situacao d FROM alunos a
+    sql: `SELECT a.id_matricula k, a.nome r, a.situacao d, a.id_matricula a FROM alunos a
           JOIN situacoes s ON s.situacao=a.situacao AND s.ativa=1
           WHERE NOT EXISTS (SELECT 1 FROM aluno_livro al WHERE al.id_matricula=a.id_matricula)
           ORDER BY a.nome` },
-  { id: "matricula_sem_entrega", area: "Alunos", gravidade: "alta", aba: "estoque",
+  { id: "matricula_sem_entrega", destino: "entrega", area: "Alunos", gravidade: "alta", aba: "estoque",
     titulo: "Matrícula ativa sem material entregue",
     porque: "O aluno está matriculado no estágio e não recebeu o material dele (ou devolveu e não recebeu outro).",
     acao: "Aba Estoque · Entregas: escolha o aluno e entregue um exemplar.",
-    sql: `SELECT al.id_matricula||'|'||al.livro k, a.nome r, al.livro d
+    sql: `SELECT al.id_matricula||'|'||al.livro k, a.nome r, al.livro d, al.id_matricula a
           FROM aluno_livro al JOIN alunos a ON a.id_matricula=al.id_matricula
           JOIN situacoes s ON s.situacao=a.situacao AND s.ativa=1
           LEFT JOIN entrega_material e ON e.id_matricula=al.id_matricula AND e.livro=al.livro
           WHERE e.id IS NULL OR e.devolvida IS NOT NULL ORDER BY a.nome` },
-  { id: "matricula_sem_agenda", area: "Alunos", gravidade: "alta", aba: "alunos",
+  { id: "matricula_sem_agenda", destino: "aluno", area: "Alunos", gravidade: "alta", aba: "alunos",
     titulo: "Matrícula ativa sem horário na agenda",
     porque: "Sem dia e hora o aluno não entra em bloco nenhum: some da ficha impressa e das duas telas de frequência.",
     acao: "Abra o aluno, escolha a aba do estágio e marque os dias na grade.",
-    sql: `SELECT al.id_matricula||'|'||al.livro k, a.nome r, al.livro d
+    sql: `SELECT al.id_matricula||'|'||al.livro k, a.nome r, al.livro d, al.id_matricula a
           FROM aluno_livro al JOIN alunos a ON a.id_matricula=al.id_matricula
           JOIN situacoes s ON s.situacao=a.situacao AND s.ativa=1
           WHERE NOT EXISTS (SELECT 1 FROM aulas au WHERE au.id_matricula=al.id_matricula AND au.livro=al.livro)
           ORDER BY a.nome` },
-  { id: "aula_sem_professor", area: "Alunos", gravidade: "media", aba: "alunos",
+  { id: "aula_sem_professor", destino: "aluno", area: "Alunos", gravidade: "media", aba: "alunos",
     titulo: "Aula sem professor vinculado",
     porque: "A ficha impressa sai sem o nome da professora naquele bloco.",
     acao: "Abra o aluno, na aba do estágio, e preencha Professores.",
-    sql: `SELECT au.id k, a.nome r, au.livro||' · '||au.dia||' '||au.hora d FROM aulas au
+    sql: `SELECT au.id k, a.nome r, au.livro||' · '||au.dia||' '||au.hora d, au.id_matricula a FROM aulas au
           JOIN alunos a ON a.id_matricula=au.id_matricula
           JOIN situacoes s ON s.situacao=a.situacao AND s.ativa=1
           WHERE NOT EXISTS (SELECT 1 FROM aula_professor ap WHERE ap.aula_id=au.id)
           ORDER BY a.nome, au.dia` },
-  { id: "aluno_sem_historico", area: "Alunos", gravidade: "baixa", aba: "alunos",
+  { id: "aluno_sem_historico", destino: "aluno-historico", area: "Alunos", gravidade: "baixa", aba: "alunos",
     titulo: "Aluno ativo sem nenhum registro de situação",
     porque: "Não há quando ele entrou nem em qual estágio — o percurso dele começa em branco.",
     acao: "Abra o aluno em Informações · Histórico de situação e lance a entrada dele.",
-    sql: `SELECT a.id_matricula k, a.nome r, a.situacao d FROM alunos a
+    sql: `SELECT a.id_matricula k, a.nome r, a.situacao d, a.id_matricula a FROM alunos a
           JOIN situacoes s ON s.situacao=a.situacao AND s.ativa=1
           WHERE NOT EXISTS (SELECT 1 FROM aluno_situacao_historico h WHERE h.id_matricula=a.id_matricula)
           ORDER BY a.nome` },
-  { id: "entrega_sem_data", area: "Alunos", gravidade: "baixa", aba: "estoque",
+  { id: "entrega_sem_data", destino: "entrega", area: "Alunos", gravidade: "baixa", aba: "estoque",
     titulo: "Entrega registrada sem data",
     porque: "Sabe-se que o aluno recebeu, não quando. É o caso das entregas deduzidas das matrículas antigas.",
     acao: "Aba Estoque · Entregas: preencha a data na linha, quando souber.",
-    sql: `SELECT e.id_matricula||'|'||e.livro k, a.nome r, e.livro d FROM entrega_material e
+    sql: `SELECT e.id_matricula||'|'||e.livro k, a.nome r, e.livro d, e.id_matricula a FROM entrega_material e
           JOIN alunos a ON a.id_matricula=e.id_matricula WHERE e.data IS NULL ORDER BY a.nome` },
 
   /* ---------- BIBLIOTECA · ESTÁGIOS ---------- */
-  { id: "estagio_sem_estrutura", area: "Estágios", gravidade: "alta", aba: "estagios",
+  { id: "estagio_sem_estrutura", destino: "estagio", campo: "estrutura", area: "Estágios", gravidade: "alta", aba: "estagios",
     titulo: "Estágio sem estrutura definida",
     porque: "Sem modelo e sem lista própria não há como saber quantas lições o estágio tem.",
     acao: "Abra o estágio em Estrutura e escolha um modelo (ou monte a lista própria).",
-    sql: `SELECT e.id k, e.nome r, e.categoria d FROM estagio e
+    sql: `SELECT e.id k, e.nome r, e.categoria d, e.id a FROM estagio e
           WHERE e.arquivado IS NULL AND e.modelo_id IS NULL
           AND NOT EXISTS (SELECT 1 FROM estagio_licao l WHERE l.dono_id=e.id) ORDER BY e.ordem` },
-  { id: "estagio_sem_material", area: "Estágios", gravidade: "media", aba: "estagios",
+  { id: "estagio_sem_material", destino: "estagio", campo: "eg-item", area: "Estágios", gravidade: "media", aba: "estagios",
     titulo: "Estágio sem material de estoque vinculado",
     porque: "A matrícula nesse estágio não consegue dizer se há exemplar na prateleira, e a entrega fica sem unidade.",
     acao: "Abra o estágio em Dados e escolha o material. (Edição aposentada sem estoque é caso legítimo — silencie.)",
-    sql: `SELECT e.id k, e.nome r, COALESCE(e.livro,'sem estágio-ponte') d FROM estagio e
+    sql: `SELECT e.id k, e.nome r, COALESCE(e.livro,'sem estágio-ponte') d, e.id a FROM estagio e
           WHERE e.arquivado IS NULL AND e.item_estoque_id IS NULL ORDER BY e.ordem` },
-  { id: "estagio_sem_livro", area: "Estágios", gravidade: "media", aba: "estagios",
+  { id: "estagio_sem_livro", destino: "estagio", campo: "eg-item", area: "Estágios", gravidade: "media", aba: "estagios",
     titulo: "Estágio sem estágio-ponte",
     porque: "Sem o vínculo com `livros` ninguém consegue se matricular nele: matrícula, agenda e ficha passam por aí.",
     acao: "Abra o estágio em Dados e vincule o material — o estágio-ponte vem dele.",
-    sql: `SELECT e.id k, e.nome r, e.categoria d FROM estagio e
+    sql: `SELECT e.id k, e.nome r, e.categoria d, e.id a FROM estagio e
           WHERE e.arquivado IS NULL AND (e.livro IS NULL OR e.livro='') ORDER BY e.ordem` },
-  { id: "estagio_sem_nome_curto", area: "Estágios", gravidade: "baixa", aba: "estagios",
+  { id: "estagio_sem_nome_curto", destino: "estagio", campo: "eg-nomecurto", area: "Estágios", gravidade: "baixa", aba: "estagios",
     titulo: "Estágio sem nome curto",
     porque: "O nome curto é o que cabe nas pílulas e nas fichas impressas.",
     acao: "Abra o estágio em Dados e preencha Nome curto.",
-    sql: `SELECT e.id k, e.nome r, e.categoria d FROM estagio e
+    sql: `SELECT e.id k, e.nome r, e.categoria d, e.id a FROM estagio e
           WHERE e.arquivado IS NULL AND (e.nome_curto IS NULL OR e.nome_curto='') ORDER BY e.ordem` },
-  { id: "estagio_sem_proximo", area: "Estágios", gravidade: "baixa", aba: "estagios",
+  { id: "estagio_sem_proximo", destino: "estagio-trilha", area: "Estágios", gravidade: "baixa", aba: "estagios",
     titulo: "Estágio sem próximo na trilha",
     porque: "A rematrícula não sabe sugerir para onde o aluno vai depois de terminar.",
-    acao: "Aba Estágios · Trilha. (O último estágio de uma linha não tem próximo mesmo — silencie.)",
-    sql: `SELECT e.id k, e.nome r, e.categoria d FROM estagio e
+    acao: "Aba Estágios · Trilha. (Se ele é o último da coleção, marque o material como FINAL na aba Estoque · Materiais — aí ele sai daqui sozinho.)",
+    /* O ÚLTIMO DA COLEÇÃO NÃO ENTRA (2026-08-17): o W12 não tem próximo por definição, e um alerta
+       que não se resolve nunca é ruído permanente. Quem diz que é o último é o MATERIAL. */
+    sql: `SELECT e.id k, e.nome r, e.categoria d, e.id a FROM estagio e
+          LEFT JOIN estoque_item i ON i.id=e.item_estoque_id
           WHERE e.arquivado IS NULL AND (e.livro IS NOT NULL AND e.livro<>'')
+          AND COALESCE(i.final,0)=0
           AND NOT EXISTS (SELECT 1 FROM estagio_proximo p WHERE p.de_id=e.id) ORDER BY e.ordem` },
 
   /* ---------- BIBLIOTECA · ESTOQUE ---------- */
-  { id: "material_abaixo_minimo", area: "Estoque", gravidade: "alta", aba: "estoque",
+  { id: "material_abaixo_minimo", destino: "material", campo: "minimo", area: "Estoque", gravidade: "alta", aba: "estoque",
     titulo: "Material abaixo do mínimo, sem pedido a caminho",
     porque: "O saldo já está abaixo do que você definiu como mínimo e não há pedido pendente para repor.",
     acao: "Aba Estoque · Materiais: \"+ Fazer pedido\".",
     sql: `SELECT i.id k, i.descricao r,
             'saldo '||(SELECT COUNT(*) FROM estoque_unidade u WHERE u.item_id=i.id AND u.entrega_id IS NULL AND u.arquivado IS NULL)
-            ||' · mínimo '||i.minimo d
+            ||' · mínimo '||i.minimo d, i.id a
           FROM estoque_item i WHERE i.arquivado IS NULL AND i.componente=0 AND i.minimo>0
           AND (SELECT COUNT(*) FROM estoque_unidade u WHERE u.item_id=i.id AND u.entrega_id IS NULL AND u.arquivado IS NULL) < i.minimo
           ORDER BY i.ordem` },
-  { id: "material_sem_minimo", area: "Estoque", gravidade: "media", aba: "estoque",
+  { id: "material_sem_minimo", destino: "material", campo: "minimo", area: "Estoque", gravidade: "media", aba: "estoque",
     titulo: "Material sem estoque mínimo definido",
     porque: "Com mínimo zero o sistema nunca vai avisar que está na hora de pedir esse material.",
     acao: "Aba Estoque · Materiais: escolha o material e preencha Mínimo.",
-    sql: `SELECT i.id k, i.descricao r, COALESCE(i.livro,'avulso') d FROM estoque_item i
+    sql: `SELECT i.id k, i.descricao r, COALESCE(i.livro,'avulso') d, i.id a FROM estoque_item i
           WHERE i.arquivado IS NULL AND i.componente=0 AND i.minimo=0 ORDER BY i.ordem` },
-  { id: "material_sem_edicao", area: "Estoque", gravidade: "baixa", aba: "estoque",
+  { id: "material_sem_edicao", destino: "material", campo: "edicoes", area: "Estoque", gravidade: "baixa", aba: "estoque",
     titulo: "Material de livro sem edição definida",
     porque: "Sem edição, dois exemplares de anos diferentes ficam indistinguíveis na fila.",
     acao: "Aba Estoque · Materiais: escolha o material e crie a edição no campo Edições.",
-    sql: `SELECT i.id k, i.descricao r, i.livro d FROM estoque_item i
+    sql: `SELECT i.id k, i.descricao r, i.livro d, i.id a FROM estoque_item i
           WHERE i.arquivado IS NULL AND i.componente=0 AND i.livro IS NOT NULL
           AND NOT EXISTS (SELECT 1 FROM estoque_edicao ed WHERE ed.item_id=i.id AND ed.arquivada IS NULL)
           ORDER BY i.ordem` },
-  { id: "unidade_sem_numero", area: "Estoque", gravidade: "media", aba: "estoque",
+  { id: "unidade_sem_numero", destino: "material", area: "Estoque", gravidade: "media", aba: "estoque",
     titulo: "Exemplar sem número de etiqueta",
     porque: "O número escrito à caneta é o identificador que a mão alcança na prateleira.",
     acao: "Aba Estoque · Materiais: abra a fila do material e edite o exemplar no lápis.",
-    sql: `SELECT u.id k, i.descricao r, 'entrou '||substr(u.entrada,1,16) d
+    sql: `SELECT u.id k, i.descricao r, 'entrou '||substr(u.entrada,1,16) d, u.item_id a
           FROM estoque_unidade u JOIN estoque_item i ON i.id=u.item_id
           WHERE u.arquivado IS NULL AND u.numero IS NULL ORDER BY u.entrada` },
-  { id: "unidade_sem_codigo", area: "Estoque", gravidade: "baixa", aba: "estoque",
+  { id: "unidade_sem_codigo", destino: "material", area: "Estoque", gravidade: "baixa", aba: "estoque",
     titulo: "Exemplar sem código de barras",
     porque: "O código é o que amarra a entrega ao objeto físico quando o exemplar sai.",
     acao: "Aba Estoque · Materiais: abra a fila e digite o código no lápis do exemplar.",
-    sql: `SELECT u.id k, i.descricao||' nº '||COALESCE(u.numero,'?') r, 'entrou '||substr(u.entrada,1,16) d
+    sql: `SELECT u.id k, i.descricao||' nº '||COALESCE(u.numero,'?') r, 'entrou '||substr(u.entrada,1,16) d, u.item_id a
           FROM estoque_unidade u JOIN estoque_item i ON i.id=u.item_id
           WHERE u.arquivado IS NULL AND (u.codigo IS NULL OR u.codigo='') ORDER BY u.entrada` },
-  { id: "unidade_nao_conferida", area: "Estoque", gravidade: "baixa", aba: "estoque",
+  { id: "unidade_nao_conferida", destino: "material", area: "Estoque", gravidade: "baixa", aba: "estoque",
     titulo: "Exemplar na prateleira nunca conferido",
     porque: "Ninguém confirmou que esse exemplar está fisicamente na caixa que chegou.",
     acao: "Aba Estoque · Entradas: abra o pedido e use o botão de conferir de cada exemplar.",
-    sql: `SELECT u.id k, i.descricao||' nº '||COALESCE(u.numero,'?') r, 'entrou '||substr(u.entrada,1,16) d
+    sql: `SELECT u.id k, i.descricao||' nº '||COALESCE(u.numero,'?') r, 'entrou '||substr(u.entrada,1,16) d, u.item_id a
           FROM estoque_unidade u JOIN estoque_item i ON i.id=u.item_id
           WHERE u.arquivado IS NULL AND u.entrega_id IS NULL AND u.conferido IS NULL ORDER BY u.entrada` },
-  { id: "pedido_nao_chegou", area: "Estoque", gravidade: "media", aba: "estoque",
+  { id: "pedido_nao_chegou", destino: "pedido", area: "Estoque", gravidade: "media", aba: "estoque",
     titulo: "Pedido confirmado que ainda não chegou",
     porque: "O pedido foi fechado e nenhuma remessa dele entrou — pode ser hora de cobrar.",
     acao: "Aba Estoque · Entradas: confirme a chegada quando a caixa vier.",
     sql: `SELECT ev.id k, 'Pedido de '||ev.data r,
-            (SELECT COALESCE(SUM(quantidade),0) FROM estoque_evento_item ei WHERE ei.evento_id=ev.id)||' exemplar(es)' d
+            (SELECT COALESCE(SUM(quantidade),0) FROM estoque_evento_item ei WHERE ei.evento_id=ev.id)||' exemplar(es)' d, ev.id a
           FROM estoque_evento ev WHERE ev.tipo='pedido' AND ev.arquivado IS NULL AND ev.confirmado=1
           AND NOT EXISTS (SELECT 1 FROM estoque_evento r2 WHERE r2.tipo='remessa' AND r2.pedido_id=ev.id)
           ORDER BY ev.data` },
 
   /* ---------- TURMAS E PROFESSORES ---------- */
-  { id: "turma_sem_professor", area: "Turmas", gravidade: "alta", aba: "turmas",
+  { id: "turma_sem_professor", destino: "turma", area: "Turmas", gravidade: "alta", aba: "turmas",
     titulo: "Turma ativa sem professor",
     porque: "A professora faz parte da identidade da turma — é ela que desempata salas gêmeas no mesmo horário.",
     acao: "Abra a turma e preencha Professores.",
-    sql: `SELECT t.id k, t.id r, COALESCE(t.livro,'multi-estágio')||' · '||t.hora_inicio d FROM turmas t
+    sql: `SELECT t.id k, t.id r, COALESCE(t.livro,'multi-estágio')||' · '||t.hora_inicio d, t.id a FROM turmas t
           WHERE t.status='Ativa' AND NOT EXISTS (SELECT 1 FROM turma_professor tp WHERE tp.turma_id=t.id)` },
-  { id: "turma_sem_dias", area: "Turmas", gravidade: "alta", aba: "turmas",
+  { id: "turma_sem_dias", destino: "turma", area: "Turmas", gravidade: "alta", aba: "turmas",
     titulo: "Turma ativa sem dias definidos",
     porque: "Turma sem dia não casa com aluno nenhum: ela não existe em nenhuma ficha.",
     acao: "Abra a turma e marque os dias.",
-    sql: `SELECT t.id k, t.id r, COALESCE(t.livro,'multi-estágio')||' · '||t.hora_inicio d FROM turmas t
+    sql: `SELECT t.id k, t.id r, COALESCE(t.livro,'multi-estágio')||' · '||t.hora_inicio d, t.id a FROM turmas t
           WHERE t.status='Ativa' AND NOT EXISTS (SELECT 1 FROM turma_dia td WHERE td.turma_id=t.id)` },
-  { id: "turma_vazia", area: "Turmas", gravidade: "media", aba: "turmas",
+  { id: "turma_vazia", destino: "turma", area: "Turmas", gravidade: "media", aba: "turmas",
     titulo: "Turma ativa sem nenhum aluno no horário dela",
     porque: "A sala está aberta na matriz e ninguém está agendado nela.",
     acao: "Abra a turma: ou entra aluno, ou ela passa a Inativa.",
-    sql: `SELECT t.id k, t.id r, COALESCE(t.livro,'multi-estágio')||' · '||t.hora_inicio d FROM turmas t
+    sql: `SELECT t.id k, t.id r, COALESCE(t.livro,'multi-estágio')||' · '||t.hora_inicio d, t.id a FROM turmas t
           WHERE t.status='Ativa' AND NOT EXISTS (
             SELECT 1 FROM aulas au JOIN turma_dia td ON td.dia=au.dia AND td.turma_id=t.id
             WHERE au.hora=t.hora_inicio AND (t.livro IS NULL OR au.livro=t.livro))` },
-  { id: "professor_sem_aula", area: "Turmas", gravidade: "baixa", aba: "professores",
+  { id: "professor_sem_aula", destino: "professor", area: "Turmas", gravidade: "baixa", aba: "professores",
     titulo: "Professor sem nenhuma aula ou turma",
     porque: "Está cadastrado e não aparece em lugar nenhum — pode ser cadastro antigo.",
     acao: "Aba Professores: vincule ou remova.",
-    sql: `SELECT f.id k, f.nome r, f.nome_completo d FROM funcionarios f
+    sql: `SELECT f.id k, f.nome r, f.nome_completo d, f.id a FROM funcionarios f
           WHERE NOT EXISTS (SELECT 1 FROM aula_professor ap WHERE ap.funcionario_id=f.id)
             AND NOT EXISTS (SELECT 1 FROM turma_professor tp WHERE tp.funcionario_id=f.id)
           ORDER BY f.nome` },
@@ -1165,10 +1589,12 @@ function semearEstagios() {
       livroOk = null;
     }
     const item = livroOk ? G("SELECT id FROM estoque_item WHERE livro=?", livroOk) : null;
-    const r = R(`INSERT INTO estagio (sigla,nome,idioma,categoria,grupo,modelo_id,licao_inicial,entrada,
+    /* a semeadura continua trazendo `grupo` na tupla (são 29 linhas de dados, não vale reescrevê-las)
+       — ele simplesmente não é mais gravado */
+    const r = R(`INSERT INTO estagio (sigla,nome,idioma,categoria,modelo_id,licao_inicial,entrada,
         ordem,escala_ativa,edicao_nome,edicao_ano,status,livro,item_estoque_id)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-      sigla, nome, idioma, cat, grupo, mods[mod], licIni, entrada, ordem, escala,
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      sigla, nome, idioma, cat, mods[mod], licIni, entrada, ordem, escala,
       edNome, edAno, status, livroOk, item?.id ?? null);
     const id = Number(r.lastInsertRowid);
     (especiais as string[]).forEach((rot, i) =>
@@ -1747,7 +2173,7 @@ function montarBlocos(
    As colunas do mês SÃO as colunas estreitas do template impresso: dia da semana em cima, número do
    dia do mês embaixo. Lançador e impressão usam exatamente a mesma fonte pra nunca divergirem. */
 const MESES_PT = ["JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO", "JUNHO", "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"];
-const COLUNAS_FICHA = 12; // colunas estreitas do template impresso — número FIXO, por regra da casa
+const COLUNAS_FICHA = 22; // colunas estreitas do template impresso — número FIXO, por regra da casa (12 → 22 em 2026-08-18: estavam acabando)
 
 /* presenças do mês indexadas por aluno+livro: {id|livro: {data: status}} — uma consulta só */
 /* índice da ficha impressa. Cada data traz o status E se a presença foi PARCIAL: quem tem 2 lições
@@ -2184,6 +2610,22 @@ try { numerarUnidades(); } catch (e) { console.warn("numeração das unidades fa
 /* e leva a edição que estava no material para o exemplar */
 try { migrarEdicoesParaUnidade(); } catch (e) { console.warn("migração das edições falhou (segue o baile):", e); }
 try { semearEstagios(); } catch (e) { console.warn("semeadura dos estágios falhou (segue o baile):", e); }
+try { semearCalendario(); } catch (e) { console.warn("semeadura do calendário falhou (segue o baile):", e); }
+try { semearFontes(); } catch (e) { console.warn("semeadura das fontes falhou (segue o baile):", e); }
+try { migrarTrechos(); } catch (e) { console.warn("migração dos trechos falhou (segue o baile):", e); }
+/* CORREÇÃO com marca própria: a Páscoa faltava na primeira semeadura, e a marca
+   `calendario_semeado` já gravada impede `semearCalendario` de rodar de novo — arrumar a lista não
+   basta, é a lição que este módulo já cobrou duas vezes. Guarda por `offset_pascoa`, não por nome:
+   ele renomeia marcação livremente. */
+try {
+  if (!G("SELECT 1 FROM config WHERE chave='calendario_pascoa'")) {
+    if (G("SELECT 1 FROM config WHERE chave='calendario_semeado'")
+      && !G("SELECT 1 FROM calendario_marcacao WHERE repeticao='pascoa' AND offset_pascoa=0"))
+      R(`INSERT INTO calendario_marcacao (nome,tipo,ambito,repeticao,offset_pascoa,duracao,fecha,cor,momento)
+         VALUES ('Páscoa','feriado','nacional','pascoa',0,1,1,'#B3261E',?)`, agora());
+    R("INSERT INTO config (chave,valor) VALUES ('calendario_pascoa',?)", agora());
+  }
+} catch (e) { console.warn("correção da Páscoa falhou (segue o baile):", e); }
 /* depois de existirem as lições: dá sigla a quem ainda não tem */
 try { siglarLicoes(); } catch (e) { console.warn("siglas das lições falharam (segue o baile):", e); }
 try { numerarContratos(); } catch (e) { console.warn("numeração de contratos falhou (segue o baile):", e); }
@@ -2481,7 +2923,7 @@ const api: Record<string, (a: any) => unknown> = {
       id: i.id, descricao: i.descricao, codigo: i.codigo || "", livro: i.livro || null,
       edicaoNome: i.edicao_nome || "", edicaoAno: i.edicao_ano ?? null,
       unidade: i.unidade, tipo: i.tipo || (i.componente === 1 ? "peca" : (i.unidade === "kit" ? "kit" : "unidade")),
-      finalidade: i.finalidade, minimo: i.minimo, ativo: i.ativo === 1,
+      finalidade: i.finalidade, minimo: i.minimo, ativo: i.ativo === 1, final: i.final === 1,
       ordem: i.ordem, componente: i.componente === 1,
       categoria: i.livro ? categoriaLivro(i.livro) : "Materiais",
     });
@@ -2608,14 +3050,17 @@ const api: Record<string, (a: any) => unknown> = {
        enviá-los — sem esta guarda, salvar a descrição apagava a edição em silêncio. É o mesmo
        defeito que já custou o `item_estoque_id` de 10 estágios. */
     const at = p.id ? G("SELECT edicao_nome, edicao_ano FROM estoque_item WHERE id=?", p.id) : null;
+    const atF = p.id ? G("SELECT final FROM estoque_item WHERE id=?", p.id) : null;
     const campos = [p.descricao, p.codigo || null, p.livro || null,
       tipo === "kit" ? "kit" : "unidade", tipo,
       p.finalidade || "venda", Number(p.minimo) || 0, p.ativo === false ? 0 : 1, Number(p.ordem) || 900,
       comp,
       p.edicaoNome === undefined ? (at?.edicao_nome ?? null) : (p.edicaoNome || null),
-      p.edicaoAno === undefined ? (at?.edicao_ano ?? null) : num(p.edicaoAno)];
-    if (p.id) { R(`UPDATE estoque_item SET descricao=?,codigo=?,livro=?,unidade=?,tipo=?,finalidade=?,minimo=?,ativo=?,ordem=?,componente=?,edicao_nome=?,edicao_ano=? WHERE id=?`, ...campos, p.id); return { ok: true, id: p.id }; }
-    const r = R(`INSERT INTO estoque_item (descricao,codigo,livro,unidade,tipo,finalidade,minimo,ativo,ordem,componente,edicao_nome,edicao_ano) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`, ...campos);
+      p.edicaoAno === undefined ? (at?.edicao_ano ?? null) : num(p.edicaoAno),
+      /* `final` também PRESERVA quando não vem no payload: a linha da tabela salva sem ele */
+      p.final === undefined ? (atF?.final ?? 0) : (p.final ? 1 : 0)];
+    if (p.id) { R(`UPDATE estoque_item SET descricao=?,codigo=?,livro=?,unidade=?,tipo=?,finalidade=?,minimo=?,ativo=?,ordem=?,componente=?,edicao_nome=?,edicao_ano=?,final=? WHERE id=?`, ...campos, p.id); return { ok: true, id: p.id }; }
+    const r = R(`INSERT INTO estoque_item (descricao,codigo,livro,unidade,tipo,finalidade,minimo,ativo,ordem,componente,edicao_nome,edicao_ano,final) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`, ...campos);
     return { ok: true, id: Number(r.lastInsertRowid) };
   },
   /* Apagar é permitido — a regra dele é PERGUNTAR, não proibir: "ele permite eu apagar, só que ele
@@ -3149,7 +3594,11 @@ const api: Record<string, (a: any) => unknown> = {
       nomeExibicao: e.nome + (edicaoDe(e) ? " · " + edicaoDe(e) : ""),
       edicaoDoItem: edicaoDe(e), edicaoAnoDoItem: edicaoAnoDe(e),
       idioma: e.idioma, categoria: e.categoria,
-      grupo: e.grupo || "", modeloId: e.modelo_id, licaoInicial: e.licao_inicial,
+      /* `grupo` saiu da resposta em 2026-08-17: a categoria é o único agrupamento do sistema */
+      /* FINAL é HERDADO do material: quem decide é a página de Estoque, e aqui só se mostra.
+         Vem como `finalDoItem` para o nome deixar claro que não é campo do estágio. */
+      finalDoItem: !!G("SELECT final FROM estoque_item WHERE id=?", e.item_estoque_id)?.final,
+      modeloId: e.modelo_id, licaoInicial: e.licao_inicial,
       entrada: e.entrada === 1, ordem: e.ordem,
       idadeMin: e.idade_min, idadeMax: e.idade_max,
       escalaAtiva: e.escala_ativa === 1, cefrMin: e.cefr_min || "", cefrMax: e.cefr_max || "",
@@ -3200,23 +3649,29 @@ const api: Record<string, (a: any) => unknown> = {
       const it = G("SELECT livro FROM estoque_item WHERE id=?", num(p.itemEstoqueId));
       if (it?.livro) p.livro = it.livro;
     }
+    /* `grupo` SAIU (2026-08-17, ordem dele): *"categoria já é o suficiente... vale para qualquer
+       módulo, estágio, estoque"*. Era um segundo eixo de agrupamento ("Tots", "W New", "Teens 3rd")
+       que ninguém lia — nenhuma consulta, filtro ou tela dependia dele, só o próprio campo. A
+       COLUNA fica no banco, dormente: derrubá-la exige reconstruir `estagio`, que é referenciada
+       por estagio_licao (1414 linhas), trilha, equivalências e extras — risco sem retorno para um
+       campo que já não é lido nem escrito. */
     const campos = [p.sigla, p.nome, p.nomeCurto || p.livro || null,
-      p.idioma || "Inglês", p.categoria || "Kids", p.grupo || null,
+      p.idioma || "Inglês", p.categoria || "Kids",
       num(p.modeloId), Number(p.licaoInicial) || 1, p.entrada ? 1 : 0, Number(p.ordem) || 100,
       num(p.idadeMin), num(p.idadeMax), p.escalaAtiva ? 1 : 0,
       p.cefrMin || null, p.cefrMax || null, num(p.gseMin), num(p.gseMax),
       p.edicaoNome || null, edicaoAno, p.status || "ativo", p.livro || null,
       itemId, p.descricao || null];
     if (p.id) {
-      R(`UPDATE estagio SET sigla=?,nome=?,nome_curto=?,idioma=?,categoria=?,grupo=?,modelo_id=?,licao_inicial=?,
+      R(`UPDATE estagio SET sigla=?,nome=?,nome_curto=?,idioma=?,categoria=?,modelo_id=?,licao_inicial=?,
          entrada=?,ordem=?,idade_min=?,idade_max=?,escala_ativa=?,cefr_min=?,cefr_max=?,gse_min=?,
          gse_max=?,edicao_nome=?,edicao_ano=?,status=?,livro=?,item_estoque_id=?,descricao=? WHERE id=?`,
         ...campos, p.id);
       return { ok: true, id: p.id };
     }
-    const r = R(`INSERT INTO estagio (sigla,nome,nome_curto,idioma,categoria,grupo,modelo_id,licao_inicial,entrada,
+    const r = R(`INSERT INTO estagio (sigla,nome,nome_curto,idioma,categoria,modelo_id,licao_inicial,entrada,
        ordem,idade_min,idade_max,escala_ativa,cefr_min,cefr_max,gse_min,gse_max,edicao_nome,edicao_ano,
-       status,livro,item_estoque_id,descricao) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, ...campos);
+       status,livro,item_estoque_id,descricao) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, ...campos);
     return { ok: true, id: Number(r.lastInsertRowid) };
   },
   excluirEstagio: ({ id }: any) => ({ ok: R("DELETE FROM estagio WHERE id=?", id).changes > 0 }),
@@ -3399,6 +3854,7 @@ const api: Record<string, (a: any) => unknown> = {
       try { itens = A(c.sql); } catch (e) {
         return { id: c.id, area: c.area, titulo: c.titulo, porque: c.porque, acao: c.acao,
           gravidade: c.gravidade, aba: c.aba, erro: (e as Error).message,
+          destino: c.destino || null, campo: c.campo || null,
           abertos: [], silenciados: [], total: 0, regraSilenciada: false, motivoRegra: null };
       }
       const daRegra = sil[c.id + " *"];
@@ -3407,12 +3863,16 @@ const api: Record<string, (a: any) => unknown> = {
         const chave = String(r.k);
         vistos[c.id + " " + chave] = true;
         const s = daRegra || sil[c.id + " " + chave];
-        const item = { chave, rotulo: String(r.r ?? ""), detalhe: r.d == null ? null : String(r.d) };
+        const item = { chave, rotulo: String(r.r ?? ""), detalhe: r.d == null ? null : String(r.d),
+          /* o alvo da navegação, resolvido pelo SQL (coluna `a`); sem ele o cliente teria de
+             adivinhar o dono de cada chave, e as chaves têm formatos diferentes por regra */
+          alvo: r.a == null ? null : String(r.a) };
         if (s) silenciados.push({ ...item, motivo: s.motivo || "", desde: s.momento, porRegra: !!daRegra });
         else abertos.push(item);
       }
       return { id: c.id, area: c.area, titulo: c.titulo, porque: c.porque, acao: c.acao,
         gravidade: c.gravidade, aba: c.aba, erro: null,
+        destino: c.destino || null, campo: c.campo || null,
         abertos, silenciados, total: itens.length,
         regraSilenciada: !!daRegra, motivoRegra: daRegra?.motivo || null };
     });
@@ -3458,6 +3918,267 @@ const api: Record<string, (a: any) => unknown> = {
     }
     return { ok: true, removidos: n };
   },
+  /* ===== CALENDÁRIO LETIVO =====
+     Uma rota monta o ano inteiro: 12 meses × 42 células é barato, e a tela não faz sentido pela
+     metade. O SERVIDOR é quem resolve as datas — a mesma resposta vai alimentar a contagem de dias
+     letivos quando ela existir, e regra de data em dois lugares diverge no primeiro ajuste. */
+  getCalendario({ ano }: any) {
+    const y = Number(ano) || new Date().getFullYear();
+    const sabUtil = (G("SELECT valor FROM config WHERE chave='cal_sabado_util'")?.valor ?? "1") === "1";
+    const domUtil = (G("SELECT valor FROM config WHERE chave='cal_domingo_util'")?.valor ?? "0") === "1";
+    const marcacoes = A("SELECT * FROM calendario_marcacao WHERE arquivado IS NULL ORDER BY tipo, nome");
+    /* data -> marcações daquele dia. Um dia pode ter mais de uma (feriado que cai dentro das
+       férias), e a tela precisa saber de todas para o `title` contar a história inteira. */
+    const porData: Record<string, any[]> = {};
+    const lista = marcacoes.map(m => {
+      const datas = datasDaMarcacao(m, y);
+      for (const d of datas) (porData[d] ||= []).push({ id: m.id, nome: m.nome, tipo: m.tipo, cor: m.cor, fecha: m.fecha === 1 });
+      return {
+        id: m.id, nome: m.nome, tipo: m.tipo,
+        tipos: String(m.tipos || m.tipo).split(",").filter(Boolean),
+        trechos: A("SELECT * FROM calendario_trecho WHERE marcacao_id=? ORDER BY ordem,id", m.id)
+          .map(t => ({ modo: t.modo, dataIni: t.data_ini, dataFim: t.data_fim,
+            dia: t.dia, mes: t.mes, diaFim: t.dia_fim, mesFim: t.mes_fim,
+            offIni: t.off_ini, offFim: t.off_fim,
+            semN: t.sem_n, semDow: t.sem_dow, semNFim: t.sem_n_fim, semDowFim: t.sem_dow_fim })),
+        ambito: m.ambito, repeticao: m.repeticao,
+        dataIni: m.data_ini, dataFim: m.data_fim, mes: m.mes, dia: m.dia,
+        offsetPascoa: m.offset_pascoa, duracao: m.duracao, fecha: m.fecha === 1,
+        cor: m.cor, observacao: m.observacao, origem: m.origem || "manual",
+        /* onde ela cai NESTE ano — é o que a lista mostra, e o que torna a repetição legível */
+        datas, primeira: datas[0] || null,
+      };
+    });
+    /* OS 12 MESES, já em grade 7×7 (1 fileira de cabeçalho + 6 semanas), começando na SEGUNDA.
+       Seis semanas SEMPRE, mesmo quando o mês cabe em cinco: cartão que muda de altura faz a grade
+       de 4×3 dançar. Os dias de fora vêm marcados para a tela esmaecê-los. */
+    const meses = [];
+    for (let mes = 1; mes <= 12; mes++) {
+      const primeiro = new Date(Date.UTC(y, mes - 1, 1));
+      /* getUTCDay: 0=domingo. Queremos segunda=0 … domingo=6 */
+      const desloc = (primeiro.getUTCDay() + 6) % 7;
+      const inicio = maisDias(`${y}-${("0" + mes).slice(-2)}-01`, -desloc);
+      const dias = [];
+      for (let i = 0; i < 42; i++) {
+        const iso = maisDias(inicio, i);
+        const d = new Date(iso + "T12:00:00Z");
+        const dow = (d.getUTCDay() + 6) % 7;                 // 0=segunda … 6=domingo
+        const doMes = Number(iso.slice(5, 7)) === mes && iso.slice(0, 4) === String(y);
+        const marcas = porData[iso] || [];
+        /* FIM DE SEMANA é regra da escola, não do calendário: aqui o sábado é dia de aula. */
+        const fds = (dow === 5 && !sabUtil) || (dow === 6 && !domUtil);
+
+        dias.push({
+          iso, n: Number(iso.slice(8, 10)), dow, doMes, fds,
+          marcas,
+          /* letivo = a escola abre. Um feriado fecha; um evento pode não fechar. */
+          letivo: doMes && !fds && !marcas.some((x: any) => x.fecha),
+        });
+      }
+      meses.push({ mes, dias });
+    }
+    const letivos = meses.reduce((s, m) => s + m.dias.filter(d => d.letivo).length, 0);
+    return { ano: y, meses, marcacoes: lista, sabadoUtil: sabUtil, domingoUtil: domUtil,
+      letivos, pascoa: pascoa(y) };
+  },
+  /* SINCRONIZAR com as fontes externas. Três regras que valem mais que o código:
+     1. NUNCA sobrescreve nem apaga o que já existe — só ACRESCENTA o que a escola não tem.
+     2. RESPEITA EXCLUSÃO: chave já vista no livro-caixa não volta, mesmo que ele tenha apagado a
+        marcação. Feriado que ressuscita sozinho destrói a confiança na tela.
+     3. Fonte que falha não derruba as outras: cada uma tem o seu try/catch e o seu status. */
+  async sincronizarCalendario({ anos, gatilho }: any) {
+    const y = new Date().getFullYear();
+    const lista: number[] = Array.isArray(anos) && anos.length ? anos.map(Number) : [y, y + 1];
+    const fontes = A("SELECT * FROM calendario_fonte WHERE ativa=1");
+    let novos = 0, okN = 0, erroN = 0;
+    const resumo: string[] = [];
+    for (const f of fontes) {
+      let achados = 0, novosF = 0;
+      try {
+        for (const ano of lista) {
+          const alvo = urlDaFonte(f, ano);
+          /* fonte que exige token e ainda não tem: não é erro, é "não configurada" */
+          if (!alvo) throw new Error("falta o token desta fonte (configure na tela)");
+          const ctrl = new AbortController();
+          const t = setTimeout(() => ctrl.abort(), 10000);
+          const resp = await fetch(alvo, { signal: ctrl.signal });
+          clearTimeout(t);
+          if (!resp.ok) throw new Error("HTTP " + resp.status);
+          const itens = normalizarFonte(f.id, await resp.json());
+          achados += itens.length;
+          /* o que a escola JÁ cobre naquele ano, venha de semente, regra anual ou digitação */
+          const cobertas = new Set<string>();
+          for (const m of A("SELECT * FROM calendario_marcacao WHERE arquivado IS NULL"))
+            for (const d of datasDaMarcacao(m, ano)) cobertas.add(d);
+          for (const it of itens) {
+            if (!it.data || !it.data.startsWith(String(ano))) continue;
+            const chave = chaveFeriado(it.data, it.nome);
+            /* já vista alguma vez = decidida. Ou virou marcação, ou ele a apagou de propósito. */
+            if (G("SELECT 1 FROM calendario_importado WHERE fonte=? AND chave=?", f.id, chave)) continue;
+            const jaTem = cobertas.has(it.data);
+            R("INSERT INTO calendario_importado (fonte,chave,visto_em,virou_marcacao) VALUES (?,?,?,?)",
+              f.id, chave, agora(), jaTem ? 0 : 1);
+            if (jaTem) continue;                 // a data já está coberta: registra e segue
+            R(`INSERT INTO calendario_marcacao
+               (nome,tipo,ambito,repeticao,data_ini,duracao,fecha,cor,observacao,origem,chave_externa,momento)
+               VALUES (?,?,?,'nenhuma',?,1,?,?,?,?,?,?)`,
+              it.nome, it.tipo, it.ambito, it.data,
+              /* PONTO FACULTATIVO NÃO FECHA A ESCOLA por padrão: é decisão da direção, não da lei.
+                 Entra com `fecha=0` e ele decide caso a caso — chegar fechando a escola sozinho em
+                 dias como 28/10 ou 24/12 seria pior que não trazer nada. */
+              it.tipo === "facultativo" ? 0 : 1,
+              it.tipo === "feriado" ? "#B3261E" : "#B26A00",
+              it.observacao || null, f.id, chave, agora());
+            novosF++; novos++;
+            cobertas.add(it.data);
+          }
+        }
+        R("UPDATE calendario_fonte SET ultima_sync=?,ultimo_status='ok',ultimo_erro=NULL,achados=?,novos=? WHERE id=?",
+          agora(), achados, novosF, f.id);
+        okN++; resumo.push(`${f.id}: ${achados} lidos, ${novosF} novos`);
+      } catch (e) {
+        R("UPDATE calendario_fonte SET ultima_sync=?,ultimo_status='erro',ultimo_erro=? WHERE id=?",
+          agora(), (e as Error).message, f.id);
+        erroN++; resumo.push(`${f.id}: FALHOU (${(e as Error).message})`);
+      }
+    }
+    R(`INSERT INTO calendario_sync (momento,gatilho,anos,fontes_ok,fontes_erro,novos,resumo)
+       VALUES (?,?,?,?,?,?,?)`, agora(), gatilho || "manual", lista.join(","), okN, erroN, novos,
+      resumo.join(" · "));
+    return { ok: true, anos: lista, novos, fontesOk: okN, fontesErro: erroN, resumo };
+  },
+  getFontesCalendario() {
+    const uf = cfg("cal_uf") || "MS";
+    const tk = cfg("cal_token_invertexto");
+    return {
+      uf,
+      /* O TOKEN NUNCA VOLTA INTEIRO para a tela. Basta ela saber que existe e mostrar as pontas,
+         para ele reconhecer qual é sem que o segredo trafegue de novo nem apareça em log de rede. */
+      temToken: !!tk,
+      tokenMascarado: tk ? tk.slice(0, 5) + "…" + tk.slice(-4) : "",
+      fontes: A("SELECT * FROM calendario_fonte ORDER BY id").map(f => ({
+        id: f.id, nome: String(f.nome).replace(/\{uf\}/g, uf), ativa: f.ativa === 1,
+        /* a `url` vai SEM o token — ela é o molde, não o valor */
+        url: String(f.url).replace(/\{token\}/g, "•••"),
+        precisaToken: String(f.url).includes("{token}"),
+        ultimaSync: f.ultima_sync, status: f.ultimo_status, erro: f.ultimo_erro,
+        achados: f.achados, novos: f.novos })),
+      hora: G("SELECT valor FROM config WHERE chave='cal_sync_hora'")?.valor || "15:30",
+      ultimas: A("SELECT * FROM calendario_sync ORDER BY id DESC LIMIT 5").map(s => ({
+        momento: s.momento, gatilho: s.gatilho, anos: s.anos, novos: s.novos,
+        ok: s.fontes_ok, erro: s.fontes_erro, resumo: s.resumo })),
+      importados: G("SELECT COUNT(*) n FROM calendario_importado")?.n || 0,
+    };
+  },
+  /* guarda o token e a UF. O token entra por aqui e não volta por lugar nenhum — quem quiser
+     trocá-lo digita outro; quem quiser desligar a fonte manda string vazia. */
+  salvarTokenCalendario({ token, uf }: any) {
+    const p = (c: string, v: string) =>
+      R("INSERT INTO config (chave,valor) VALUES (?,?) ON CONFLICT(chave) DO UPDATE SET valor=excluded.valor", c, v);
+    if (token !== undefined) {
+      const t = String(token || "").trim();
+      p("cal_token_invertexto", t);
+      /* liga/desliga a fonte junto: token vazio com fonte ativa só produziria erro todo dia */
+      R("UPDATE calendario_fonte SET ativa=? WHERE id='invertexto'", t ? 1 : 0);
+    }
+    if (uf !== undefined) {
+      const u = String(uf || "").trim().toUpperCase();
+      if (u && !/^[A-Z]{2}$/.test(u)) throw new Error("UF inválida (duas letras, ex.: MS).");
+      p("cal_uf", u || "MS");
+    }
+    return { ok: true };
+  },
+  salvarFonteCalendario({ id, ativa, hora }: any) {
+    if (hora !== undefined) {
+      if (!/^[0-2][0-9]:[0-5][0-9]$/.test(String(hora))) throw new Error("Hora inválida (use HH:MM).");
+      R("INSERT INTO config (chave,valor) VALUES ('cal_sync_hora',?) ON CONFLICT(chave) DO UPDATE SET valor=excluded.valor", hora);
+    }
+    if (id !== undefined && ativa !== undefined)
+      R("UPDATE calendario_fonte SET ativa=? WHERE id=?", ativa ? 1 : 0, id);
+    return { ok: true };
+  },
+  salvarConfigCalendario({ sabadoUtil, domingoUtil }: any) {
+    const p = (c: string, v: boolean) =>
+      R("INSERT INTO config (chave,valor) VALUES (?,?) ON CONFLICT(chave) DO UPDATE SET valor=excluded.valor",
+        c, v ? "1" : "0");
+    if (sabadoUtil !== undefined) p("cal_sabado_util", !!sabadoUtil);
+    if (domingoUtil !== undefined) p("cal_domingo_util", !!domingoUtil);
+    return { ok: true };
+  },
+  /* Salva a marcação COM OS SEUS TRECHOS. Os trechos são substituídos por inteiro a cada gravação:
+     é mais simples e mais honesto que casar um a um, e a lista é curta por natureza. */
+  salvarMarcacao(p: any) {
+    const nome = String(p.nome || "").trim();
+    if (!nome) throw new Error("A descrição é obrigatória.");
+    const t = normalizarTipos(p.tipos, p.tipo);
+    /* ---- valida cada trecho: marcação que entra sem data nenhuma parece salva e não aparece em
+       lugar nenhum, que é o pior desfecho possível ---- */
+    const brutos: any[] = Array.isArray(p.trechos) ? p.trechos : [];
+    const trechos = brutos.map((x: any, i: number) => {
+      const modo = ["data", "anual", "pascoa", "semana"].includes(x.modo) ? x.modo : "data";
+      if (modo === "semana" && !(x.mes >= 1 && x.mes <= 12 && x.semDow != null))
+        throw new Error(`Trecho ${i + 1}: escolha o dia da semana e o mês.`);
+      if (modo === "data") {
+        if (!x.dataIni) throw new Error(`Trecho ${i + 1}: escolha a data de início.`);
+        if (x.dataFim && x.dataFim < x.dataIni)
+          throw new Error(`Trecho ${i + 1}: o fim é antes do início.`);
+      }
+      if (modo === "anual" && !(x.mes >= 1 && x.mes <= 12 && x.dia >= 1 && x.dia <= 31))
+        throw new Error(`Trecho ${i + 1}: informe dia e mês.`);
+      if (modo === "pascoa" && !Number.isFinite(Number(x.offIni)))
+        throw new Error(`Trecho ${i + 1}: informe os dias a contar da Páscoa.`);
+      const porSemana = modo === "semana";
+      return { modo, ordem: i + 1,
+        dataIni: modo === "data" ? x.dataIni : null,
+        dataFim: modo === "data" ? (x.dataFim || null) : null,
+        dia: modo === "anual" ? Number(x.dia) : null,
+        /* `mes` serve ao anual E ao por-semana: nos dois é "de que mês estamos falando" */
+        mes: (modo === "anual" || porSemana) ? Number(x.mes) : null,
+        diaFim: modo === "anual" && x.diaFim ? Number(x.diaFim) : null,
+        mesFim: (modo === "anual" && x.mesFim) || (porSemana && x.mesFim) ? Number(x.mesFim) : null,
+        offIni: modo === "pascoa" ? Number(x.offIni) : null,
+        offFim: modo === "pascoa" && x.offFim !== "" && x.offFim != null ? Number(x.offFim) : null,
+        semN: porSemana ? (Number(x.semN) || 1) : null,
+        semDow: porSemana ? Number(x.semDow) : null,
+        semNFim: porSemana && x.mesFim ? (Number(x.semNFim) || 1) : null,
+        semDowFim: porSemana && x.mesFim && x.semDowFim != null ? Number(x.semDowFim) : null };
+    });
+    if (!trechos.length) throw new Error("Acrescente ao menos um período ou data.");
+    /* as colunas antigas continuam preenchidas a partir do PRIMEIRO trecho: nada mais as lê para
+       calcular datas, mas elas mantêm o registro legível por fora e servem de rede se algum dia a
+       tabela de trechos se perder */
+    const t1 = trechos[0];
+    const rep = t1.modo === "anual" ? "anual" : t1.modo === "pascoa" ? "pascoa" : "nenhuma";
+    const campos = [nome, t.tipo, t.tipos, p.ambito || "escola", rep,
+      t1.dataIni, t1.dataFim, t1.mes, t1.dia, t1.offIni, 1,
+      /* férias/recesso ignoram o que veio da tela: não existe férias com aula */
+      t.fecha === true ? 1 : (p.fecha === false ? 0 : 1),
+      p.cor || null, String(p.observacao || "").trim() || null];
+    let id = p.id;
+    if (id) {
+      R(`UPDATE calendario_marcacao SET nome=?,tipo=?,tipos=?,ambito=?,repeticao=?,data_ini=?,data_fim=?,
+         mes=?,dia=?,offset_pascoa=?,duracao=?,fecha=?,cor=?,observacao=? WHERE id=?`, ...campos, id);
+    } else {
+      const r = R(`INSERT INTO calendario_marcacao
+        (nome,tipo,tipos,ambito,repeticao,data_ini,data_fim,mes,dia,offset_pascoa,duracao,fecha,cor,observacao,momento)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, ...campos, agora());
+      id = Number(r.lastInsertRowid);
+    }
+    R("DELETE FROM calendario_trecho WHERE marcacao_id=?", id);
+    for (const x of trechos)
+      R(`INSERT INTO calendario_trecho
+         (marcacao_id,ordem,modo,data_ini,data_fim,dia,mes,dia_fim,mes_fim,off_ini,off_fim,
+          sem_n,sem_dow,sem_n_fim,sem_dow_fim)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        id, x.ordem, x.modo, x.dataIni, x.dataFim, x.dia, x.mes, x.diaFim, x.mesFim, x.offIni, x.offFim,
+        x.semN, x.semDow, x.semNFim, x.semDowFim);
+    return { ok: true, id, tipos: t.tipos, trechos: trechos.length, fechaForcado: t.fecha === true };
+  },
+  excluirMarcacao: ({ id }: any) => ({ ok: R("DELETE FROM calendario_marcacao WHERE id=?", id).changes > 0 }),
+  /* `conferirFeriados` SAIU em 2026-08-17, a pedido dele: *"tira esse botão que não precisa,
+     porque já tá tudo lá na fonte automática"*. E ele tem razão — a sincronização faz o mesmo
+     trabalho, todo dia, com três fontes em vez de uma, e ainda registra o que encontrou. Um botão
+     que refaz pior o que já roda sozinho é só mais uma coisa para o usuário decidir. */
   getArquivados() {
     const linhas: any[] = [];
     const push = (tipo: string, origem: string, r: any, rotulo: string, detalhe: string | null) =>
@@ -4342,6 +5063,32 @@ function avisarTodos(evento: string) {
   }
 }
 
+/* ===== A SINCRONIZAÇÃO DIÁRIA (2026-08-17) =====
+   Ele pediu uma atualização por dia, "umas três e meia da tarde". Não é cron nem serviço: o app é
+   um processo que ele liga e desliga várias vezes ao dia, então o agendador tem de sobreviver a
+   isso. A conta é feita ao contrário — a cada 10 minutos pergunta-se *"já passou da hora e ainda
+   não rodou HOJE?"*. Assim:
+     · reiniciar o servidor não faz rodar de novo (a marca é a DATA da última rodada);
+     · ligar o app às 18h ainda pega a rodada do dia, em vez de pulá-la;
+     · duas estações ligadas não duplicam nada — a segunda vê a marca da primeira no banco.
+   Falha de rede não é evento: fica no `calendario_sync` e a tela mostra. */
+async function tentarSyncCalendario() {
+  try {
+    const hora = G("SELECT valor FROM config WHERE chave='cal_sync_hora'")?.valor || "15:30";
+    const agoraD = new Date();
+    const hhmm = ("0" + agoraD.getHours()).slice(-2) + ":" + ("0" + agoraD.getMinutes()).slice(-2);
+    if (hhmm < hora) return;
+    const hoje = dataISO(agoraD);
+    const ultima = G("SELECT momento FROM calendario_sync WHERE gatilho='automatico' ORDER BY id DESC LIMIT 1")?.momento;
+    if (ultima && String(ultima).slice(0, 10) >= hoje) return;
+    const r = await (api as any).sincronizarCalendario({ gatilho: "automatico" });
+    if (r.novos) console.log(`   calendário: ${r.novos} data(s) nova(s) das fontes externas`);
+  } catch (e) { console.warn("sync do calendário falhou (segue o baile):", (e as Error).message); }
+}
+/* 10 minutos: fino o bastante para acertar a hora escolhida, grosso o bastante para não pesar */
+setInterval(tentarSyncCalendario, 10 * 60 * 1000);
+setTimeout(tentarSyncCalendario, 20000);   // e uma tentativa 20s depois de subir
+
 const PORTA = Number(Deno.env.get("WIZ_PORT")) || 8420;
 Deno.serve({ port: PORTA, hostname: "0.0.0.0" }, async (req, info) => {
   const url = new URL(req.url);
@@ -4360,7 +5107,11 @@ Deno.serve({ port: PORTA, hostname: "0.0.0.0" }, async (req, info) => {
       if (!api[fn]) throw new Error("Função desconhecida: " + fn);
       const args = req.method === "POST" ? await req.json() : Object.fromEntries(url.searchParams);
       if (fn === "fichas" && typeof (args as any).dias === "string") (args as any).dias = (args as any).dias.split(",");
-      const resposta = api[fn](args);
+      /* `await` — sem ele, uma rota `async` devolve a Promise e o `Response.json` a serializa como
+         `{}`: a tela recebe um objeto vazio e nenhum erro. `conferirFeriados` (que fala com a
+         BrasilAPI) foi a primeira rota assíncrona do projeto e destapou isto. Em rota síncrona o
+         `await` não custa nada, e passa a levar a exceção dela para o `catch` abaixo. */
+      const resposta = await api[fn](args);
       /* qualquer função que NÃO seja consulta mudou algo: avisa as outras estações na hora */
       if (!/^(get|preview|info)/.test(fn)) avisarTodos(fn);
       return Response.json(resposta);

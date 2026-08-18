@@ -31,7 +31,13 @@ function tituloBloco(b) {
    largura — D=60 era estreito e "Conn Vip" quebrava linha, engordando a linha do aluno. As
    larguras de A/B/C/D/Q são fixas por regra; as 12 de presença são estreitas e em número FIXO:
    sobra sempre coluna vazia para lançar reposição/anteposição que aparecer depois. */
-var COLUNAS_FICHA = 12;
+/* ===== 22 COLUNAS (2026-08-18) =====
+   Eram 12 e estavam acabando: com reposição e anteposição entrando na mesma folha, o mês estourava
+   o número de casas e a recepção ficava sem onde marcar. Ele pediu 22.
+   O espaço saiu das quatro colunas de identificação, na medida do que cada uma REALMENTE precisa —
+   medido, não chutado: o maior nome de livro tem 10 caracteres ("Italiano 2", "Kids Esp 1") e o
+   maior rótulo de aula é "Inter Vip". A de Professores não mudou, a pedido dele. */
+var COLUNAS_FICHA = 22;
 /* A hachura da coluna fora do grupo é pintada AQUI, no <col>, e não nas células.
    Fundo de <col> é uma área de pintura ÚNICA para a coluna inteira, então as diagonais correm sem
    emenda de cima a baixo. Pintando por célula, cada <td> reinicia o padrão de 45° na própria

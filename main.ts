@@ -2556,7 +2556,29 @@ function gravarPresenca({ idMatricula, livro, data, status }: any) {
       feriado, recesso ou dia em que ninguém usou o lançador — e aí falta automática é mentira.
       Esta é a trava que mais importa: prefere-se não lançar do que lançar errado. */
 const JANELA_FECHO_DIAS = 7;
+/* ===== QUARTA TRAVA: SÓ A ESTAÇÃO DA RECEPÇÃO FECHA O DIA (2026-08-18) =====
+   Custou 16 faltas erradas para aparecer. Em 17/08 o laptop foi aberto com uma cópia atrasada do
+   banco: o dia tinha movimento (trava 3 passou), e o fecho marcou falta em 16 alunos que a recepção
+   havia lançado como PRESENTES — porque naquela cópia o lançamento dela não existia.
+   As três travas anteriores cuidam de QUANDO fechar; nenhuma cuidava de QUEM fecha.
+   O critério é o hostname da máquina que SERVE (o fecho roda no boot, antes de qualquer cliente —
+   por isso `estacaoDoIP`, que depende do IP de quem pede, não serve aqui).
+   Comparação por PREFIXO porque o Windows trunca o nome em 15 caracteres em vários lugares.
+   Valor VAZIO mantém o comportamento antigo (fecha em qualquer máquina): instalação nova não pode
+   perder o recurso por falta de configuração — quem tem duas estações é que precisa da trava. */
+function estacaoFechaODia(): { pode: boolean; alvo: string; aqui: string } {
+  const alvo = String(G("SELECT valor FROM config WHERE chave='fecho_estacao'")?.valor || "").trim();
+  let aqui = ""; try { aqui = Deno.hostname(); } catch { /* sem permissão: não trava nada */ }
+  if (!alvo) return { pode: true, alvo: "", aqui };
+  const norm = (x: string) => x.toLowerCase().replace(/[^a-z0-9]/g, "");
+  return { pode: norm(aqui).startsWith(norm(alvo)) || norm(alvo).startsWith(norm(aqui)), alvo, aqui };
+}
 function aplicarFaltasAutomaticas() {
+  const q = estacaoFechaODia();
+  if (!q.pode) {
+    console.log(`fecho do dia: pulado — quem fecha é "${q.alvo}" e esta máquina é "${q.aqui}".`);
+    return;
+  }
   const hoje = dataISO(new Date());
   const marca = G("SELECT valor FROM config WHERE chave='faltas_auto_ate'")?.valor as string | undefined;
   if (!marca) {   // primeira subida: só planta a marca, não mexe em nada do passado
@@ -4976,6 +4998,17 @@ const api: Record<string, (a: any) => unknown> = {
     const teste = p + "\\.wizard-teste-escrita"; Deno.writeTextFileSync(teste, "ok"); Deno.removeSync(teste);
     R("INSERT INTO config VALUES ('backup_onedrive',?) ON CONFLICT(chave) DO UPDATE SET valor=excluded.valor", gravarPastaOneDrive(p));
     return { ok: true, pasta: p, padrao: false };
+  },
+  /* quem fecha o dia, e o botão para designar esta máquina. Fica na página de Backup porque é lá
+     que já mora a identidade da estação. */
+  getEstacaoFecho: () => { const q = estacaoFechaODia();
+    return { alvo: q.alvo, aqui: q.aqui, estaMaquinaFecha: q.pode, travado: !!q.alvo } },
+  definirEstacaoFecho({ alvo }: any) {
+    /* `alvo` vazio devolve o comportamento antigo (qualquer máquina fecha) */
+    const v = alvo === undefined ? (() => { try { return Deno.hostname() } catch { return "" } })()
+      : String(alvo || "").trim();
+    R("INSERT INTO config (chave,valor) VALUES ('fecho_estacao',?) ON CONFLICT(chave) DO UPDATE SET valor=excluded.valor", v);
+    return { ok: true, alvo: v };
   },
   fazerBackupAgora: () => executarBackup("wizard-" + new Date().toISOString().replace(/[T:]/g, "-").slice(0, 19) + ".db", false),
 

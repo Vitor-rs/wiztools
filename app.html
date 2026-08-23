@@ -286,7 +286,6 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
 /* o ID é um número de 4 dígitos: largura de 4 dígitos, não a do nome completo */
 .al-campo-id{width:120px}
 .al-campo-id input{text-align:center;font-variant-numeric:tabular-nums;letter-spacing:.04em}
-.al-campo-sit{width:170px}
 /* nova matrícula: rótulo, campo e o ⓘ numa fileira só */
 .nm-linha{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
 .nm-linha label{margin:0;white-space:nowrap}
@@ -408,10 +407,9 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
   font:inherit;font-size:11.5px;color:var(--tx2);padding:0 0 8px;margin:0}
 .mat-percurso:hover{color:var(--azul-esc);text-decoration:underline}
 /* pílula do contrato no cabeçalho do cartão de matrícula: identifica o vínculo, e é clicável */
-.mat-contrato{font-size:11px;font-weight:700;font-variant-numeric:tabular-nums;cursor:pointer;
-  background:var(--marca-cl);color:var(--marca);border:1px solid #d5ddec;border-radius:9px;
-  padding:1px 8px;margin-left:8px;white-space:nowrap}
-.mat-contrato:hover{background:var(--azul-cl);color:var(--azul-esc);border-color:var(--azul-borda)}
+/* o numero do contrato virou ACAO no cabecalho: o rotulo que o carregava saiu por repetir a aba.
+   Fica a esquerda, ao lado da situacao; as acoes seguem empurradas para a direita. */
+.mat-ctr-bt{font-variant-numeric:tabular-nums}
 /* a nova matrícula escolhida joga o usuário direto na aba onde o cartão dela apareceu */
 .al-painel{min-width:0}
 
@@ -435,9 +433,6 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
    Deixou de ser gatilho de acordeão: o cabeçalho é a barra de AÇÕES do estágio aberto. */
 .mat-cab{display:flex;align-items:center;gap:9px;padding:10px 13px;user-select:none}
 .matricula-card.aberto .mat-cab{border-bottom:1px solid var(--borda)}
-/* o nome do livro é o que identifica o cartão: realçado como uma pastilha azul */
-.mat-livro{font-size:14.5px;font-weight:700;color:var(--marca);background:var(--azul-cl);
-  border:1px solid var(--azul-borda);border-radius:8px;padding:3px 11px;line-height:1.25}
 .mat-acoes{margin-left:auto;display:flex;align-items:center;gap:4px}
 .mat-corpo{display:grid;grid-template-rows:0fr;transition:grid-template-rows .18s ease-out}
 .matricula-card.aberto .mat-corpo{grid-template-rows:1fr}
@@ -814,8 +809,18 @@ th.ev.ultima .es-ev-data{background:var(--marca);color:#fff}
 .es-linha-kit .q-in{width:46px;padding:3px 5px;font-size:12px;text-align:center;
   font-variant-numeric:tabular-nums}
 /* ===== cadastro do material dentro da linha aberta ===== */
-.es-cad{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px 12px;
+/* TRÊS COLUNAS FIXAS, e é uma correção de 2026-08-23. Era `auto-fit`, que dá 2, 3 ou 4 colunas
+   conforme a largura do painel — e com isso a fileira que ele desenhou ("os botões debaixo do Tipo,
+   o estágio vinculado debaixo da Finalidade, o último da coleção debaixo do Mínimo") só existia numa
+   largura. Medido: 362px de painel dava 2 colunas, 682px dava 4, e nenhuma das duas era o desenho.
+   Com três fixas o formulário tem sempre a mesma cara: Descrição + Edições na primeira fileira,
+   Tipo/Finalidade/Mínimo na segunda, ações/estágio/último na terceira.
+   `minmax(0,1fr)` e não `1fr`: o mínimo automático de uma coluna de grade é `auto`, e um <select>
+   com opção comprida ("uso do professor") a empurraria para fora do painel. */
+.es-cad{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px 12px;
   align-items:end;padding-bottom:10px;margin-bottom:8px;border-bottom:1px dashed #E4E9EF}
+/* tela estreita: uma coluna só, e aí a ordem do DOM já é a leitura certa */
+@media (max-width:700px){.es-cad{grid-template-columns:1fr}}
 .es-cad label{display:flex;flex-direction:column;gap:3px;margin:0;text-transform:none;
   letter-spacing:0;font-size:12px}
 .es-cad label span{font-size:10.5px;color:var(--tx3);font-weight:600;text-transform:uppercase;
@@ -1217,14 +1222,6 @@ th.ev.ultima .es-ev-data{background:var(--marca);color:#fff}
   max-width:130px}
 .mat-sit:hover{border-color:var(--azul);color:var(--azul-esc)}
 /* situação em modo leitura, no cadastro do aluno: parece um campo, mas não se digita nele */
-.al-sit-lida{display:flex;align-items:center;gap:8px;min-height:32px}
-.al-sit-lida #al-sit{font-size:13px;font-weight:600;cursor:help}
-.al-sit-lida #al-sit.on{color:var(--ok)}
-.al-sit-lida #al-sit.off{color:var(--tx2)}
-.al-sit-lida #al-sit.vazio{font-weight:400;color:var(--tx3);cursor:default}
-.al-sit-ir{appearance:none;border:1px solid var(--borda);background:#fff;border-radius:6px;
-  font:inherit;font-size:11px;color:var(--tx2);padding:2px 8px;cursor:pointer}
-.al-sit-ir:hover{border-color:var(--azul);color:var(--azul-esc);background:var(--azul-cl)}
 .es-ed-pop .nova{display:flex;gap:5px;padding:9px 4px 2px}
 .es-ed-pop .nova .n{flex:1;min-width:0}
 .es-ed-pop .nova .a{width:76px}
@@ -1314,11 +1311,36 @@ th.ev.ultima .es-ev-data{background:var(--marca);color:#fff}
   cursor:help}
 .es-fila-l .es-saida svg{display:block}
 /* a caixinha do "último da coleção", à direita, sob o Mínimo */
+/* ALTURA DE CAMPO, NÃO DE CARTÃO (2026-08-23, dele): *"o campo tem que ter a mesma altura dos
+   campos do botão de salvar, de cancelar, da finalidade... fica mais compacto"*. A caixa tinha
+   padding de cartão e ficava 17px mais alta que os botões ao lado. `align-self:end` mantém o pé
+   alinhado com o resto da fileira, que é o que a grade já faz com os outros. */
 .es-final-cx2{display:flex;align-items:center;gap:6px;border:1px solid var(--borda);
-  border-radius:8px;padding:7px 10px;background:#FBFCFD;align-self:end}
-.es-final2{display:flex;align-items:center;gap:7px;margin:0;font-size:12px;cursor:pointer}
+  border-radius:8px;padding:0 9px;min-height:29px;background:#FBFCFD;align-self:end}
+.es-final2{display:flex;align-items:center;gap:7px;margin:0;font-size:11.5px;cursor:pointer;
+  line-height:1.2}
 .es-final2 input{width:auto;margin:0}
-.es-final2 span{color:var(--tx2)}
+/* SEM VERSALETE: *"em vez de colocar maiúsculo desse jeito, fonte menor"*. O maiúsculo vinha de
+   `.es-cad label span`, que veste todo RÓTULO do formulário — e aqui o span não é rótulo, é o texto
+   do checkbox. Precisa dos três seletores para vencer aquela regra em especificidade. */
+.es-cad .es-final-cx2 .es-final2 span{color:var(--tx2);text-transform:none;letter-spacing:0;
+  font-weight:500;font-size:11.5px}
+
+/* ===== ESTÁGIO VINCULADO: a caixa de pílulas e o painel ===== */
+/* uma coluna só, ao contrário das Edições (que ocupam duas): aqui a fileira tem três donos —
+   os botões, este campo e o "último da coleção" */
+.es-cad-est .es-edcx{min-height:29px;padding:3px 26px 3px 7px}
+.es-tag.legado{border-style:dashed}
+.es-tag .an{font-style:normal;font-weight:400;color:var(--tx3);font-size:10px}
+/* o painel é mais largo que o de edições: cada linha carrega nome, sigla, de quem é hoje e a ação */
+.es-es-pop{width:min(520px,94vw)}
+.es-es-pop .grp{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;
+  color:var(--tx3);padding:8px 4px 3px;border-top:1px solid #F1F4F7;margin-top:2px}
+.es-es-pop .grp:first-of-type{border-top:0;margin-top:0}
+/* aqui o `.sd` guarda TEXTO (o material atual), não número: sem o teto ele empurrava a ação
+   para fora em nome comprido */
+.es-es-pop .sd{max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  font-variant-numeric:normal}
 .es-i{display:inline-flex;align-items:center;color:#B6C2D2;cursor:help}
 .es-i:hover,.es-i:focus{color:var(--azul)}
 .es-i svg{display:block}
@@ -3548,19 +3570,18 @@ td.lc-est-cel{padding:0!important;border-left:1px solid var(--aba-bd);border-rig
  title="Trocar o ID da matrícula" onclick="alMenuId(event)">✎</button></label>
 <input id="al-id" inputmode="numeric" maxlength="10">
 </div>
-<div class="al-campo al-campo-sit">
-<!-- A SITUAÇÃO NÃO SE DIGITA AQUI (2026-08-22): ela é DERIVADA do histórico, e agora se escolhe
-     POR ESTÁGIO, no cartão de cada matrícula. O dropdown que existia aqui gravava direto em
-     `alunos.situacao` e permitia dizer "Encerrado" sem encerrar estágio nenhum — o cadastro
-     afirmava uma coisa e o percurso outra. -->
-<label for="al-sit">Situação</label>
-<div class="al-sit-lida"><span id="al-sit" data-v=""></span>
-<button type="button" class="al-sit-ir" title="A situação vem do histórico e de cada estágio. Clique para abrir o histórico."
- onclick="alAba('matriculas');alInfoAba('situacao')">ver histórico</button></div>
-</div>
+<!-- ===== UM COMPONENTE SÓ, AO LADO DO ID (2026-08-23, dele) =====
+     Havia DOIS aqui: "Situação" e "Status" — e os dois mostravam a MESMA palavra, Ativado ou
+     Desativado, porque a situação já vinha traduzida. *"Ficou redundante, dois componentes de
+     situação e status ali no meio... ficou muito feio."* Ficou o Status, colado no ID, que é de
+     quem ele fala. O botão "ver histórico" saiu junto: ele nunca o pediu, e o histórico já tem
+     lugar próprio na aba Informações.
+     A SITUAÇÃO mudou de dono, não sumiu: ela é do CONTRATO, e mora no cartão de cada estágio.
+     O valor cru continua guardado aqui em `data-v` — é dele que o badge decide ativo × inativo, e o
+     tooltip diz de onde veio. -->
 <div class="al-campo al-campo-status">
-<label>Status</label>
-<span id="al-status" class="badge b-off">—</span>
+<label for="al-status">Status</label>
+<span id="al-status" class="badge b-off" data-v="">—</span>
 </div>
 <!-- o campo de nova matrícula ocupou o lugar que era dos três botões: é a ação natural de quem
      acabou de conferir o cadastro, e ali ela fica na mesma fileira -->
@@ -4581,25 +4602,26 @@ var s=alSitTexto();
 var reg=((DOM&&DOM.situacoes)||[]).filter(function(x){return x.situacao===s})[0];
 var ativo=!!(reg&&reg.ativa);
 b.className='badge '+(ativo?'b-on':'b-off');b.textContent=ativo?'Ativado':'Desativado';
-b.title=ativo?'Aluno ativo no sistema':'Aluno fora dos cálculos e das listas';
+/* o tooltip diz de ONDE vem: sem ele, um "Desativado" no cadastro não tem explicação em lugar
+   nenhum agora que o campo Situação saiu da faixa */
+b.title=(ativo?'Aluno ativo no sistema':'Aluno fora dos cálculos e das listas')
+ +(s?' — situação corrente: '+s+'.':'')
+ +' A situação de cada estágio fica no cartão dele, abaixo.';
 }
 /* A SITUAÇÃO EXIBIDA — um par de funções, para o resto do código não precisar saber que o campo
    deixou de ser um `<select>`. Guardamos o valor cru em `data-v` porque o texto na tela pode ganhar
    enfeite depois, e quem compara com `DOM.situacoes` precisa do nome exato. */
-function alSitTexto(){var e=$('al-sit');return e?(e.dataset.v||''):''}
+/* `al-status` E NÃO `al-sit` (2026-08-23): o campo Situação saiu da faixa por ser o mesmo dado dito
+   duas vezes, e o valor cru passou a morar no próprio badge. Um elemento, uma verdade. */
+function alSitTexto(){var e=$('al-status');return e?(e.dataset.v||''):''}
 /* O CADASTRO SÓ DIZ ATIVADO OU DESATIVADO (regra dele, 2026-08-22): *"no cadastro dele só tem
    status de ativo ou desativado; a situação cadastral não deve ter o evadido e tal"*. Evadido,
-   Trancado e Encerrado são situações do CONTRATO — cada cartão de estágio tem a sua.
-   O valor derivado continua guardado em `data-v` (é dele que o badge decide ativo × inativo) e
-   aparece no tooltip, para quem quiser saber de onde vem o desativado sem abrir o histórico. */
+   Trancado e Encerrado são situações do CONTRATO — cada cartão de estágio tem a sua. */
 function alSitPor(v){
-var e=$('al-sit');if(!e)return;
+var e=$('al-status');if(!e)return;
 e.dataset.v=v||'';
-var reg=((DOM&&DOM.situacoes)||[]).filter(function(x){return x.situacao===v})[0];
-e.textContent=v?(reg&&reg.ativa?'Ativado':'Desativado'):'—';
-e.className=v?(reg&&reg.ativa?'on':'off'):'vazio';
-e.title=v?('Vem dos contratos do aluno — o mais recente diz "'+v+'". A situação de cada estágio se escolhe no cartão dele.')
-        :'Ainda sem contrato: a situação nasce com a primeira matrícula em estágio.';
+/* quem pinta o badge é `alStatus`, que já sabe ler o `data-v` — pintar aqui também seria a mesma
+   regra em dois lugares, e uma delas envelheceria */
 if(typeof alStatus==='function')alStatus()}
 /* true quando o ID digitado não existe no banco */
 var AL_NOVO=false;
@@ -4931,21 +4953,24 @@ var card=document.createElement('div');card.className='matricula-card';
 /* A SETA SAIU com a sanfona: quem escolhe a matrícula é o trilho de abas acima, e o cabeçalho
    deixou de ser gatilho para virar a barra de AÇÕES do estágio aberto (contrato, trocar, remover). */
 var head=document.createElement('div');head.className='mat-cab';
-var h4=document.createElement('span');h4.className='mat-livro';h4.textContent=nomeLivro(m.livro);head.appendChild(h4);
-/* CONTRATO: matrícula/N, onde N é a ordem em que este vínculo foi criado — não importa o livro
-   nem o idioma. Editável porque a numeração histórica da escola pode não bater com a ordem em
-   que as linhas entraram no banco, e quem sabe o número certo é a recepção. */
-var ctr=document.createElement('span');ctr.className='mat-contrato';
-ctr.title='Contrato — clique para editar o número';
-ctr.textContent=m.contrato||(alSel.id+'/—');
-ctr.onclick=function(ev){ev.stopPropagation();
+/* ===== O NOME E O CONTRATO SAÍRAM DAQUI (2026-08-23, dele) =====
+   *"Como a aba já se chama o estágio dele com o número do contrato, não tem necessidade desse
+   componente... fica redundante, parece duas vezes."* E era literal: a aba acima mostra
+   `TEENS 4  541/1` e o cabeçalho repetia as duas coisas, palavra por palavra.
+   O cabeçalho fica sendo o que ele já era de fato — a BARRA DE AÇÕES do contrato aberto: a situação
+   deste estágio e o que dá para fazer com ele. Editar o número do contrato virou ação, porque o
+   gesto era do rótulo que saiu e ele não pode se perder: a numeração histórica da escola nem sempre
+   bate com a ordem em que as linhas entraram no banco, e quem sabe o número certo é a recepção. */
+var ctrBt=document.createElement('button');ctrBt.type='button';ctrBt.className='btn-link mat-ctr-bt';
+ctrBt.textContent='contrato '+(m.contrato||(alSel.id+'/—'));
+ctrBt.title='Editar o número deste contrato';
+ctrBt.onclick=function(ev){ev.stopPropagation();
  dlgTexto({titulo:'Número do contrato',
   texto:'O contrato é '+alSel.id+'/N, e N é a ordem em que este vínculo foi criado. '
    +'O primeiro estágio do aluno é /1, o seguinte /2, e assim por diante — independente de estágio ou idioma.',
   label:'Número (a parte depois da barra)',valor:m.contratoSeq||'',tipoCampo:'number',ok:'Salvar'},
  function(v){run('salvarContrato',[{idMatricula:alSel.id,livro:m.livro,seq:v}],function(r){
    msg('Contrato '+r.contrato+' salvo.');recarregarMatriculas()})})};
-head.appendChild(ctr);
 /* ===== A SITUAÇÃO É DO ESTÁGIO, NÃO DO ALUNO (2026-08-22) =====
    Pedido dele: *"a situação deveria ser vinculada ao módulo dele, ao livro em si, não ao cadastro
    do aluno em geral, porque o cadastro dele pode ser ativo ou desativado"*. O dropdown saiu do
@@ -4953,8 +4978,11 @@ head.appendChild(ctr);
    Não há campo novo no banco: a situação por estágio JÁ EXISTIA como `aluno_situacao_historico`
    com a coluna `livro`, e é dela que `sincronizarPercurso` deriva o estado. Este seletor só
    escreve na linha do tempo — o resto o servidor deduz. */
+/* o número do contrato se edita SEMPRE, aberto ou fechado: acertar a numeração histórica é
+   justamente o que se faz em contrato já encerrado */
+head.appendChild(ctrBt);
 var selSitM=document.createElement('select');selSitM.className='mat-sit';
-selSitM.title='Situação DESTE estágio. Vira um registro no histórico, com a data de hoje.';
+selSitM.title='Situação DESTE contrato — a do cadastro, lá em cima, só diz ativo ou desativado. Vira um registro no histórico, com a data de hoje.';
 (DOM.situacoes||[]).forEach(function(s){
  var o=document.createElement('option');o.textContent=s.situacao;selSitM.appendChild(o)});
 selSitM.value=matSitRotulo(m);
@@ -6257,6 +6285,17 @@ h+='<div class="es-cad">'
      return '<option value="'+t[0]+'"'+(it.finalidade===t[0]?' selected':'')+'>'+t[1]+'</option>'}).join('')
    +'</select></label>'
  +esCampo(it,'minimo','Mínimo','num','0')
+ /* ===== A SEGUNDA FILEIRA, NA ORDEM QUE ELE DESENHOU (2026-08-23) =====
+    A grade tem três colunas, e ele disse onde cada coisa cai: os botões debaixo do Tipo, o estágio
+    vinculado debaixo da Finalidade e o "último da coleção" debaixo do Mínimo. É por isso que a
+    ORDEM AQUI importa — `auto-fit` preenche na ordem do DOM, não há posicionamento explícito. */
+ /* Salvar/cancelar no espaço que o código de barras deixou. O salvar só acende quando há mudança
+    de verdade — e volta a apagar se a mudança for desfeita. */
+ +'<div class="es-cad-acoes">'
+ +'<button class="acao" id="es-salvar" onclick="esSalvarMaterial()" disabled>Salvar</button>'
+ +'<button class="acao sec" id="es-cancelar" onclick="esCancelarMaterial()" disabled>Cancelar</button>'
+ +'</div>'
+ +esCampoEstagios(it)
  /* ===== MATERIAL FINAL (2026-08-17) =====
     Decisão dele: quem diz que um estágio é o ÚLTIMO da coleção é o MATERIAL, e é aqui que se
     decide. O W12 não tem próximo porque não existe nada depois dele — marcado aqui, ele para de
@@ -6264,7 +6303,10 @@ h+='<div class="es-cad">'
     fato, travado. */
  /* A DESCRIÇÃO VIROU TOOLTIP (2026-08-22). Ela ocupava duas linhas debaixo do checkbox e
     desalinhava a coluna inteira; ele pediu a caixinha à direita, sob o Mínimo, com o texto atrás
-    de uma bolinha de informação. */
+    de uma bolinha de informação.
+    2026-08-23: *"em vez de colocar maiúsculo desse jeito, fonte menor... o campo tem que ter a
+    mesma altura dos campos"*. O versalete vinha de `.es-cad label span`, que veste TODO rótulo do
+    formulário — aqui não é rótulo, é o texto do checkbox. */
  +'<div class="es-final-cx2" data-campo="final">'
    +'<label class="es-final2"><input type="checkbox"'+(it.final?' checked':'')
    +' onchange="esCampoItem('+it.id+',&quot;final&quot;,this.checked)">'
@@ -6273,12 +6315,6 @@ h+='<div class="es-cad">'
    +' title="Marque quando não existe estágio depois deste — o W12 é o fim da coleção.'
    +' Assim ele para de aparecer em «estágio sem próximo na trilha» na Central de controle.">'
    +icon('info',13)+'</span>'
- +'</div>'
- /* Salvar/cancelar no espaço que o código de barras deixou. O salvar só acende quando há mudança
-    de verdade — e volta a apagar se a mudança for desfeita. */
- +'<div class="es-cad-acoes">'
- +'<button class="acao" id="es-salvar" onclick="esSalvarMaterial()" disabled>Salvar</button>'
- +'<button class="acao sec" id="es-cancelar" onclick="esCancelarMaterial()" disabled>Cancelar</button>'
  +'</div>'
  +'</div>';
 h+='<hr class="pg-fio">';
@@ -6386,6 +6422,86 @@ ativas.forEach(function(e){
 h+='<span class="es-edcx-seta">▾</span></div>';
 if(ES_ED_FILTRO.length)h+='<button class="es-ed-limpa" onclick="esFiltrarEdicao(null)">ver todas as edições</button>';
 return h+'</label>'}
+/* ===== ESTÁGIO VINCULADO, PELO LADO DO MATERIAL (2026-08-23, dele) =====
+   *"O vínculo faz mais sentido a gente configurar lá no material, na aba de materiais... o estágio
+   vinculado eu quero que você faça a forma dele como se fosse as edições, em pílulas."*
+   PLURAL de propósito: o KIDS 4 tem DOIS estágios no mesmo material (o corrente e o legado), e um
+   select mostraria só um. Do lado do estágio o campo continua singular — lá a pergunta é "de qual
+   material este estágio é", que tem uma resposta só. */
+function esCampoEstagios(it){
+var es=(it.estagios||[]);
+var h='<label class="es-cad-est" data-campo="estagios"><span>Estágio vinculado</span>'
+ +'<div class="es-edcx" onclick="esEsPainel(event,'+it.id+')">';
+if(!es.length)h+='<span class="es-ed-vazio">sem estágio — clique para vincular</span>';
+es.forEach(function(e){
+ h+='<span class="es-tag'+(e.legado?' legado':'')+'"'
+  +' title="'+escBloco(e.nome+(e.legado?' · edição legada':'')+(e.ativo?'':' · desativado')
+     +' — clique na caixa para trocar o vínculo.')+'">'
+  +escBloco(e.nomeCurto||e.sigla)
+  +(e.legado?'<i class="an">legado</i>':'')+'</span>'});
+h+='<span class="es-edcx-seta">▾</span></div>';
+return h+'</label>'}
+/* O PAINEL segue a mecânica do de edições: abre no clique da caixa, fica aberto enquanto ele
+   trabalha e só o clique FORA fecha (regra dele, de 22/08, que vale para os dois). */
+var ES_ES_PAINEL=null,ES_ES_ITEM=null,ES_ES_LISTA=null;
+function esEsFechar(){if(ES_ES_PAINEL){ES_ES_PAINEL.remove();ES_ES_PAINEL=null;ES_ES_ITEM=null}
+ document.removeEventListener('mousedown',esEsForaPainel,true)}
+function esEsForaPainel(ev){if(ES_ES_PAINEL&&!ES_ES_PAINEL.contains(ev.target))esEsFechar()}
+function esEsPintar(){
+if(!ES_ES_PAINEL)return;
+var it=esItem(ES_ES_ITEM);if(!it){esEsFechar();return}
+var h='<div class="tit">Estágios de '+escBloco(it.descricao)+'</div>';
+if(!ES_ES_LISTA){ES_ES_PAINEL.innerHTML=h+'<div class="vaz">carregando…</div>';return}
+var cat='';
+ES_ES_LISTA.forEach(function(e){
+ if(e.categoria!==cat){cat=e.categoria;h+='<div class="grp">'+escBloco(cat)+'</div>'}
+ var aqui=(e.itemId===it.id);
+ h+='<div class="lin'+(aqui?' edit':'')+'">'
+  +'<span class="nm">'+escBloco(e.nome)
+   +(e.nomeCurto?'<i>'+escBloco(e.nomeCurto)+'</i>':'')
+   +(e.legado?'<b class="lg">legado</b>':'')
+   +(e.ativo?'':'<b class="aq">desativado</b>')+'</span>'
+  /* de quem ele é HOJE: sem isto, vincular um estágio que já era de outro material seria um
+     movimento às cegas — e MOVER é o gesto mais comum aqui */
+  +'<span class="sd" title="material atual deste estágio">'
+   +escBloco(aqui?'aqui':(e.material||'sem material'))+'</span>'
+  +'<span class="ac">'
+   +(aqui
+     ?'<button onclick="esEsSoltar('+e.id+')" title="tirar este estágio do material — só vale enquanto ninguém depende da chave dele">soltar</button>'
+     :'<button onclick="esEsLigar('+e.id+')" title="'+(e.material?'mover este estágio para cá':'vincular este estágio a este material')+'">'
+      +(e.material?'mover para cá':'vincular')+'</button>')
+  +'</span></div>'});
+ES_ES_PAINEL.innerHTML=h;
+}
+function esEsPainel(ev,itemId){
+ev.stopPropagation();
+if(ES_ES_PAINEL){esEsFechar();return}
+var it=esItem(itemId);if(!it)return;
+var m=document.createElement('div');m.className='es-ed-pop es-es-pop';
+document.body.appendChild(m);
+ES_ES_PAINEL=m;ES_ES_ITEM=itemId;
+esEsPintar();
+var r=ev.currentTarget.getBoundingClientRect();
+m.style.left=Math.max(8,Math.min(r.left,innerWidth-m.offsetWidth-8))+'px';
+m.style.top=(r.bottom+4)+'px';
+setTimeout(function(){document.addEventListener('mousedown',esEsForaPainel,true)},0);
+/* o catálogo tem rota própria e enxuta: 29 nomes, buscados só quando o painel abre.
+   Reposiciona depois de pintar: a lista cheia é bem mais larga que o "carregando…", e sem isto o
+   painel nasceria estreito e passaria da borda direita da janela. */
+esEsCatalogo(function(){esEsPintar();
+ m.style.left=Math.max(8,Math.min(r.left,innerWidth-m.offsetWidth-8))+'px'});
+}
+function esEsCatalogo(cb){run('getEstagiosParaVinculo',[{}],function(r){ES_ES_LISTA=r;if(cb)cb()})}
+/* depois de mexer no vínculo, TRÊS coisas mudaram: o material (as pílulas), o catálogo (de quem o
+   estágio é agora) e a tela de trás. Recarregar só uma deixaria o painel mentindo. */
+function esEsRecarregar(){esEsCatalogo(function(){
+ esCarregar(function(){esDetalheMaterial();esEsPintar()})})}
+function esEsLigar(estagioId){
+run('vincularEstagioAoMaterial',[{itemId:ES_ES_ITEM,estagioId:estagioId}],function(){
+ msg('Estágio vinculado a este material.');esEsRecarregar()})}
+function esEsSoltar(estagioId){
+run('desvincularEstagioDoMaterial',[{estagioId:estagioId}],function(){
+ msg('Estágio solto do material.');esEsRecarregar()})}
 /* ===== EDIÇÕES do material =====
    O filtro é MÚLTIPLO (marca Old e 3rd ao mesmo tempo) e vazio significa "todas" — nenhum estado
    escondido. `esFiltrarEdicao(null)` limpa. */

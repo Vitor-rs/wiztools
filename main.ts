@@ -1958,8 +1958,31 @@ function situacaoCorrente(idMatricula: string): string | null {
     const s = situacaoDoEstagio(idMatricula, c.livro);
     if (s && SIT_ENTRADA.includes(s)) return s;
   }
-  const geral = ultimaSituacao(A(`SELECT situacao, data, id FROM aluno_situacao_historico
-    WHERE id_matricula=? ORDER BY data DESC, id DESC`, idMatricula));
+  const linhas = A(`SELECT situacao, data, id FROM aluno_situacao_historico
+    WHERE id_matricula=? ORDER BY data DESC, id DESC`, idMatricula);
+  const geral = ultimaSituacao(linhas);
+  /* ===== ENCERRAR O CONTRATO NÃO DESLIGA O ALUNO (2026-08-23, correção dele) =====
+     *"Encerramos o Teens 4 dele no dia 18/08/2026 — a situação cadastral dele não pode estar
+     desativada. Isso é inválido."* E o motivo é o dia a dia: terminar o livro é o caminho NORMAL, o
+     passo ANTES da rematrícula. *"A matrícula 541 encerra o Teens 4, não quer dizer que ela parou de fazer
+     o curso; vai rematricular pro Teens 6."* As outras três saídas continuam desligando, porque
+     essas SÃO saída: Trancado (pausou), Evadido (parou no meio) e Cancelado.
+     A CORREÇÃO É AQUI E NÃO EM `situacoes.ativa`, e a medição é que decidiu. Marcar a situação
+     inteira como ativa parecia mais limpo — uma linha, e as dez consultas que filtram por ela se
+     acertavam juntas. Só que o ensaio mostrou o preço: **59 alertas novos na Central**, e 24 deles
+     eram registros ANTIGOS — gente cujo "Encerrado" existe só como palavra no cadastro, sem
+     percurso, sem histórico, sem contrato. Esses saíram da escola de verdade; a palavra é a mesma e
+     o fato é outro. Aqui a regra olha a LINHA DO TEMPO daquele aluno, então distingue os dois: quem
+     tem registro de encerramento continua ativo, e quem só tem a palavra fica como estava.
+     O que volta é a última ENTRADA dele — Matriculado ou Rematriculado —, que é o que "ainda é
+     aluno da casa, entre livros" quer dizer. O contrato encerrado continua encerrado no cartão
+     dele: `SIT_FECHA` e `sincronizarPercurso` não mudaram. */
+  if (geral === "Encerrado") {
+    const entrada = linhas.find(l => SIT_ENTRADA.includes(l.situacao));
+    return entrada?.situacao
+      /* encerrou sem entrada registrada: o número do contrato ainda diz se foi a primeira vez */
+      || (abertos.length && abertos[0].contrato_seq > 1 ? "Rematriculado" : "Matriculado");
+  }
   if (geral) return geral;
   return abertos.length ? (abertos[0].contrato_seq > 1 ? "Rematriculado" : "Matriculado") : null;
 }
@@ -2314,6 +2337,8 @@ addColuna("aluno_situacao_historico", "livro", "TEXT");
    Sem ela, a volta só podia ser registrada como Matriculado/Rematriculado, que significam outra
    coisa — rematrícula é quem terminou o livro e foi para o seguinte. Conta como ATIVO. */
 R("INSERT OR IGNORE INTO situacoes (situacao, ativa) VALUES ('Retornado', 1)");
+/* `situacoes.ativa` de 'Encerrado' fica em 0, e isso é deliberado — ver a nota em
+   `situacaoCorrente`, que é onde "encerrar contrato não desliga o aluno" foi resolvido. */
 
 /* índices: o banco nasceu sem nenhum, então toda consulta era varredura de tabela. Com o histórico
    de presença crescendo todo dia, isso passa a doer — CREATE IF NOT EXISTS é idempotente.
@@ -3150,6 +3175,23 @@ try { numerarContratos(); } catch (e) { console.warn("numeração de contratos f
 try { semearPercurso(); } catch (e) { console.warn("retomada do percurso falhou (segue o baile):", e); }
 /* depois do percurso: acerta o que o modelo antigo deixou torto (roda uma vez) */
 try { acertarContratos(); } catch (e) { console.warn("acerto de contratos falhou (segue o baile):", e); }
+/* Depois do acerto: reaplica a derivação em todo mundo, uma vez, para a regra nova do 'Encerrado'
+   (ver `situacaoCorrente`) valer para quem JÁ estava encerrado. `sincronizarSituacao` só roda em
+   escrita — sem isto, a matrícula 541 continuaria "Desativado" até alguém salvar algo nela.
+   A trava de não-reativar continua de pé: quem tem saída só no cadastro não é tocado. */
+try {
+  if (!G("SELECT valor FROM config WHERE chave='encerrado_nao_desativa_v1'")) {
+    let n = 0;
+    for (const a of A("SELECT id_matricula, situacao FROM alunos")) {
+      sincronizarSituacao(a.id_matricula);
+      /* conta o que MUDOU no banco, não o que a derivação devolveu: ela devolve valor também quando
+         a trava de não-reativar a manda desistir, e aí o número diria 50 onde 7 linhas mudaram */
+      if (G("SELECT situacao FROM alunos WHERE id_matricula=?", a.id_matricula)?.situacao !== a.situacao) n++;
+    }
+    R("INSERT OR REPLACE INTO config (chave,valor) VALUES ('encerrado_nao_desativa_v1',?)", agora());
+    if (n) console.log("situação: " + n + " aluno(s) reavaliados — encerrar contrato não desliga o cadastro");
+  }
+} catch (e) { console.warn("reavaliação das situações falhou (segue o baile):", e); }
 
 /* ===== ACERTO DO CONTRATO E DO HISTÓRICO (2026-08-22) — roda UMA vez =====
    Três consertos no dado que o modelo antigo deixou torto, autorizados por ele. Nenhum é derivável
@@ -3687,20 +3729,35 @@ const api: Record<string, (a: any) => unknown> = {
      poucas dezenas de eventos — buscar tudo de uma vez é mais barato que N chamadas, e a grade
      precisa do conjunto completo para calcular saldo de qualquer jeito. */
   getEstoque() {
-    const linha = (i: any) => ({
+    const linha = (i: any) => {
+      /* ===== O VÍNCULO VISTO DO MATERIAL (2026-08-23, dele) =====
+         *"O vínculo faz mais sentido a gente configurar lá no material, na aba de materiais."*
+         Do lado do estágio o campo é singular ("material vinculado"); daqui é PLURAL, e tem de ser:
+         o KIDS 4 tem dois estágios apontando para o mesmo material (o corrente e o legado). Por isso
+         a tela pediu pílulas, e não um select. */
+      const estagios = A(`SELECT id, sigla, nome, nome_curto, legado, status FROM estagio
+                          WHERE item_estoque_id=? ORDER BY legado, ordem, id`, i.id)
+        .map((e: any) => ({ id: e.id, sigla: e.sigla, nome: e.nome,
+          nomeCurto: e.nome_curto || null, legado: e.legado === 1, ativo: e.status === "ativo" }));
+      return {
       id: i.id, descricao: i.descricao, codigo: i.codigo || "", livro: i.livro || null,
+      estagios,
       /* QUEM MANDA NO NOME. Com estágio, a descrição é espelho dele e a tela mostra travada — senão
          o campo aceitaria uma edição que o próximo salvamento do estágio desfaria em silêncio.
          `avulso` é o material que não é estágio Wizard (Kids Esp 1): ali a descrição é a única
-         fonte que existe, e continua editável. */
-      temEstagio: !!(i.livro && G("SELECT 1 FROM estagio WHERE livro=?", i.livro)),
+         fonte que existe, e continua editável.
+         Sai da MESMA lista acima e não de uma segunda consulta: eram duas perguntas quase iguais
+         (`estagio.livro=?` × `estagio.item_estoque_id=?`) que podiam discordar — e discordavam
+         justamente no material sem vínculo mas com livro. */
+      temEstagio: estagios.length > 0,
       avulso: i.avulso === 1,
       edicaoNome: i.edicao_nome || "", edicaoAno: i.edicao_ano ?? null,
       unidade: i.unidade, tipo: i.tipo || (i.componente === 1 ? "peca" : (i.unidade === "kit" ? "kit" : "unidade")),
       finalidade: i.finalidade, minimo: i.minimo, ativo: i.ativo === 1, final: i.final === 1,
       ordem: i.ordem, componente: i.componente === 1,
       categoria: i.livro ? categoriaLivro(i.livro) : "Materiais",
-    });
+      };
+    };
     /* COMPONENTES ficam FORA da grade: Student's Book e Workbook não são linha de prateleira, são
        o que vem dentro da mochila. Contá-los em separado seria contar o mesmo material duas vezes.
        Vão à parte, para a aba Kits montar a composição. */
@@ -4158,6 +4215,78 @@ const api: Record<string, (a: any) => unknown> = {
     if (!ed) throw new Error("Edição não encontrada.");
     R("UPDATE estoque_edicao SET legada=? WHERE id=?", legada ? 1 : 0, id);
     return { ok: true, legada: !!legada };
+  },
+  /* ===== O VÍNCULO ESTÁGIO × MATERIAL, CONFIGURADO PELO MATERIAL (2026-08-23, dele) =====
+     *"Eu acho que o vínculo faz mais sentido a gente configurar lá no material, na aba de
+     materiais."* Do lado do estágio o campo já existia; esta é a mesma verdade pela outra ponta.
+     E ela é UMA verdade só: `estoque_item.livro` é UNIQUE, então livro ↔ material é 1:1 e vários
+     estágios podem dividir o mesmo livro (o KIDS 4 tem dois). Vincular é portanto gravar OS DOIS
+     campos juntos — `livro` (a chave por onde matrícula, agenda e ficha acham o estágio) e
+     `item_estoque_id` (o atalho para o material). Gravar só um deles é o defeito que já custou uma
+     sessão: `livro` NULL desliga tudo que passa por ele. */
+  vincularEstagioAoMaterial({ itemId, estagioId }: any) {
+    const it = G("SELECT id, livro, descricao FROM estoque_item WHERE id=?", Number(itemId));
+    if (!it) throw new Error("Material não encontrado.");
+    const e = G("SELECT id, nome, categoria, livro FROM estagio WHERE id=?", Number(estagioId));
+    if (!e) throw new Error("Estágio não encontrado.");
+    let chave = it.livro as string | null;
+    /* MATERIAL SEM CHAVE DE LIVRO ainda não é um estágio para o resto do sistema — é o caso do
+       Business Empire, que ele quer justamente poder ligar. A chave nasce do NOME DO ESTÁGIO, que é
+       a mesma regra de `sincronizarMaterialDoEstagio`: um lugar só decide como a chave se chama. */
+    if (!chave) {
+      chave = String(e.livro || e.nome).trim();
+      if (!chave) throw new Error("O estágio precisa de um nome para virar chave de livro.");
+      const dono = G("SELECT id, descricao FROM estoque_item WHERE livro=? AND id<>?", chave, it.id);
+      if (dono) throw new Error('O livro "' + chave + '" já é do material "' + dono.descricao + '".');
+      if (!G("SELECT 1 FROM livros WHERE nome=?", chave)) {
+        const ordem = (G("SELECT MAX(ordem) m FROM livros")?.m ?? 0) + 1;
+        R("INSERT INTO livros (nome, ordem, kids) VALUES (?,?,?)", chave, ordem, e.categoria === "Kids" ? 1 : 0);
+      }
+      R("UPDATE estoque_item SET livro=? WHERE id=?", chave, it.id);
+    }
+    R("UPDATE estagio SET item_estoque_id=?, livro=? WHERE id=?", it.id, chave, e.id);
+    /* trocar de material solta a edição fixada: ela pertencia ao material anterior */
+    R("UPDATE estagio SET item_edicao_id=NULL WHERE id=? AND item_edicao_id NOT IN (SELECT id FROM estoque_edicao WHERE item_id=?)", e.id, it.id);
+    return { ok: true, itemId: it.id, estagioId: e.id, livro: chave };
+  },
+  /* SOLTAR só é honesto quando não há o que quebrar. O estágio sem `livro` some da matrícula, da
+     agenda e da ficha — então isto existe para DESFAZER UM ENGANO, não para arquivar estágio em
+     uso. Quem tem aluno vinculado se muda para outro material (o gesto acima), não se solta. */
+  desvincularEstagioDoMaterial({ estagioId }: any) {
+    const e = G("SELECT id, nome, livro FROM estagio WHERE id=?", Number(estagioId));
+    if (!e) throw new Error("Estágio não encontrado.");
+    /* A PERGUNTA É "SOBRA QUEM RESPONDA POR ESSA CHAVE?", não "existe aluno nessa chave?".
+       Matrícula, aula e percurso apontam para `livros.nome`, não para o estágio — enquanto OUTRO
+       estágio carregar a mesma chave, soltar este não deixa ninguém sem estágio. É o caso do KIDS 4,
+       que tem dois; e foi o que o ensaio mostrou: a primeira versão recusava soltar um estágio que
+       nem alunos próprios tinha, só porque a chave era compartilhada com quem tem 11 matrículas. */
+    if (e.livro) {
+      const sobra = G("SELECT COUNT(*) n FROM estagio WHERE livro=? AND id<>?", e.livro, e.id)?.n || 0;
+      if (!sobra) {
+        const mat = G("SELECT COUNT(*) n FROM aluno_livro WHERE livro=?", e.livro)?.n || 0;
+        const bio = G("SELECT COUNT(*) n FROM aluno_estagio WHERE livro=?", e.livro)?.n || 0;
+        const aul = G("SELECT COUNT(*) n FROM aulas WHERE livro=?", e.livro)?.n || 0;
+        if (mat || bio || aul)
+          throw new Error("«" + e.nome + "» é o único estágio de «" + e.livro + "», que tem "
+            + mat + " matrícula(s), " + bio + " no percurso e " + aul + " aula(s). Soltá-lo deixaria "
+            + "essa gente sem estágio — para tirá-lo daqui, vincule-o a outro material.");
+      }
+    }
+    R("UPDATE estagio SET item_estoque_id=NULL, item_edicao_id=NULL, livro=NULL WHERE id=?", e.id);
+    return { ok: true, estagioId: e.id };
+  },
+  /* O CATÁLOGO ENXUTO para o painel de vínculo. Rota própria e não `getEstagios`: aquela carrega
+     lições, modelos e trilha — payload grande para uma lista de 29 nomes que só abre sob clique.
+     `get*` de propósito: é leitura, e o prefixo é o que impede o aviso às outras estações. */
+  getEstagiosParaVinculo() {
+    return A(`SELECT e.id, e.sigla, e.nome, e.nome_curto, e.categoria, e.legado, e.status,
+                     e.item_estoque_id, i.descricao AS material
+              FROM estagio e LEFT JOIN estoque_item i ON i.id=e.item_estoque_id
+              WHERE e.arquivado IS NULL
+              ORDER BY e.categoria, e.ordem, e.id`)
+      .map(e => ({ id: e.id, sigla: e.sigla, nome: e.nome, nomeCurto: e.nome_curto || null,
+        categoria: e.categoria, legado: e.legado === 1, ativo: e.status === "ativo",
+        itemId: e.item_estoque_id ?? null, material: e.material || null }));
   },
   /* a edição que as unidades novas herdam. Uma por material — marcar outra desmarca a anterior. */
   edicaoPadraoDoItem({ id }: any) {

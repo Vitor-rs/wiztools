@@ -36,7 +36,11 @@ function tituloBloco(b) {
    o número de casas e a recepção ficava sem onde marcar. Ele pediu 22.
    O espaço saiu das quatro colunas de identificação, na medida do que cada uma REALMENTE precisa —
    medido, não chutado: o maior nome de livro tem 10 caracteres ("Italiano 2", "Kids Esp 1") e o
-   maior rótulo de aula é "Inter Vip". A de Professores não mudou, a pedido dele. */
+   maior rótulo de aula é "Inter Vip". A de Professores não mudou, a pedido dele.
+   DESDE 2026-08-23 a coluna imprime a SIGLA do estágio (K4, LK2, NG, PRT2), não a chave do banco:
+   a chave trazia nomes errados para o papel ("Next Gen" em vez de NEXT GENERATION) e o nome inteiro
+   não caberia nestes 10 caracteres. A sigla cabe folgada — a largura pode até encolher, se um dia
+   fizer falta em outra coluna. */
 var COLUNAS_FICHA = 22;
 /* A hachura da coluna fora do grupo é pintada AQUI, no <col>, e não nas células.
    Fundo de <col> é uma área de pintura ÚNICA para a coluna inteira, então as diagonais correm sem
@@ -114,7 +118,7 @@ function blocoHTML(b, opts) {
   h += '<td style="background:' + c.sub + '">Professores</td></tr>';
   (b.alunos || []).forEach(function (a) {
     var tipoCel = b.vip ? (b.mod + ' Vip') : (b.tipoKey === 'Kids' ? 'Conn' : b.mod);
-    h += '<tr' + (a.pendente ? ' class="pendente"' : '') + '><td class="nome">' + escBloco(a.nome) + '</td><td>' + escBloco(a.dias) + '</td><td>' + escBloco(a.livro) + '</td><td class="aula">' + escBloco(tipoCel) + '</td>';
+    h += '<tr' + (a.pendente ? ' class="pendente"' : '') + '><td class="nome">' + escBloco(a.nome) + '</td><td>' + escBloco(a.dias) + '</td><td>' + escBloco(a.sigla || a.livro) + '</td><td class="aula">' + escBloco(tipoCel) + '</td>';
     for (var k4 = 0; k4 < COLUNAS_FICHA; k4++) {  // marca já lançada no app (reimpressão não perde o que foi preenchido)
       var p = (cols[k4] && a.presencas) ? a.presencas[cols[k4].data] : null;
       var st = p ? (p.status || p) : null;

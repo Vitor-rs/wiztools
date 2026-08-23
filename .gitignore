@@ -5,3 +5,27 @@
 *.db-journal
 *.db-wal
 *.db-shm
+
+# --- Material de apoio que fica só na máquina (2026-08-22) ---
+# Protótipos gerados por outras IAs, imagens de referência, inventários das três
+# máquinas e cópias de trabalho do schema/seed. Nada disso é preciso para rodar o
+# app, e o repositório é público — melhor não publicar por engano.
+# Regras propositalmente específicas: os protótipos "…_claude.html" e os relatos
+# 01–03 continuam versionados.
+
+Ficha_Recepcao_prototipo/docs/*.png
+Ficha_Recepcao_prototipo/docs/*.htm
+Ficha_Recepcao_prototipo/docs/*.html
+Ficha_Recepcao_prototipo/docs/levantamento-kanban.md
+Ficha_Recepcao_prototipo/docs/relato-04.txt
+Ficha_Recepcao_prototipo/docs/estoque/gerenciador_de_estoque_wizard_*
+Ficha_Recepcao_prototipo/docs/estoque/resposta_*.txt
+Ficha_Recepcao_prototipo/docs/estoque/meu_pedido.txt
+Ficha_Recepcao_prototipo/docs/estoque/recursos_estoque/
+
+Ficha_Recepcao_prototipo/resources/inventario_*.txt
+Ficha_Recepcao_prototipo/resources/conversa_*.txt
+Ficha_Recepcao_prototipo/resources/schema.sql
+Ficha_Recepcao_prototipo/resources/seed.sql
+
+resources/*.pdf

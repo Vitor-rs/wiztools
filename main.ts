@@ -14,6 +14,24 @@ const db = new DatabaseSync(PASTA + (Deno.env.get("WIZ_DB") || "wizard.db"));
 const A = (sql: string, ...p: any[]) => db.prepare(sql).all(...p) as any[];
 const G = (sql: string, ...p: any[]) => db.prepare(sql).get(...p) as any;
 const R = (sql: string, ...p: any[]) => db.prepare(sql).run(...p);
+/* ===== nomeLivro() DENTRO DO SQL (2026-08-23) =====
+   As checagens da Central são strings de SQL que montam o próprio texto ("L. Kids 2 · desde ..."),
+   e ali saía a CHAVE crua. Reescrever sete consultas para fazer JOIN com `estagio` deixaria cada uma
+   mais difícil de ler do que a regra que ela verifica. Uma função escalar resolve as sete e as que
+   vierem: `nomeLivro(al.livro)` no lugar de `al.livro` e pronto.
+   Só para TEXTO — nunca em WHERE nem em JOIN, senão o índice morre e a chave deixa de casar. */
+db.function("nomeLivro", (v: any) => nomeDoLivro(v));
+/* A ESCADA DO NOME, uma vez só para todo mundo (2026-08-23): o ESTÁGIO manda, porque é lá que ele
+   define o nome — *"o nome do estágio é o próprio nome do material"*. Sem estágio (material avulso,
+   como o Kids Esp 1), quem responde é a descrição do MATERIAL, que é a única fonte que sobra.
+   Sem nenhum dos dois, a própria chave: nunca devolve vazio. */
+function nomeDoLivro(v: any): string {
+  const k = v == null ? "" : String(v);
+  if (!k) return k;
+  return G("SELECT nome FROM estagio WHERE livro=? ORDER BY id", k)?.nome
+    || G("SELECT descricao FROM estoque_item WHERE livro=?", k)?.descricao
+    || k;
+}
 
 /* Banco novo, a partir do schema + dados de partida. Vem ANTES das migrações de subida de propósito:
    elas pressupõem as tabelas do schema.sql já existindo, e num arquivo recém-nascido o índice em
@@ -204,7 +222,7 @@ addColuna("entrega_material", "hora",
    Isso NÃO é o "desfazer entrega" que já existia. Desfazer é dizer *a entrega nunca aconteceu*:
    apaga a linha e o assunto morre. Devolver é o contrário — a entrega aconteceu, o aluno teve o
    livro na mão por três meses, e agora ele voltou. Apagar a entrega para representar a devolução
-   perderia justamente o que a escola quer saber depois ("este exemplar já rodou").
+   perderia justamente o que a escola quer saber depois ("esta unidade já rodou").
 
    Por isso são duas coisas separadas:
    - `entrega_material.devolvida` — a data da ÚLTIMA devolução. Nula = o aluno ainda está com o
@@ -213,7 +231,7 @@ addColuna("entrega_material", "hora",
      própria porque `entrega_material` tem UNIQUE(id_matricula,livro): o mesmo aluno pode receber,
      devolver e receber de novo, e nesse ciclo a linha da entrega é reescrita enquanto o histórico
      não pode ser.
-   `unidade_id` fica gravado aqui mesmo depois de o exemplar voltar para a prateleira — é o elo que
+   `unidade_id` fica gravado aqui mesmo depois de a unidade voltar para a prateleira — é o elo que
    responde "por quantas mãos este número de etiqueta já passou". A unidade em si volta livre,
    com o `entrada` INTOCADO: ela retoma o lugar dela na fila, exatamente como em `removerEntrega`. */
 addColuna("entrega_material", "devolvida",
@@ -235,10 +253,10 @@ db.exec("CREATE INDEX IF NOT EXISTS ix_devolucao_mat ON devolucao_material(id_ma
    era uma coisa que a gente fazia na mão porque quando entregava material tinha que recontar. Como
    estamos usando um software agora, não precisa."*
    Então o saldo deixa de ser "última contagem ± movimento" e passa a ser **quantas unidades não
-   entregues existem**. Cada exemplar que chega é uma linha, com o instante da entrada.
+   entregues existem**. Cada unidade que chega é uma linha, com o instante da entrada.
 
    `entrada` guarda até os MILISSEGUNDOS porque é ela que ordena a fila: *"quem chegou primeiro sai
-   primeiro"*. Sem os milissegundos, dez exemplares do mesmo kit chegando na mesma remessa teriam o
+   primeiro"*. Sem os milissegundos, dez unidades do mesmo kit chegando na mesma remessa teriam o
    mesmo carimbo e a ordem viraria sorteio do banco.
    `origem` distingue o que veio de remessa do que veio da conversão da contagem de 06/08 — sem
    isso, o trabalho que ele já fez no caderno sumiria do saldo no dia da virada. */
@@ -256,24 +274,24 @@ db.exec(`CREATE TABLE IF NOT EXISTS estoque_unidade (
 /* ===== O NÚMERO ESCRITO NA ETIQUETA (2026-08-16) =====
    Decisão dele: *"todo livro que chegar eu vou numerar ele de 1, 2, 3, eu vou escrever o número com
    a caneta na etiqueta dele"*. É o identificador que a MÃO alcança — o código de barras vem impresso
-   e não distingue dois exemplares do mesmo kit, e o instante com milissegundos ninguém lê na
+   e não distingue duas unidades do mesmo kit, e o instante com milissegundos ninguém lê na
    prateleira. Numerando, "leva o W2 número 4" vira uma frase possível no balcão.
 
    **Contínuo POR MATERIAL**, começando em 1, exatamente como ele descreveu: *"temos três W2, aí
    chegaram mais dois; esses dois que chegaram vamos numerar de 4 e 5, e assim por diante para todos
-   os materiais."* Não é global (não existe "exemplar 137 da escola") nem reinicia a cada remessa
-   (dois exemplares com o mesmo número na prateleira seria justamente o que a etiqueta evita).
+   os materiais."* Não é global (não existe "unidade 137 da escola") nem reinicia a cada remessa
+   (duas unidades com o mesmo número na prateleira seria justamente o que a etiqueta evita).
 
    O próximo é `MAX(numero)+1` daquele material, contando também os JÁ ENTREGUES — a linha continua
    no banco depois da entrega, então o número sai de circulação junto com o livro. A única forma de
-   reaproveitar um número é APAGAR o exemplar, que é gesto deliberado e raro (e aí a etiqueta velha
+   reaproveitar um número é APAGAR a unidade, que é gesto deliberado e raro (e aí a etiqueta velha
    normalmente sumiu junto).
-   Nulo = exemplar anterior a esta coluna, e `numerarUnidades()` os alcança na primeira subida. */
+   Nulo = unidade anterior a esta coluna, e `numerarUnidades()` os alcança na primeira subida. */
 addColuna("estoque_unidade", "numero", "INTEGER");
 /* ===== CONFERIDO ≠ CHEGADA (2026-08-16) =====
    O botão "confirmar" da aba Entradas reescrevia `entrada` para o instante do clique. Mas `entrada`
-   é a POSIÇÃO NA FILA: conferir um exemplar o mandava para o fim dela, e era isso que quebrava a
-   regra que ele mesmo pediu — número menor tem de ser o mais antigo. Conferir o exemplar nº 1
+   é a POSIÇÃO NA FILA: conferir uma unidade o mandava para o fim dela, e era isso que quebrava a
+   regra que ele mesmo pediu — número menor tem de ser o mais antigo. Conferir a unidade nº 1
    primeiro fazia dele o mais recente.
    São dois fatos diferentes: `entrada` é QUANDO O EXEMPLAR CHEGOU (vem da data da remessa e manda na
    fila), `conferido` é QUANDO ALGUÉM O CONFERIU contra a caixa. Conferir não reescreve história.
@@ -289,7 +307,7 @@ addColuna("estoque_unidade", "conferido", "TEXT");
    linha "KIDS 4" — o índice único, a lista de entregas e o vínculo do estágio ficam de pé — e cada
    unidade diz de qual edição ela é.
    Tabela própria (e não texto solto na unidade) para ele poder RENOMEAR uma edição e todos os
-   exemplares acompanharem, que é o "alterar edição" que ele pediu. */
+   unidades acompanharem, que é o "alterar edição" que ele pediu. */
 db.exec(`CREATE TABLE IF NOT EXISTS estoque_edicao (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   item_id INTEGER NOT NULL REFERENCES estoque_item(id) ON DELETE CASCADE,
@@ -298,9 +316,9 @@ db.exec(`CREATE TABLE IF NOT EXISTS estoque_edicao (
   momento TEXT NOT NULL
 )`);
 db.exec("CREATE UNIQUE INDEX IF NOT EXISTS ux_edicao_item_nome ON estoque_edicao(item_id, nome)");
-/* ARQUIVAR no lugar de APAGAR (regra dele, 2026-08-17): a edição fica vinculada a exemplares que já
+/* ARQUIVAR no lugar de APAGAR (regra dele, 2026-08-17): a edição fica vinculada a unidades que já
    saíram, então apagá-la deixaria o rastro sem nome. Arquivada vai para o fim da lista, esmaecida.
-   `padrao` é a edição que os exemplares novos herdam. Sem ninguém marcado, vence a ATIVA de ano mais
+   `padrao` é a edição que as unidades novas herdam. Sem ninguém marcado, vence a ATIVA de ano mais
    recente — "geralmente é a do ano mais atual", nas palavras dele, e `geralmente` é o que faz a
    marca explícita existir: dá para contrariar o padrão quando a compra é de uma tiragem antiga. */
 addColuna("estoque_edicao", "arquivada", "TEXT");
@@ -319,7 +337,56 @@ function sincronizarEdicaoDoItem(itemId: number) {
   return ed;
 }
 addColuna("estoque_unidade", "edicao_id", "INTEGER REFERENCES estoque_edicao(id) ON DELETE SET NULL");
-/* A edição que hoje está no MATERIAL vira a primeira edição dele, e os exemplares existentes
+/* ===== UNIDADE DE VENDA × MATERIAL DA ESCOLA (2026-08-22) =====
+   Regra dele: *"o Teacher's Guide não é pra venda, ele é pra consumo do professor... materiais que
+   for pra consumo próprio do professor ou da escola não pode ser contabilizado no estoque"* — e a
+   tela pedida são duas abas na fila do material, "unidades de venda" e "materiais escola".
+   A distinção é da UNIDADE, não do material: o W2 tem exemplares para vender E um guia do professor,
+   e os dois são W2. Um material inteiro de professor (o Business Empire, que só existe como TG) é o
+   caso em que TODAS as unidades são de escola — mesma mecânica, sem regra à parte.
+   Sem CHECK no banco: o `estoque_unidade` seria a terceira reconstrução do dia e ele não tem
+   ninguém apontando para si além de `devolucao_material` — mas o ganho não paga o risco agora, e a
+   escrita passa toda por `finalidadeUnidade`, logo abaixo. Fica anotado como dívida. */
+addColuna("estoque_unidade", "finalidade", "TEXT NOT NULL DEFAULT 'venda'");
+/* QUEM É LEGADA É A EDIÇÃO, e isso se declara no ESTOQUE (2026-08-22, correção dele: *"a edição
+   legada precisa ser declarada e configurada no estoque, não no estágio"*). O estágio passa a só
+   MOSTRAR o que a edição dele diz. */
+addColuna("estoque_edicao", "legada", "INTEGER NOT NULL DEFAULT 0");
+/* MATERIAL AVULSO (2026-08-23, dele): *"dá pra fazer, se o material ele é considerado um estágio ou
+   não"*. O caso concreto é o "Kids Esp 1": livro de espanhol para crianças que a patroa dele trouxe
+   dos EUA e ele adaptou à metodologia Wizard. Não existe no catálogo da Wizard — não é estágio, é
+   material de professor. Dois alunos estudam por ele, então nada some: ele deixa de ser tratado
+   como estágio FALTANDO e passa a ser o que é. Diferente de "Complementar", que é estágio Wizard
+   fora da trilha oficial (Business Empire). */
+addColuna("estoque_item", "avulso", "INTEGER NOT NULL DEFAULT 0");
+if (!G("SELECT valor FROM config WHERE chave='material_avulso_v1'")) {
+  R(`UPDATE estoque_item SET avulso=1 WHERE livro IS NOT NULL
+       AND livro NOT IN (SELECT livro FROM estagio WHERE livro IS NOT NULL)`);
+  /* `datetime('now','localtime')` e NAO agora(): `agora` e um const la na linha ~2843 e aqui em
+     cima ainda esta na zona morta — chamá-la aqui derruba o boot com ReferenceError. Ja aconteceu. */
+  R("INSERT OR REPLACE INTO config (chave,valor) VALUES ('material_avulso_v1', datetime('now','localtime'))");
+}
+/* ACERTO ÚNICO das descrições que já divergiam do nome do estágio. Hoje há um caso: ele renomeou o
+   estágio para "PORTUGUÊS 2" e o material continuou "PORT 2".
+   Uma vez só, de propósito: daqui para a frente quem mantém o espelho é `salvarEstagio`. Rodar isto
+   em TODA partida faria o mesmo estrago do `nome_curto` — desfazer em silêncio uma edição feita à
+   mão na tela de Estoque. Migração conserta o passado; regra cuida do futuro. */
+if (!G("SELECT valor FROM config WHERE chave='descricao_espelha_estagio_v1'")) {
+  R(`UPDATE estoque_item SET descricao=(
+       SELECT e.nome FROM estagio e WHERE e.livro=estoque_item.livro ORDER BY e.id LIMIT 1)
+     WHERE livro IS NOT NULL
+       AND EXISTS (SELECT 1 FROM estagio e WHERE e.livro=estoque_item.livro AND e.nome<>estoque_item.descricao)`);
+  R("INSERT OR REPLACE INTO config (chave,valor) VALUES ('descricao_espelha_estagio_v1', datetime('now','localtime'))");
+}
+/* semeia a partir do que já estava marcado no estágio, para nada se perder na virada */
+if (!G("SELECT valor FROM config WHERE chave='edicao_legada_v1'")) {
+  R(`UPDATE estoque_edicao SET legada=1 WHERE id IN (
+       SELECT item_edicao_id FROM estagio WHERE legado=1 AND item_edicao_id IS NOT NULL)`);
+  /* relógio do SQLite e não `agora()`: esta migração roda no topo do arquivo, antes de a função
+     existir — o typecheck pegou */
+  R("INSERT OR REPLACE INTO config (chave,valor) VALUES ('edicao_legada_v1', datetime('now','localtime'))");
+}
+/* A edição que hoje está no MATERIAL vira a primeira edição dele, e as unidades existentes
    passam a apontar para ela — ninguém fica sem edição por causa da mudança de desenho.
    Self-limiting: só cria o que ainda não existe e só liga unidade que está sem edição. */
 function migrarEdicoesParaUnidade() {
@@ -333,7 +400,7 @@ function migrarEdicoesParaUnidade() {
     }
     ligadas += R("UPDATE estoque_unidade SET edicao_id=? WHERE item_id=? AND edicao_id IS NULL", ed.id, it.id).changes as number;
   }
-  if (criadas || ligadas) console.log("estoque: " + criadas + " edição(ões) criadas, " + ligadas + " exemplar(es) ligados");
+  if (criadas || ligadas) console.log("estoque: " + criadas + " edição(ões) criadas, " + ligadas + " unidade(s) ligados");
   return { criadas, ligadas };
 }
 /* o índice que serve à fila: por item, do mais antigo para o mais novo, só o que não saiu */
@@ -510,7 +577,43 @@ function siglarLicoes() {
    O curto já existia de fato — é `livros.nome`, que é o que a ficha impressa usa — só não tinha
    nome próprio no estágio. Aqui ele passa a ser campo, e nasce igual ao livro vinculado. */
 addColuna("estagio", "nome_curto", "TEXT");
-R("UPDATE estagio SET nome_curto=livro WHERE nome_curto IS NULL AND livro IS NOT NULL");
+/* O ESTÁGIO SE VINCULA AO MATERIAL — E, QUANDO PRECISA, À EDIÇÃO DELE (2026-08-22).
+   Regra dele: *"o estágio é vinculado unicamente ao material, e o material é que vai decidir a
+   edição, por padrão"*. Então o vínculo continua sendo UM (`item_estoque_id`) e esta coluna é o
+   refinamento OPCIONAL: vazia significa "a edição padrão do material", que é o caso de quase todos.
+   Ela existe porque o mesmo material tem duas edições vivas e DOIS estágios apontando para ele —
+   o Kids 4 atual usa a 3rd Edition e o Kids 4 legado usa a Second. Sem a coluna, os dois estágios
+   herdariam a mesma edição padrão e o legado entregaria o livro errado. */
+addColuna("estagio", "item_edicao_id", "INTEGER REFERENCES estoque_edicao(id) ON DELETE SET NULL");
+/* ===== ANEXOS DO GUIA DO PROFESSOR (2026-08-22) =====
+   Pedido dele: anexar PDFs ao estágio — plano de aula, guia do professor, o que for.
+   OS BYTES NÃO FICAM AQUI. Medi o material real dele: 1–3 MB por arquivo. Com ~3 anexos em 29
+   estágios o `wizard.db` sairia de 1,2 MB para ~175 MB — e o backup DIÁRIO copia o banco inteiro
+   para dois destinos, o que viraria uns 5 GB por mês só de cópias. Decisão dele depois de ver a
+   conta: o arquivo vai para uma pasta e o banco guarda o crachá dele.
+   `arquivo` é só o NOME dentro da pasta de anexos, nunca um caminho absoluto: o mesmo banco roda em
+   duas máquinas com usuários Windows diferentes, e é a pasta que se reconstrói em cada uma (mesma
+   razão de `dirBackupOneDrive`).
+   Sem coluna de hash: seria campo morto — o que a tela precisa saber é se o arquivo ESTÁ lá, e
+   isso se responde olhando a pasta na hora de listar. */
+db.exec(`CREATE TABLE IF NOT EXISTS estagio_anexo (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  estagio_id INTEGER NOT NULL REFERENCES estagio(id) ON DELETE CASCADE,
+  nome TEXT NOT NULL,              -- como o arquivo se chamava na mão dele
+  arquivo TEXT NOT NULL,           -- o nome dentro da pasta de anexos
+  tipo TEXT,                       -- content-type, para o navegador abrir em vez de baixar
+  tamanho INTEGER NOT NULL,
+  descricao TEXT,
+  momento TEXT NOT NULL
+)`);
+db.exec("CREATE INDEX IF NOT EXISTS ix_anexo_estagio ON estagio_anexo(estagio_id)");
+/* O NOME CURTO NÃO SE AUTOPREENCHE MAIS COM O NOME DO LIVRO (2026-08-22).
+   Esta linha rodava em TODA PARTIDA: apagar o nome curto e reiniciar o servidor o trazia de volta
+   como o nome do livro. Foi o que ele relatou — *"você tá mudando de volta; o Kids 4 é considerado
+   K4"* — e é como o Kids 4 legado ficou com "KIDS 4" no lugar de uma sigla.
+   Nome curto é SIGLA, e sigla é decisão dele. Vazio é vazio, e a Central já pergunta por ele
+   (`estagio_sem_nome_curto`). Semear com o nome longo não é ajuda: é uma resposta errada que se
+   parece com uma certa. */
 /* 'W' → 'Ws' (pedido dele, 2026-08-16). O Estoque (`ES_FAIXAS`) e o dashboard (`CORES_CAT`) já
    escreviam 'Ws'; só o catálogo de estágios dizia 'W', e o mesmo grupo aparecia com dois nomes.
    Sem marca em `config`: o próprio WHERE a torna inerte depois da primeira passada, e o select da
@@ -551,7 +654,7 @@ db.exec("CREATE INDEX IF NOT EXISTS ix_licao_extra ON estagio_licao_extra(estagi
 /* ===== ARQUIVAMENTO (2026-08-17) =====
    Regra dele: *"onde tem para deletar, em vez de deletar ou excluir, coloca arquivar"* — e a
    EXCLUSÃO passa a existir só na página de Arquivados, com o nome digitado à mão.
-   O motivo já estava no código: quase tudo aqui tem vínculo. Material tem exemplares e entregas;
+   O motivo já estava no código: quase tudo aqui tem vínculo. Material tem unidades e entregas;
    pedido tem unidades; estágio tem matrículas e percurso; modelo tem estágios. Apagar qualquer um
    arrasta rastro de coisa que ACONTECEU.
    `arquivado` guarda o INSTANTE, não um 0/1: responde "quando isso saiu de circulação" pelo mesmo
@@ -1016,8 +1119,8 @@ const CHECAGENS: Checagem[] = [
   { id: "matricula_sem_entrega", destino: "entrega", area: "Alunos", gravidade: "alta", aba: "estoque",
     titulo: "Matrícula ativa sem material entregue",
     porque: "O aluno está matriculado no estágio e não recebeu o material dele (ou devolveu e não recebeu outro).",
-    acao: "Aba Estoque · Entregas: escolha o aluno e entregue um exemplar.",
-    sql: `SELECT al.id_matricula||'|'||al.livro k, a.nome r, al.livro d, al.id_matricula a
+    acao: "Aba Estoque · Entregas: escolha o aluno e entregue uma unidade.",
+    sql: `SELECT al.id_matricula||'|'||al.livro k, a.nome r, nomeLivro(al.livro) d, al.id_matricula a
           FROM aluno_livro al JOIN alunos a ON a.id_matricula=al.id_matricula
           JOIN situacoes s ON s.situacao=a.situacao AND s.ativa=1
           LEFT JOIN entrega_material e ON e.id_matricula=al.id_matricula AND e.livro=al.livro
@@ -1026,7 +1129,7 @@ const CHECAGENS: Checagem[] = [
     titulo: "Matrícula ativa sem horário na agenda",
     porque: "Sem dia e hora o aluno não entra em bloco nenhum: some da ficha impressa e das duas telas de frequência.",
     acao: "Abra o aluno, escolha a aba do estágio e marque os dias na grade.",
-    sql: `SELECT al.id_matricula||'|'||al.livro k, a.nome r, al.livro d, al.id_matricula a
+    sql: `SELECT al.id_matricula||'|'||al.livro k, a.nome r, nomeLivro(al.livro) d, al.id_matricula a
           FROM aluno_livro al JOIN alunos a ON a.id_matricula=al.id_matricula
           JOIN situacoes s ON s.situacao=a.situacao AND s.ativa=1
           WHERE NOT EXISTS (SELECT 1 FROM aulas au WHERE au.id_matricula=al.id_matricula AND au.livro=al.livro)
@@ -1035,7 +1138,7 @@ const CHECAGENS: Checagem[] = [
     titulo: "Aula sem professor vinculado",
     porque: "A ficha impressa sai sem o nome da professora naquele bloco.",
     acao: "Abra o aluno, na aba do estágio, e preencha Professores.",
-    sql: `SELECT au.id k, a.nome r, au.livro||' · '||au.dia||' '||au.hora d, au.id_matricula a FROM aulas au
+    sql: `SELECT au.id k, a.nome r, nomeLivro(au.livro)||' · '||au.dia||' '||au.hora d, au.id_matricula a FROM aulas au
           JOIN alunos a ON a.id_matricula=au.id_matricula
           JOIN situacoes s ON s.situacao=a.situacao AND s.ativa=1
           WHERE NOT EXISTS (SELECT 1 FROM aula_professor ap WHERE ap.aula_id=au.id)
@@ -1048,11 +1151,29 @@ const CHECAGENS: Checagem[] = [
           JOIN situacoes s ON s.situacao=a.situacao AND s.ativa=1
           WHERE NOT EXISTS (SELECT 1 FROM aluno_situacao_historico h WHERE h.id_matricula=a.id_matricula)
           ORDER BY a.nome` },
+  /* CONTRATO PASSADO DE UM ANO (2026-08-22). Regra dele, e o que ela NÃO faz importa tanto quanto o
+     que faz: *"o sistema não precisa encerrar automaticamente, ele pode dar até um alerta... é
+     muito comum o aluno extrapolar esse tempo"*. Por isso gravidade BAIXA e nenhuma ação sozinha —
+     extrapolar não é erro, é o normal da escola. O que o alerta evita é o outro caso: o aluno que
+     terminou há meses e ninguém encerrou, que fica ocupando horário e travando a rematrícula.
+     Só conta aluno ATIVO: quem já saiu tem o contrato pendurado por outro motivo. */
+  { id: "contrato_passou_do_ano", destino: "aluno-historico", area: "Alunos", gravidade: "baixa", aba: "alunos",
+    titulo: "Contrato passou de um ano e continua aberto",
+    porque: "O estágio dura um ano. Passar disso acontece e não é erro — mas pode ser também um contrato que terminou e ninguém encerrou.",
+    acao: "Abra o aluno; se ele terminou o livro, use «encerrar estágio» no cartão daquele contrato.",
+    sql: `SELECT ae.id_matricula k, a.nome r,
+            nomeLivro(ae.livro)||' · desde '||ae.data_inicio d, ae.id_matricula a
+          FROM aluno_estagio ae
+          JOIN alunos a ON a.id_matricula=ae.id_matricula
+          JOIN situacoes s ON s.situacao=a.situacao AND s.ativa=1
+          WHERE ae.estado='cursando' AND ae.data_inicio IS NOT NULL
+            AND date(ae.data_inicio,'+1 year') < date('now','localtime')
+          ORDER BY ae.data_inicio` },
   { id: "entrega_sem_data", destino: "entrega", area: "Alunos", gravidade: "baixa", aba: "estoque",
     titulo: "Entrega registrada sem data",
     porque: "Sabe-se que o aluno recebeu, não quando. É o caso das entregas deduzidas das matrículas antigas.",
     acao: "Aba Estoque · Entregas: preencha a data na linha, quando souber.",
-    sql: `SELECT e.id_matricula||'|'||e.livro k, a.nome r, e.livro d, e.id_matricula a FROM entrega_material e
+    sql: `SELECT e.id_matricula||'|'||e.livro k, a.nome r, nomeLivro(e.livro) d, e.id_matricula a FROM entrega_material e
           JOIN alunos a ON a.id_matricula=e.id_matricula WHERE e.data IS NULL ORDER BY a.nome` },
 
   /* ---------- BIBLIOTECA · ESTÁGIOS ---------- */
@@ -1063,18 +1184,26 @@ const CHECAGENS: Checagem[] = [
     sql: `SELECT e.id k, e.nome r, e.categoria d, e.id a FROM estagio e
           WHERE e.arquivado IS NULL AND e.modelo_id IS NULL
           AND NOT EXISTS (SELECT 1 FROM estagio_licao l WHERE l.dono_id=e.id) ORDER BY e.ordem` },
+  /* UMA REGRA SÓ (2026-08-22). Havia duas — "sem material" e "sem material vinculado" — e ele
+     apontou que eram a mesma coisa. Estava certo, e pior do que parecia: as duas tinham
+     `campo: "eg-item"`, ou seja, mandavam para o MESMO campo, e a ação da segunda dizia *"vincule o
+     material"*, que é literalmente a primeira. Duas linhas na Central para um clique
+     só é ruído que ensina a ignorar a Central.
+     A decisão dele fechou o assunto: *"o estágio é vinculado unicamente ao material, e o material é
+     que vai decidir a edição"*. O `estagio.livro` já é DERIVADO do material em `salvarEstagio` —
+     então ele estar vazio é sintoma, não causa. A regra passou a perguntar pela causa, e o detalhe
+     diz qual das duas faltas é. */
   { id: "estagio_sem_material", destino: "estagio", campo: "eg-item", area: "Estágios", gravidade: "media", aba: "estagios",
-    titulo: "Estágio sem material de estoque vinculado",
-    porque: "A matrícula nesse estágio não consegue dizer se há exemplar na prateleira, e a entrega fica sem unidade.",
-    acao: "Abra o estágio em Dados e escolha o material. (Edição aposentada sem estoque é caso legítimo — silencie.)",
-    sql: `SELECT e.id k, e.nome r, COALESCE(e.livro,'sem estágio-ponte') d, e.id a FROM estagio e
-          WHERE e.arquivado IS NULL AND e.item_estoque_id IS NULL ORDER BY e.ordem` },
-  { id: "estagio_sem_livro", destino: "estagio", campo: "eg-item", area: "Estágios", gravidade: "media", aba: "estagios",
-    titulo: "Estágio sem estágio-ponte",
-    porque: "Sem o vínculo com `livros` ninguém consegue se matricular nele: matrícula, agenda e ficha passam por aí.",
-    acao: "Abra o estágio em Dados e vincule o material — o estágio-ponte vem dele.",
-    sql: `SELECT e.id k, e.nome r, e.categoria d, e.id a FROM estagio e
-          WHERE e.arquivado IS NULL AND (e.livro IS NULL OR e.livro='') ORDER BY e.ordem` },
+    titulo: "Estágio sem material vinculado",
+    porque: "Sem material vinculado ninguém se matricula: matrícula, agenda e ficha passam por aí. A entrega também fica sem unidade.",
+    acao: "Abra o estágio em Dados e escolha o material. (Curso sem material próprio é caso legítimo — silencie.)",
+    sql: `SELECT e.id k, e.nome r,
+            CASE WHEN e.item_estoque_id IS NULL THEN 'sem material'
+                 ELSE 'material sem chave de livro' END d, e.id a
+          FROM estagio e
+          WHERE e.arquivado IS NULL
+            AND (e.item_estoque_id IS NULL OR e.livro IS NULL OR e.livro='')
+          ORDER BY e.ordem` },
   { id: "estagio_sem_nome_curto", destino: "estagio", campo: "eg-nomecurto", area: "Estágios", gravidade: "baixa", aba: "estagios",
     titulo: "Estágio sem nome curto",
     porque: "O nome curto é o que cabe nas pílulas e nas fichas impressas.",
@@ -1108,43 +1237,48 @@ const CHECAGENS: Checagem[] = [
     titulo: "Material sem estoque mínimo definido",
     porque: "Com mínimo zero o sistema nunca vai avisar que está na hora de pedir esse material.",
     acao: "Aba Estoque · Materiais: escolha o material e preencha Mínimo.",
-    sql: `SELECT i.id k, i.descricao r, COALESCE(i.livro,'avulso') d, i.id a FROM estoque_item i
+    sql: `SELECT i.id k, i.descricao r, COALESCE(nomeLivro(i.livro),'avulso') d, i.id a FROM estoque_item i
           WHERE i.arquivado IS NULL AND i.componente=0 AND i.minimo=0 ORDER BY i.ordem` },
   { id: "material_sem_edicao", destino: "material", campo: "edicoes", area: "Estoque", gravidade: "baixa", aba: "estoque",
     titulo: "Material de livro sem edição definida",
-    porque: "Sem edição, dois exemplares de anos diferentes ficam indistinguíveis na fila.",
+    porque: "Sem edição, duas unidades de anos diferentes ficam indistinguíveis na fila.",
     acao: "Aba Estoque · Materiais: escolha o material e crie a edição no campo Edições.",
-    sql: `SELECT i.id k, i.descricao r, i.livro d, i.id a FROM estoque_item i
+    sql: `SELECT i.id k, i.descricao r, nomeLivro(i.livro) d, i.id a FROM estoque_item i
           WHERE i.arquivado IS NULL AND i.componente=0 AND i.livro IS NOT NULL
           AND NOT EXISTS (SELECT 1 FROM estoque_edicao ed WHERE ed.item_id=i.id AND ed.arquivada IS NULL)
           ORDER BY i.ordem` },
   { id: "unidade_sem_numero", destino: "material", area: "Estoque", gravidade: "media", aba: "estoque",
-    titulo: "Exemplar sem número de etiqueta",
+    titulo: "Unidade sem número de etiqueta",
     porque: "O número escrito à caneta é o identificador que a mão alcança na prateleira.",
-    acao: "Aba Estoque · Materiais: abra a fila do material e edite o exemplar no lápis.",
+    acao: "Aba Estoque · Materiais: abra a fila do material e edite a unidade no lápis.",
     sql: `SELECT u.id k, i.descricao r, 'entrou '||substr(u.entrada,1,16) d, u.item_id a
           FROM estoque_unidade u JOIN estoque_item i ON i.id=u.item_id
           WHERE u.arquivado IS NULL AND u.numero IS NULL ORDER BY u.entrada` },
   { id: "unidade_sem_codigo", destino: "material", area: "Estoque", gravidade: "baixa", aba: "estoque",
-    titulo: "Exemplar sem código de barras",
-    porque: "O código é o que amarra a entrega ao objeto físico quando o exemplar sai.",
-    acao: "Aba Estoque · Materiais: abra a fila e digite o código no lápis do exemplar.",
+    titulo: "Unidade sem código de barras",
+    porque: "O código é o que amarra a entrega ao objeto físico quando a unidade sai.",
+    acao: "Aba Estoque · Materiais: abra a fila e digite o código no lápis da unidade.",
     sql: `SELECT u.id k, i.descricao||' nº '||COALESCE(u.numero,'?') r, 'entrou '||substr(u.entrada,1,16) d, u.item_id a
           FROM estoque_unidade u JOIN estoque_item i ON i.id=u.item_id
           WHERE u.arquivado IS NULL AND (u.codigo IS NULL OR u.codigo='') ORDER BY u.entrada` },
   { id: "unidade_nao_conferida", destino: "material", area: "Estoque", gravidade: "baixa", aba: "estoque",
-    titulo: "Exemplar na prateleira nunca conferido",
-    porque: "Ninguém confirmou que esse exemplar está fisicamente na caixa que chegou.",
-    acao: "Aba Estoque · Entradas: abra o pedido e use o botão de conferir de cada exemplar.",
+    titulo: "Unidade de pedido nunca conferida",
+    porque: "Ninguém confirmou que essa unidade está fisicamente na caixa que chegou.",
+    acao: "Aba Estoque · Entradas: abra o pedido e use o botão de conferir de cada unidade.",
+    /* SÓ UNIDADE QUE VEIO DE PEDIDO (2026-08-22, relato dele). Conferir é o gesto de bater a caixa
+       contra o pedido, e o botão só existe na tela do pedido — a unidade lançada à mão nunca teve
+       caixa nenhuma para conferir. Sem este filtro a regra acendia 35 alertas, TODOS de entrada
+       manual e NENHUM de pedido, mandando fazer uma coisa que a tela não oferece. */
     sql: `SELECT u.id k, i.descricao||' nº '||COALESCE(u.numero,'?') r, 'entrou '||substr(u.entrada,1,16) d, u.item_id a
           FROM estoque_unidade u JOIN estoque_item i ON i.id=u.item_id
-          WHERE u.arquivado IS NULL AND u.entrega_id IS NULL AND u.conferido IS NULL ORDER BY u.entrada` },
+          WHERE u.arquivado IS NULL AND u.entrega_id IS NULL AND u.conferido IS NULL
+          AND u.remessa_id IS NOT NULL ORDER BY u.entrada` },
   { id: "pedido_nao_chegou", destino: "pedido", area: "Estoque", gravidade: "media", aba: "estoque",
     titulo: "Pedido confirmado que ainda não chegou",
     porque: "O pedido foi fechado e nenhuma remessa dele entrou — pode ser hora de cobrar.",
     acao: "Aba Estoque · Entradas: confirme a chegada quando a caixa vier.",
     sql: `SELECT ev.id k, 'Pedido de '||ev.data r,
-            (SELECT COALESCE(SUM(quantidade),0) FROM estoque_evento_item ei WHERE ei.evento_id=ev.id)||' exemplar(es)' d, ev.id a
+            (SELECT COALESCE(SUM(quantidade),0) FROM estoque_evento_item ei WHERE ei.evento_id=ev.id)||' unidade(s)' d, ev.id a
           FROM estoque_evento ev WHERE ev.tipo='pedido' AND ev.arquivado IS NULL AND ev.confirmado=1
           AND NOT EXISTS (SELECT 1 FROM estoque_evento r2 WHERE r2.tipo='remessa' AND r2.pedido_id=ev.id)
           ORDER BY ev.data` },
@@ -1154,19 +1288,19 @@ const CHECAGENS: Checagem[] = [
     titulo: "Turma ativa sem professor",
     porque: "A professora faz parte da identidade da turma — é ela que desempata salas gêmeas no mesmo horário.",
     acao: "Abra a turma e preencha Professores.",
-    sql: `SELECT t.id k, t.id r, COALESCE(t.livro,'multi-estágio')||' · '||t.hora_inicio d, t.id a FROM turmas t
+    sql: `SELECT t.id k, t.id r, COALESCE(nomeLivro(t.livro),'multi-estágio')||' · '||t.hora_inicio d, t.id a FROM turmas t
           WHERE t.status='Ativa' AND NOT EXISTS (SELECT 1 FROM turma_professor tp WHERE tp.turma_id=t.id)` },
   { id: "turma_sem_dias", destino: "turma", area: "Turmas", gravidade: "alta", aba: "turmas",
     titulo: "Turma ativa sem dias definidos",
     porque: "Turma sem dia não casa com aluno nenhum: ela não existe em nenhuma ficha.",
     acao: "Abra a turma e marque os dias.",
-    sql: `SELECT t.id k, t.id r, COALESCE(t.livro,'multi-estágio')||' · '||t.hora_inicio d, t.id a FROM turmas t
+    sql: `SELECT t.id k, t.id r, COALESCE(nomeLivro(t.livro),'multi-estágio')||' · '||t.hora_inicio d, t.id a FROM turmas t
           WHERE t.status='Ativa' AND NOT EXISTS (SELECT 1 FROM turma_dia td WHERE td.turma_id=t.id)` },
   { id: "turma_vazia", destino: "turma", area: "Turmas", gravidade: "media", aba: "turmas",
     titulo: "Turma ativa sem nenhum aluno no horário dela",
     porque: "A sala está aberta na matriz e ninguém está agendado nela.",
     acao: "Abra a turma: ou entra aluno, ou ela passa a Inativa.",
-    sql: `SELECT t.id k, t.id r, COALESCE(t.livro,'multi-estágio')||' · '||t.hora_inicio d, t.id a FROM turmas t
+    sql: `SELECT t.id k, t.id r, COALESCE(nomeLivro(t.livro),'multi-estágio')||' · '||t.hora_inicio d, t.id a FROM turmas t
           WHERE t.status='Ativa' AND NOT EXISTS (
             SELECT 1 FROM aulas au JOIN turma_dia td ON td.dia=au.dia AND td.turma_id=t.id
             WHERE au.hora=t.hora_inicio AND (t.livro IS NULL OR au.livro=t.livro))` },
@@ -1180,14 +1314,38 @@ const CHECAGENS: Checagem[] = [
           ORDER BY f.nome` },
 ];
 
-/* de qual tabela cada tipo vem, e qual coluna é o NOME que a exclusão vai exigir digitado */
-const ARQUIVAVEIS: Record<string, { tabela: string; rotulo: string }> = {
-  material: { tabela: "estoque_item", rotulo: "descricao" },
-  exemplar: { tabela: "estoque_unidade", rotulo: "codigo" },
-  pedido: { tabela: "estoque_evento", rotulo: "data" },
-  estagio: { tabela: "estagio", rotulo: "nome" },
-  modelo: { tabela: "estagio_modelo", rotulo: "nome" },
+/* de qual tabela cada tipo vem */
+const ARQUIVAVEIS: Record<string, { tabela: string; coluna?: string }> = {
+  material: { tabela: "estoque_item" },
+  exemplar: { tabela: "estoque_unidade" },
+  pedido: { tabela: "estoque_evento" },
+  estagio: { tabela: "estagio" },
+  modelo: { tabela: "estagio_modelo" },
+  /* EDIÇÃO entrou em 2026-08-22 a pedido dele: *"quando eu arquivo uma edição, ela fica ali e não
+     aparece na página de arquivados; eu quero que ela vá pra lá, aí de lá eu consigo apagar"*.
+     A coluna se chama `arquivada` (as outras usam `arquivado`) — daí o campo `coluna`. */
+  edicao: { tabela: "estoque_edicao", coluna: "arquivada" },
 };
+/* o nome da coluna de arquivamento de cada tipo, já que a edição destoa */
+const colArquivo = (tipo: string) => ARQUIVAVEIS[tipo]?.coluna || "arquivado";
+/* O NOME QUE A EXCLUSÃO EXIGE DIGITADO É O MESMO QUE A PÁGINA ARQUIVADOS MOSTRA (2026-08-22).
+   Antes cada lado tinha o seu: a lista mostrava "pedido de 2026-08-07" e a trava comparava só com
+   a coluna `data` ("2026-08-07"); na unidade a lista mostrava "KIDS 4 nº 3" e a trava comparava o
+   código de barras. Resultado: **pedido e unidade não podiam ser excluídos por mais certo que se
+   digitasse** — foi o "o nome não confere, sendo que o nome está certo" que ele relatou.
+   Uma função só, chamada dos dois lados, é o que impede a volta do problema. */
+function rotuloArquivado(tipo: string, r: any): string {
+  if (tipo === "material") return String(r.descricao ?? "");
+  if (tipo === "exemplar")
+    return String(r.dsc ?? "material apagado") + (r.numero != null ? " nº " + r.numero : "");
+  /* data em português, igual à janela de ARQUIVAR ("pedido de 22/08/2026"): as duas telas falam do
+     mesmo objeto e não podem chamá-lo por nomes diferentes — a de excluir exige o nome digitado. */
+  if (tipo === "pedido") return r.tipo + " de " + String(r.data).split("-").reverse().join("/");
+  /* a edição só se identifica junto com o material: existem várias "NEW" pela lista afora, e o nome
+     que a exclusão exige digitado tem de ser único o bastante para ninguém apagar a errada. */
+  if (tipo === "edicao") return String(r.dsc ?? "material apagado") + " · " + String(r.nome ?? "");
+  return String(r.nome ?? "");
+}
 
 /* ===== PERCURSO DO ALUNO =====
    `aluno_livro` responde "o que ele faz HOJE" e por isso é apagada quando o livro troca — a agenda,
@@ -1227,15 +1385,18 @@ db.exec("CREATE INDEX IF NOT EXISTS ix_aluno_estagio ON aluno_estagio(id_matricu
 /* ===== CONTRATO =====
    A matrícula é o número do ALUNO, gerada quando ele é cadastrado. O contrato é o vínculo dele
    com UM curso: `matrícula/N`, onde N é a ordem em que os vínculos foram criados — não importa o
-   livro nem o idioma. A Rafaela tem o Little Kids 2 como /2 e o espanhol como /3.
+   livro nem o idioma. A matrícula 2068 tem o Little Kids 2 como /2 e o espanhol como /3.
    Guardamos só o N: a parte antes da barra é a própria matrícula e duplicá-la só criaria chance
    de divergir. */
 addColuna("aluno_livro", "contrato_seq", "INTEGER");
 
-/* sigla curta a partir do nome do livro ('L. Kids 2' → 'LK2', 'Español 4' → 'ESP4').
-   É SUGESTÃO: o código de verdade é o interno da escola, que ninguém digitou ainda. Serve para
-   buscar enquanto isso, e o campo é editável na tela. */
-function siglaLivro(nome: string) {
+/* SUGESTÃO DE CÓDIGO DE ESTOQUE a partir do nome ('L. Kids 2' → 'LK2', 'Español 4' → 'ESP4').
+   Chamava-se `siglaLivro` e colidia com duas outras coisas de nome quase igual: `siglaDoLivro`, que
+   LÊ o nome curto do estágio, e a `siglaLivro` do cliente. Três nomes parecidos para três coisas
+   diferentes é convite a erro — este aqui GERA um código, então é o que o nome diz.
+   O código de verdade é o interno da escola (o W2 já tem o dele: WZ01001000220W2). Isto é só o
+   palpite inicial, editável na tela — e por isso NUNCA é sobrescrito pelo nome curto do estágio. */
+function sugerirCodigo(nome: string) {
   const num = (nome.match(/\d+/) || [""])[0];
   const palavras = nome.replace(/\d+/g, "").replace(/[.\-]/g, " ").trim().split(/\s+/).filter(Boolean);
   const base = palavras.length > 1 ? palavras.map(p => p[0]).join("") : (palavras[0] || "").slice(0, 4);
@@ -1249,7 +1410,7 @@ function semearEstoque() {
   for (const lv of A("SELECT nome, ordem FROM livros ORDER BY ordem")) {
     if (G("SELECT 1 FROM estoque_item WHERE livro=?", lv.nome)) continue;
     R("INSERT INTO estoque_item (descricao,codigo,livro,unidade,finalidade,minimo,ordem) VALUES (?,?,?,'unidade','venda',0,?)",
-      lv.nome, siglaLivro(lv.nome), lv.nome, lv.ordem);
+      lv.nome, sugerirCodigo(lv.nome), lv.nome, lv.ordem);
   }
   if (G("SELECT valor FROM config WHERE chave='estoque_semeado'")) return { itens: 0, entregas: 0 };
   /* único item não-livro com evidência: a linha "wizpens" do caderno. Não invento mochila/pasta —
@@ -1335,7 +1496,7 @@ function comporKits() {
   const garantir = (nome: string, tipo: string, ordem: number, componente: number) => {
     let c = G("SELECT id FROM estoque_item WHERE descricao=?", nome);
     if (!c) c = { id: Number(R(`INSERT INTO estoque_item (descricao,codigo,livro,unidade,tipo,finalidade,minimo,ordem,componente)
-        VALUES (?,?,NULL,'unidade',?,'venda',0,?,?)`, nome, siglaLivro(nome), tipo, ordem, componente).lastInsertRowid) };
+        VALUES (?,?,NULL,'unidade',?,'venda',0,?,?)`, nome, sugerirCodigo(nome), tipo, ordem, componente).lastInsertRowid) };
     R("UPDATE estoque_item SET tipo=?, componente=? WHERE id=?", tipo, componente, c.id);
     idDe[nome] = c.id;
     return c.id;
@@ -1401,7 +1562,7 @@ function arrumarNomesDeEdicao() {
 
 /* A VIRADA: transforma o que a tela mostrava como saldo em UNIDADES de verdade.
    Roda uma vez. Sem ela, o dia da mudança começaria com estoque zerado — os 43 kits que ele contou
-   no caderno em 06/08 sumiriam, porque unidade só nasce de remessa. Cada exemplar recebe o instante
+   no caderno em 06/08 sumiriam, porque unidade só nasce de remessa. Cada unidade recebe o instante
    da contagem que o viu, mais um milissegundo por ordem, para a fila nascer determinística. */
 function converterContagemEmUnidades() {
   if (G("SELECT valor FROM config WHERE chave='estoque_por_unidade'")) return { unidades: 0 };
@@ -1419,7 +1580,7 @@ function converterContagemEmUnidades() {
     }
   }
   R("INSERT OR REPLACE INTO config (chave,valor) VALUES ('estoque_por_unidade',?)", agora());
-  console.log("estoque: " + unidades + " unidade(s) criadas a partir da última contagem — o saldo passa a ser contagem de exemplares");
+  console.log("estoque: " + unidades + " unidade(s) criadas a partir da última contagem — o saldo passa a ser contagem de unidades");
   return { unidades };
 }
 
@@ -1447,7 +1608,7 @@ function edicaoParaOItem() {
   for (const it of A("SELECT id, descricao FROM estoque_item WHERE edicao_nome IS NULL")) {
     const ligados = A(`SELECT nome, edicao_nome, edicao_ano, status FROM estagio
        WHERE item_estoque_id=? OR livro=(SELECT livro FROM estoque_item WHERE id=?)
-       ORDER BY (status='ativo') DESC, id`, it.id, it.id);
+       ORDER BY (status='ativo') DESC, legado, id`, it.id, it.id);
     /* "Oficial" foi rótulo MEU na semeadura, para livro que só tem uma edição — não é nome de
        edição de verdade e, concatenado, viraria "TOTS 2 · Oficial" em 22 lugares. Some. */
     const comEdicao = ligados.filter(e => e.edicao_nome && !/^oficial$/i.test(e.edicao_nome));
@@ -1522,11 +1683,16 @@ const CAT_ESTAGIOS: any[] = [
      1, vai até a 6 e tem a revisão 1 — literalmente 70 lições no total." 6+1 por capítulo × 10 é
      exatamente o cap7i, e 70 (e não 71) confirma que não tem lição de abertura. */
   ["PORT2","Português 2","Português","Outros Idiomas","Portuguese","cap7i",1,1,1,"ativo","Oficial",null,"Port 2",[],0],
-  /* Business Empire (2026-08-10, dele): curso AVULSO de inglês de negócios, que complementa o W —
-     BE 2 anda com o W2, BE 4 com o W4. Sem workbook; vem com pasta, como o W2.
+  /* Business Empire (2026-08-10, dele): inglês de negócios que COMPLEMENTA o W — BE 2 anda com o
+     W2, BE 4 com o W4. Sem workbook; vem com pasta, como o W2.
+     A categoria era "Avulsos" e mudou para "Complementar" em 2026-08-23, por correção dele:
+     *"o Business Empire ele faz parte sim da Wizard. Ele é avulso porque ele não acompanha uma
+     trilha oficial... ele é complementar"*. Avulso passou a significar outra coisa — material que
+     NÃO é estágio Wizard (ver `estoque_item.avulso`) —, e usar a mesma palavra para as duas
+     confundia justamente quem precisa distinguir.
      Entram sem livro vinculado: não existem em `livros` ainda, e o vínculo é campo de tela. */
-  ["BE2","Business Empire 2","Inglês","Avulsos","Business Empire","cap7",1,1,1,"ativo","Oficial",null,null,[],0],
-  ["BE4","Business Empire 4","Inglês","Avulsos","Business Empire","cap7",61,0,2,"ativo","Oficial",null,null,[],0],
+  ["BE2","Business Empire 2","Inglês","Complementar","Business Empire","cap7",1,1,1,"ativo","Oficial",null,null,[],0],
+  ["BE4","Business Empire 4","Inglês","Complementar","Business Empire","cap7",61,0,2,"ativo","Oficial",null,null,[],0],
 ];
 /* trilha: [de, para]. Sequência dentro da categoria + as alternativas e o salto do Teens 8. */
 const CAT_PROXIMO: string[][] = [
@@ -1648,8 +1814,61 @@ function tabelaLicao(alvo: string) {
   if (alvo === "estagio") return "estagio_licao";
   throw new Error("Alvo inválido: " + alvo);
 }
+/* SIGLA DO LIVRO PARA A FICHA IMPRESSA (2026-08-23). A coluna de estágio da ficha foi dimensionada
+   para 10 caracteres (ver a nota das 22 colunas em blocos.js); "NEXT GENERATION" e "LITTLE KIDS 2"
+   não caberiam, e a chave crua ("Next Gen", "Port 2") está errada. A sigla que ele mesmo definiu no
+   estágio resolve os dois: cabe e é o nome certo. Cai para a chave quando não há sigla. */
+const siglaDoLivro = (livro: string | null) => !livro ? "" :
+  (G("SELECT nome_curto FROM estagio WHERE livro=? AND nome_curto IS NOT NULL ORDER BY id", livro)
+     ?.nome_curto
+   /* material avulso não tem estágio e portanto não tem nome curto; a descrição dele é o nome que
+      existe. Cabe na ficha: "Kids Esp 1" tem os mesmos 10 caracteres da coluna. */
+   || G("SELECT descricao FROM estoque_item WHERE livro=?", livro)?.descricao
+   || livro);
+/* ===== O ESTÁGIO MANDA NO MATERIAL (2026-08-23) =====
+   Ordem dele: *"o nome do estágio é o próprio nome do material. Tem que ser refletido
+   imediatamente"* e *"pra ter material no Wizard precisa haver um estágio primeiro... se eu
+   cadastrar um estágio novo, automaticamente ele vai aparecer em material"*.
+   Duas coisas, então:
+   1. Estágio que JÁ tem material: o nome do estágio é copiado para a descrição do material. Só a
+      descrição — o `codigo` é o interno da escola (o W2 é WZ01001000220W2) e não se toca.
+   2. Estágio SEM material: nasce a chave em `livros` e o item em `estoque_item`, e o estágio passa
+      a apontar para ele. `livros.nome` é chave primária e `estoque_item.livro` é UNIQUE, então cada
+      passo confere antes de inserir e a função pode rodar quantas vezes for.
+   O que NÃO faço aqui: renomear a chave `livros.nome`. Ela é PK referenciada por aluno_livro,
+   aulas, aluno_estagio, estoque_item e turmas — renomear é cascata em cinco tabelas, e o nome que
+   a pessoa vê já vem de `nomeDoLivro()`. Chave é identidade, não rótulo. */
+function sincronizarMaterialDoEstagio(estagioId: number) {
+  const e = G("SELECT id, nome, categoria, item_estoque_id, livro FROM estagio WHERE id=?", estagioId);
+  if (!e?.nome) return;
+  if (e.item_estoque_id) {
+    R("UPDATE estoque_item SET descricao=? WHERE id=?", e.nome, e.item_estoque_id);
+    return;
+  }
+  /* a chave: reaproveita a que o estágio já tem; senão o próprio nome vira a chave do livro novo
+     (aqui não há divergência histórica a preservar — ela nasce igual ao nome). */
+  const chave = String(e.livro || e.nome).trim();
+  if (!chave) return;
+  if (!G("SELECT 1 FROM livros WHERE nome=?", chave)) {
+    const ordem = (G("SELECT MAX(ordem) m FROM livros")?.m ?? 0) + 1;
+    /* só `nome`, `ordem` e `kids`: tipo_padrao e tipo_fixo têm DEFAULT no schema, e `kids` é o
+       único que dá para deduzir sem chutar — a categoria do estágio já diz. */
+    R("INSERT INTO livros (nome, ordem, kids) VALUES (?,?,?)", chave, ordem, e.categoria === "Kids" ? 1 : 0);
+  }
+  let item = G("SELECT id FROM estoque_item WHERE livro=?", chave);
+  if (!item) {
+    const ordem = G("SELECT ordem FROM livros WHERE nome=?", chave)?.ordem ?? 900;
+    item = { id: Number(R(`INSERT INTO estoque_item (descricao,codigo,livro,unidade,finalidade,minimo,ordem)
+        VALUES (?,?,?,'unidade','venda',0,?)`, e.nome, sugerirCodigo(e.nome), chave, ordem).lastInsertRowid) };
+  } else {
+    R("UPDATE estoque_item SET descricao=? WHERE id=?", e.nome, item.id);
+  }
+  R("UPDATE estagio SET item_estoque_id=?, livro=? WHERE id=?", item.id, chave, estagioId);
+}
 const estagioDoLivro = (livro: string) =>
-  G("SELECT id FROM estagio WHERE livro=? ORDER BY (status='ativo') DESC, id", livro)?.id ?? null;
+  /* o corrente é o ATIVO e NÃO legado — é o que o Kids 4 exige, porque os dois estágios do mesmo
+     livro estão ativos e só o `legado` os distingue */
+  G("SELECT id FROM estagio WHERE livro=? ORDER BY (status='ativo') DESC, legado, id", livro)?.id ?? null;
 
 /* `dataInicio` tem TRÊS valores possíveis e os três são diferentes: não passar nada é "abrindo
    agora" (matrícula nova → hoje); passar uma data é essa data; passar `null` é "não se sabe" e fica
@@ -1670,18 +1889,71 @@ const SIT_FECHA: Record<string, string> = {
    *"o retornado é quando o aluno sai do trancamento e volta. Aí o sistema vai colocar rematriculado
    de novo."* Retornado é o FATO (fica no histórico), não o estado — o estado que volta é o que ele
    tinha antes de trancar. Sem isto, quem voltava ficava numa situação que não diz em que curso está. */
-function situacaoCorrente(idMatricula: string): string | null {
-  const linhas = A(`SELECT situacao, data, id FROM aluno_situacao_historico WHERE id_matricula=?
-                    ORDER BY data DESC, id DESC`, idMatricula);
+/* a situação que uma linha do tempo já ordenada declara, com a regra do Retornado aplicada */
+function ultimaSituacao(linhas: any[]): string | null {
   if (!linhas.length) return null;
   if (linhas[0].situacao !== "Retornado") return linhas[0].situacao;
   const antes = linhas.slice(1).find(l => l.situacao === "Matriculado" || l.situacao === "Rematriculado");
   return antes?.situacao || "Rematriculado";
 }
+/* A SITUAÇÃO DE UM CONTRATO (aluno × estágio). É ela que o seletor do cartão mostra e grava.
+   Deduzi-la na tela pelo `contrato_seq` ERRA em quem trocou de livro — ver `proximoContrato`. */
+function situacaoDoEstagio(idMatricula: string, livro: string): string | null {
+  return ultimaSituacao(A(`SELECT situacao, data, id FROM aluno_situacao_historico
+    WHERE id_matricula=? AND livro=? ORDER BY data DESC, id DESC`, idMatricula, livro));
+}
+/* A SITUAÇÃO DO ALUNO: CONTRATO ABERTO MANDA (regra dele, 2026-08-22).
+   *"Um aluno fazendo espanhol e inglês ao mesmo tempo é duas matrículas, mas um aluno."* Quem evade
+   o inglês e continua no espanhol NÃO é aluno desativado — e a versão anterior desativava, porque
+   pegava só o registro mais recente da linha do tempo inteira e o mais recente era "Evadido".
+   A ordem é: 1) algum contrato aberto EM CURSO manda; 2) nenhum em curso — vale o registro mais
+   recente, que é o que desativa (Trancado, Evadido, Encerrado); 3) sem histórico, deduz do número
+   do contrato, que é o que sobra para cadastro antigo. */
+function situacaoCorrente(idMatricula: string): string | null {
+  const abertos = A(`SELECT livro, contrato_seq FROM aluno_livro WHERE id_matricula=?
+                     ORDER BY contrato_seq DESC`, idMatricula);
+  for (const c of abertos) {
+    const s = situacaoDoEstagio(idMatricula, c.livro);
+    if (s && SIT_ENTRADA.includes(s)) return s;
+  }
+  const geral = ultimaSituacao(A(`SELECT situacao, data, id FROM aluno_situacao_historico
+    WHERE id_matricula=? ORDER BY data DESC, id DESC`, idMatricula));
+  if (geral) return geral;
+  return abertos.length ? (abertos[0].contrato_seq > 1 ? "Rematriculado" : "Matriculado") : null;
+}
+/* O NÚMERO DO PRÓXIMO CONTRATO conta a VIDA INTEIRA do aluno, não só os vínculos vivos.
+   `aluno_livro` some quando o estágio é encerrado — é a tabela operacional. Contar só nela fazia o
+   segundo livro voltar a ser `/1` e, com isso, ser rotulado "Matriculado" em vez de "Rematriculado",
+   que é justamente a automação que ele pediu ("a trilha que vai definir a rematrícula").
+   `aluno_estagio` é a biografia e nunca é apagada: é dela que sai o número.
+   *Medido: uma aluna tem W6 e W8 ambos como contrato 1 — a colisão já está no banco.* */
+function proximoContrato(idMatricula: string): number {
+  const vivo = G("SELECT MAX(contrato_seq) m FROM aluno_livro WHERE id_matricula=?", idMatricula)?.m || 0;
+  const hist = G("SELECT MAX(contrato_seq) m FROM aluno_estagio WHERE id_matricula=?", idMatricula)?.m || 0;
+  return Math.max(vivo, hist) + 1;
+}
+/* A DERIVAÇÃO NUNCA REATIVA QUEM A RECEPÇÃO MARCOU COMO FORA (2026-08-22).
+   Ponte para o dado antigo, e ela tem prazo. Até hoje a situação era digitada direto no cadastro,
+   então existe gente com "Evadido"/"Cancelado"/"Encerrado" gravado no aluno e NENHUM registro
+   correspondente na linha do tempo: o contrato ficou aberto e o encerramento só existia naquele
+   campo. Medido no banco real — 3 alunas nesse estado. Sem esta trava, a primeira gravação em cada uma as devolveria para
+   "Matriculado · Ativado" e elas voltariam às listas de uso da recepção.
+   O TESTE É SOBRE A SITUAÇÃO GRAVADA, não sobre a derivada: se o que está no cadastro é uma saída
+   que a linha do tempo NUNCA registrou, então é a linha do tempo que está incompleta, e o cadastro
+   guarda a única cópia daquele fato.
+   A trava é de mão única — DESATIVAR pela linha do tempo continua valendo (é o caso da matrícula 2012, que
+   trancou e o cadastro ainda dizia Matriculado). E ela some sozinha: no dia em que o encerramento
+   virar registro do contrato, a linha do tempo ganha. */
 function sincronizarSituacao(idMatricula: string) {
   const s = situacaoCorrente(idMatricula);
-  if (s && G("SELECT 1 FROM situacoes WHERE situacao=?", s))
-    R("UPDATE alunos SET situacao=? WHERE id_matricula=?", s, idMatricula);
+  if (!s || !G("SELECT 1 FROM situacoes WHERE situacao=?", s)) return s;
+  const atual = G("SELECT situacao FROM alunos WHERE id_matricula=?", idMatricula)?.situacao;
+  if (atual && atual !== s
+    && !G("SELECT ativa FROM situacoes WHERE situacao=?", atual)?.ativa   // estava fora
+    && !!G("SELECT ativa FROM situacoes WHERE situacao=?", s)?.ativa      // voltaria a entrar
+    && !G("SELECT 1 FROM aluno_situacao_historico WHERE id_matricula=? AND situacao=?", idMatricula, atual))
+    return atual;   // a saída existe só no cadastro: a linha do tempo não sabe dela
+  R("UPDATE alunos SET situacao=? WHERE id_matricula=?", s, idMatricula);
   return s;
 }
 /* Deriva o percurso de um estágio percorrendo a LINHA DO TEMPO INTEIRA daquele estágio.
@@ -1702,6 +1974,16 @@ function sincronizarPercurso(idMatricula: string, livro?: string | null) {
     const e = SIT_FECHA[l.situacao];
     if (e) { estado = e; fim = l.data; }
   }
+  /* A ENTREGA MANDA NO INÍCIO (2026-08-22). O registro de entrada diz quando ele MATRICULOU; a
+     entrega diz quando ele COMEÇOU — e são datas diferentes sempre que há pré-matrícula, que é o
+     comum ("rematriculou ontem e começa dia 2 de setembro").
+     Sem esta linha as duas fontes brigavam: a entrega carimbava 02/09 e a primeira gravação de
+     histórico que passasse por aqui devolvia a data da matrícula, desfazendo em silêncio. Medido no
+     teste — o `encerrarLivro` levava o início de volta.
+     Só vale quando a entrega TEM data: entrega deduzida (sem data) não sabe de nada. */
+  const ent = G("SELECT data FROM entrega_material WHERE id_matricula=? AND livro=? AND data IS NOT NULL",
+    idMatricula, livro);
+  if (ent?.data) inicio = ent.data;
   /* fechado sem data de entrada conhecida é possível (registro antigo, sem o par de matrícula) —
      o CHECK do banco só exige data_fim, então isto passa */
   if (estado !== "cursando" && !fim) return;
@@ -1720,6 +2002,27 @@ function sincronizarPercurso(idMatricula: string, livro?: string | null) {
     (alvo || G("SELECT id FROM aluno_estagio WHERE id_matricula=? AND livro=? ORDER BY id DESC LIMIT 1", idMatricula, livro))?.id);
 }
 
+/* A ENTREGA DEFINE O INÍCIO DAS ATIVIDADES (2026-08-22).
+   Regra dele, e ela vem de uma prática da escola: *"a gente só entrega o material pra ele no dia
+   que ele começar... por questão de segurança, pra evitar calote"*. Logo a data da entrega É o dia
+   em que o curso começou de fato — *"eu acho que devia ser padrão a entrega vinculada aos inícios
+   das atividades, pra deixar automatizado"*.
+   Isto conserta a PRÉ-MATRÍCULA, que era o furo: `abrirPercurso` carimba a data da MATRÍCULA, e é
+   comum ele rematricular hoje para o aluno começar duas semanas depois. O contrato vence um ano
+   depois do INÍCIO, então a data errada dava vencimento errado.
+   Só mexe em contrato EM CURSO: o início de um estágio encerrado é história, não palpite. */
+function inicioPelaEntrega(idMatricula: string, livro: string, data: string | null) {
+  if (!data) return null;
+  const pc = G(`SELECT id, data_inicio, data_fim FROM aluno_estagio
+                WHERE id_matricula=? AND livro=? AND estado='cursando'
+                ORDER BY id DESC LIMIT 1`, idMatricula, livro);
+  if (!pc || pc.data_inicio === data) return null;
+  /* o CHECK do banco não deixa o início passar do fim; um percurso em curso não tem fim, mas se
+     tiver (dado antigo), a entrega não pode empurrar o início para depois dele */
+  if (pc.data_fim && data > pc.data_fim) return null;
+  R("UPDATE aluno_estagio SET data_inicio=? WHERE id=?", data, pc.id);
+  return { de: pc.data_inicio ?? null, para: data };
+}
 function abrirPercurso(idMatricula: string, livro: string, dataInicio?: string | null, contratoSeq?: number | null) {
   /* já cursando este livro: não abre outra. O índice único garantiria, mas falhar em silêncio aqui
      é melhor que estourar no meio de um salvamento de matrícula. */
@@ -1873,7 +2176,63 @@ try {
   vip INTEGER NOT NULL DEFAULT 0 CHECK (vip IN (0,1)), -- VIP = sem turma (regra aplicada no app)
   tipo_encontro TEXT NOT NULL DEFAULT 'Presencial' CHECK (tipo_encontro IN ('Presencial','Online')),
   PRIMARY KEY (id_matricula, livro)`);
+  /* ===== PEDIDO POR EDIÇÃO (2026-08-22) =====
+     Pedido dele: *"quero 2 Old e 3 Third"* já na hora de encomendar. Até aqui a edição só se
+     escolhia unidade por unidade, DEPOIS que a caixa chegava — trabalho que se repetia a cada
+     remessa e que ninguém faz com a caixa aberta em cima da mesa.
+     A linha do pedido deixa de ser (evento, material) e passa a ser (evento, material, EDIÇÃO).
+     `edicao_id` NULL é a linha de sempre — "tanto faz a edição" — e é no que todo pedido antigo se
+     transforma, sem perder nada.
+     ARMADILHA DO SQLITE: NULL não colide dentro de PRIMARY KEY, então (ev, item, NULL) entraria
+     duas vezes e a grade passaria a somar errado. Quem garante a unicidade é o índice sobre
+     COALESCE, logo abaixo — o PRIMARY KEY aqui documenta a intenção, o índice é a trava. */
+  reconstruirTabela("estoque_evento_item", "edicao_id", `
+  evento_id INTEGER NOT NULL REFERENCES estoque_evento(id) ON DELETE CASCADE,
+  item_id INTEGER NOT NULL REFERENCES estoque_item(id) ON DELETE CASCADE,
+  edicao_id INTEGER REFERENCES estoque_edicao(id) ON DELETE SET NULL,
+  quantidade INTEGER NOT NULL,
+  nota TEXT,
+  PRIMARY KEY (evento_id, item_id, edicao_id)`);
+  /* ===== STATUS DO ESTÁGIO: ATIVADO/DESATIVADO, E LEGADO À PARTE (2026-08-22) =====
+     Regra dele: *"o status pode ser ativado e desativado... e a gente pode colocar se é legado ou
+     não, um booleano. Porque se não for legado, ele é novo — já é autoexplicativo."* E "lançamento"
+     saiu: *"eu acho que lançamento não precisa"*.
+     Eram três valores fazendo dois trabalhos ao mesmo tempo — se está em uso, e se é a edição
+     velha. O Kids 4 antigo mostra por que não dá para juntar: ele é LEGADO e está ATIVO, com três
+     alunos cursando nele agora.
+     Desativado = sai do catálogo mas o vínculo do aluno continua (é o que ele descreveu).
+     A ORDEM IMPORTA: os valores antigos precisam virar os novos ANTES da reconstrução, senão o
+     CHECK novo recusa a cópia de 'legado'/'lancamento' e a migração inteira aborta. */
+  addColuna("estagio", "legado", "INTEGER NOT NULL DEFAULT 0");
+  R("UPDATE estagio SET legado=1 WHERE status='legado'");
+  R("UPDATE estagio SET status='ativo' WHERE status IN ('legado','lancamento')");
+  reconstruirTabela("estagio", "status IN ('ativo','desativado')", `
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  sigla TEXT NOT NULL UNIQUE,
+  nome TEXT NOT NULL,
+  idioma TEXT NOT NULL DEFAULT 'Inglês',
+  categoria TEXT NOT NULL DEFAULT 'Kids',
+  grupo TEXT,
+  modelo_id INTEGER REFERENCES estagio_modelo(id),
+  licao_inicial INTEGER NOT NULL DEFAULT 1,
+  entrada INTEGER NOT NULL DEFAULT 0 CHECK (entrada IN (0,1)),
+  ordem INTEGER NOT NULL DEFAULT 100,        -- posição na trilha da categoria
+  idade_min INTEGER, idade_max INTEGER,      -- informativos, preenchidos à mão
+  escala_ativa INTEGER NOT NULL DEFAULT 0 CHECK (escala_ativa IN (0,1)),
+  cefr_min TEXT, cefr_max TEXT, gse_min INTEGER, gse_max INTEGER,
+  edicao_nome TEXT, edicao_ano INTEGER,
+  status TEXT NOT NULL DEFAULT 'ativo' CHECK (status IN ('ativo','desativado')),
+  legado INTEGER NOT NULL DEFAULT 0 CHECK (legado IN (0,1)),
+  livro TEXT REFERENCES livros(nome),        -- ponte com matrículas/aulas/impressão
+  item_estoque_id INTEGER REFERENCES estoque_item(id) ON DELETE SET NULL,
+  item_edicao_id INTEGER REFERENCES estoque_edicao(id) ON DELETE SET NULL,
+  descricao TEXT, nome_curto TEXT, arquivado TEXT`);
+  /* a reconstrução leva os índices junto — este volta */
+  db.exec("CREATE INDEX IF NOT EXISTS ix_estagio_livro ON estagio(livro)");
 } catch (e) { console.warn("aviso: regras de domínio não aplicadas ao banco (o app segue validando) — " + (e as Error).message); }
+/* A trava real contra a linha repetida sem edição (ver a armadilha logo acima). FORA do try: o
+   índice tem de existir mesmo quando a reconstrução foi pulada por já estar feita. */
+db.exec("CREATE UNIQUE INDEX IF NOT EXISTS ux_ev_item_ed ON estoque_evento_item(evento_id, item_id, COALESCE(edicao_id,0))");
 
 /* ===== situação por LIVRO, e a situação que faltava =====
    A situação é do CURSO, não da pessoa: quem faz Little Kids 2 e Kids Esp 1 ao mesmo tempo pode
@@ -1948,6 +2307,21 @@ function dirBackupOneDrive(): string | null {
 function gravarPastaOneDrive(p: string): string {
   const od = Deno.env.get("OneDrive");
   return (od && p.toLowerCase().startsWith(od.toLowerCase() + "\\")) ? p.slice(od.length + 1) : p;
+}
+/* ===== PASTA DOS ANEXOS =====
+   Mora DENTRO dos mesmos destinos do backup, e por um motivo prático: é a pasta do OneDrive que já
+   sincroniza entre o notebook e o Dell da recepção, que é como os Guias do Professor circulam hoje
+   na escola. E como o caminho é reconstruído a partir do `%OneDrive%` de CADA máquina, o mesmo
+   banco funciona nos dois usuários Windows sem carregar um "C:\Users\user\..." travado.
+   Grava em TODOS os destinos (OneDrive e pasta oculta), lê do primeiro que tiver o arquivo: se um
+   dia o OneDrive não estiver disponível, a cópia local ainda abre. */
+const dirsAnexos = () => alvosBackup().map(a => a.dir + "\\anexos");
+function acharAnexo(arquivo: string): string | null {
+  for (const d of dirsAnexos()) {
+    const p = d + "\\" + arquivo;
+    try { Deno.statSync(p); return p; } catch { /* tenta o próximo destino */ }
+  }
+  return null;
 }
 function alvosBackup() {
   const alvos = [{ destino: "HD (pasta oculta)", dir: dirBackupLocal() }];
@@ -2154,7 +2528,9 @@ function montarBlocos(
     const chave = (!vip && mod === "Inter") ? "I|" + a.hora : t ? "T|" + t.id + "|" + a.hora : "A|" + tipoKey + "|" + a.livro + "|" + a.hora + "|" + a.profs.join("/");
     const b = blocos[chave] ||= { hora: a.hora, fim: t ? t.horaFim : fimIndividual,
       turmaId: t ? t.id : null, tipoKey, mod, vip, diasTurma: t ? t.blocoDias.split("+").map((x: string) => dInfo[x]?.curto || x) : [], alunos: {}, profs: [] };
-    const al = b.alunos[a.id_matricula + "|" + a.livro] ||= { id: a.id_matricula, nome: a.nomeAluno, livro: a.livro, profs: [], pendente: false, avulso: a.avulso || null };
+    /* `livro` continua sendo a CHAVE (o cliente indexa presenças por "id|livro"); a sigla viaja ao
+       lado, e é só ela que a ficha imprime. */
+    const al = b.alunos[a.id_matricula + "|" + a.livro] ||= { id: a.id_matricula, nome: a.nomeAluno, livro: a.livro, sigla: siglaDoLivro(a.livro), profs: [], pendente: false, avulso: a.avulso || null };
     if (a.pendente) al.pendente = true;
     if (!a.avulso) al.avulso = null; // linha regular manda: se ele tem aula fixa aqui, não é avulso
     a.profs.forEach(p => { if (!b.profs.includes(p)) b.profs.push(p); if (!al.profs.includes(p)) al.profs.push(p); });
@@ -2272,16 +2648,27 @@ function blocosComColunas(blocos: any[], ref: Date, grupo: string[], incluirGrup
    Sem contagem nenhuma devolve null — "não sei", que é diferente de zero. */
 /* SALDO, regra nova (2026-08-10): quantas unidades daquele material ainda não saíram.
    Deixou de ser "última contagem + remessas − entregas posteriores" porque a contagem deixou de
-   existir: tudo o que entra é registrado exemplar por exemplar, então o saldo é uma contagem de
+   existir: tudo o que entra é registrada unidade por unidade, então o saldo é uma contagem de
    linhas, não uma conta com data de corte. E deixa de existir o "null = não sei": agora se sabe. */
+/* a finalidade que uma unidade nova herda: material declarado como 'professor'/'consumo' só produz
+   material de escola; o resto nasce para venda. */
+function finalidadeUnidade(itemId: number): string {
+  const f = G("SELECT finalidade FROM estoque_item WHERE id=?", itemId)?.finalidade;
+  return (f === "professor" || f === "consumo") ? "escola" : "venda";
+}
+/* O SALDO CONTA SÓ O QUE SE VENDE. O guia do professor está na prateleira, mas não é estoque de
+   aluno: contá-lo faria a escola achar que tem um livro a mais para entregar, e o pedido sairia
+   menor do que precisa. Vale para a fila de entrega e para o saldo por edição também. */
 function saldoItem(itemId: number): number {
   return G(`SELECT COUNT(*) n FROM estoque_unidade
-            WHERE item_id=? AND entrega_id IS NULL AND arquivado IS NULL`, itemId)?.n || 0;
+            WHERE item_id=? AND entrega_id IS NULL AND arquivado IS NULL
+              AND finalidade='venda'`, itemId)?.n || 0;
 }
-/* a fila: o exemplar mais antigo que ainda está na prateleira. "Quem chegou primeiro sai primeiro",
+/* a fila: a unidade mais antigo que ainda está na prateleira. "Quem chegou primeiro sai primeiro",
    e o desempate é o `entrada` com milissegundos. */
 const proximaUnidade = (itemId: number) =>
   G(`SELECT * FROM estoque_unidade WHERE item_id=? AND entrega_id IS NULL AND arquivado IS NULL
+       AND finalidade='venda'
      ORDER BY entrada, id LIMIT 1`, itemId);
 /* o próximo número de etiqueta daquele material. Conta os entregues também: o número sai de
    circulação com o livro, e reaproveitá-lo poria duas etiquetas iguais no mundo. */
@@ -2292,7 +2679,7 @@ const proximoNumero = (itemId: number): number =>
    timestamp mais recente com o número um? Isso é inválido."*
    Devolve os pares que se contradizem, do material inteiro — quem lê a fila em ordem de chegada
    deve ver 1, 2, 3. Por ora a tela AVISA e não impede: bloquear a gravação deixaria o campo
-   inutilizável enquanto ele estivesse arrumando dois exemplares trocados, porque toda troca passa
+   inutilizável enquanto ele estivesse arrumando duas unidades trocadas, porque toda troca passa
    por um estado intermediário inválido. */
 function conflitosDeNumero(itemId: number) {
   const us = A(`SELECT id, numero, entrada, codigo FROM estoque_unidade
@@ -2302,10 +2689,10 @@ function conflitosDeNumero(itemId: number) {
     if (us[i].numero < us[i - 1].numero) fora.push({ numero: us[i].numero, entrada: us[i].entrada });
   return fora;
 }
-/* Numera quem ainda não tem número, na ORDEM DA FILA (que é a ordem de chegada) — o exemplar mais
+/* Numera quem ainda não tem número, na ORDEM DA FILA (que é a ordem de chegada) — a unidade mais
    antigo do W2 vira o 1, e é o que ele vai escrever na etiqueta.
    Sem marca em `config` de propósito: o `WHERE numero IS NULL` já a torna inerte depois da primeira
-   passada, e assim ela também alcança qualquer exemplar que apareça sem número depois. Marca em
+   passada, e assim ela também alcança qualquer unidade que apareça sem número depois. Marca em
    `config` já me travou duas vezes neste módulo — a versão consertada não rodava mais. */
 function numerarUnidades() {
   const semNumero = A(`SELECT id, item_id FROM estoque_unidade WHERE numero IS NULL
@@ -2316,7 +2703,7 @@ function numerarUnidades() {
     if (prox[u.item_id] === undefined) prox[u.item_id] = proximoNumero(u.item_id);
     R("UPDATE estoque_unidade SET numero=? WHERE id=?", prox[u.item_id]++, u.id);
   }
-  console.log("estoque: " + semNumero.length + " exemplar(es) numerados (número da etiqueta)");
+  console.log("estoque: " + semNumero.length + " unidade(s) numerados (número da etiqueta)");
   return { numeradas: semNumero.length };
 }
 
@@ -2343,7 +2730,7 @@ function horaEntrega(hora: any): string | null {
   if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(h)) throw new Error("Hora inválida: use HH:MM.");
   return h;
 }
-/* o instante do exemplar que saiu, no formato de `estoque_unidade.saida`. Data e hora vêm da
+/* o instante da unidade que saiu, no formato de `estoque_unidade.saida`. Data e hora vêm da
    entrega, nunca de um relógio próprio: eram dois carimbos para um fato só. */
 const instanteSaida = (data: string | null, hora: string | null) =>
   data ? (hora ? data + " " + hora : data) : null;
@@ -2371,7 +2758,7 @@ function listaEntregas() {
     devolvida: r.devolvida ?? null,
     /* o histórico vem SEMPRE, não só quando o material está devolvido agora: "este aluno já
        devolveu uma vez e recebeu outro" é informação do balcão, e ela desapareceria da tela no
-       instante em que ele recebe o exemplar novo. Uma busca indexada por entrega, ao lado da que
+       instante em que ele recebe a unidade nova. Uma busca indexada por entrega, ao lado da que
        já existe para a unidade. */
     devolucoes: A(`SELECT data, hora, motivo, unidade_id FROM devolucao_material
                    WHERE id_matricula=? AND livro=? ORDER BY data DESC, id DESC`,
@@ -2379,7 +2766,7 @@ function listaEntregas() {
       .map(d => ({ data: d.data, hora: d.hora || null, motivo: d.motivo || "",
                    unidadeId: d.unidade_id ?? null })),
     itemId: r.item_id ?? r.item_livro_id ?? null, itemDesc: r.item_desc ?? null,
-    /* QUAL exemplar saiu: é o que liga a entrega à etiqueta física. Entrega deduzida das matrículas
+    /* QUAL unidade saiu: é o que liga a entrega à etiqueta física. Entrega deduzida das matrículas
        antigas não tem unidade — ninguém registrou qual livro daquela pilha foi para a mão de quem. */
     unidade: r.entrega_id
       ? (() => {
@@ -2449,15 +2836,51 @@ function pedidoPendenteItem(itemId: number): number {
    lançar uma remessa, eu tô confirmando que esse pedido chegou." Então a remessa aponta para o
    pedido, e o que falta é o pedido menos o que as remessas dele já trouxeram — nunca negativo:
    caixa que traz a mais não gera pendência ao contrário. */
-function faltaDoPedido(pedidoId: number): Record<number, number> {
-  const falta: Record<number, number> = {};
-  for (const r of A("SELECT item_id, quantidade FROM estoque_evento_item WHERE evento_id=?", pedidoId))
-    falta[r.item_id] = r.quantidade;
-  for (const r of A(`SELECT ei.item_id, ei.quantidade FROM estoque_evento_item ei
+/* CHAVE DA LINHA DE PEDIDO: material + edição, com `0` para "edição não especificada" — a linha
+   antiga, e a que continua valendo para material de edição única. Chave de texto porque é assim
+   que ela atravessa o JSON até a tela e volta. */
+const chaveEd = (itemId: number | string, edicaoId: number | null) => Number(itemId) + "|" + (edicaoId ?? 0);
+const parteEd = (k: string) => ({ itemId: Number(k.split("|")[0]), edicaoId: Number(k.split("|")[1]) || null });
+/* QUAL EDIÇÃO A UNIDADE NOVA HERDA — uma regra só, para os dois caminhos de entrada (a caixa do
+   pedido e o lançamento à mão). Duas fontes, nesta ordem:
+   1. a edição PADRÃO do material, quando houver — é a declaração explícita dele de "é esta que
+      estamos usando agora", e foi o que ele pediu para a entrada manual: *"se tá uma edição padrão,
+      automaticamente o sistema vai preencher o campo de edição de cada unidade"*;
+   2. a única ativa, quando só existe uma — aí não há o que escolher.
+   Com duas ou mais ativas e nenhuma marcada como padrão, devolve NULL: chutar qual chegou seria
+   pior que deixar em branco, porque ninguém revisa o que o sistema já preencheu.
+   Arquivada nunca entra: ela é justamente a que saiu de linha.
+   A tela deixa trocar unidade por unidade depois — isto poupa o trabalho, não decide por ele. */
+function edicaoDeEntrada(itemId: number): number | null {
+  const p = G("SELECT id FROM estoque_edicao WHERE item_id=? AND padrao=1 AND arquivada IS NULL", itemId);
+  if (p) return p.id;
+  const eds = A("SELECT id FROM estoque_edicao WHERE item_id=? AND arquivada IS NULL", itemId);
+  return eds.length === 1 ? eds[0].id : null;
+}
+/* O QUE FALTA CHEGAR, LINHA A LINHA (material × edição). Pedir "2 Old e 3 Third" e receber só as
+   Third tem de deixar as 2 Old pendentes — somar por material perderia exatamente essa distinção,
+   que é a razão de a edição ter entrado no pedido. */
+function faltaDoPedidoEd(pedidoId: number): Record<string, number> {
+  const falta: Record<string, number> = {};
+  for (const r of A("SELECT item_id, edicao_id, quantidade FROM estoque_evento_item WHERE evento_id=?", pedidoId))
+    falta[chaveEd(r.item_id, r.edicao_id)] = r.quantidade;
+  for (const r of A(`SELECT ei.item_id, ei.edicao_id, ei.quantidade FROM estoque_evento_item ei
       JOIN estoque_evento ev ON ev.id=ei.evento_id
-      WHERE ev.tipo='remessa' AND ev.pedido_id=?`, pedidoId))
-    if (falta[r.item_id] != null) falta[r.item_id] = Math.max(0, falta[r.item_id] - r.quantidade);
+      WHERE ev.tipo='remessa' AND ev.pedido_id=?`, pedidoId)) {
+    const k = chaveEd(r.item_id, r.edicao_id);
+    if (falta[k] != null) falta[k] = Math.max(0, falta[k] - r.quantidade);
+  }
   return falta;
+}
+/* ...e o mesmo somado por MATERIAL, que é como a grade, o sino e `pedidoPendenteItem` sempre leram.
+   Manter as duas leituras é o que permitiu a edição entrar sem reescrever a tela inteira. */
+function faltaDoPedido(pedidoId: number): Record<number, number> {
+  const por: Record<number, number> = {};
+  for (const [k, q] of Object.entries(faltaDoPedidoEd(pedidoId))) {
+    const { itemId } = parteEd(k);
+    por[itemId] = (por[itemId] || 0) + q;
+  }
+  return por;
 }
 /* DOIS estados, não três: aguardando ou recebido. O "chegou em parte" saiu a pedido dele — a
    chegada é confirmada de uma vez, no botão do pedido, e o que veio a menos se corrige no número.
@@ -2469,7 +2892,7 @@ function situacaoPedido(pedidoId: number) {
   const totalFalta = Object.values(falta).reduce((s: number, q) => s + (q as number), 0);
   const remessas = A("SELECT id, data FROM estoque_evento WHERE tipo='remessa' AND pedido_id=? ORDER BY data", pedidoId);
   const estado = remessas.length ? "recebido" : "aguardando";
-  return { estado, totalPedido, totalFalta, falta, remessas };
+  return { estado, totalPedido, totalFalta, falta, faltaEd: faltaDoPedidoEd(pedidoId), remessas };
 }
 
 /* abaixo disso a saída provavelmente foi clique errado — a aula da Wizard tem 1h */
@@ -2629,7 +3052,7 @@ try { arrumarNomeTrocado(); } catch (e) { console.warn("correção do nome troca
 try { converterContagemEmUnidades(); } catch (e) { console.warn("conversão para unidades falhou (segue o baile):", e); }
 /* depois de existirem todas as unidades: numera na ordem da fila quem ainda não tem etiqueta */
 try { numerarUnidades(); } catch (e) { console.warn("numeração das unidades falhou (segue o baile):", e); }
-/* e leva a edição que estava no material para o exemplar */
+/* e leva a edição que estava no material para a unidade */
 try { migrarEdicoesParaUnidade(); } catch (e) { console.warn("migração das edições falhou (segue o baile):", e); }
 try { semearEstagios(); } catch (e) { console.warn("semeadura dos estágios falhou (segue o baile):", e); }
 try { semearCalendario(); } catch (e) { console.warn("semeadura do calendário falhou (segue o baile):", e); }
@@ -2653,6 +3076,124 @@ try { siglarLicoes(); } catch (e) { console.warn("siglas das lições falharam (
 try { numerarContratos(); } catch (e) { console.warn("numeração de contratos falhou (segue o baile):", e); }
 /* depois dos contratos: o percurso copia `contrato_seq`, que a linha acima acabou de preencher */
 try { semearPercurso(); } catch (e) { console.warn("retomada do percurso falhou (segue o baile):", e); }
+/* depois do percurso: acerta o que o modelo antigo deixou torto (roda uma vez) */
+try { acertarContratos(); } catch (e) { console.warn("acerto de contratos falhou (segue o baile):", e); }
+
+/* ===== ACERTO DO CONTRATO E DO HISTÓRICO (2026-08-22) — roda UMA vez =====
+   Três consertos no dado que o modelo antigo deixou torto, autorizados por ele. Nenhum é derivável
+   em tempo de leitura: são fatos que precisam existir gravados.
+   1. HISTÓRICO SEM LIVRO. A coluna `livro` só nasceu em 2026-08-09; antes disso o registro não
+      dizia de qual curso falava. Em aluno de UM contrato só não há ambiguidade — medido: 117
+      registros atribuíveis, 1 ambíguo (esse fica como está).
+   2. CONTRATO REPETIDO. `contrato_seq` saía de `MAX(...)` sobre `aluno_livro`, que perde a linha
+      quando o estágio encerra — então o segundo livro renascia como /1. Medido: 2143 (Teens 2 +
+      Teens 4) e 344 (W6 + W8). Renumera SÓ quem tem colisão, na ordem em que os estágios
+      aconteceram; mexer em quem está certo seria churn à toa.
+   3. SAÍDA QUE SÓ EXISTE NO CADASTRO. Aluno com situação de saída gravada e contrato aberto sem
+      registro nenhum de encerramento (três alunas). A data vem da
+      última presença dele naquele livro — é o vestígio mais honesto de quando ele parou; sem
+      presença, do início do contrato. */
+function acertarContratos() {
+  if (G("SELECT valor FROM config WHERE chave='contratos_acertados_v3'")) return;
+  copiaDeSeguranca();
+  let atribuidos = 0, renumerados = 0, fechados = 0, ressincronizados = 0, alinhados = 0;
+
+  /* --- 1. atribui o livro ao registro que não diz de qual curso fala --- */
+  for (const a of A(`SELECT DISTINCT id_matricula FROM aluno_situacao_historico WHERE livro IS NULL`)) {
+    const livros = A(`SELECT livro FROM aluno_livro WHERE id_matricula=?
+                      UNION SELECT livro FROM aluno_estagio WHERE id_matricula=?`,
+      a.id_matricula, a.id_matricula);
+    if (livros.length !== 1) continue;          // 0 ou 2+: não dá para afirmar
+    atribuidos += R(`UPDATE aluno_situacao_historico SET livro=? WHERE id_matricula=? AND livro IS NULL`,
+      livros[0].livro, a.id_matricula).changes as number;
+  }
+
+  /* --- 2. renumera o contrato de quem tem número repetido --- */
+  for (const a of A(`SELECT id_matricula FROM aluno_estagio
+                     GROUP BY id_matricula, contrato_seq HAVING COUNT(*) > 1`)) {
+    /* A ORDEM É A QUE OS ESTÁGIOS ACONTECERAM. Estágio SEM data de início é o MAIS ANTIGO, não o
+       mais novo: data só passou a ser carimbada depois, então quem não tem veio antes disso.
+       Medido: a matrícula 2143 tem Teens 2 sem data e Teens 4 em 09/02 — com o null indo para o
+       fim, o Teens 4 virava /1 e o Teens 2 /2, de trás para a frente. */
+    const seq = A(`SELECT ae.id, ae.livro FROM aluno_estagio ae
+                   LEFT JOIN livros lv ON lv.nome=ae.livro
+                   WHERE ae.id_matricula=?
+                   ORDER BY COALESCE(ae.data_inicio,'0000-01-01'), COALESCE(lv.ordem,999), ae.id`,
+      a.id_matricula);
+    seq.forEach((r, i) => {
+      R("UPDATE aluno_estagio SET contrato_seq=? WHERE id=?", i + 1, r.id);
+      R("UPDATE aluno_livro SET contrato_seq=? WHERE id_matricula=? AND livro=?",
+        i + 1, a.id_matricula, r.livro);
+      renumerados++;
+    });
+  }
+
+  /* --- 3. materializa a saída que só existia no cadastro --- */
+  for (const a of A(`SELECT al.id_matricula, al.situacao FROM alunos al
+                     JOIN situacoes s ON s.situacao=al.situacao AND s.ativa=0`)) {
+    /* já registrada em algum lugar da linha do tempo? então não há o que materializar */
+    if (G("SELECT 1 FROM aluno_situacao_historico WHERE id_matricula=? AND situacao=?",
+      a.id_matricula, a.situacao)) continue;
+    const c = G(`SELECT livro, contrato_seq FROM aluno_livro WHERE id_matricula=?
+                 ORDER BY contrato_seq DESC LIMIT 1`, a.id_matricula);
+    if (!c) continue;                            // sem contrato aberto: nada a fechar
+    /* O VESTÍGIO da parada: a última presença naquele livro, senão o início do contrato. */
+    const vestigio =
+      G("SELECT MAX(data) d FROM presenca WHERE id_matricula=? AND livro=?", a.id_matricula, c.livro)?.d
+      || G(`SELECT data_inicio d FROM aluno_estagio WHERE id_matricula=? AND livro=?
+            ORDER BY id DESC LIMIT 1`, a.id_matricula, c.livro)?.d
+      || dataISO(new Date());
+    /* MAS A SAÍDA TEM DE SER O ÚLTIMO EVENTO. `sincronizarPercurso` percorre a linha do tempo em
+       ordem de data e o estado final é o do último registro — datar a saída antes de um registro
+       que já existe a deixaria enterrada, e o estágio continuaria "cursando".
+       Aconteceu de verdade: uma aluna tem um "Matriculado" datado 2026-09-15, no FUTURO; a saída
+       datada pela última presença (28/07) não fechava nada. */
+    const ultimo = G("SELECT MAX(data) d FROM aluno_situacao_historico WHERE id_matricula=?",
+      a.id_matricula)?.d;
+    const quando = ultimo && ultimo > vestigio ? ultimo : vestigio;
+    R("INSERT INTO aluno_situacao_historico (id_matricula,situacao,data,livro) VALUES (?,?,?,?)",
+      a.id_matricula, a.situacao, quando, c.livro);
+    sincronizarPercurso(a.id_matricula, c.livro);
+    fechados++;
+  }
+
+  /* --- 4. reafirma a situação de TODO MUNDO a partir da linha do tempo ---
+     A situação do aluno é derivada, mas só se recalcula quando alguém escreve nele — então quem não
+     for tocado fica com o valor antigo para sempre. Medido: a matrícula 2012 tem "Trancado" no
+     histórico desde 30/05 e o cadastro seguia dizendo "Matriculado", o que o mantinha nas listas de
+     uso e no alerta de contrato vencido.
+     A trava de `sincronizarSituacao` continua valendo aqui: quem tem saída gravada só no cadastro
+     não é reativado por esta passagem. */
+  for (const a of A("SELECT id_matricula, situacao FROM alunos")) {
+    const nova = sincronizarSituacao(a.id_matricula);
+    if (nova && nova !== a.situacao) ressincronizados++;
+  }
+
+  /* --- 5. o início das atividades passa a ser a data da ENTREGA ---
+     A regra nova (ver `inicioPelaEntrega`) vale para todo mundo, e `sincronizarPercurso` a aplica
+     sempre que roda. Se eu deixasse só o caminho preguiçoso, os contratos iriam se alinhando UM A
+     UM, conforme alguém mexesse em cada aluno — e um cadastro meio migrado é pior que qualquer um
+     dos dois estados: ninguém sabe se a data que está vendo já seguiu a regra nova ou não.
+     Então alinha tudo aqui, de uma vez, e diz quantos foram. Medido no banco real: 32 contratos,
+     todos em curso. Só mexe em contrato EM CURSO — o início de um encerrado é história. */
+  for (const r of A(`SELECT ae.id, ae.data_inicio, ae.data_fim, e.data entrega
+                     FROM aluno_estagio ae
+                     JOIN entrega_material e ON e.id_matricula=ae.id_matricula AND e.livro=ae.livro
+                     WHERE ae.estado='cursando' AND e.data IS NOT NULL
+                       AND (ae.data_inicio IS NULL OR ae.data_inicio <> e.data)`)) {
+    if (r.data_fim && r.entrega > r.data_fim) continue;   // o CHECK do banco recusaria
+    R("UPDATE aluno_estagio SET data_inicio=? WHERE id=?", r.entrega, r.id);
+    alinhados++;
+  }
+
+  R("INSERT OR REPLACE INTO config (chave,valor) VALUES ('contratos_acertados_v3',?)", agora());
+  R("DELETE FROM config WHERE chave IN ('contratos_acertados_v1','contratos_acertados_v2')");
+  if (atribuidos || renumerados || fechados || ressincronizados || alinhados)
+    console.log(`acerto de contratos: ${atribuidos} registro(s) ganharam o livro, `
+      + `${renumerados} contrato(s) renumerados, ${fechados} saída(s) registradas no contrato, `
+      + `${ressincronizados} situação(ões) reafirmadas, `
+      + `${alinhados} início(s) alinhado(s) pela data da entrega`);
+}
 
 /* ===== API (mesmo contrato do painel GAS) ===== */
 const api: Record<string, (a: any) => unknown> = {
@@ -2674,6 +3215,20 @@ const api: Record<string, (a: any) => unknown> = {
                  ORDER BY l.ordem`)
         .map(r => ({ nome: r.nome, tipoPadrao: r.tipo_padrao, kids: r.kids === 1,
           tipoFixo: r.tipo_fixo === 1, categoria: categoriaLivro(r.nome),
+          /* NOME DE EXIBIÇÃO E SIGLA, DE UMA FONTE SÓ (2026-08-23).
+             `livros.nome` é CHAVE ESTRANGEIRA — está em aluno_livro, aulas, aluno_estagio e
+             estoque_item. Renomear a chave é cascata em cinco tabelas, então ela fica como está e
+             quem muda é o que se MOSTRA. A verdade sobre o nome mora na aba Estágios (`estagio.nome`)
+             e a sigla, no `nome_curto` — foi o que ele disse: *"é aqui que eu defino a fonte da
+             verdade sobre os materiais e estágios"*. Sem isto a tela exibia a chave crua e saíam
+             "Next Gen", "L. Kids 2" e "Port 2" no lugar de NEXT GENERATION, LITTLE KIDS 2 e
+             PORTUGUÊS 2. Só o primeiro estágio de cada livro conta: o Kids 4 tem dois (o legado),
+             e os dois têm o mesmo nome. */
+          exibicao: nomeDoLivro(r.nome),
+          sigla: siglaDoLivro(r.nome),
+          /* AVULSO = material sem estágio (ver a migração `material_avulso_v1`). A tela usa isto
+             para não cobrar estrutura pedagógica de um livro que não é da Wizard. */
+          avulso: G("SELECT avulso FROM estoque_item WHERE livro=?", r.nome)?.avulso === 1,
           saldo: r.item_id ? (r.saldo ?? 0) : null })),
       professores: A("SELECT * FROM funcionarios").map(r => ({ id: r.id, nomeCompleto: r.nome_completo, nome: r.nome })),
       turmas: getTurmas() };
@@ -2686,13 +3241,27 @@ const api: Record<string, (a: any) => unknown> = {
     const a = id ? G("SELECT nome, situacao FROM alunos WHERE id_matricula=?", String(id).trim()) : null;
     return { existe: !!a, nome: a?.nome || null, situacao: a?.situacao || null };
   },
+  /* A SITUAÇÃO DE QUEM JÁ EXISTE NÃO SE DIGITA AQUI (2026-08-22).
+     Ela é DERIVADA do histórico — `sincronizarSituacao` lê a linha do tempo e decide, e é assim
+     desde 2026-08-10. O dropdown do cadastro era o último caminho que ainda gravava por fora: dava
+     para pôr "Encerrado" no aluno sem encerrar estágio nenhum, e aí o cadastro dizia uma coisa e o
+     percurso outra. Era metade do que ele relatou naquele caso.
+     Aluno NOVO continua nascendo com a situação informada: ele ainda não tem histórico de onde ela
+     pudesse ser derivada. */
   salvarAluno(a) {
     if (!a?.id || !a?.nome) throw new Error("Nome e ID são obrigatórios.");
-    if (!G("SELECT 1 FROM situacoes WHERE situacao=?", a.situacao)) throw new Error("Situação inválida: " + a.situacao);
     const existe = G("SELECT 1 FROM alunos WHERE id_matricula=?", a.id);
-    existe ? R("UPDATE alunos SET nome=?,situacao=? WHERE id_matricula=?", a.nome, a.situacao, a.id)
-           : R("INSERT INTO alunos VALUES (?,?,?)", a.id, a.nome, a.situacao);
-    return { ok: true, criado: !existe, status: G("SELECT status FROM v_alunos WHERE id_matricula=?", a.id)?.status };
+    if (existe) {
+      R("UPDATE alunos SET nome=? WHERE id_matricula=?", a.nome, a.id);
+      sincronizarSituacao(a.id);            // reafirma o que o histórico diz
+    } else {
+      const sit = a.situacao || "Matriculado";
+      if (!G("SELECT 1 FROM situacoes WHERE situacao=?", sit)) throw new Error("Situação inválida: " + sit);
+      R("INSERT INTO alunos VALUES (?,?,?)", a.id, a.nome, sit);
+    }
+    return { ok: true, criado: !existe,
+      situacao: G("SELECT situacao FROM alunos WHERE id_matricula=?", a.id)?.situacao,
+      status: G("SELECT status FROM v_alunos WHERE id_matricula=?", a.id)?.status };
   },
   excluirAluno: (id) => ({ ok: true, aulasRemovidas: R("DELETE FROM aulas WHERE id_matricula=?", id).changes, aluno: R("DELETE FROM alunos WHERE id_matricula=?", id).changes }),
 
@@ -2736,7 +3305,33 @@ const api: Record<string, (a: any) => unknown> = {
 
   /* ===== matrículas em livro (fonte da verdade de modalidade/VIP/tipo de encontro) ===== */
   /* ordenado pelo contrato: a lista passa a contar a história do aluno na ordem em que aconteceu */
-  getMatriculasAluno: (id) => A("SELECT * FROM aluno_livro WHERE id_matricula=? ORDER BY contrato_seq, rowid", id).map(r => {
+  /* OS CONTRATOS ACUMULAM — o encerrado não some da tela (2026-08-22, ordem dele: *"eu não quero
+     que os livros anteriores sejam deletados... vai ter a aba do W6, a aba do W8"*).
+     `aluno_livro` continua sendo só o que ele cursa HOJE — é dela que saem agenda, modalidade e VIP,
+     e encerrar continua tirando a linha de lá. Quem guarda a vida inteira é `aluno_estagio`, a
+     biografia, que nunca é apagada. A lista de abas é a UNIÃO das duas: o aberto vem com tudo o que
+     dá para editar, o encerrado vem como leitura.
+     Assim as duas tabelas seguem com o papel de cada uma e ele vê /1, /2, /3 enfileirados. */
+  getMatriculasAluno: (id) => {
+  const abertos = A("SELECT * FROM aluno_livro WHERE id_matricula=? ORDER BY contrato_seq, rowid", id);
+  const vivos = new Set(abertos.map(r => r.livro));
+  /* contratos FECHADOS: um por livro, o mais recente de cada, e só os que não estão abertos */
+  const fechados = A(`SELECT ae.livro, ae.contrato_seq, ae.estado
+                      FROM aluno_estagio ae
+                      WHERE ae.id_matricula=? AND ae.estado<>'cursando'
+                      GROUP BY ae.livro HAVING ae.id=MAX(ae.id)`, id)
+    .filter(r => !vivos.has(r.livro))
+    .map(r => ({ id_matricula: id, livro: r.livro, contrato_seq: r.contrato_seq,
+                 modalidade: null, vip: 0, tipo_encontro: null, _fechado: true }));
+  const linhasML = abertos.concat(fechados)
+    .sort((a, b) => (a.contrato_seq || 0) - (b.contrato_seq || 0));
+  /* SÓ COM UM ESTÁGIO dá para atribuir a situação geral do aluno a ele. A coluna `livro` do
+     histórico só existe desde 2026-08-09, então a maioria dos registros antigos não diz de qual
+     curso fala — medido: 42 de 45 matrículas não têm registro próprio. Com dois cursos, dizer que a
+     situação do aluno é a de um deles seria chute, e aí o cartão cai na dedução pelo percurso. */
+  const sitUnica = linhasML.length === 1 ? situacaoCorrente(id) : null;
+  /* (com um contrato só, a situação geral do aluno é a dele — ver a nota acima) */
+  return linhasML.map(r => {
     /* resumo do percurso junto da matrícula, e não numa chamada à parte: o cartão é desenhado por
        `recarregarMatriculas`, que roda ANTES dos históricos — buscar em separado faria o cartão
        nascer sem o dado e só preencher depois (ou pior, ficar com o do aluno anterior). */
@@ -2755,6 +3350,14 @@ const api: Record<string, (a: any) => unknown> = {
     return {
       livro: r.livro, modalidade: r.modalidade, vip: r.vip === 1, tipoEncontro: r.tipo_encontro,
       contratoSeq: r.contrato_seq, contrato: r.contrato_seq ? id + "/" + r.contrato_seq : null,
+      /* CONTRATO ENCERRADO É LEITURA, e quem diz que ele acabou é o PERCURSO — não a ausência da
+         linha operacional. As duas coisas normalmente andam juntas, mas não sempre: contrato que
+         foi fechado sem passar pelo `encerrarLivro` (o acerto de dado de 2026-08-22, por exemplo)
+         fica com o percurso encerrado e a linha de `aluno_livro` ainda lá. Olhar só a linha faria o
+         cartão de uma aluna evadida oferecer "encerrar estágio". */
+      fechado: !!r._fechado || (pc ? pc.estado !== "cursando" : false),
+      /* a situação DESTE estágio, que é o que o seletor do cartão mostra e grava */
+      situacao: situacaoDoEstagio(id, r.livro) ?? sitUnica,
       percurso: pc ? {
         estado: pc.estado, dataInicio: pc.data_inicio, dataFim: pc.data_fim,
         licaoAtual: pc.licao_atual,
@@ -2762,7 +3365,8 @@ const api: Record<string, (a: any) => unknown> = {
         totalLicoes: m ? m.l * m.c + m.c + m.x : null,
       } : null,
     };
-  }),
+  });
+  },
   salvarMatricula({ idMatricula, livro, modalidade, vip, tipoEncontro, confirmado }: any) {
     if (!idMatricula || !livro) throw new Error("Aluno e estágio são obrigatórios.");
     if (!G("SELECT 1 FROM alunos WHERE id_matricula=?", idMatricula)) throw new Error("Aluno não encontrado.");
@@ -2771,14 +3375,25 @@ const api: Record<string, (a: any) => unknown> = {
     if (lv.tipo_fixo === 1) mod = lv.tipo_padrao; // TOTS/L. Kids: modalidade travada
     /* UM ESTÁGIO POR IDIOMA (regra dele, 2026-08-10): *"um aluno não pode fazer dois estágios do
        mesmo idioma ao mesmo tempo, não tem sentido. Ele precisa encerrar o mais antigo para fazer
-       um posterior."* A Rafaela com inglês + espanhol continua valendo: idiomas diferentes.
+       um posterior."* A aluna com inglês + espanhol continua valendo: idiomas diferentes.
        O idioma vem do ESTÁGIO vinculado ao livro; livro sem estágio (o "Kids Esp 1", adaptação
        dele) não trava nada — não dá para afirmar o idioma de algo que não está cadastrado. */
-    const idiomaNovo = G("SELECT idioma FROM estagio WHERE livro=? ORDER BY (status='ativo') DESC, id", livro)?.idioma;
+    const idiomaNovo = G("SELECT idioma FROM estagio WHERE livro=? ORDER BY (status='ativo') DESC, legado, id", livro)?.idioma;
     if (idiomaNovo && !confirmado) {
+      /* SÓ TRAVA O QUE ELE AINDA ESTÁ CURSANDO (corrigido 2026-08-22, relato dele sobre dois
+         alunos). A consulta olhava só `aluno_livro`, que é a tabela OPERACIONAL e não tem
+         noção de "encerrado" — quem terminou o W6 e ainda tinha a linha lá era acusado de fazer
+         dois livros de inglês ao mesmo tempo, e a recepção ficava sem conseguir rematricular.
+         O estado de verdade mora em `aluno_estagio`. Livro SEM percurso nenhum continua travando:
+         é registro antigo, e não dá para afirmar que acabou o que nunca foi registrado. */
       const conflito = A(`SELECT al.livro, e.idioma FROM aluno_livro al
           JOIN estagio e ON e.livro=al.livro
-          WHERE al.id_matricula=? AND al.livro<>? AND e.idioma=?`, idMatricula, livro, idiomaNovo)[0];
+          WHERE al.id_matricula=? AND al.livro<>? AND e.idioma=?
+            AND (EXISTS (SELECT 1 FROM aluno_estagio ae
+                         WHERE ae.id_matricula=al.id_matricula AND ae.livro=al.livro AND ae.estado='cursando')
+                 OR NOT EXISTS (SELECT 1 FROM aluno_estagio ae
+                                WHERE ae.id_matricula=al.id_matricula AND ae.livro=al.livro))`,
+        idMatricula, livro, idiomaNovo)[0];
       if (conflito) return { precisaConfirmar: true, motivo: "idioma",
         livroEmCurso: conflito.livro, idioma: idiomaNovo,
         texto: "Este aluno já está em " + conflito.livro + ", que também é " + idiomaNovo
@@ -2790,8 +3405,9 @@ const api: Record<string, (a: any) => unknown> = {
       R("UPDATE aluno_livro SET modalidade=?,vip=?,tipo_encontro=? WHERE id_matricula=? AND livro=?", mod, vip ? 1 : 0, tipoEncontro || "Presencial", idMatricula, livro);
       return { ok: true, criado: false, modalidade: mod };
     }
-    /* CONTRATO: a ordem do vínculo dentro do aluno, independente de livro ou idioma. */
-    const seq = (G("SELECT MAX(contrato_seq) m FROM aluno_livro WHERE id_matricula=?", idMatricula)?.m || 0) + 1;
+    /* CONTRATO: a ordem do vínculo dentro do aluno, independente de livro ou idioma — e contando os
+       já encerrados, senão o segundo livro nasceria como se fosse o primeiro. */
+    const seq = proximoContrato(idMatricula);
     R("INSERT INTO aluno_livro (id_matricula, livro, modalidade, vip, tipo_encontro, contrato_seq) VALUES (?,?,?,?,?,?)",
       idMatricula, livro, mod, vip ? 1 : 0, tipoEncontro || "Presencial", seq);
     /* Gatilho pedido pelo Vitor: o PRIMEIRO contrato do aluno é uma matrícula; do segundo em
@@ -2847,7 +3463,7 @@ const api: Record<string, (a: any) => unknown> = {
     /* trocar de livro é um vínculo NOVO, logo um contrato novo — sem isto a matrícula nascia com a
        pílula "2068/—" e o percurso dela ficava sem contrato nenhum. O vínculo antigo guarda o
        número dele, que continua valendo para a história. */
-    const seqNovo = (G("SELECT MAX(contrato_seq) m FROM aluno_livro WHERE id_matricula=?", idMatricula)?.m || 0) + 1;
+    const seqNovo = proximoContrato(idMatricula);
     R("INSERT INTO aluno_livro (id_matricula, livro, modalidade, vip, tipo_encontro, contrato_seq) VALUES (?,?,?,?,?,?)", idMatricula, livroNovo, mod, antiga.vip, antiga.tipo_encontro, seqNovo);
     const aulasMovidas = R("UPDATE aulas SET livro=? WHERE id_matricula=? AND livro=?", livroNovo, idMatricula, livroAntigo).changes;
     R("DELETE FROM aluno_livro WHERE id_matricula=? AND livro=?", idMatricula, livroAntigo);
@@ -2857,6 +3473,64 @@ const api: Record<string, (a: any) => unknown> = {
     const fechou = fecharPercurso(idMatricula, livroAntigo, "encerrado");
     abrirPercurso(idMatricula, livroNovo);
     return { ok: true, aulasMovidas, modalidade: mod, percursoFechado: fechou };
+  },
+
+  /* ENCERRAR O LIVRO (2026-08-22) — o gesto que faltava, e que é o do dia a dia.
+     Quando o aluno TERMINA um estágio, o vínculo operacional precisa sair para o próximo poder
+     entrar: a trava de idioma lê `aluno_livro`, e enquanto a linha antiga estiver lá o sistema jura
+     que ele faz dois livros do mesmo idioma ao mesmo tempo. Sem esta rota a única saída era
+     `trocarLivroAluno` — que exige já saber o livro seguinte — ou apagar a matrícula à mão, que foi
+     o que acabou deixando um aluno sem livro nenhum.
+     SAI SÓ O OPERACIONAL: a matrícula e a agenda (as aulas vão pela cascata da FK). FICAM a
+     biografia em `aluno_estagio`, a frequência e as entregas — é exatamente para isso que as duas
+     tabelas existem separadas. */
+  encerrarLivro({ idMatricula, livro, data, estado, confirmado }: any) {
+    if (!idMatricula || !livro) throw new Error("Aluno e estágio são obrigatórios.");
+    if (!G("SELECT 1 FROM aluno_livro WHERE id_matricula=? AND livro=?", idMatricula, livro))
+      throw new Error("Matrícula em " + livro + " não encontrada.");
+    const est = ["encerrado", "evadido", "trancado", "cancelado"].includes(estado) ? estado : "encerrado";
+    /* PERGUNTA SEMPRE. Encerrar não é só marcar uma data: leva junto a matrícula e a AGENDA do
+       aluno (dias, horas e professores caem pela cascata da FK). Confirmação silenciosa em ação que
+       apaga agenda é o tipo de coisa que só se descobre na semana seguinte, com o aluno na porta.
+       Quando dá para saber a lição em que ele está, o aviso diz o quanto falta — que foi o pedido
+       dele, "o aluno ainda está cursando, falta muito para terminar". */
+    if (!confirmado) {
+      const p = G(`SELECT ae.licao_atual,
+                     (SELECT COUNT(*) FROM estagio_licao l WHERE l.dono_id=ae.estagio_id) total
+                   FROM aluno_estagio ae
+                   WHERE ae.id_matricula=? AND ae.livro=? AND ae.estado='cursando'
+                   ORDER BY ae.id DESC LIMIT 1`, idMatricula, livro);
+      const aulas = G("SELECT COUNT(*) n FROM aulas WHERE id_matricula=? AND livro=?", idMatricula, livro)?.n || 0;
+      const meio = !!(p?.total && p.licao_atual != null && p.licao_atual < p.total);
+      return { precisaConfirmar: true, motivo: meio ? "meio" : "fim",
+        licao: p?.licao_atual ?? null, total: p?.total ?? null, aulas,
+        texto: (meio
+          ? "Este aluno está na lição " + p.licao_atual + " de " + p.total + " em " + livro
+            + " — ainda falta livro para terminar.\n\n"
+          : "Encerrar " + livro + " para este aluno.\n\n")
+          + (aulas ? "A agenda deste estágio sai junto (" + aulas + " aula(s) por semana). " : "")
+          + "A frequência, as entregas e o percurso continuam registrados." };
+    }
+    const fechou = fecharPercurso(idMatricula, livro, est, data);
+    const aulas = G("SELECT COUNT(*) n FROM aulas WHERE id_matricula=? AND livro=?", idMatricula, livro)?.n || 0;
+    R("DELETE FROM aluno_livro WHERE id_matricula=? AND livro=?", idMatricula, livro); // a cascata leva as aulas
+    const rotulo = est === "evadido" ? "Evadido" : est === "trancado" ? "Trancado"
+      : est === "cancelado" ? "Cancelado" : "Encerrado";
+    try {
+      R("INSERT INTO aluno_situacao_historico (id_matricula,situacao,data,livro) VALUES (?,?,?,?)",
+        idMatricula, rotulo, data || dataISO(new Date()), livro);
+    } catch { /* já havia registro igual na mesma data e livro — não é erro */ }
+    /* A SITUAÇÃO DO ALUNO SAI DO HISTÓRICO, não daqui (corrigido 2026-08-22). A primeira versão
+       desta rota gravava `alunos.situacao` na mão — e era o mesmo furo que o dropdown do cadastro
+       tinha: dois lugares decidindo o mesmo campo acabam discordando. `sincronizarSituacao` lê a
+       linha do tempo inteira e resolve, inclusive o caso do "Retornado", que não é estado e sim
+       fato. O percurso deste estágio também se refaz a partir da linha do tempo. */
+    sincronizarPercurso(idMatricula, livro);
+    const corrente = sincronizarSituacao(idMatricula);
+    const restam = G("SELECT COUNT(*) n FROM aluno_livro WHERE id_matricula=?", idMatricula)?.n || 0;
+    return { ok: true, percursoFechado: fechou, aulasRemovidas: aulas, restam, estado: est, rotulo,
+      situacaoCorrente: corrente,
+      status: G("SELECT status FROM v_alunos WHERE id_matricula=?", idMatricula)?.status };
   },
 
   /* ===== histórico de situação (linha do tempo manual: matrícula/rematrícula/etc por data) ===== */
@@ -2943,6 +3617,12 @@ const api: Record<string, (a: any) => unknown> = {
   getEstoque() {
     const linha = (i: any) => ({
       id: i.id, descricao: i.descricao, codigo: i.codigo || "", livro: i.livro || null,
+      /* QUEM MANDA NO NOME. Com estágio, a descrição é espelho dele e a tela mostra travada — senão
+         o campo aceitaria uma edição que o próximo salvamento do estágio desfaria em silêncio.
+         `avulso` é o material que não é estágio Wizard (Kids Esp 1): ali a descrição é a única
+         fonte que existe, e continua editável. */
+      temEstagio: !!(i.livro && G("SELECT 1 FROM estagio WHERE livro=?", i.livro)),
+      avulso: i.avulso === 1,
       edicaoNome: i.edicao_nome || "", edicaoAno: i.edicao_ano ?? null,
       unidade: i.unidade, tipo: i.tipo || (i.componente === 1 ? "peca" : (i.unidade === "kit" ? "kit" : "unidade")),
       finalidade: i.finalidade, minimo: i.minimo, ativo: i.ativo === 1, final: i.final === 1,
@@ -2964,7 +3644,7 @@ const api: Record<string, (a: any) => unknown> = {
     const eventos = A("SELECT * FROM estoque_evento WHERE arquivado IS NULL ORDER BY data, id").map(e => ({
       id: e.id, tipo: e.tipo, data: e.data, observacao: e.observacao || "",
       pedidoId: e.pedido_id || null, confirmado: e.confirmado !== 0,
-      /* exemplares que já entraram por conta deste pedido, agrupados por material: é o que a tela
+      /* unidades que já entraram por conta deste pedido, agrupados por material: é o que a tela
          abre quando ele confirma a chegada de um item, para digitar o código de barras de cada um */
       ...(e.tipo === "pedido" ? { recebidos: (() => {
         const por: Record<number, any[]> = {};
@@ -2978,8 +3658,19 @@ const api: Record<string, (a: any) => unknown> = {
       })() } : {}),
       /* o pedido carrega a própria situação na fila: aguardando, parcial ou recebido */
       ...(e.tipo === "pedido" ? { situacao: situacaoPedido(e.id) } : {}),
-      itens: Object.fromEntries(A("SELECT item_id, quantidade, nota FROM estoque_evento_item WHERE evento_id=?", e.id)
-        .map(r => [r.item_id, { q: r.quantidade, nota: r.nota || null }])),
+      /* itens do evento: o TOTAL por material — que é como a grade sempre leu, e por isso não
+         mudou — e junto a quebra por edição em `ed`, onde a chave `0` é a parte pedida sem edição
+         declarada. Somar aqui, e não na tela, mantém a conta num lugar só. */
+      itens: (() => {
+        const por: Record<number, any> = {};
+        for (const r of A("SELECT item_id, edicao_id, quantidade, nota FROM estoque_evento_item WHERE evento_id=?", e.id)) {
+          const li = (por[r.item_id] ||= { q: 0, nota: null, ed: {} });
+          li.q += r.quantidade;
+          li.ed[r.edicao_id ?? 0] = r.quantidade;
+          if (r.nota) li.nota = r.nota;
+        }
+        return por;
+      })(),
     }));
     /* entregas viram colunas de SAÍDA agregadas por período entre contagens — uma coluna por dia de
        entrega encheria a grade (são 127 matrículas). O dia exato fica na entrega e aparece no
@@ -3001,21 +3692,24 @@ const api: Record<string, (a: any) => unknown> = {
       i.sugestao = Math.max(0, i.minimo - i.saldo - i.pedidoPendente);
       /* as unidades na prateleira, da mais antiga para a mais nova: é a fila de saída, e é o que o
          acordeão da linha abre. Só as que não saíram — o que foi entregue vive na aba Entregas. */
-      /* EDIÇÕES do material, com quantos exemplares cada uma tem na prateleira — é o que alimenta
+      /* EDIÇÕES do material, com quantas unidades cada uma tem na prateleira — é o que alimenta
          as pílulas de filtro da fila. Vem sempre, mesmo com zero, para a edição existir na tela
-         antes de chegar o primeiro exemplar dela. */
+         antes de chegar o primeira unidade dela. */
       /* ATIVAS primeiro (mais recente na frente, que é a que se usa), arquivadas no fim — é a ordem
          que ele pediu: "quando arquiva, vai pro fundo com aparência de desativado". */
-      i.edicoes = A(`SELECT e.id, e.nome, e.ano, e.padrao, e.arquivada,
+      i.edicoes = A(`SELECT e.id, e.nome, e.ano, e.padrao, e.legada, e.arquivada,
                        (SELECT COUNT(*) FROM estoque_unidade u
-                        WHERE u.edicao_id=e.id AND u.entrega_id IS NULL AND u.arquivado IS NULL) saldo,
+                        WHERE u.edicao_id=e.id AND u.entrega_id IS NULL AND u.arquivado IS NULL
+                          AND u.finalidade='venda') saldo,
                        (SELECT COUNT(*) FROM estoque_unidade u WHERE u.edicao_id=e.id) total
                      FROM estoque_edicao e WHERE e.item_id=?
                      ORDER BY (e.arquivada IS NOT NULL), e.padrao DESC, COALESCE(e.ano,0) DESC, e.id DESC`, i.id)
         .map(e => ({ id: e.id, nome: e.nome, ano: e.ano ?? null, saldo: e.saldo, total: e.total,
-                     padrao: e.padrao === 1, arquivada: e.arquivada || null }));
+                     padrao: e.padrao === 1, legada: e.legada === 1, arquivada: e.arquivada || null }));
+      /* A FILA INTEIRA vem numa lista só, com a finalidade em cada linha — a tela separa nas duas
+         abas. Duas consultas dariam dois lugares para a mesma pergunta ficar desatualizada. */
       i.unidades = A(`SELECT u.id, u.entrada, u.origem, u.codigo, u.numero, u.conferido,
-                             u.edicao_id, ed.nome AS edicao_nome, ev.data AS remessa
+                             u.edicao_id, u.finalidade, ed.nome AS edicao_nome, ev.data AS remessa
                       FROM estoque_unidade u
                       LEFT JOIN estoque_evento ev ON ev.id=u.remessa_id
                       LEFT JOIN estoque_edicao ed ON ed.id=u.edicao_id
@@ -3023,6 +3717,7 @@ const api: Record<string, (a: any) => unknown> = {
         .map(u => ({ id: u.id, entrada: u.entrada, origem: u.origem, codigo: u.codigo || "",
                      numero: u.numero ?? null, conferido: u.conferido || null,
                      edicaoId: u.edicao_id ?? null, edicao: u.edicao_nome || "",
+                     finalidade: u.finalidade || "venda",
                      remessa: u.remessa || null }));
     });
     /* colunas de SAÍDA: entregas COM data, agrupadas pelo período entre contagens em que caíram.
@@ -3122,10 +3817,14 @@ const api: Record<string, (a: any) => unknown> = {
        a caixa contra o pedido — o gesto é "chegou tudo?" e não "digite de novo o que você já
        pediu". Quem recebeu menos corrige para baixo, e o pedido continua parcial. */
     if (pedidoId)
-      for (const [itemId, q] of Object.entries(faltaDoPedido(pedidoId)))
-        if (q > 0) R("INSERT INTO estoque_evento_item (evento_id,item_id,quantidade) VALUES (?,?,?)", id, Number(itemId), q);
+      for (const [k, q] of Object.entries(faltaDoPedidoEd(pedidoId)))
+        if (q > 0) {
+          const { itemId, edicaoId } = parteEd(k);
+          R("INSERT INTO estoque_evento_item (evento_id,item_id,edicao_id,quantidade) VALUES (?,?,?,?)",
+            id, itemId, edicaoId, q);
+        }
     /* CONTAGEM não é mais criada pela tela (decisão dele, 2026-08-10: era herança do caderno, e com
-       cada exemplar registrado não há o que recontar). As contagens antigas continuam no banco como
+       cada unidade registrada não há o que recontar). As contagens antigas continuam no banco como
        história — é delas que saíram as unidades da virada. */
     return { ok: true, id };
   },
@@ -3134,7 +3833,7 @@ const api: Record<string, (a: any) => unknown> = {
      "conferi e não tem", vazio é "não contei". */
   /* CONFIRMAR A CHEGADA: transforma as quantidades lançadas na remessa em unidades de verdade.
      É o gesto que ele descreveu — *"a gente só confirma: material está certo? Sim. Aí vai gerar um
-     timestamp para cada material que veio"*. Cada exemplar ganha um instante próprio (milissegundo
+     timestamp para cada material que veio"*. Cada unidade ganha um instante próprio (milissegundo
      por posição), que é o que ordena a fila de entrega depois.
      Idempotente: uma remessa já confirmada não gera unidade de novo. */
   /* Fecha o RASCUNHO: o pedido deixa de listar o catálogo inteiro e passa a ser só o que foi
@@ -3147,18 +3846,29 @@ const api: Record<string, (a: any) => unknown> = {
     const itens = A("SELECT item_id, quantidade FROM estoque_evento_item WHERE evento_id=?", eventoId);
     if (!itens.length) throw new Error("Nenhum material foi pedido — preencha ao menos um.");
     R("UPDATE estoque_evento SET confirmado=1 WHERE id=?", eventoId);
-    return { ok: true, materiais: itens.length,
+    /* MATERIAIS são materiais DISTINTOS, não linhas: desde que o pedido virou por edição, um livro
+       pedido em duas edições são duas linhas e continuam sendo UM material. Contar linhas fazia o
+       aviso dizer "3 materiais" para quem pediu dois. */
+    return { ok: true, materiais: new Set(itens.map(i => i.item_id)).size,
       total: itens.reduce((s, i) => s + i.quantidade, 0) };
   },
   /* CHEGADA DE UM MATERIAL do pedido. A remessa deixou de ser criada à mão: ela é "o pedido
      chegado", então nasce sozinha na primeira confirmação e as demais se penduram nela.
-     Cada exemplar vira uma unidade com instante próprio — é o que alimenta a fila FIFO. */
-  receberItemPedido({ pedidoId, itemId, quantidade }: any) {
+     Cada unidade vira uma unidade com instante próprio — é o que alimenta a fila FIFO. */
+  receberItemPedido({ pedidoId, itemId, edicaoId, quantidade }: any) {
     const ped = G("SELECT * FROM estoque_evento WHERE id=? AND tipo='pedido'", pedidoId);
     if (!ped) throw new Error("Pedido não encontrado.");
-    const falta = faltaDoPedido(pedidoId)[itemId] || 0;
-    const q = Math.max(0, Math.min(falta, parseInt(quantidade, 10) || falta));
-    if (!q) return { ok: true, unidades: [], jaChegou: true };
+    /* AS LINHAS DESTE MATERIAL que ainda faltam — uma por edição pedida. Sem `edicaoId` chegam
+       todas, que é o gesto da chegada em lote: ela não pergunta a edição porque o PEDIDO já
+       respondeu. Com `edicaoId`, chega só aquela. */
+    const linhas = Object.entries(faltaDoPedidoEd(pedidoId))
+      .map(([k, falta]) => ({ ...parteEd(k), falta }))
+      .filter(l => l.itemId === Number(itemId) && l.falta > 0
+        && (edicaoId == null || (l.edicaoId ?? 0) === Number(edicaoId)));
+    /* `quantidade` é a caixa que veio com MENOS do que se pediu: desce pelas linhas na ordem,
+       gastando o que falta de cada uma. Ausente, chega tudo — que é como a tela sempre chamou. */
+    let resta = quantidade == null || quantidade === "" ? null : Math.max(0, parseInt(quantidade, 10) || 0);
+    if (!linhas.length || resta === 0) return { ok: true, unidades: [], jaChegou: true };
     /* uma remessa por pedido, criada na hora em que a primeira caixa é confirmada */
     let rem = G("SELECT * FROM estoque_evento WHERE tipo='remessa' AND pedido_id=? ORDER BY id LIMIT 1", pedidoId);
     if (!rem) {
@@ -3166,23 +3876,35 @@ const api: Record<string, (a: any) => unknown> = {
         dataISO(new Date()), agora(), pedidoId).lastInsertRowid);
       rem = G("SELECT * FROM estoque_evento WHERE id=?", id);
     }
-    R(`INSERT INTO estoque_evento_item (evento_id,item_id,quantidade) VALUES (?,?,?)
-       ON CONFLICT(evento_id,item_id) DO UPDATE SET quantidade=quantidade+excluded.quantidade`,
-      rem.id, itemId, q);
     const base = agora();                       // 'YYYY-MM-DD HH:MM:SS'
-    const jaTem = G("SELECT COUNT(*) n FROM estoque_unidade WHERE item_id=?", itemId)?.n || 0;
+    /* o milissegundo corre por MATERIAL, não por linha: duas edições do mesmo livro chegando na
+       mesma caixa não podem disputar o mesmo instante — é ele que ordena a fila de entrega. */
+    let seq = G("SELECT COUNT(*) n FROM estoque_unidade WHERE item_id=?", itemId)?.n || 0;
     let numero = proximoNumero(itemId);         // o que ele vai escrever de caneta na etiqueta
     const novas: any[] = [];
-    for (let i = 0; i < q; i++) {
-      const ms = ("00" + ((jaTem + i) % 1000)).slice(-3);
-      const n = numero++;
-      const id = Number(R(`INSERT INTO estoque_unidade (item_id,remessa_id,entrada,origem,momento,numero)
-         VALUES (?,?,?,'remessa',?,?)`, itemId, rem.id, base + "." + ms, base, n).lastInsertRowid);
-      novas.push({ id, entrada: base + "." + ms, numero: n });
+    for (const l of linhas) {
+      const q = resta == null ? l.falta : Math.min(l.falta, resta);
+      if (q <= 0) continue;
+      if (resta != null) resta -= q;
+      /* A LINHA DA REMESSA guarda a edição PEDIDA (`l.edicaoId`), não a resolvida: é ela que
+         `faltaDoPedidoEd` vai abater. Guardar a resolvida faria a linha "tanto faz" nunca fechar. */
+      R(`INSERT INTO estoque_evento_item (evento_id,item_id,edicao_id,quantidade) VALUES (?,?,?,?)
+         ON CONFLICT(evento_id,item_id,COALESCE(edicao_id,0)) DO UPDATE SET quantidade=quantidade+excluded.quantidade`,
+        rem.id, itemId, l.edicaoId, q);
+      /* O EXEMPLAR, esse, nasce com a edição RESOLVIDA — e pedido sem edição declarada ainda
+         acerta quando o material só tem uma. É o que faz a caixa entrar já etiquetada. */
+      const ed = l.edicaoId ?? edicaoDeEntrada(Number(itemId));
+      for (let i = 0; i < q; i++) {
+        const ms = ("00" + (seq++ % 1000)).slice(-3);
+        const n = numero++;
+        const id = Number(R(`INSERT INTO estoque_unidade (item_id,remessa_id,entrada,origem,momento,numero,edicao_id)
+           VALUES (?,?,?,'remessa',?,?,?)`, itemId, rem.id, base + "." + ms, base, n, ed).lastInsertRowid);
+        novas.push({ id, entrada: base + "." + ms, numero: n, edicaoId: ed });
+      }
     }
     /* QUEM ESTAVA ESPERANDO ESTE MATERIAL. Vai junto na resposta, e não numa segunda chamada, porque
        é exatamente neste instante que a informação vale: a caixa acabou de ser aberta e a recepção
-       está com os livros na mão. Descobrir dois dias depois que a Rafaela esperava é tarde. */
+       está com os livros na mão. Descobrir dois dias depois que a aluna esperava é tarde. */
     return { ok: true, unidades: novas, remessaId: rem.id, saldo: saldoItem(itemId),
       descricao: G("SELECT descricao FROM estoque_item WHERE id=?", itemId)?.descricao || "",
       esperando: aguardandoDoItem(itemId) };
@@ -3190,7 +3912,7 @@ const api: Record<string, (a: any) => unknown> = {
   /* DESFAZER a chegada de um pedido: some com as unidades que ela criou e com a remessa, e o pedido
      volta ao que era — só os números pedidos, sem nada recebido.
      Só desfaz o que ainda está na prateleira: unidade JÁ ENTREGUE a um aluno não volta atrás, senão
-     o sistema apagaria um exemplar que está fisicamente com alguém. Nesse caso a rota recusa e diz
+     o sistema apagaria uma unidade que está fisicamente com alguém. Nesse caso a rota recusa e diz
      quantos são, porque a saída certa é desfazer a entrega primeiro. */
   /* observação do pedido: o "chegou em parte" saiu e este campo entrou no lugar — o que aconteceu
      de diferente numa remessa é texto, não um estado a mais */
@@ -3223,7 +3945,7 @@ const api: Record<string, (a: any) => unknown> = {
       return { ok: true, jaConfirmada: true, unidades: 0 };
     /* o carimbo nasce da DATA DA REMESSA, não do instante em que se clicou em confirmar: quem
        lança hoje uma caixa que chegou semana passada tem de entrar na fila na semana passada,
-       senão ela fura a ordem e o exemplar mais novo sai antes do mais velho.
+       senão ela fura a ordem e a unidade mais novo sai antes do mais velho.
        A hora vem do relógio só para desempatar duas remessas do mesmo dia. */
     const rel = agora().slice(11);      // 'HH:MM:SS'
     const base = ev.data + " " + rel;
@@ -3247,36 +3969,47 @@ const api: Record<string, (a: any) => unknown> = {
     })).filter(x => x.alunos.length);
     return { ok: true, unidades: n, data: ev.data, esperando };
   },
-  /* Ajusta um exemplar: o instante de entrada (que é o lugar dele na FILA) e o código de barras da
+  /* Ajusta uma unidade: o instante de entrada (que é o lugar dele na FILA) e o código de barras da
      etiqueta. O instante é editável a pedido dele — caixa lançada com a data errada tira a ordem do
      lugar, e sem isto a única saída seria apagar e relançar.
      Os milissegundos originais são preservados: o input só dá minutos, e zerá-los empataria
-     exemplares que estavam desempatados. */
-  ajustarUnidade({ id, entrada, codigo, numero, conferir }: any) {
+     unidades que estavam desempatados. */
+  ajustarUnidade({ id, entrada, codigo, numero, conferir, finalidade }: any) {
     const u = G("SELECT * FROM estoque_unidade WHERE id=?", id);
-    if (!u) throw new Error("Exemplar não encontrado.");
+    if (!u) throw new Error("Unidade não encontrada.");
+    let trocou = false;
+    /* PASSAR DE VENDA PARA ESCOLA (e voltar). Uma unidade já ENTREGUE a aluno não muda de lado: ela
+       está fisicamente com alguém, e reclassificá-la reescreveria o saldo do passado. */
+    if (finalidade === "venda" || finalidade === "escola") {
+      if (u.entrega_id) throw new Error("Esta unidade está com um aluno — desfaça a entrega antes.");
+      R("UPDATE estoque_unidade SET finalidade=? WHERE id=?", finalidade, id);
+    }
     if (codigo !== undefined) R("UPDATE estoque_unidade SET codigo=? WHERE id=?", String(codigo || "").trim() || null, id);
-    /* NÚMERO DA ETIQUETA, editável: os exemplares que já estão na prateleira podem ter sido
+    /* NÚMERO DA ETIQUETA, editável: as unidades que já estão na prateleira podem ter sido
        numerados à mão antes do sistema, e é preciso dizer qual número está escrito em qual.
-       Teto = quantos exemplares o material tem (não existe "nº 7" num material com 5), exceto se
-       algum número maior já estiver em uso — o que acontece quando um exemplar foi apagado.
-       Número já usado por outro exemplar TROCA com ele, em vez de recusar: sem a troca não haveria
-       como rearranjar dois exemplares, só apagar e recriar. */
+       Teto = quantas unidades o material tem (não existe "nº 7" num material com 5), exceto se
+       algum número maior já estiver em uso — o que acontece quando uma unidade foi apagado.
+       Número já usado por outra unidade TROCA com ele, em vez de recusar: sem a troca não haveria
+       como rearranjar duas unidades, só apagar e recriar. */
     if (numero !== undefined && numero !== null && numero !== "") {
       const n = parseInt(String(numero), 10);
       if (!Number.isFinite(n) || n < 1) throw new Error("O número da etiqueta começa em 1.");
       const total = G("SELECT COUNT(*) n FROM estoque_unidade WHERE item_id=?", u.item_id)?.n || 0;
       const maior = G("SELECT MAX(numero) m FROM estoque_unidade WHERE item_id=?", u.item_id)?.m || 0;
       const teto = Math.max(total, maior);
-      if (n > teto) throw new Error("Este material tem " + teto + " exemplar(es) — o número " + n + " não existe.");
+      if (n > teto) throw new Error("Este material tem " + teto + " unidade(s) — o número " + n + " não existe.");
       const dono = G("SELECT id FROM estoque_unidade WHERE item_id=? AND numero=? AND id<>?", u.item_id, n, id);
       if (dono) R("UPDATE estoque_unidade SET numero=? WHERE id=?", u.numero ?? null, dono.id);
       R("UPDATE estoque_unidade SET numero=? WHERE id=?", n, id);
+      /* A TELA PRECISA SABER DA TROCA para decidir se redesenha. Trocar mexe em DUAS linhas, e só
+         nesse caso o redesenho se justifica — nos outros ele custa o scroll e o foco de quem está
+         digitando (ver a nota sobre redesenho destrutivo em `esCodigoUnidade`). */
+      trocou = !!dono;
     }
-    /* CONFERIR o exemplar: marca que ele foi conferido contra a caixa, e SÓ ISSO. Antes este era o
-       botão "carimbar", que reescrevia `entrada` — ou seja, mudava o lugar do exemplar na fila a
+    /* CONFERIR a unidade: marca que ele foi conferido contra a caixa, e SÓ ISSO. Antes este era o
+       botão "carimbar", que reescrevia `entrada` — ou seja, mudava o lugar da unidade na fila a
        cada conferência, e era a origem da inconsistência entre número e instante.
-       Desmarcar é permitido: quem clicou no exemplar errado precisa poder voltar. */
+       Desmarcar é permitido: quem clicou na unidade errada precisa poder voltar. */
     if (conferir !== undefined) {
       R("UPDATE estoque_unidade SET conferido=? WHERE id=?", conferir ? agora() : null, id);
       return { ok: true, conferido: conferir ? agora() : null, saldo: saldoItem(u.item_id),
@@ -3288,11 +4021,31 @@ const api: Record<string, (a: any) => unknown> = {
       if (!/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(base)) throw new Error("Data e hora inválidas.");
       R("UPDATE estoque_unidade SET entrada=? WHERE id=?", base + ":00." + ms, id);
     }
-    return { ok: true, saldo: saldoItem(u.item_id), conflitos: conflitosDeNumero(u.item_id) };
+    return { ok: true, trocou, saldo: saldoItem(u.item_id), conflitos: conflitosDeNumero(u.item_id) };
+  },
+  /* RENUMERAR PELA ORDEM DE CHEGADA (2026-08-22).
+     Liberado por ele: *"pode corrigir a ordem sim, porque primeiro eu faço no computador, depois eu
+     faço no físico"*. O número da etiqueta é escrito a caneta na unidade e a fila sai por
+     `entrada` — quando ele retrodata a entrada de uma unidade que já tinha número, as duas ordens
+     passam a discordar. `conflitosDeNumero` já acusava; faltava o conserto, que na mão só dava para
+     fazer trocando de dois em dois.
+     NÃO É AUTOMÁTICO, de propósito: renumerar a cada edição de data mexeria em número já escrito no
+     livro físico. Ele pede, o sistema mostra o que vai mudar, e só então aplica. */
+  renumerarUnidades({ itemId, confirmado }: any) {
+    const it = G("SELECT id, descricao FROM estoque_item WHERE id=?", itemId);
+    if (!it) throw new Error("Material não encontrado.");
+    const us = A("SELECT id, numero FROM estoque_unidade WHERE item_id=? ORDER BY entrada, id", itemId);
+    const plano = us.map((u, i) => ({ id: u.id, de: u.numero ?? null, para: i + 1 }))
+      .filter(p => p.de !== p.para);
+    if (!confirmado)
+      return { precisaConfirmar: true, material: it.descricao, plano, total: us.length };
+    us.forEach((u, i) => R("UPDATE estoque_unidade SET numero=? WHERE id=?", i + 1, u.id));
+    return { ok: true, material: it.descricao, plano, total: us.length,
+      conflitos: conflitosDeNumero(itemId) };
   },
   /* ===== EDIÇÕES DE UM MATERIAL =====
      Criar e renomear; NÃO apagar (regra dele: *"apagar não dá para apagar, mas talvez alterar ou
-     adicionar edição nova"*) — e é o certo, porque exemplar entregue a aluno aponta para a edição
+     adicionar edição nova"*) — e é o certo, porque unidade entregue a aluno aponta para a edição
      e apagá-la deixaria o rastro sem nome. */
   salvarEdicao({ id, itemId, nome, ano }: any) {
     const n = String(nome ?? "").trim();
@@ -3314,7 +4067,7 @@ const api: Record<string, (a: any) => unknown> = {
     sincronizarEdicaoDoItem(itemId);
     return { ok: true, id: Number(r.lastInsertRowid), itemId };
   },
-  /* ARQUIVAR / DESARQUIVAR uma edição. Nunca apagar: exemplar entregue aponta para ela.
+  /* ARQUIVAR / DESARQUIVAR uma edição. Nunca apagar: unidade entregue aponta para ela.
      Arquivar a que era PADRÃO passa o posto para a próxima ativa — o material não pode ficar sem
      edição corrente enquanto tiver alguma viva. */
   arquivarEdicao({ id, desarquivar }: any) {
@@ -3324,9 +4077,17 @@ const api: Record<string, (a: any) => unknown> = {
       desarquivar ? null : agora(), desarquivar ? ed.padrao : 0, id);
     const nova = sincronizarEdicaoDoItem(ed.item_id);
     return { ok: true, padraoAgora: nova?.nome ?? null,
-      exemplares: G("SELECT COUNT(*) n FROM estoque_unidade WHERE edicao_id=?", id)?.n || 0 };
+      unidades: G("SELECT COUNT(*) n FROM estoque_unidade WHERE edicao_id=?", id)?.n || 0 };
   },
-  /* a edição que os exemplares novos herdam. Uma por material — marcar outra desmarca a anterior. */
+  /* MARCAR A EDIÇÃO COMO LEGADA. É aqui que a informação nasce — o estágio só a reflete. Legada não
+     impede nada: ela continua entregável e com aluno cursando; só diz qual das duas é a antiga. */
+  edicaoLegada({ id, legada }: any) {
+    const ed = G("SELECT item_id FROM estoque_edicao WHERE id=?", id);
+    if (!ed) throw new Error("Edição não encontrada.");
+    R("UPDATE estoque_edicao SET legada=? WHERE id=?", legada ? 1 : 0, id);
+    return { ok: true, legada: !!legada };
+  },
+  /* a edição que as unidades novas herdam. Uma por material — marcar outra desmarca a anterior. */
   edicaoPadraoDoItem({ id }: any) {
     const ed = G("SELECT * FROM estoque_edicao WHERE id=?", id);
     if (!ed) throw new Error("Edição não encontrada.");
@@ -3336,10 +4097,10 @@ const api: Record<string, (a: any) => unknown> = {
     sincronizarEdicaoDoItem(ed.item_id);
     return { ok: true };
   },
-  /* a edição de UM exemplar. Nula é legítima: exemplar antigo cuja edição ninguém anotou. */
+  /* a edição de UMA unidade. Nula é legítima: unidade antiga cuja edição ninguém anotou. */
   definirEdicaoUnidade({ id, edicaoId }: any) {
     const u = G("SELECT item_id FROM estoque_unidade WHERE id=?", id);
-    if (!u) throw new Error("Exemplar não encontrado.");
+    if (!u) throw new Error("Unidade não encontrada.");
     if (edicaoId) {
       const ed = G("SELECT item_id FROM estoque_edicao WHERE id=?", edicaoId);
       if (!ed || ed.item_id !== u.item_id) throw new Error("Essa edição não é deste material.");
@@ -3349,7 +4110,7 @@ const api: Record<string, (a: any) => unknown> = {
   },
   /* ENTRADA DIRETA, sem pedido (2026-08-16). Regra dele: *"a entrada vai servir mais para quando a
      gente faz pedido; só que a edição, manipulação vai ser a mesma"*. O caso que a pediu é o de
-     agora — os exemplares que JÁ estão na prateleira e nunca passaram por um pedido no sistema
+     agora — as unidades que JÁ estão na prateleira e nunca passaram por um pedido no sistema
      precisam entrar para receber número, código e carimbo.
      `origem='manual'` já existia no CHECK desde o primeiro dia da unidade física; era o buraco que
      faltava preencher. Sem remessa ligada: não houve caixa, e inventar uma criaria um pedido que
@@ -3361,24 +4122,28 @@ const api: Record<string, (a: any) => unknown> = {
     const it = G("SELECT id, descricao FROM estoque_item WHERE id=?", itemId);
     if (!it) throw new Error("Material não encontrado.");
     const q = Math.max(0, Math.min(200, parseInt(quantidade, 10) || 0));
-    if (!q) throw new Error("Informe quantos exemplares estão entrando.");
+    if (!q) throw new Error("Informe quantas unidades estão entrando.");
     const base = agora();
     const jaTem = G("SELECT COUNT(*) n FROM estoque_unidade WHERE item_id=?", itemId)?.n || 0;
     let numero = proximoNumero(itemId);
+    /* a unidade nasce já com a edição corrente do material (2026-08-22, pedido dele). Antes ela
+       entrava em branco e ele abria uma a uma para dizer a mesma coisa em todas. Continua trocável
+       na fila: é para poupar o trabalho repetido, não para decidir no lugar dele. */
+    const ed = edicaoDeEntrada(Number(itemId));
     const novas: any[] = [];
     for (let i = 0; i < q; i++) {
       const entrada = base + "." + ("00" + ((jaTem + i) % 1000)).slice(-3);
       const n = numero++;
-      const id = Number(R(`INSERT INTO estoque_unidade (item_id,remessa_id,entrada,origem,momento,numero)
-         VALUES (?,NULL,?,'manual',?,?)`, itemId, entrada, base, n).lastInsertRowid);
-      novas.push({ id, entrada, numero: n });
+      const id = Number(R(`INSERT INTO estoque_unidade (item_id,remessa_id,entrada,origem,momento,numero,edicao_id)
+         VALUES (?,NULL,?,'manual',?,?,?)`, itemId, entrada, base, n, ed).lastInsertRowid);
+      novas.push({ id, entrada, numero: n, edicaoId: ed });
     }
-    /* entrada manual também avisa: o exemplar que estava na estante e acabou de ganhar número é
+    /* entrada manual também avisa: a unidade que estava na estante e acabou de ganhar número é
        tão entregável quanto o que veio na caixa */
     return { ok: true, unidades: novas, saldo: saldoItem(itemId), descricao: it.descricao,
       esperando: aguardandoDoItem(itemId) };
   },
-  /* Apaga UM exemplar. A entrega, se houver, continua registrada: o aluno recebeu de verdade, e
+  /* Apaga UMA unidade. A entrega, se houver, continua registrada: o aluno recebeu de verdade, e
      apagar o rastro do objeto não desfaz o fato. */
   excluirUnidade({ id }: any) {
     const u = G("SELECT item_id FROM estoque_unidade WHERE id=?", id);
@@ -3386,9 +4151,11 @@ const api: Record<string, (a: any) => unknown> = {
     const ok = R("DELETE FROM estoque_unidade WHERE id=?", id).changes > 0;
     return { ok, saldo: saldoItem(u.item_id) };
   },
-  gravarCelulaEstoque({ eventoId, itemId, quantidade, nota }: any) {
+  gravarCelulaEstoque({ eventoId, itemId, edicaoId, quantidade, nota }: any) {
     if (!eventoId || !itemId) throw new Error("Evento e item são obrigatórios.");
     const ev = G("SELECT tipo FROM estoque_evento WHERE id=?", eventoId);
+    /* edição ausente é a linha "tanto faz" — não é erro, é o pedido de material de edição única */
+    const ed = edicaoId == null || edicaoId === "" || Number(edicaoId) === 0 ? null : Number(edicaoId);
     const q = quantidade == null || quantidade === "" ? null : Math.max(0, parseInt(quantidade, 10) || 0);
     /* Em PEDIDO e REMESSA, zero e vazio são a mesma coisa: não pedir é pedir zero. Gravar o zero
        obrigava a recepção a digitar 0 em todos os materiais que ela NÃO pediu — foi a reclamação
@@ -3396,17 +4163,18 @@ const api: Record<string, (a: any) => unknown> = {
        informação, diferente de "ainda não contei". */
     const zeroEhVazio = ev?.tipo === "pedido" || ev?.tipo === "remessa";
     if (q == null || (zeroEhVazio && q === 0))
-      R("DELETE FROM estoque_evento_item WHERE evento_id=? AND item_id=?", eventoId, itemId);
+      R("DELETE FROM estoque_evento_item WHERE evento_id=? AND item_id=? AND COALESCE(edicao_id,0)=?",
+        eventoId, itemId, ed ?? 0);
     else
-      R(`INSERT INTO estoque_evento_item (evento_id,item_id,quantidade,nota) VALUES (?,?,?,?)
-         ON CONFLICT(evento_id,item_id) DO UPDATE SET quantidade=excluded.quantidade, nota=excluded.nota`,
-        eventoId, itemId, Math.max(0, parseInt(quantidade, 10) || 0), nota || null);
+      R(`INSERT INTO estoque_evento_item (evento_id,item_id,edicao_id,quantidade,nota) VALUES (?,?,?,?,?)
+         ON CONFLICT(evento_id,item_id,COALESCE(edicao_id,0)) DO UPDATE SET quantidade=excluded.quantidade, nota=excluded.nota`,
+        eventoId, itemId, ed, Math.max(0, parseInt(quantidade, 10) || 0), nota || null);
     return { ok: true, saldo: saldoItem(itemId) };
   },
   /* entregar = registrar que o livro daquela matrícula foi para a mão do aluno. Sem quantidade:
      é um livro, o dele. A data pode vir vazia e ser preenchida depois. */
-  /* QUAIS exemplares estão disponíveis para entregar naquele estágio. A tela abre esta lista antes
-     de entregar: a escolha do exemplar é dele, não do sistema — *"tem que aparecer uma janelinha e
+  /* QUAIS unidades estão disponíveis para entregar naquele estágio. A tela abre esta lista antes
+     de entregar: a escolha da unidade é dele, não do sistema — *"tem que aparecer uma janelinha e
      escolher qual que é a unidade que eu quero entregar para esse aluno"*.
      A ordem continua a da fila (o mais antigo primeiro) e o primeiro vem marcado como sugestão, mas
      agora é sugestão mesmo, não decisão silenciosa. */
@@ -3415,7 +4183,8 @@ const api: Record<string, (a: any) => unknown> = {
     if (!it) return { itemId: null, descricao: null, unidades: [] };
     return { itemId: it.id, descricao: it.descricao,
       unidades: A(`SELECT id, numero, codigo, entrada, origem FROM estoque_unidade
-                   WHERE item_id=? AND entrega_id IS NULL AND arquivado IS NULL ORDER BY entrada, id`, it.id)
+                   WHERE item_id=? AND entrega_id IS NULL AND arquivado IS NULL
+                     AND finalidade='venda' ORDER BY entrada, id`, it.id)
         .map(u => ({ id: u.id, numero: u.numero ?? null, codigo: u.codigo || "",
                      entrada: u.entrada, origem: u.origem })) };
   },
@@ -3431,30 +4200,30 @@ const api: Record<string, (a: any) => unknown> = {
       ? (horaEntrega(hora) ?? (data === dataISO(new Date()) ? agora().slice(11, 16) : null))
       : null;
     /* `devolvida=NULL` no UPDATE: entregar de novo é o fim do ciclo anterior. Sem isto, o aluno que
-       devolveu e recebeu outro exemplar ficaria com a entrega nova marcada como devolvida — e
+       devolveu e recebeu outra unidade ficaria com a entrega nova marcada como devolvida — e
        continuaria na lista de quem está esperando, para sempre. O histórico do que ele devolveu
        não se perde: vive em `devolucao_material`. */
     R(`INSERT INTO entrega_material (id_matricula,livro,item_id,data,hora,deduzida,momento) VALUES (?,?,?,?,?,0,?)
        ON CONFLICT(id_matricula,livro) DO UPDATE SET data=excluded.data, hora=excluded.hora,
          deduzida=0, devolvida=NULL`,
       idMatricula, livro, it?.id ?? null, data || null, hhmm, agora());
-    /* FILA: sai o exemplar MAIS ANTIGO — "quem chegou primeiro sai primeiro". Se não houver unidade
+    /* FILA: sai a unidade MAIS ANTIGO — "quem chegou primeiro sai primeiro". Se não houver unidade
        na prateleira, a entrega é registrada assim mesmo e o saldo fica devendo: a recepção entregou
        de fato, e negar o registro só faria o sistema divergir da realidade. */
     const ent = G("SELECT id FROM entrega_material WHERE id_matricula=? AND livro=?", idMatricula, livro);
     let unidade = null;
     if (it && ent && !G("SELECT 1 FROM estoque_unidade WHERE entrega_id=?", ent.id)) {
       /* EXEMPLAR ESCOLHIDO pela tela; sem escolha, cai na fila (o mais antigo). A escolha é conferida
-         contra o material e contra "ainda está na prateleira" — o id vem do cliente, e um exemplar já
+         contra o material e contra "ainda está na prateleira" — o id vem do cliente, e uma unidade já
          entregue a outro aluno não pode ser entregue de novo. */
       let u = null;
       if (unidadeId) {
         u = G(`SELECT * FROM estoque_unidade WHERE id=? AND item_id=? AND entrega_id IS NULL AND arquivado IS NULL`,
           Number(unidadeId), it.id);
-        if (!u) throw new Error("Esse exemplar não está mais disponível — recarregue a lista.");
+        if (!u) throw new Error("Essa unidade não está mais disponível — recarregue a lista.");
       } else u = proximaUnidade(it.id);
       if (u) {
-        /* o exemplar sai com o instante DA ENTREGA, não com um carimbo próprio. Entrega sem data
+        /* a unidade sai com o instante DA ENTREGA, não com um carimbo próprio. Entrega sem data
            conhecida ainda assim tira o livro da prateleira agora, e é este clique que a `saida`
            registra — o que não se sabe é quando ele chegou à mão do aluno, e isso quem diz é a
            linha, com o campo em branco. */
@@ -3464,7 +4233,11 @@ const api: Record<string, (a: any) => unknown> = {
       }
     }
     return { ok: true, saldo: it ? saldoItem(it.id) : null, unidade, hora: hhmm,
-      semEstoque: !!it && !unidade };
+      semEstoque: !!it && !unidade,
+      /* a tela avisa quando o início do curso andou junto — é mudança que o usuário não pediu
+         explicitamente, e mudança silenciosa em data de contrato é o tipo de coisa que só se
+         descobre quando o vencimento chega errado */
+      inicio: inicioPelaEntrega(idMatricula, livro, data || null) };
   },
   /* a data da entrega é editável justamente porque as deduzidas nascem sem data — ninguém sabe
      quando aqueles livros saíram, e chutar seria pior que deixar em branco.
@@ -3479,16 +4252,19 @@ const api: Record<string, (a: any) => unknown> = {
     const r = R("UPDATE entrega_material SET data=?, hora=?, deduzida=0 WHERE id_matricula=? AND livro=?",
       d, h, idMatricula, livro);
     if (!r.changes) throw new Error("Entrega não encontrada.");
-    /* o exemplar passa a contar a mesma história: sem isto, corrigir a data na linha deixava
+    /* a unidade passa a contar a mesma história: sem isto, corrigir a data na linha deixava
        `estoque_unidade.saida` presa no dia antigo, e o objeto contradizia a entrega para sempre. */
     const ent = G("SELECT id FROM entrega_material WHERE id_matricula=? AND livro=?", idMatricula, livro);
     if (ent) R("UPDATE estoque_unidade SET saida=? WHERE entrega_id=?", instanteSaida(d, h), ent.id);
-    return { ok: true, data: d, hora: h };
+    /* corrigir a data da entrega corrige junto o início das atividades — as duas contam o mesmo
+       fato, e deixá-las divergir era o que fazia o contrato vencer na data errada */
+    const inicio = inicioPelaEntrega(idMatricula, livro, d);
+    return { ok: true, data: d, hora: h, inicio };
   },
   removerEntrega({ idMatricula, livro }: any) {
     const it = G("SELECT id FROM estoque_item WHERE livro=?", livro);
     const ent = G("SELECT id FROM entrega_material WHERE id_matricula=? AND livro=?", idMatricula, livro);
-    /* o exemplar VOLTA para a prateleira, e volta para o lugar dele na fila: `entrada` nunca é
+    /* a unidade VOLTA para a prateleira, e volta para o lugar dele na fila: `entrada` nunca é
        reescrito, então quem tinha chegado antes continua sendo o primeiro a sair */
     if (ent) R("UPDATE estoque_unidade SET entrega_id=NULL, saida=NULL WHERE entrega_id=?", ent.id);
     R("DELETE FROM entrega_material WHERE id_matricula=? AND livro=?", idMatricula, livro);
@@ -3499,8 +4275,8 @@ const api: Record<string, (a: any) => unknown> = {
      A diferença para `removerEntrega` é o que cada uma AFIRMA. Desfazer diz "esta entrega nunca
      existiu" e apaga a linha; devolver diz "existiu, durou, e terminou". Por isso aqui nada é
      apagado: a entrega fica com a data de devolução e o fato vira uma linha em
-     `devolucao_material`, com o exemplar que voltou.
-     O exemplar volta para a prateleira do jeito que `removerEntrega` já fazia — `entrega_id=NULL`
+     `devolucao_material`, com a unidade que voltou.
+     A unidade volta para a prateleira do jeito que `removerEntrega` já fazia — `entrega_id=NULL`
      sem tocar em `entrada` —, então ele reassume o lugar dele na fila em vez de virar o mais novo.
      Livro usado que volta é o mais velho da prateleira, e é ele que deve sair primeiro. */
   devolverMaterial({ idMatricula, livro, data, hora, motivo }: any) {
@@ -3514,7 +4290,7 @@ const api: Record<string, (a: any) => unknown> = {
        Devolução lançada com data passada é memória — a hora dela ninguém sabe, e 00:00 inventado
        seria pior que o campo vazio. */
     const h = horaEntrega(hora) ?? (d === dataISO(new Date()) ? agora().slice(11, 16) : null);
-    /* qual exemplar está voltando: o que saiu nesta entrega. Entrega deduzida das matrículas
+    /* qual unidade está voltando: o que saiu nesta entrega. Entrega deduzida das matrículas
        antigas não tem nenhum ligado, e a devolução acontece do mesmo jeito — o livro voltou para a
        prateleira ainda que ninguém sabia qual era. */
     const u = G("SELECT id, numero, codigo FROM estoque_unidade WHERE entrega_id=?", ent.id);
@@ -3529,9 +4305,9 @@ const api: Record<string, (a: any) => unknown> = {
     return { ok: true, data: d, hora: h, saldo: it ? saldoItem(it.id) : null,
       unidade: u ? { id: u.id, numero: u.numero ?? null, codigo: u.codigo || "" } : null };
   },
-  /* DESFAZER a devolução: o aluno não devolveu, foi engano de digitação. Reata o mesmo exemplar à
+  /* DESFAZER a devolução: o aluno não devolveu, foi engano de digitação. Reata o mesma unidade à
      entrega (se ele ainda estiver livre — outra pessoa pode tê-lo levado nesse meio-tempo, e aí a
-     entrega volta a valer sem exemplar ligado, que é o mesmo estado das 122 deduzidas). */
+     entrega volta a valer sem unidade ligada, que é o mesmo estado das 122 deduzidas). */
   desfazerDevolucao({ idMatricula, livro }: any) {
     const ent = G("SELECT * FROM entrega_material WHERE id_matricula=? AND livro=?", idMatricula, livro);
     if (!ent) throw new Error("Entrega não encontrada.");
@@ -3581,8 +4357,13 @@ const api: Record<string, (a: any) => unknown> = {
      para desenhar a trilha de qualquer jeito. */
   getEstagios() {
     /* edição do material vinculado, com o que está no estágio como rede de segurança */
-    const itemDe = (e: any) => e.item_estoque_id
-      ? G("SELECT edicao_nome, edicao_ano FROM estoque_item WHERE id=?", e.item_estoque_id) : null;
+    /* A EDIÇÃO FIXADA no vínculo manda; sem ela, a padrão do material. Sem isto, escolher
+       "Kids 4 · 2nd Edition" no material vinculado deixava o rótulo mostrando a 3rd — o defeito
+       que ele viu na tela. */
+    const itemDe = (e: any) => e.item_edicao_id
+      ? G("SELECT nome AS edicao_nome, ano AS edicao_ano FROM estoque_edicao WHERE id=?", e.item_edicao_id)
+      : (e.item_estoque_id
+        ? G("SELECT edicao_nome, edicao_ano FROM estoque_item WHERE id=?", e.item_estoque_id) : null);
     const limpa = (v: any) => (v && !/^oficial$/i.test(v) ? v : "");
     /* material vinculado manda; sem material (edição aposentada, por exemplo) vale o que está
        gravado no próprio estágio, senão duas edições do mesmo livro ficariam com o mesmo nome */
@@ -3626,7 +4407,14 @@ const api: Record<string, (a: any) => unknown> = {
       escalaAtiva: e.escala_ativa === 1, cefrMin: e.cefr_min || "", cefrMax: e.cefr_max || "",
       gseMin: e.gse_min, gseMax: e.gse_max,
       edicaoNome: e.edicao_nome || "", edicaoAno: e.edicao_ano,
-      status: e.status, livro: e.livro || null, itemEstoqueId: e.item_estoque_id || null,
+      status: e.status,
+      /* LEGADO vem da EDIÇÃO vinculada; sem edição fixada, do que está gravado no próprio estágio
+         (registro antigo). A tela mostra travado — quem muda é o painel de edições do Estoque. */
+      legado: e.item_edicao_id
+        ? (G("SELECT legada FROM estoque_edicao WHERE id=?", e.item_edicao_id)?.legada === 1)
+        : e.legado === 1,
+      livro: e.livro || null, itemEstoqueId: e.item_estoque_id || null,
+      itemEdicaoId: e.item_edicao_id || null,
       descricao: e.descricao || "",
       /* 'abertura' antes de 'flutuante' — e alfabeticamente já é essa a ordem, então ASC basta.
          Com DESC as remind vinham primeiro e a Welcome Lesson aparecia depois delas. */
@@ -3648,7 +4436,16 @@ const api: Record<string, (a: any) => unknown> = {
       itens: A(`SELECT id, descricao, unidade, livro, edicao_nome, edicao_ano FROM estoque_item
                 WHERE componente=0 ORDER BY ordem, descricao`)
         .map(i => ({ id: i.id, descricao: i.descricao, unidade: i.unidade, livro: i.livro || null,
-                     edicaoNome: i.edicao_nome || "", edicaoAno: i.edicao_ano ?? null })) };
+                     edicaoNome: i.edicao_nome || "", edicaoAno: i.edicao_ano ?? null,
+                     /* AS EDIÇÕES ATIVAS, para o vínculo poder apontar para UMA delas. Ele pediu a
+                        lista com o material repetido por edição — *"pode ter o Kids 4 Kit Third
+                        Edition e o Kids 4 Kit Old"* — porque o Kids 4 legado precisa apontar para a
+                        Second enquanto o Kids 4 atual usa a Third. Arquivada fica de fora: não se
+                        vincula estágio a edição que saiu de linha. */
+                     edicoes: A(`SELECT id, nome, ano, padrao FROM estoque_edicao
+                                 WHERE item_id=? AND arquivada IS NULL
+                                 ORDER BY padrao DESC, COALESCE(ano,0) DESC, id DESC`, i.id)
+                       .map(e => ({ id: e.id, nome: e.nome, ano: e.ano ?? null, padrao: e.padrao === 1 })) })) };
   },
   salvarEstagio(p: any) {
     if (!p?.sigla || !p?.nome) throw new Error("Sigla e nome são obrigatórios.");
@@ -3658,17 +4455,28 @@ const api: Record<string, (a: any) => unknown> = {
        valor continua no banco. Sem esta guarda, o primeiro salvamento vindo da tela mandaria
        `undefined` e apagaria em silêncio o 2020/2014/2025 que ele digitou. Campo que sumiu da tela
        não pode virar campo apagado no banco. */
-    const atual = p.id ? G("SELECT edicao_ano, item_estoque_id FROM estagio WHERE id=?", p.id) : null;
+    const atual = p.id ? G("SELECT edicao_ano, item_estoque_id, item_edicao_id, ordem, legado FROM estagio WHERE id=?", p.id) : null;
     const edicaoAno = p.edicaoAno === undefined ? (atual?.edicao_ano ?? null) : num(p.edicaoAno);
     /* mesma guarda para o item de estoque: o formulário não tinha este campo e mandava `undefined`
        a cada salvamento, então 10 dos 27 estágios já tinham perdido o vínculo sem ninguém pedir */
     const itemId = p.itemEstoqueId === undefined ? (atual?.item_estoque_id ?? null) : num(p.itemEstoqueId);
+    /* mesma guarda do `undefined` para a edição — e ela SÓ vale se for do material escolhido:
+       trocar o material tem de soltar a edição do anterior, senão o estágio ficaria apontando para
+       a edição de um livro que já não é o dele. */
+    let edItem = p.itemEdicaoId === undefined ? (atual?.item_edicao_id ?? null) : num(p.itemEdicaoId);
+    if (edItem && !G("SELECT 1 FROM estoque_edicao WHERE id=? AND item_id=?", edItem, itemId)) edItem = null;
     /* O LIVRO deixou de ser campo de tela e passa a ser DERIVADO do item vinculado (2026-08-10,
        dele): *"o estágio é vinculado ao item no estoque"*. O `estagio.livro` continua existindo —
        é por ele que matrícula, agenda e ficha impressa acham o estágio — mas quem o define agora é
        o material escolhido, e não um segundo select dizendo quase a mesma coisa. */
-    if (p.itemEstoqueId) {
-      const it = G("SELECT livro FROM estoque_item WHERE id=?", num(p.itemEstoqueId));
+    /* `itemId` E NÃO `p.itemEstoqueId` (corrigido em 2026-08-23). O vínculo tem guarda contra
+       `undefined` logo acima, mas a derivação lia o parâmetro CRU: um salvamento que não mandasse
+       `itemEstoqueId` mantinha o item e zerava o `livro` — e `livro` NULL desliga tudo que passa por
+       ele (matrícula, agenda, ficha, e o próprio nome exibido, que volta a cair para a descrição do
+       material). Mesma armadilha que já custou `edicao_ano` e `item_estoque_id`: campo ausente não
+       é campo vazio. */
+    if (itemId) {
+      const it = G("SELECT livro FROM estoque_item WHERE id=?", itemId);
       if (it?.livro) p.livro = it.livro;
     }
     /* `grupo` SAIU (2026-08-17, ordem dele): *"categoria já é o suficiente... vale para qualquer
@@ -3677,24 +4485,133 @@ const api: Record<string, (a: any) => unknown> = {
        COLUNA fica no banco, dormente: derrubá-la exige reconstruir `estagio`, que é referenciada
        por estagio_licao (1414 linhas), trilha, equivalências e extras — risco sem retorno para um
        campo que já não é lido nem escrito. */
-    const campos = [p.sigla, p.nome, p.nomeCurto || p.livro || null,
+    const campos = [p.sigla, p.nome,
+      /* sem cair para o nome do livro: o campo vazio fica vazio (ver a nota da migração acima) */
+      String(p.nomeCurto ?? "").trim() || null,
       p.idioma || "Inglês", p.categoria || "Kids",
-      num(p.modeloId), Number(p.licaoInicial) || 1, p.entrada ? 1 : 0, Number(p.ordem) || 100,
+      num(p.modeloId), Number(p.licaoInicial) || 1, p.entrada ? 1 : 0,
+      /* A ORDEM NÃO VEM MAIS DO FORMULÁRIO — quem a define é o arrastar da trilha (`moverNaTrilha`).
+         Mesma guarda dos outros campos que saíram da tela: `undefined` mantém o que está no banco.
+         Sem ela, salvar qualquer outro campo devolveria a posição para o valor velho que o
+         formulário tinha carregado, desfazendo o arrastar em silêncio. */
+      p.ordem === undefined ? (atual?.ordem ?? 100) : (Number(p.ordem) || 100),
       num(p.idadeMin), num(p.idadeMax), p.escalaAtiva ? 1 : 0,
       p.cefrMin || null, p.cefrMax || null, num(p.gseMin), num(p.gseMax),
-      p.edicaoNome || null, edicaoAno, p.status || "ativo", p.livro || null,
-      itemId, p.descricao || null];
+      p.edicaoNome || null, edicaoAno,
+      p.status === "desativado" ? "desativado" : "ativo",
+      /* MESMA GUARDA dos outros campos que saíram da tela: quem declara "legada" agora é a EDIÇÃO,
+         no Estoque. Sem isto, o primeiro salvamento do formulário mandaria `undefined` e zeraria o
+         que estava gravado — foi o que já aconteceu com `edicao_ano` e `item_estoque_id`. */
+      p.legado === undefined ? (atual?.legado ?? 0) : (p.legado ? 1 : 0), p.livro || null,
+      itemId, p.descricao || null, edItem];
     if (p.id) {
       R(`UPDATE estagio SET sigla=?,nome=?,nome_curto=?,idioma=?,categoria=?,modelo_id=?,licao_inicial=?,
          entrada=?,ordem=?,idade_min=?,idade_max=?,escala_ativa=?,cefr_min=?,cefr_max=?,gse_min=?,
-         gse_max=?,edicao_nome=?,edicao_ano=?,status=?,livro=?,item_estoque_id=?,descricao=? WHERE id=?`,
+         gse_max=?,edicao_nome=?,edicao_ano=?,status=?,legado=?,livro=?,item_estoque_id=?,descricao=?,
+         item_edicao_id=? WHERE id=?`,
         ...campos, p.id);
+      sincronizarMaterialDoEstagio(p.id);
       return { ok: true, id: p.id };
     }
     const r = R(`INSERT INTO estagio (sigla,nome,nome_curto,idioma,categoria,modelo_id,licao_inicial,entrada,
        ordem,idade_min,idade_max,escala_ativa,cefr_min,cefr_max,gse_min,gse_max,edicao_nome,edicao_ano,
-       status,livro,item_estoque_id,descricao) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, ...campos);
-    return { ok: true, id: Number(r.lastInsertRowid) };
+       status,legado,livro,item_estoque_id,descricao,item_edicao_id)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, ...campos);
+    const novoId = Number(r.lastInsertRowid);
+    /* é AQUI que o material nasce junto com o estágio */
+    sincronizarMaterialDoEstagio(novoId);
+    return { ok: true, id: novoId };
+  },
+  /* MOVER NA TRILHA (2026-08-22). Pedido dele: *"eu quero que você deixe isso drag and drop,
+     arrastável, porque vamos supor que eu quero colocar um livro antes de outro ou depois"*.
+     A tela diz só o GESTO — soltei antes, depois, ou em cima de alguém — e a conta é aqui, porque
+     ela precisa conhecer os empates.
+     POSIÇÃO COM MAIS DE UM ESTÁGIO É ALTERNATIVA, não etapa ("K4 ou K4_O"), e existe de verdade:
+     Kids tem duas dessas. Um `ORDER BY` renumerando 1..N cegamente as desfaria. Por isso a conta é
+     por SLOT: cada `ordem` distinta é um degrau, e mover é tirar de um degrau e pôr em outro (ou
+     entrar num que já existe). Degrau que fica vazio some, e os demais renumeram sem buraco.
+     A trilha é POR CATEGORIA e, em Outros Idiomas, por idioma — é assim que a tela a desenha, e
+     mover entre categorias não é reordenar, é outra coisa. */
+  moverNaTrilha({ id, alvoId, modo }: any) {
+    const e = G("SELECT * FROM estagio WHERE id=?", id);
+    const alvo = G("SELECT * FROM estagio WHERE id=?", alvoId);
+    if (!e || !alvo) throw new Error("Estágio não encontrado.");
+    if (e.id === alvo.id) return { ok: true, semMudanca: true };
+    if (e.categoria !== alvo.categoria || e.idioma !== alvo.idioma)
+      throw new Error("A trilha é de cada categoria: " + e.nome + " é " + e.categoria
+        + "/" + e.idioma + " e " + alvo.nome + " é " + alvo.categoria + "/" + alvo.idioma + ".");
+    const irmaos = A(`SELECT id, ordem FROM estagio WHERE categoria=? AND idioma=? AND arquivado IS NULL
+                      ORDER BY ordem, id`, e.categoria, e.idioma);
+    const slots = [...new Set(irmaos.map(r => r.ordem))].sort((a, b) => a - b);
+    /* os degraus SEM o estágio que está sendo movido — ele vai reentrar no lugar novo */
+    const grupos = slots.map(o => irmaos.filter(r => r.ordem === o && r.id !== e.id).map(r => r.id));
+    const iAlvo = slots.indexOf(alvo.ordem);
+    if (modo === "junto") grupos[iAlvo].push(e.id);
+    else grupos.splice(modo === "depois" ? iAlvo + 1 : iAlvo, 0, [e.id]);
+    let n = 0;
+    for (const g of grupos) {
+      if (!g.length) continue;          // degrau que esvaziou desaparece
+      n++;
+      for (const gid of g) R("UPDATE estagio SET ordem=? WHERE id=?", n, gid);
+    }
+    return { ok: true, posicoes: n,
+      trilha: A(`SELECT sigla, ordem FROM estagio WHERE categoria=? AND idioma=? AND arquivado IS NULL
+                 ORDER BY ordem, id`, e.categoria, e.idioma) };
+  },
+  /* ANEXAR UM ARQUIVO AO ESTÁGIO. O conteúdo chega em base64 porque a API inteira é JSON — para
+     1–3 MB (o tamanho real do material dele) isso custa ~33% a mais no corpo e nada no resto, e não
+     paga a pena abrir um segundo protocolo de upload só para isto.
+     O NOME NO DISCO é do sistema, não o que o usuário digitou: nome de arquivo vindo de fora pode
+     trazer barra, dois-pontos ou "..", e a pasta é compartilhada pelo OneDrive com outras máquinas.
+     O nome original fica na coluna `nome`, que é o que a tela mostra. */
+  anexarArquivo({ estagioId, nome, tipo, base64, descricao }: any) {
+    const e = G("SELECT id, sigla FROM estagio WHERE id=?", estagioId);
+    if (!e) throw new Error("Estágio não encontrado.");
+    const orig = String(nome || "arquivo").trim();
+    if (!base64) throw new Error("Arquivo vazio.");
+    let bytes: Uint8Array;
+    try { bytes = Uint8Array.from(atob(String(base64)), c => c.charCodeAt(0)); }
+    catch { throw new Error("Não consegui ler o arquivo."); }
+    /* TETO DE 25 MB. O material pedagógico dele tem 1–3 MB; 25 dá folga larga e ainda impede que
+       uma peça de marketing de 200 MB entre aqui por engano e trave a sincronização do OneDrive. */
+    if (bytes.length > 25 * 1024 * 1024)
+      throw new Error("O arquivo tem " + (bytes.length / 1048576).toFixed(1)
+        + " MB e o limite é 25 MB. Guarde-o no OneDrive e anexe um PDF menor.");
+    const ext = (orig.match(/\.[A-Za-z0-9]{1,8}$/) || [""])[0].toLowerCase();
+    const seq = (G("SELECT MAX(id) m FROM estagio_anexo")?.m || 0) + 1;
+    const arquivo = "eg" + e.id + "-" + seq + "-" + Date.now().toString(36) + ext;
+    let gravou = 0; const erros: string[] = [];
+    for (const d of dirsAnexos()) {
+      try { Deno.mkdirSync(d, { recursive: true }); Deno.writeFileSync(d + "\\" + arquivo, bytes); gravou++; }
+      catch (err) { erros.push((err as Error).message); }
+    }
+    if (!gravou) throw new Error("Não consegui gravar o anexo: " + erros.join(" · "));
+    R(`INSERT INTO estagio_anexo (estagio_id,nome,arquivo,tipo,tamanho,descricao,momento)
+       VALUES (?,?,?,?,?,?,?)`,
+      e.id, orig, arquivo, String(tipo || "").slice(0, 120) || null, bytes.length,
+      String(descricao || "").trim() || null, agora());
+    return { ok: true, arquivo, tamanho: bytes.length, destinos: gravou };
+  },
+  listarAnexos: ({ estagioId }: any) =>
+    A(`SELECT id, nome, arquivo, tipo, tamanho, descricao, momento FROM estagio_anexo
+       WHERE estagio_id=? ORDER BY momento DESC, id DESC`, estagioId)
+      .map(a => ({ id: a.id, nome: a.nome, tipo: a.tipo || "", tamanho: a.tamanho,
+                   descricao: a.descricao || "", momento: a.momento,
+                   /* diz se o arquivo ainda está lá: o OneDrive pode não ter sincronizado ainda, ou
+                      alguém pode ter apagado por fora — e um link que abre em branco é pior que um
+                      aviso honesto */
+                   presente: !!acharAnexo(a.arquivo) })),
+  /* REMOVER apaga o registro E os arquivos, dos dois destinos. Anexo é cópia — o original dele
+     continua onde estava quando ele anexou. */
+  removerAnexo({ id }: any) {
+    const a = G("SELECT * FROM estagio_anexo WHERE id=?", id);
+    if (!a) throw new Error("Anexo não encontrado.");
+    let apagados = 0;
+    for (const d of dirsAnexos()) {
+      try { Deno.removeSync(d + "\\" + a.arquivo); apagados++; } catch { /* já não estava lá */ }
+    }
+    R("DELETE FROM estagio_anexo WHERE id=?", id);
+    return { ok: true, nome: a.nome, apagados };
   },
   excluirEstagio: ({ id }: any) => ({ ok: R("DELETE FROM estagio WHERE id=?", id).changes > 0 }),
   salvarLicaoExtra(p: any) {
@@ -4206,23 +5123,29 @@ const api: Record<string, (a: any) => unknown> = {
     const push = (tipo: string, origem: string, r: any, rotulo: string, detalhe: string | null) =>
       linhas.push({ tipo, origem, id: r.id, rotulo, detalhe, arquivado: r.arquivado });
     for (const r of A("SELECT * FROM estoque_item WHERE arquivado IS NOT NULL"))
-      push("material", "Estoque · Materiais", r, r.descricao,
+      push("material", "Estoque · Materiais", r, rotuloArquivado("material", r),
         (r.livro ? "estágio " + r.livro : "avulso")
-        + " · " + (G("SELECT COUNT(*) n FROM estoque_unidade WHERE item_id=?", r.id)?.n || 0) + " exemplar(es)");
+        + " · " + (G("SELECT COUNT(*) n FROM estoque_unidade WHERE item_id=?", r.id)?.n || 0) + " unidade(s)");
     for (const r of A(`SELECT u.*, i.descricao dsc FROM estoque_unidade u
                        LEFT JOIN estoque_item i ON i.id=u.item_id WHERE u.arquivado IS NOT NULL`))
-      push("exemplar", "Estoque · fila do material", r,
-        (r.dsc || "material apagado") + (r.numero != null ? " nº " + r.numero : ""),
+      push("exemplar", "Estoque · fila do material", r, rotuloArquivado("exemplar", r),
         (r.codigo ? "código " + r.codigo + " · " : "") + "entrou " + r.entrada
         + (r.entrega_id ? " · já foi entregue a um aluno" : ""));
     for (const r of A("SELECT * FROM estoque_evento WHERE arquivado IS NOT NULL"))
-      push("pedido", "Estoque · Entradas", r, r.tipo + " de " + r.data,
+      push("pedido", "Estoque · Entradas", r, rotuloArquivado("pedido", r),
         (r.observacao || "").slice(0, 80) || null);
+    for (const r of A(`SELECT e.*, i.descricao dsc FROM estoque_edicao e
+                       LEFT JOIN estoque_item i ON i.id=e.item_id WHERE e.arquivada IS NOT NULL`))
+      push("edicao", "Estoque · edições do material", { ...r, arquivado: r.arquivada },
+        rotuloArquivado("edicao", r),
+        (r.ano ? "ano " + r.ano + " · " : "")
+        + (G("SELECT COUNT(*) n FROM estoque_unidade WHERE edicao_id=?", r.id)?.n || 0)
+        + " unidade(s) apontam para ela");
     for (const r of A("SELECT * FROM estagio WHERE arquivado IS NOT NULL"))
-      push("estagio", "Estágios · Catálogo", r, r.nome,
+      push("estagio", "Estágios · Catálogo", r, rotuloArquivado("estagio", r),
         r.sigla + " · " + (G("SELECT COUNT(*) n FROM estagio_licao WHERE dono_id=?", r.id)?.n || 0) + " lição(ões)");
     for (const r of A("SELECT * FROM estagio_modelo WHERE arquivado IS NOT NULL"))
-      push("modelo", "Estágios · Modelos", r, r.nome,
+      push("modelo", "Estágios · Modelos", r, rotuloArquivado("modelo", r),
         r.licoes_por_capitulo + " lições × " + r.capitulos + " blocos");
     /* mais recente primeiro: quem acabou de arquivar por engano acha na primeira linha */
     return linhas.sort((a, b) => String(b.arquivado).localeCompare(String(a.arquivado)));
@@ -4234,8 +5157,15 @@ const api: Record<string, (a: any) => unknown> = {
     if (tipo === "modelo" && !desarquivar
       && (G("SELECT COUNT(*) n FROM estagio_modelo WHERE arquivado IS NULL")?.n || 0) <= 1)
       throw new Error("Tem de sobrar ao menos um modelo em uso.");
-    const r = R(`UPDATE ${meta.tabela} SET arquivado=? WHERE id=?`, desarquivar ? null : agora(), id);
+    const r = R(`UPDATE ${meta.tabela} SET ${colArquivo(tipo)}=? WHERE id=?`, desarquivar ? null : agora(), id);
     if (!r.changes) throw new Error("Registro não encontrado.");
+    /* arquivar a edição PADRÃO passa o posto para a próxima ativa — o material não pode ficar sem
+       edição corrente enquanto tiver alguma viva (é o que `arquivarEdicao` já fazia por fora) */
+    if (tipo === "edicao") {
+      const ed = G("SELECT item_id FROM estoque_edicao WHERE id=?", id);
+      if (!desarquivar) R("UPDATE estoque_edicao SET padrao=0 WHERE id=?", id);
+      if (ed) sincronizarEdicaoDoItem(ed.item_id);
+    }
     return { ok: true };
   },
   /* EXCLUIR DE VERDADE, e só a partir do arquivo. O nome digitado tem de bater — é a trava que ele
@@ -4246,8 +5176,11 @@ const api: Record<string, (a: any) => unknown> = {
     if (!meta) throw new Error("Tipo desconhecido: " + tipo);
     const alvo = G(`SELECT * FROM ${meta.tabela} WHERE id=?`, id);
     if (!alvo) throw new Error("Registro não encontrado.");
-    if (!alvo.arquivado) throw new Error("Só é possível excluir o que está arquivado.");
-    const nome = String(alvo[meta.rotulo] ?? "").trim();
+    if (!alvo[colArquivo(tipo)]) throw new Error("Só é possível excluir o que está arquivado.");
+    /* unidade e edição precisam do nome do material para montar o mesmo rótulo que a lista mostra */
+    if (tipo === "exemplar" || tipo === "edicao")
+      alvo.dsc = G("SELECT descricao FROM estoque_item WHERE id=?", alvo.item_id)?.descricao;
+    const nome = rotuloArquivado(tipo, alvo).trim();
     if (String(confirmacao ?? "").trim() !== nome)
       throw new Error("O nome digitado não confere com \"" + nome + "\".");
     R(`DELETE FROM ${meta.tabela} WHERE id=?`, id);
@@ -4487,6 +5420,11 @@ const api: Record<string, (a: any) => unknown> = {
         .sort((p: any, q: any) => p.ordem - q.ordem).map((d: any) => d.codigo);
       const horaFim = aulas.length ? ("0" + (parseInt(aulas[aulas.length - 1].hora, 10) + 1)).slice(-2) + ":00" : "";
       return { id: r.idm, nome: r.nome, situacao: r.situacao, status: r.status, livro: r.livro, modalidade: r.modalidade,
+        /* A COLUNA "Estágio" DA TABELA GERAL ESTAVA VAZIA (2026-08-23). A grade e o filtro apontavam
+           para o campo `estágio`, que ninguém preenchia — todas as 179 linhas vinham `undefined`.
+           Vai a SIGLA, e não o nome longo: a coluna tem 95px e o pedido dele é justamente esse —
+           *"o nome curto vai ser usado nas impressões, nas fichas, naquelas tabelas de Excel"*. */
+        "estágio": siglaDoLivro(r.livro),
         vip: r.vip === 1, tipoEncontro: r.tipo, dias, horario: aulas[0]?.hora || "", horaFim, professores: profs };
     });
   },
@@ -5134,6 +6072,29 @@ Deno.serve({ port: PORTA, hostname: "0.0.0.0" }, async (req, info) => {
     return response;
   }
   if (url.pathname === "/api/getEstacao") return Response.json(estacaoDoIP(ip));
+  /* ABRIR UM ANEXO: `/anexo/<id>`. Rota própria e não a estática, porque o arquivo NÃO mora na pasta
+     do projeto — mora na pasta de anexos do OneDrive (ou na oculta), que é o que sincroniza com a
+     recepção. O id vem do banco, então o caminho nunca é montado com texto do navegador.
+     `inline` para o PDF abrir na aba em vez de baixar: ele quer conferir o guia, não colecionar
+     downloads. O nome ORIGINAL vai no cabeçalho, para o "salvar como" sugerir o nome certo. */
+  if (url.pathname.startsWith("/anexo/")) {
+    const id = Number(url.pathname.slice(7));
+    const a = Number.isFinite(id) && id > 0
+      ? G("SELECT nome, arquivo, tipo FROM estagio_anexo WHERE id=?", id) : null;
+    if (!a) return new Response("anexo não encontrado", { status: 404 });
+    const caminho = acharAnexo(a.arquivo);
+    if (!caminho)
+      return new Response("O arquivo não está na pasta de anexos — o OneDrive pode não ter "
+        + "sincronizado ainda, ou ele foi apagado por fora.", { status: 404 });
+    try {
+      const bytes = Deno.readFileSync(caminho);
+      return new Response(bytes, { headers: {
+        "content-type": a.tipo || "application/octet-stream",
+        "content-disposition": `inline; filename*=UTF-8''${encodeURIComponent(a.nome)}`,
+        "cache-control": "no-store",
+      } });
+    } catch (e) { return new Response("erro ao ler o anexo: " + (e as Error).message, { status: 500 }); }
+  }
   if (url.pathname.startsWith("/api/")) {
     try {
       const fn = url.pathname.slice(5);

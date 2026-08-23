@@ -6474,7 +6474,9 @@ function esEdRecarregar(){esCarregar(function(){esDetalheMaterial();esEdPintar()
 /* CRIAR e ATUALIZAR no mesmo botão: com `ES_ED_EDIT` preenchido é atualização.
    Nome repetido é barrado NO SERVIDOR (`salvarEdicao` já recusa nome igual no mesmo material) —
    repetir a regra aqui seriam duas verdades para a mesma pergunta, e a do cliente é a que
-   envelhece. O ano, esse, se confere aqui: são quatro dígitos e o campo é livre. */
+   envelhece. O ano, esse, se confere aqui: são quatro dígitos e o campo é livre.
+   Renomear vale para TODAS as unidades daquela edição de uma vez, inclusive as já entregues —
+   é por isso que a edição é uma linha própria e não texto solto em cada unidade. */
 function esEdGravar(bt){
 var cx=bt.parentNode, nome=cx.querySelector('.n').value.trim(), ano=cx.querySelector('.a').value;
 if(!nome){msg('A edição precisa de um nome.',true);return}
@@ -6516,21 +6518,6 @@ function esFiltrarEdicao(id){
 if(id===null){ES_ED_FILTRO=[]}
 else{var i=ES_ED_FILTRO.indexOf(id);if(i<0)ES_ED_FILTRO.push(id);else ES_ED_FILTRO.splice(i,1)}
 esDetalheMaterial()}
-function esEdicaoNova(itemId){
-dlgTexto({titulo:'Nova edição',
- texto:'A edição distingue unidades do MESMO material — o Kids 4 Old e o 3rd Edition são os dois Kids 4.\n\nDepois de criada, escolha a edição de cada unidade na fila abaixo.',
- label:'Nome da edição',dica:'Ex.: 3rd Edition',ok:'Criar edição'},function(nome){
-run('salvarEdicao',[{itemId:itemId,nome:nome}],function(){
- msg('Edição "'+nome+'" criada.');esCarregar(function(){esDetalheMaterial()})})})}
-/* renomear vale para TODOS as unidades daquela edição de uma vez — é por isso que a edição é uma
-   linha própria e não texto solto em cada unidade */
-function esEdicaoEditar(id,nome,ano){
-dlgTexto({titulo:'Renomear edição',
- texto:'O novo nome vale para todos as unidades desta edição, inclusive os já entregues.',
- label:'Nome da edição',valor:nome,ok:'Salvar'},function(novo){
-if(novo===nome)return;
-run('salvarEdicao',[{id:id,nome:novo,ano:ano||''}],function(){
- msg('Edição renomeada para "'+novo+'".');esCarregar(function(){esDetalheMaterial()})})})}
 /* RENUMERAR pela ordem de chegada. Duas chamadas: a primeira volta com o PLANO (de → para) e a
    segunda aplica. Mostrar o plano importa porque o número está escrito a caneta na unidade física —
    ele disse que faz no computador primeiro e depois marca o físico, então precisa da lista na mão. */

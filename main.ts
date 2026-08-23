@@ -344,9 +344,9 @@ addColuna("estoque_unidade", "edicao_id", "INTEGER REFERENCES estoque_edicao(id)
    A distinção é da UNIDADE, não do material: o W2 tem exemplares para vender E um guia do professor,
    e os dois são W2. Um material inteiro de professor (o Business Empire, que só existe como TG) é o
    caso em que TODAS as unidades são de escola — mesma mecânica, sem regra à parte.
-   Sem CHECK no banco: o `estoque_unidade` seria a terceira reconstrução do dia e ele não tem
-   ninguém apontando para si além de `devolucao_material` — mas o ganho não paga o risco agora, e a
-   escrita passa toda por `finalidadeUnidade`, logo abaixo. Fica anotado como dívida. */
+   A coluna nasceu sem CHECK — era a terceira reconstrução de tabela do mesmo dia. A dívida foi
+   paga em 2026-08-23, junto das outras regras de domínio: procure `finalidade IN ('venda','escola')`
+   mais abaixo. Esta linha continua criando a coluna em banco que ainda não a tem. */
 addColuna("estoque_unidade", "finalidade", "TEXT NOT NULL DEFAULT 'venda'");
 /* QUEM É LEGADA É A EDIÇÃO, e isso se declara no ESTOQUE (2026-08-22, correção dele: *"a edição
    legada precisa ser declarada e configurada no estoque, não no estágio"*). O estágio passa a só
@@ -1537,10 +1537,12 @@ function arrumarNomesDeEdicao() {
   if (G("SELECT valor FROM config WHERE chave='edicao_no_nome3'")) return { ajustados: 0 };
   let n = 0;
   for (const e of A("SELECT id, nome, edicao_nome FROM estagio WHERE livro='KIDS 4'")) {
-    /* "Antiga" é rótulo meu, da semeadura; ele escreve "Old" */
+    /* "Antiga" é rótulo meu, da semeadura; ele escrevia "Old" — a DETECÇÃO continua reconhecendo
+       as duas, senão instalação antiga deixa de casar. O que mudou é o que se ESCREVE: em
+       2026-08-23 ele determinou *"a palavra old você pode remover... a correção é Second Edition"*. */
     const velha = /antig|old/i.test(e.edicao_nome || "");
     R("UPDATE estagio SET nome='Kids 4', edicao_nome=?, edicao_ano=? WHERE id=?",
-      velha ? "Old" : "3rd Edition", velha ? 2014 : 2020, e.id);
+      velha ? "2nd Edition" : "3rd Edition", velha ? 2014 : 2020, e.id);
     n++;
   }
   /* datas e rótulos ditados por ele em 2026-08-10: Kids 4 Old lançado em 2014 e aposentado em 2019;
@@ -1784,6 +1786,46 @@ function semearEstagios() {
   R("INSERT OR REPLACE INTO config (chave,valor) VALUES ('estagios_catalogo_versao',?)", String(CAT_VERSAO));
   if (novos) console.log("estágios: catálogo semeado — " + novos + " estágio(s)");
   return { novos };
+}
+
+/* ===== O QUE FOI CORRIGIDO NA TELA EM 23/08 E NÃO VIAJAVA (2026-08-23) — roda UMA vez =====
+   O catálogo de estágios só INSERE: quem já existe fica como está, e é assim que tem de ser — nome,
+   sigla e ordem são dele. Só que quatro correções dele daquele dia foram feitas na TELA, direto no
+   banco deste laptop, e o `git pull` sozinho não as reconstrói na recepção. Sem isto, lá o Business
+   Empire volta a dizer "Avulsos" e o Kids 4 legado volta a mostrar a 3rd Edition.
+   *Migração conserta o passado; regra cuida do futuro* — a mesma divisão do `nome_curto`.
+   Todo passo é condicionado ao valor ANTIGO: se ele já arrumou de outro jeito, nada acontece. */
+function corrigirEstagiosDaTela() {
+  if (G("SELECT valor FROM config WHERE chave='estagio_correcoes_v4'")) return { ajustes: 0 };
+  let n = 0;
+  /* 1. "Avulsos" virou "Complementar" (dele: *"o Business Empire faz parte sim da Wizard... ele é
+        complementar"*). Avulso passou a significar outra coisa — material que NÃO é estágio. */
+  n += R("UPDATE estagio SET categoria='Complementar' WHERE categoria='Avulsos'").changes as number;
+  /* 2. Os três nomes curtos que o UPDATE de toda partida havia sobrescrito com o nome longo. Por
+        SIGLA e com o valor errado no WHERE: nome curto igual ao nome é legítimo (o W2 é "W2"), e
+        uma regra genérica estragaria justamente os que estão certos. */
+  for (const [sigla, ruim, bom] of [["K4_O", "KIDS 4", "K4"], ["T2", "Teens 2", "T2"], ["T6", "Teens 6", "T6"]])
+    n += R("UPDATE estagio SET nome_curto=? WHERE sigla=? AND nome_curto=?", bom, sigla, ruim).changes as number;
+  /* 3. A edição fixada de dois estágios. O vínculo é material + edição, e a edição vazia significa
+        "a padrão do material" — por isso só age em quem está sem nenhuma. A edição é procurada pelo
+        NOME dentro do material do próprio estágio: casar por id seria chutar que os ids da recepção
+        são estes. */
+  for (const [sigla, padrao] of [["K4_O", /2nd|second|old|antig/i], ["NG", /2nd|second/i]] as [string, RegExp][]) {
+    const e = G("SELECT id, item_estoque_id FROM estagio WHERE sigla=? AND item_edicao_id IS NULL", sigla);
+    if (!e?.item_estoque_id) continue;
+    const ed = A("SELECT id, nome FROM estoque_edicao WHERE item_id=? AND arquivada IS NULL", e.item_estoque_id)
+      .find((x: any) => padrao.test(x.nome || ""));
+    if (!ed) { console.warn("correções v4: " + sigla + " sem edição que case com " + padrao); continue; }
+    n += R("UPDATE estagio SET item_edicao_id=? WHERE id=?", ed.id, e.id).changes as number;
+    /* 4. E quem é legada é a EDIÇÃO, no estoque. A semeadura `edicao_legada_v1` rodou antes de
+          existir vínculo nenhum e não achou o que semear; aqui já existe. O Next Generation NÃO
+          entra: ele fixa a 2nd Edition e deixou de ser legado (correção dele no mesmo dia). */
+    if (sigla === "K4_O") n += R("UPDATE estoque_edicao SET legada=1 WHERE id=? AND legada=0", ed.id).changes as number;
+  }
+  n += R("UPDATE estagio SET legado=0 WHERE sigla='NG' AND legado=1").changes as number;
+  R("INSERT OR REPLACE INTO config (chave,valor) VALUES ('estagio_correcoes_v4',?)", agora());
+  if (n) console.log("estágios: " + n + " correção(ões) de tela reaplicadas");
+  return { ajustes: n };
 }
 
 /* Numera os contratos que já existem: a ordem é a de criação do vínculo, e como `aluno_livro`
@@ -2229,6 +2271,34 @@ try {
   descricao TEXT, nome_curto TEXT, arquivado TEXT`);
   /* a reconstrução leva os índices junto — este volta */
   db.exec("CREATE INDEX IF NOT EXISTS ix_estagio_livro ON estagio(livro)");
+  /* ===== A DÍVIDA DA `finalidade` DA UNIDADE, PAGA (2026-08-23) =====
+     Em 22/08 a coluna nasceu sem CHECK de propósito: seria a terceira reconstrução de tabela do
+     mesmo dia e a escrita passa toda por `finalidadeUnidade`. A dívida ficou anotada, e é ela que
+     esta linha quita. São só dois valores — `venda` (o exemplar do aluno) e `escola` (o guia do
+     professor, que NÃO entra no saldo). Um terceiro valor entrando por engano tiraria unidade da
+     conta de estoque em silêncio, que é o erro caro: a escola pediria menos do que precisa.
+     Vem DEPOIS do `estagio` porque `devolucao_material` aponta para cá e a reconstrução roda com
+     `legacy_alter_table=ON` — a ordem é a mesma que as outras já usam. */
+  R("UPDATE estoque_unidade SET finalidade='venda' WHERE finalidade NOT IN ('venda','escola')");
+  reconstruirTabela("estoque_unidade", "finalidade IN ('venda','escola')", `
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  item_id INTEGER NOT NULL REFERENCES estoque_item(id) ON DELETE CASCADE,
+  remessa_id INTEGER REFERENCES estoque_evento(id) ON DELETE SET NULL,
+  entrada TEXT NOT NULL,                 -- 'YYYY-MM-DD HH:MM:SS.mmm' — ordena a fila
+  origem TEXT NOT NULL DEFAULT 'remessa' CHECK (origem IN ('remessa','contagem','manual')),
+  codigo TEXT,                           -- código de barras da etiqueta, quando houver
+  entrega_id INTEGER REFERENCES entrega_material(id) ON DELETE SET NULL,
+  saida TEXT,                            -- quando saiu para a mão do aluno
+  momento TEXT NOT NULL,
+  numero INTEGER,
+  conferido TEXT,
+  edicao_id INTEGER REFERENCES estoque_edicao(id) ON DELETE SET NULL,
+  arquivado TEXT,
+  finalidade TEXT NOT NULL DEFAULT 'venda' CHECK (finalidade IN ('venda','escola'))`);
+  /* os dois índices da fila vêm junto no bolo — a reconstrução os leva embora */
+  db.exec(`CREATE INDEX IF NOT EXISTS ix_unidade_fila ON estoque_unidade(item_id, entrada)
+    WHERE entrega_id IS NULL`);
+  db.exec("CREATE INDEX IF NOT EXISTS ix_unidade_entrega ON estoque_unidade(entrega_id)");
 } catch (e) { console.warn("aviso: regras de domínio não aplicadas ao banco (o app segue validando) — " + (e as Error).message); }
 /* A trava real contra a linha repetida sem edição (ver a armadilha logo acima). FORA do try: o
    índice tem de existir mesmo quando a reconstrução foi pulada por já estar feita. */
@@ -3055,6 +3125,8 @@ try { numerarUnidades(); } catch (e) { console.warn("numeração das unidades fa
 /* e leva a edição que estava no material para a unidade */
 try { migrarEdicoesParaUnidade(); } catch (e) { console.warn("migração das edições falhou (segue o baile):", e); }
 try { semearEstagios(); } catch (e) { console.warn("semeadura dos estágios falhou (segue o baile):", e); }
+/* depois do catálogo E das edições: reaplica as correções que ele fez na tela em 23/08 */
+try { corrigirEstagiosDaTela(); } catch (e) { console.warn("correções de estágio falharam (segue o baile):", e); }
 try { semearCalendario(); } catch (e) { console.warn("semeadura do calendário falhou (segue o baile):", e); }
 try { semearFontes(); } catch (e) { console.warn("semeadura das fontes falhou (segue o baile):", e); }
 try { migrarTrechos(); } catch (e) { console.warn("migração dos trechos falhou (segue o baile):", e); }

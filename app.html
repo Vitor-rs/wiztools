@@ -1122,8 +1122,28 @@ th.ev.ultima .es-ev-data{background:var(--marca);color:#fff}
 .es-cx-cab{display:flex;align-items:center;gap:8px;padding:9px 13px;border-bottom:1px solid var(--borda);
   font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--tx3);
   background:#FBFCFD}
-.es-cx-quem{margin-left:auto;text-transform:none;letter-spacing:0;font-size:12.5px;font-weight:700;
+/* o nome do material é o que identifica o painel — cresceu de 12.5 para 15px a pedido dele */
+.es-cx-quem{margin-left:auto;text-transform:none;letter-spacing:0;font-size:15px;font-weight:700;
   color:var(--marca)}
+/* ===== ATALHO ENTRE AS DUAS TELAS: o botão do meio do cabeçalho =====
+   `margin:0 auto` o centra entre o título (à esquerda) e o que vier à direita — o nome do material
+   num lado, o "arquivar" no outro. Discreto de propósito: é navegação, não ação sobre o dado. */
+/* `margin-left:auto` e NÃO `margin:0 auto`: o vizinho da direita (o nome do material, o "arquivar")
+   já tem o seu `auto`, e três margens automáticas dividiriam o espaço em TRÊS — o botão encostava
+   à esquerda. Com um auto de cada lado do botão o espaço se parte ao meio, que é o pedido. */
+.es-ir{appearance:none;margin-left:auto;border:1px solid var(--azul-borda);background:var(--azul-cl);
+  color:var(--azul-esc);border-radius:7px;font:inherit;font-size:10.5px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.4px;padding:3px 10px;cursor:pointer;white-space:nowrap}
+.es-ir:hover{background:var(--azul);color:#fff;border-color:var(--azul)}
+.es-ir-menu{padding:6px}
+.es-ir-menu .tit{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;
+  color:var(--tx3);padding:2px 6px 6px}
+.es-ir-menu button{display:flex;align-items:center;gap:6px;width:100%;appearance:none;border:0;
+  background:none;font:inherit;font-size:12.5px;color:var(--tx);text-align:left;padding:6px 8px;
+  border-radius:6px;cursor:pointer}
+.es-ir-menu button:hover{background:var(--azul-cl);color:var(--azul-esc)}
+.es-ir-menu button i{font-style:normal;font-size:9.5px;font-weight:700;color:var(--tx3);
+  background:#EFEFEF;border-radius:4px;padding:1px 6px}
 .es-cx-corpo{padding:12px 13px 14px}
 
 /* ===== fila de unidades no painel de detalhes ===== */
@@ -4467,11 +4487,14 @@ if(n==='inicio')renderHome();if(n==='dashboard')renderDashboard();if(n==='profes
    mudar, ela tem que voltar ao seu estado original, limpo"*. O zerar vem ANTES do carregar, para o
    render já nascer limpo em vez de piscar a seleção antiga por um quadro. */
 if(n==='estoque'){esZerar();
-  /* um atalho pode ter pedido uma aba/filtro específicos — é intenção de quem clicou, e vence o
-     estado limpo. Consumido aqui, para o próximo acesso pela barra lateral voltar a ser limpo. */
-  if(ES_DESTINO){ES_ABA=ES_DESTINO.aba;ES_FILTRO_ENT=ES_DESTINO.filtroEnt;
-    ES_FILTRO_ENT_ESCOLHIDO=true;ES_DESTINO=null}
-  esCarregar(function(){esAba(ES_ABA)})}
+  /* um atalho pode ter pedido uma aba/filtro/material específicos — é intenção de quem clicou, e
+     vence o estado limpo. Consumido aqui, para o próximo acesso pela barra lateral voltar a ser
+     limpo. `filtroEnt` só se aplica quando veio: o atalho do estágio não fala de entradas, e
+     escrever `undefined` ali marcaria o filtro como escolhido sem ninguém ter escolhido. */
+  var dEs=ES_DESTINO;ES_DESTINO=null;
+  if(dEs){if(dEs.aba)ES_ABA=dEs.aba;
+    if(dEs.filtroEnt!==undefined){ES_FILTRO_ENT=dEs.filtroEnt;ES_FILTRO_ENT_ESCOLHIDO=true}}
+  esCarregar(function(){esAba(ES_ABA);if(dEs&&dEs.itemId)esAbrirDireto(dEs.itemId)})}
 if(n==='arquivados')arqCarregar();
 /* a central zera junto, pela mesma regra: volta com as faixas recolhidas e sem filtro de área */
 /* A CENTRAL LEMBRA ONDE ELE PAROU (2026-08-22). Relato dele: *"se eu sair dessa página e eu voltar,
@@ -4482,7 +4505,9 @@ if(n==='central'){CT_ABERTA=null;ctCarregar()}
 /* o calendário volta ao ano corrente e à aba do panorama */
 if(n==='calendario'){CAL_ANO=new Date().getFullYear();CAL_ABA='ano';CAL_SUB='datas';calAba('ano');
   calCarregar();calFontesCarregar()}
-if(n==='estagios'){egZerar();egCarregar(function(){egAba(EG_ABA)})}
+if(n==='estagios'){egZerar();
+  var dEg=EG_DESTINO;EG_DESTINO=null;
+  egCarregar(function(){egAba(EG_ABA);if(dEg&&dEg.id)egAbrirDireto(dEg.id)})}
 /* as duas abas de lançamento compartilham o código: o modo diz de quais elementos ela é dona */
 if(n==='presenca'||n==='recepcao'){LCM=(n==='recepcao'?'recep':'sala');lcAba('checkin');lcHoje()}}
 /* acha o botão pelo próprio onclick em vez de um mapa de índices — assim adicionar/reordenar abas no
@@ -6023,6 +6048,64 @@ function esZerar(){ES_ITEM_SEL=null;ES_ALUNO_SEL=null;ES_ABERTAS=[];ES_ABA='cont
    propósito: é o único estado que representa uma intenção explícita de quem clicou, e não sobra da
    visita anterior. Consumido — e apagado — na entrada da página. */
 var ES_DESTINO=null;
+/* ===== IDA E VOLTA ENTRE O MATERIAL E O ESTÁGIO (2026-08-23, dele) =====
+   *"Um botão de acesso direto para o estágio que está selecionado... e a mesma coisa vale do
+   contrário."* São a mesma tela vista de dois lados — o material é o físico, o estágio é o
+   pedagógico —, e até aqui trocar de um para o outro era voltar à barra lateral, abrir a outra
+   página, achar a faixa, achar a linha.
+   Reusa o `ES_DESTINO`, que já existia para o aviso de chegada: um objeto que sobrevive à troca de
+   página e é consumido na entrada dela. `EG_DESTINO` é o gêmeo do outro lado. */
+var EG_DESTINO=null;
+function abaBotao(p){
+/* o `aba()` precisa do BOTÃO, não só do nome: é ele que ganha o realce e abre o grupo da barra */
+return [].slice.call(document.querySelectorAll('#sidebar button')).filter(function(b){
+  return (b.getAttribute('onclick')||'').indexOf("'"+p+"'")>=0})[0]}
+function irAoEstagio(id){var b=abaBotao('estagios');if(!b)return;EG_DESTINO={id:id};aba('estagios',b)}
+/* UM material pode ter DOIS estágios (o KIDS 4 corrente e o legado dividem o item 8). Com um só,
+   vai direto; com mais, um menuzinho ancorado no botão — chutar acertaria metade das vezes.
+   Menu e não diálogo: escolher entre dois nomes é gesto pequeno, e o balão da unidade já provou
+   que esse é o peso certo para isso nesta tela. */
+var ES_IR_MENU=null;
+function esIrFechaMenu(){if(ES_IR_MENU){ES_IR_MENU.remove();ES_IR_MENU=null;
+  document.removeEventListener('mousedown',esIrForaMenu,true)}}
+function esIrForaMenu(ev){if(ES_IR_MENU&&!ES_IR_MENU.contains(ev.target))esIrFechaMenu()}
+function esIrAoEstagio(itemId,ev){
+var it=esItem(itemId);if(!it)return;
+var es=(it.estagios||[]);
+if(!es.length)return;
+if(es.length===1){irAoEstagio(es[0].id);return}
+esIrFechaMenu();
+var m=document.createElement('div');m.className='lc-menu es-ir-menu';
+m.innerHTML='<div class="tit">Qual estágio?</div>'
+ +es.map(function(e){
+   return '<button onclick="esIrFechaMenu();irAoEstagio('+e.id+')">'+escBloco(e.nome)
+    +(e.legado?'<i>legado</i>':'')+(e.ativo?'':'<i>desativado</i>')+'</button>'}).join('');
+document.body.appendChild(m);ES_IR_MENU=m;
+var r=(ev&&ev.currentTarget?ev.currentTarget:document.body).getBoundingClientRect();
+m.style.left=Math.max(8,Math.min(r.left,innerWidth-m.offsetWidth-8))+'px';
+m.style.top=(r.bottom+4)+'px';
+setTimeout(function(){document.addEventListener('mousedown',esIrForaMenu,true)},0);
+}
+function irAoMaterial(id){var b=abaBotao('estoque');if(!b)return;
+  ES_DESTINO={aba:'contagem',itemId:id};aba('estoque',b)}
+/* abre a faixa da categoria, seleciona e rola até a linha — o "já carregado" que ele pediu.
+   `esRender` antes de `esTrocarMaterial` porque a linha precisa existir no DOM para ser marcada. */
+function esAbrirDireto(id){
+var it=esItem(id);if(!it)return;
+if(ES_ABERTAS.indexOf(it.categoria)<0)ES_ABERTAS=[it.categoria];
+esRender();
+esTrocarMaterial(id);
+var tr=document.querySelector('#es-grade tr.linha[data-i="'+id+'"]');
+if(tr&&tr.scrollIntoView)tr.scrollIntoView({block:'center'});
+}
+function egAbrirDireto(id){
+var e=(EG&&EG.estagios||[]).filter(function(x){return x.id===id})[0];if(!e)return;
+if(EG_ABERTAS.indexOf(e.categoria)<0)EG_ABERTAS=[e.categoria];
+egRender();
+egEscolher(id);   /* já devolve a aba de detalhe para "Dados do estágio" */
+var lin=document.querySelector('#eg-lista .eg-lin[data-i="'+id+'"]');
+if(lin&&lin.scrollIntoView)lin.scrollIntoView({block:'center'});
+}
 function esAba(p){
 /* TROCAR DE ABA ZERA A DE MATERIAIS: ao voltar, os grupos estão recolhidos e o painel limpo.
    Regra dele, e é coerente com a de cima — sair da aba é sair do assunto, e reencontrar um
@@ -6303,7 +6386,15 @@ var it=ES_ITEM_SEL?esItem(ES_ITEM_SEL):null;
 if(!it){box.innerHTML='<div class="es-cx"><div class="es-cx-cab">Informações</div>'
  +'<div class="es-cx-corpo"><div class="es-vazio">Escolha um material na tabela.</div></div></div>';return}
 var us=(it.unidades||[]);
+/* O BOTÃO FICA NO MEIO do cabeçalho, entre "Informações" e o nome. Material sem estágio (o avulso)
+   não ganha botão: não há para onde ir. Material com DOIS estágios — o KIDS 4 — pergunta qual,
+   porque escolher por ele acertaria metade das vezes. */
+var ests=(it.estagios||[]);
 var h='<div class="es-cx"><div class="es-cx-cab">Informações'
+ +(ests.length?'<button class="es-ir" onclick="esIrAoEstagio('+it.id+',event)"'
+    +' title="'+(ests.length>1?'Este material tem '+ests.length+' estágios — escolha qual abrir'
+      :'Abrir «'+escBloco(ests[0].nome)+'» na página de Estágios')+'">'
+    +'acessar estágio</button>':'')
  +'<span class="es-cx-quem">'+escBloco(it.descricao)+'</span></div><div class="es-cx-corpo">';
 /* O CÓDIGO DE BARRAS saiu daqui: quem tem código é a UNIDADE, não o material. O material é a
    classe; a etiqueta está colada em cada unidade, e é ela que, com o instante, identifica um
@@ -7889,6 +7980,10 @@ h+='<div class="pg-abas eg-abas-det">'
 /* formulário */
 h+='<div class="eg-det-p" data-d="dados"'+(EG_ABA_DET==='dados'?'':' style="display:none"')+'>';
 h+='<div class="eg-cx" style="margin-bottom:14px"><div class="eg-cx-cab">Dados do estágio'
+ /* o gêmeo do "acessar estágio" do Estoque: no meio, entre o título e o arquivar. Estágio sem
+    material vinculado (o Business Empire) não ganha botão — não há para onde ir. */
+ +(e.itemEstoqueId?'<button class="es-ir" onclick="irAoMaterial('+e.itemEstoqueId+')"'
+    +' title="Abrir este material na aba Estoque · Materiais">acessar material</button>':'')
  +'<button class="es-bt desfaz" style="margin-left:auto" onclick="egArquivarEstagio()">arquivar</button></div>'
  +'<div class="eg-cx-corpo"><div class="eg-form">'
  /* A SIGLA saiu do formulário (pedido dele, 2026-08-10): *"os Ws não têm como ter sigla, porque W2,

@@ -1,13 +1,12 @@
 {
+  "_comentario": [
+    "UMA PORTA SO: 8420. Havia aqui uma segunda configuracao, 'wizard-ensaio', com autoPort:true —",
+    "e era ela a fabrica de portas: o harness escolhia uma LIVRE a cada ensaio (8421, 8422, 8423...).",
+    "Saiu em 2026-08-23, por ordem dele. O ensaio agora usa .claude/ensaio.cmd, que sobe na propria",
+    "8420 depois de o servidor de verdade sair, e se anuncia com uma faixa na tela."
+  ],
   "version": "0.0.1",
   "configurations": [
-    {
-      "name": "wizard-ensaio",
-      "runtimeExecutable": ".claude\\ensaio.cmd",
-      "runtimeArgs": [],
-      "port": 8421,
-      "autoPort": true
-    },
     {
       "name": "wizard-local",
       "port": 8420,

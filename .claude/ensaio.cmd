@@ -1,23 +1,33 @@
 @echo off
 rem ===================================================================
-rem  Instancia de ENSAIO do wiztools (usada pelo preview do Claude Code)
+rem  Instancia de ENSAIO do wiztools
 rem
-rem  Sobe o servidor sobre uma COPIA do banco, numa porta que nao e a
-rem  8420. A 8420 e o painel da recepcao: e o servidor que a escola esta
-rem  usando, e o wizard.db dele e o banco de producao.
+rem  Sobe o servidor sobre uma COPIA do banco, na MESMA porta 8420.
 rem
-rem  Sem isto, o preview subiria "deno run -A main.ts" puro - que abre o
-rem  wizard.db vivo. Seriam dois processos escrevendo o mesmo arquivo
-rem  SQLite, e qualquer teste meu cairia nos dados da escola.
+rem  UMA PORTA SO (ordem dele, 2026-08-23). Antes isto subia numa porta
+rem  a parte (8421, e com autoPort no launch.json ia subindo: 8422...).
+rem  O projeto tem UMA porta, a 8420: e a que iniciar.bat, iniciar-app.vbs,
+rem  iniciar-sala.vbs, servidor.vbs e a regra do firewall conhecem.
 rem
-rem  As variaveis WIZ_DB e WIZ_PORT existem no main.ts so para isto.
-rem  Com WIZ_DB setado o servidor tambem NAO escreve na pasta de backup.
+rem  O que protege os dados da escola NAO era a porta - e o WIZ_DB, que
+rem  troca o arquivo do banco por uma copia e desliga a escrita na pasta
+rem  de backup. O ensaio agora exige PARAR o servidor de verdade antes,
+rem  e o servidor de verdade volta depois.
+rem
+rem  Na tela, o ensaio se anuncia sozinho: com WIZ_DB setado o app pinta
+rem  uma faixa no topo dizendo que aquilo nao e o banco da recepcao.
 rem ===================================================================
 setlocal
 cd /d "%~dp0.."
 
-rem porta: a que o harness atribuir (PORT), senao a 8421 de sempre
-if "%PORT%"=="" set PORT=8421
+rem a 8420 tem de estar livre: se o servidor de verdade esta no ar, e ele
+rem que precisa sair primeiro - subir por cima seria dois processos
+rem escrevendo bancos diferentes e um deles morrendo no bind
+netstat -ano | findstr /r /c:":8420 .*LISTENING" >nul
+if not errorlevel 1 (
+  echo [ensaio] a 8420 esta ocupada - pare o servidor de verdade antes de ensaiar
+  exit /b 1
+)
 
 rem copia torta e pior que copia nenhuma: se ha escrita em andamento,
 rem para e pede para tentar de novo (mesma guarda do backup no main.ts)
@@ -33,6 +43,5 @@ if errorlevel 1 (
 )
 
 set WIZ_DB=wizard-ensaio.db
-set WIZ_PORT=%PORT%
-echo [ensaio] copia feita - subindo na porta %PORT% sobre wizard-ensaio.db
+echo [ensaio] copia feita - subindo na 8420 sobre wizard-ensaio.db
 deno run -A main.ts

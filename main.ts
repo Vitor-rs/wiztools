@@ -4,11 +4,18 @@
 import { DatabaseSync } from "node:sqlite";
 
 const PASTA = new URL(".", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
-/* WIZ_DB / WIZ_PORT: só para ENSAIO. Sem as variáveis nada muda — é wizard.db na 8420, como sempre,
-   e os atalhos da recepção não sabem que elas existem. Servem para subir uma segunda instância sobre
-   uma CÓPIA do banco enquanto o painel dele continua aberto: antes disso, ensaiar exigia editar a
-   porta e o nome do arquivo aqui dentro e lembrar de desfazer os dois — e esquecer de desfazer um
-   deles é justamente o acidente que a variável evita. */
+/* WIZ_DB: só para ENSAIO, e é a ÚNICA variável. Sem ela nada muda — é `wizard.db`, como sempre, e
+   os atalhos da recepção não sabem que ela existe. Serve para subir o servidor sobre uma CÓPIA do
+   banco, que é o que de fato protege os dados da escola.
+   ===== UMA PORTA SÓ (2026-08-23, ordem dele) =====
+   Existia também um `WIZ_PORT`, para o ensaio subir ao lado do painel dele. Saiu: *"esse projeto
+   originalmente só tinha a porta 8420, aí foi acrescentado 8421, agora 8422... daqui a pouco chega
+   na 8430. Isso é um absurdo."* Ele estava certo, e a causa era pior do que uma porta a mais — o
+   `launch.json` pedia `autoPort`, então o harness escolhia uma porta LIVRE a cada ensaio.
+   Agora o ensaio para o servidor de verdade e sobe **na mesma 8420**. O que a porta separada dava
+   era não confundir uma tela com a outra; isso passou a ser dito na TELA, pela faixa de ensaio
+   (`estacaoDoIP` devolve `ensaio` e o nome do banco) — que é mais difícil de ignorar do que um
+   número no fim da URL. */
 const ENSAIO = !!Deno.env.get("WIZ_DB");
 const db = new DatabaseSync(PASTA + (Deno.env.get("WIZ_DB") || "wizard.db"));
 const A = (sql: string, ...p: any[]) => db.prepare(sql).all(...p) as any[];
@@ -6218,9 +6225,15 @@ const ESTACOES: Record<string, { nome: string; papel: "recepcao" | "sala" }> = {
    desconhecida — celular, notebook novo, IP trocado pelo DHCP — entra como sala, que é o perfil
    mais restrito: lança entrada/saída e não mexe no status. */
 function estacaoDoIP(ip: string) {
-  if (ESTACOES[ip]) return { ip, ...ESTACOES[ip], conhecida: true };
+  /* `ensaio` e `banco` viajam com a estação porque a pergunta é a mesma — *que tela é esta?*. Desde
+     que a porta voltou a ser só a 8420, a URL não distingue mais o ensaio do painel de verdade: quem
+     avisa é a faixa que o cliente pinta com isto. Sem ela, ele olharia dados de uma cópia achando
+     que são os da escola, que é o acidente que a porta separada evitava. */
+  const extra = { ensaio: ENSAIO, banco: Deno.env.get("WIZ_DB") || "wizard.db" };
+  if (ESTACOES[ip]) return { ip, ...ESTACOES[ip], conhecida: true, ...extra };
   const local = ip === "127.0.0.1" || ip === "::1" || ip === "::ffff:127.0.0.1";
-  return { ip, nome: local ? "Esta máquina (servidor)" : "Estação não cadastrada", papel: local ? "recepcao" : "sala", conhecida: local };
+  return { ip, nome: local ? "Esta máquina (servidor)" : "Estação não cadastrada",
+    papel: local ? "recepcao" : "sala", conhecida: local, ...extra };
 }
 
 /* ===== avisos em tempo real (WebSocket) =====
@@ -6261,7 +6274,10 @@ async function tentarSyncCalendario() {
 setInterval(tentarSyncCalendario, 10 * 60 * 1000);
 setTimeout(tentarSyncCalendario, 20000);   // e uma tentativa 20s depois de subir
 
-const PORTA = Number(Deno.env.get("WIZ_PORT")) || 8420;
+/* 8420 e ponto. É a porta que `iniciar.bat`, `iniciar-app.vbs`, `iniciar-sala.vbs`, `servidor.vbs`
+   e a regra do firewall conhecem — não há segunda porta em lugar nenhum do projeto, e não deve
+   haver. Ensaio sobe aqui também, depois de parar este servidor. */
+const PORTA = 8420;
 Deno.serve({ port: PORTA, hostname: "0.0.0.0" }, async (req, info) => {
   const url = new URL(req.url);
   const ip = (info?.remoteAddr as Deno.NetAddr | undefined)?.hostname ?? "127.0.0.1";
@@ -6331,8 +6347,8 @@ Deno.serve({ port: PORTA, hostname: "0.0.0.0" }, async (req, info) => {
   try { return new Response(await Deno.readFile(PASTA + arquivo), { headers: cabecalhos }); }
   catch { return new Response("não encontrado", { status: 404 }); }
 });
-/* a porta ANUNCIADA tem de ser a que está escutando: com a instância de ensaio dizendo 8420 no log,
-   quem lê o terminal abre o painel dele achando que abriu o teste — ou o contrário. */
+/* O log diz QUAL BANCO, já que a porta não distingue mais — é o mesmo aviso que a faixa dá na tela,
+   para quem estiver olhando o terminal em vez do navegador. */
 console.log(`Wizard local em http://localhost:${PORTA}  (painel único: Alunos, Turmas, Horários e Impressão)`
   + (ENSAIO ? `  [ENSAIO sobre ${Deno.env.get("WIZ_DB")} — não é o banco da recepção]` : ""));
 /* endereços por onde os notebooks alcançam esta máquina — a recepção precisa saber qual digitar

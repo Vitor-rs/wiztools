@@ -3368,6 +3368,20 @@ td.lc-est-cel{padding:0!important;border-left:1px solid var(--aba-bd);border-rig
 
 /* qual máquina é esta, no pé da barra lateral — some da vista, mas responde "por que esta tela
    está diferente da outra?" sem precisar abrir o código */
+/* ===== FAIXA DE ENSAIO (2026-08-23) =====
+   Desde que a porta voltou a ser só a 8420, a URL não distingue mais o ensaio do painel de verdade.
+   Quem avisa é esta faixa, e ela é DE PROPÓSITO impossível de ignorar: fica no topo, atravessa a
+   tela inteira e empurra o corpo para baixo. Olhar dado de uma cópia achando que é o da escola é o
+   erro caro, e um número no fim da URL nunca foi bom aviso contra ele.
+   `position:fixed` + padding no body: sem empurrar, ela cobriria o cabeçalho da página. */
+.ensaio-faixa{position:fixed;top:0;left:0;right:0;z-index:9999;
+  background:repeating-linear-gradient(135deg,#8a5a00,#8a5a00 14px,#a06a00 14px,#a06a00 28px);
+  color:#fff;font:700 12px/1 system-ui,sans-serif;letter-spacing:.3px;
+  padding:8px 14px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+.ensaio-faixa b{font-weight:800}
+.ensaio-faixa small{font-weight:600;opacity:.9;letter-spacing:0}
+body.tem-ensaio{padding-top:29px}
+@media print{.ensaio-faixa{display:none}body.tem-ensaio{padding-top:0}}
 .estacao-tag{margin-top:auto;font-size:10px;font-weight:600;color:var(--tx3);
   padding:9px 14px;line-height:1.35;cursor:help;border-top:1px solid var(--borda)}
 .estacao-tag.desconhecida{color:#8a5a00;background:#fdf6e3}
@@ -8663,6 +8677,16 @@ document.querySelectorAll('#sidebar button').forEach(function(b){
 var alvo=String(b.getAttribute('onclick')).indexOf("'"+daMaquina+"'")>=0;
 b.classList.toggle('desta-maquina',alvo);
 if(alvo)b.title='Esta máquina normalmente usa esta tela ('+ESTACAO.nome+')'});
+/* a faixa nasce do que o SERVIDOR diz, não de heurística no cliente: só ele sabe se subiu com
+   `WIZ_DB` e sobre qual arquivo */
+if(e.ensaio){
+ var fx=document.getElementById('ensaio-faixa');
+ if(!fx){fx=document.createElement('div');fx.id='ensaio-faixa';fx.className='ensaio-faixa';
+  document.body.insertBefore(fx,document.body.firstChild);document.body.classList.add('tem-ensaio')}
+ fx.innerHTML='⚠ <b>ENSAIO</b> — esta tela NÃO é o banco da recepção. '
+  +'<small>Rodando sobre '+escBloco(e.banco)+'; o que você mudar aqui se perde.</small>';
+ document.title='[ENSAIO] '+document.title;
+}
 var el=$('estacao-tag');
 if(el){el.textContent=ESTACAO.nome+(ESTACAO.forcado?' · forçado':'');
 el.title='IP '+ESTACAO.ip+' · tela padrão desta máquina: '+(ESTACAO.papel==='recepcao'?'Entrada Recep (dropdown)':'Presença (fluxo da sala)')

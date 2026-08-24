@@ -1226,16 +1226,29 @@ th.ev.ultima .es-ev-data{background:var(--marca);color:#fff}
 .pr-veredito.atras{color:#8a5a00}
 .pr-veredito.frente{color:#155724}
 
-/* a trilha do livro: uma coluna por bloco, enchendo conforme as lições são dadas */
-.pr-trilha{margin:0 0 12px}
-.pr-blocos{display:flex;gap:5px;align-items:flex-end}
-.pr-bl{flex:1;height:44px;background:#EDF1F5;border-radius:6px;position:relative;overflow:hidden;
-  display:flex;align-items:flex-end;justify-content:center;cursor:help}
-.pr-bl i{position:absolute;left:0;bottom:0;width:100%;background:#BFD8F2}
-.pr-bl.meio i{background:#8FB9E4}
-.pr-bl.cheio i{background:#2E6EBE}
-.pr-bl span{position:relative;font-size:9.5px;font-weight:700;color:var(--tx3);padding-bottom:3px}
-.pr-bl.cheio span{color:#fff}
+/* ===== o painel granular: localizador, moldura e tipografia do SVG =====
+   O desenho é UM svg com viewBox: as linhas de perspectiva e o pé de galinha das faltas exigem
+   posição exata, e alinhar isso com células de HTML flutuantes seria brigar com o layout a cada
+   largura de tela. Com viewBox ele escala inteiro e as linhas continuam encostando onde devem. */
+.pg-loc{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 8px}
+.pg-loc label{font-size:11px;font-weight:700;color:var(--azul-esc);background:var(--azul-cl);
+  border-radius:7px;padding:4px 9px}
+.pg-loc input{width:130px;padding:3px 8px;font-size:12px;font-variant-numeric:tabular-nums}
+.pg-leg{display:flex;align-items:center;gap:5px;font-size:10.5px;color:var(--tx3);margin-left:auto}
+.pg-leg i{width:10px;height:10px;border-radius:2px;display:inline-block;margin-left:8px}
+.pg-leg i.c-fez{background:#8FDCAB}
+.pg-leg i.c-rev{background:#2E9E5B}
+.pg-leg i.c-falta{background:#F2A93B}
+.pg-leg i.c-nao{background:#CBD2DA}
+.pg-moldura{border:1px solid var(--borda);border-radius:12px;background:#EFF1F3;padding:6px;
+  overflow-x:auto;margin:0 0 12px}
+.pg-svg{display:block;width:100%;min-width:820px;height:auto}
+.pg-svg .pg-rot{font-size:11px;fill:var(--azul-esc);text-anchor:end;font-weight:600}
+.pg-svg .pg-rot.pg-pend{fill:#C0392B;font-size:9.5px;font-weight:400}
+.pg-svg .pg-rot.pg-hist{text-anchor:start;fill:#7B4BC9;font-size:12px}
+.pg-svg .pg-pct{font-size:13px;fill:#fff;font-weight:700;text-anchor:end}
+.pg-svg .pg-nota{font-size:9.5px}
+.pg-svg .pg-marca{font-size:12px;font-weight:700}
 
 /* os números, cada um com o seu gráfico dentro */
 .pr-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:8px;margin:0 0 12px}
@@ -5165,6 +5178,174 @@ i.onblur=function(){
   /* recarrega porque afirmar a lição REANCORA a tabela inteira, para trás e para frente */
   planCarregar(PLAN_LIVRO)})};
 }
+/* ===== O PAINEL GRANULAR DO ALUNO (2026-08-24, dele, do Figma) =====
+   Ele desenhou e narrou inteiro. As decisões que o desenho carrega, e que eu preciso respeitar:
+
+   1. AS QUATRO BARRAS DE CIMA TÊM UM LUGAR POR LIÇÃO e NUNCA mudam de tamanho. A de baixo tem um
+      lugar por EVENTO e CRESCE — falta é evento, e falta acontece ENTRE lições. É daí que vem a
+      perspectiva de cadeira: as duas réguas não são a mesma, e as linhas capilares fazem a costura.
+   2. AS LINHAS SÃO A INFORMAÇÃO. Azul = onde ele está. Amarela = onde deveria estar. *"É tipo a
+      linha do pedreiro, pra ver se a parede está reta."* A distância entre as duas É o atraso.
+   3. O LOCALIZADOR aceita uma lição (`29`) ou um intervalo (`11 - 21`). No intervalo, a linha de
+      início encosta na ESQUERDA da célula e a de fim na DIREITA — *"cortar no meio não faz sentido,
+      cada barrinha é uma lição"*.
+   4. É PARA LER, NÃO PARA MEXER: *"ele é interagível, mas não é manipulável"*.
+
+   Duas barras ainda não têm dado: entrega de tarefas e atividades do app. Ele mesmo disse que isso
+   é outro módulo, que ainda vai fazer. Desenho o lugar delas e digo que está esperando — inventar
+   pendência seria pior que a lacuna. */
+var PROG_LOC='';
+function progLocalizar(v){PROG_LOC=String(v||'');progPintar()}
+/* "29" → uma lição · "11 - 21" ou "11-21" → intervalo · vazio → nada */
+function progAlvo(total){
+var t=PROG_LOC.replace(/\s+/g,'');
+if(!t)return null;
+var m=t.match(/^(\d+)-(\d+)$/);
+var dentro=function(n){return n>=1&&n<=total?n:null};
+if(m){var a=dentro(+m[1]),b=dentro(+m[2]);return (a&&b)?{de:Math.min(a,b),ate:Math.max(a,b)}:null}
+if(/^\d+$/.test(t)){var u=dentro(+t);return u?{de:u,ate:u,uma:true}:null}
+return null;
+}
+function progSvg(r){
+var esc=escBloco;
+var N=(r.linhas||[]).length; if(!N)return '';
+var ev=r.eventos||[];
+/* a barra de baixo = os eventos que aconteceram + as lições que ainda faltam */
+var pos=r.posicao||{}, feitasAte=pos.ordem||0;
+var restantes=(r.linhas||[]).filter(function(l){return l.ordem>feitasAte});
+var M=ev.length+restantes.length; if(!M)M=N;
+var W=1120,H=524, X0=186,X1=890, HX0=46,HX1=1074;
+var cw=(X1-X0)/N, hw=(HX1-HX0)/M;
+var Y={tempo:132,tempoH:30, mod:206,tar:262,app:318, barH:38, hist:432,histH:44};
+var appB=Y.app+Y.barH;
+var s='<svg viewBox="0 0 '+W+' '+H+'" class="pg-svg" xmlns="http://www.w3.org/2000/svg" role="img">';
+s+='<defs><pattern id="pgVazio" width="4" height="4" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">'
+ +'<line x1="0" y="0" x2="0" y2="4" stroke="#E3E8EE" stroke-width="2"/></pattern></defs>';
+function rot(y,t,sub){
+ return '<text x="176" y="'+(y+15)+'" class="pg-rot">'+esc(t)+'</text>'
+  +(sub?'<text x="176" y="'+(y+29)+'" class="pg-rot pg-pend">'+esc(sub)+'</text>':'')}
+function xL(ordem){return X0+(ordem-1)*cw}          // esquerda da célula da lição
+function xH(i){return HX0+i*hw}
+
+/* ---------- 1. progresso do tempo: uma barra só, contínua ---------- */
+var pt=Math.max(0,Math.min(1,r.progressoTempo||0));
+s+=rot(Y.tempo,'Progresso do tempo');
+s+='<rect x="'+X0+'" y="'+Y.tempo+'" width="'+(X1-X0)+'" height="'+Y.tempoH+'" fill="#DFE4EA"/>';
+s+='<rect x="'+X0+'" y="'+Y.tempo+'" width="'+((X1-X0)*pt)+'" height="'+Y.tempoH+'" fill="#1FA23C"/>';
+s+='<text x="'+(X0+(X1-X0)*pt-8)+'" y="'+(Y.tempo+20)+'" class="pg-pct">'+Math.round(pt*100)+'%</text>';
+
+/* ---------- 2..4. as três barras segmentadas ---------- */
+function seg(y,rotulo,sub,cor,corRev,ativa){
+ var out=rot(y,rotulo,sub);
+ (r.linhas||[]).forEach(function(l,i){
+  var x=xL(l.ordem), feita=ativa&&l.ordem<=feitasAte;
+  var f=!ativa?'url(#pgVazio)':(feita?(l.tipo==='review'?corRev:cor):'#fff');
+  out+='<rect x="'+x.toFixed(2)+'" y="'+y+'" width="'+(cw-1).toFixed(2)+'" height="'+Y.barH+'" fill="'+f+'"'
+   +' stroke="#C9D2DC" stroke-width=".5"><title>'+esc((l.licao||'')+' · '+(l.conteudo||''))
+   +(feita?' · feita':'')+'</title></rect>';
+ });
+ return out;
+}
+s+=seg(Y.mod,'Progresso do Módulo',null,'#8FDCAB','#2E9E5B',true);
+s+=seg(Y.tar,'Entrega de tarefas','aguardando o módulo','#6FD9BC','#22A88A',false);
+s+=seg(Y.app,'Atividades do App','aguardando o módulo','#7FD0EC','#1FA9D6',false);
+
+/* ---------- 5. histórico de eventos: a barra que cresce ---------- */
+s+='<text x="46" y="'+(Y.hist+Y.histH+22)+'" class="pg-rot pg-hist">Histórico de eventos das aulas</text>';
+var CORES={falta:'#F2A93B',naoaula:'#CBD2DA'};
+ev.forEach(function(e,i){
+ var f=e.tipo==='aula'?(e.tipoLicao==='review'?'#2E9E5B':'#8FDCAB'):CORES[e.tipo];
+ s+='<rect x="'+xH(i).toFixed(2)+'" y="'+Y.hist+'" width="'+Math.max(1,hw-0.8).toFixed(2)+'" height="'+Y.histH+'"'
+  +' fill="'+f+'" stroke="#B9C3CE" stroke-width=".4"><title>'+esc(dataCurta(e.data)+' · '
+  +(e.tipo==='aula'?('aula — '+(e.licao||'')):(e.tipo==='falta'?'falta':'não-aula')))+'</title></rect>';
+});
+restantes.forEach(function(l,k){
+ var i=ev.length+k;
+ s+='<rect x="'+xH(i).toFixed(2)+'" y="'+Y.hist+'" width="'+Math.max(1,hw-0.8).toFixed(2)+'" height="'+Y.histH+'"'
+  +' fill="#fff" stroke="#C9D2DC" stroke-width=".4"><title>'+esc((l.licao||'')+' — ainda não dada')+'</title></rect>';
+});
+
+/* ---------- 6. a costura: cada evento sobe até a lição que consumiu ---------- */
+var pontes='';
+var faltaGrupo=[];
+function despejaGrupo(destinoOrdem){
+ if(!faltaGrupo.length)return;
+ /* pé de galinha: as faltas de um mesmo intervalo convergem para o mesmo ponto lá em cima, porque
+    lá em cima elas não têm lugar próprio — não são lição */
+ var alvoX=xL(destinoOrdem)+cw/2, alvoY=appB;
+ faltaGrupo.forEach(function(i){
+  pontes+='<path d="M'+(xH(i)+hw/2).toFixed(2)+' '+Y.hist+' L'+alvoX.toFixed(2)+' '+alvoY+'" stroke="#F07CC0" stroke-width=".6" fill="none" opacity=".85"/>';
+ });
+ faltaGrupo=[];
+}
+ev.forEach(function(e,i){
+ if(e.tipo!=='aula'){faltaGrupo.push(i);return}
+ despejaGrupo(e.ordem||1);
+ if(!e.ordem)return;
+ pontes+='<path d="M'+(xH(i)+hw/2).toFixed(2)+' '+Y.hist+' L'+(xL(e.ordem)+cw/2).toFixed(2)+' '+appB+'" stroke="#AEB8C4" stroke-width=".5" fill="none" opacity=".75"/>';
+});
+despejaGrupo(Math.min(N,feitasAte+1));
+/* as bordas da perspectiva, que são o que faz o desenho parecer uma cadeira */
+pontes+='<path d="M'+X0+' '+appB+' L'+HX0+' '+Y.hist+'" stroke="#5B6B7C" stroke-width="1" fill="none"/>';
+pontes+='<path d="M'+X1+' '+appB+' L'+HX1+' '+Y.hist+'" stroke="#5B6B7C" stroke-width="1" fill="none"/>';
+s+=pontes;
+
+/* ---------- 7. as linhas que dizem tudo ---------- */
+function linha(ordem,cor,rotulo,lado,iHist){
+ if(!ordem)return '';
+ var x=(lado==='esq'?xL(ordem):xL(ordem)+cw-1);
+ /* SEM EVENTO, A LINHA PARA NA BARRA DE CIMA. Lição dada antes de existir lançamento de frequência
+    (quase todo contrato aberto antes de julho/2026) não tem lugar no histórico — descer a linha até
+    lá seria apontar para uma célula que é de outra lição. Parar e não desenhar a ponta é dizer a
+    verdade: aquele pedaço do passado não foi registrado. */
+ var temHist=(iHist!=null);
+ var hx=temHist?(xH(iHist)+(lado==='esq'?0:hw)):x;
+ var o='<path d="M'+x.toFixed(2)+' '+Y.tempo+' L'+x.toFixed(2)+' '+appB
+  +(temHist?(' L'+hx.toFixed(2)+' '+(Y.hist+Y.histH)):'')+'" stroke="'+cor+'" stroke-width="2" fill="none"'
+  +(temHist?'':' stroke-dasharray="1 3"')+'/>';
+ o+='<path d="M'+(x-5).toFixed(2)+' '+(Y.tempo-9)+' L'+(x+5).toFixed(2)+' '+(Y.tempo-9)+' L'+x.toFixed(2)+' '+Y.tempo+' Z" fill="'+cor+'"/>';
+ if(temHist)
+  o+='<path d="M'+(hx-5).toFixed(2)+' '+(Y.hist+Y.histH+9)+' L'+(hx+5).toFixed(2)+' '+(Y.hist+Y.histH+9)+' L'+hx.toFixed(2)+' '+(Y.hist+Y.histH)+' Z" fill="'+cor+'"/>';
+ if(rotulo)o+='<text x="'+x.toFixed(2)+'" y="'+(Y.tempo-16)+'" class="pg-marca" fill="'+cor+'" text-anchor="middle">'+esc(rotulo)+'</text>';
+ return o;
+}
+/* ONDE A LIÇÃO ESTÁ NA BARRA DE BAIXO. As duas réguas não são a mesma: se a lição já foi dada, ela
+   tem um evento; se não foi, ela está na cauda de lições que ainda vão acontecer. Sem isto a linha
+   descia reta e mentia sobre o ponto do histórico. */
+function iHistDaLicao(ordem){
+ for(var i=0;i<ev.length;i++) if(ev[i].ordem===ordem) return i;
+ if(ordem>feitasAte) return ev.length+(ordem-feitasAte-1);
+ return null;
+}
+/* amarela primeiro: quando as duas coincidem, a azul (onde ele ESTÁ) fica por cima */
+if(r.licaoEsperada) s+=linha(r.licaoEsperada,'#EE9A21',null,'dir',iHistDaLicao(r.licaoEsperada));
+if(feitasAte) s+=linha(feitasAte,'#1B4FD8',pos.licao||'','dir',ev.length?ev.length-1:null);
+var alvo=progAlvo(N);
+if(alvo){
+ s+=linha(alvo.de,'#9B30D9',String(alvo.de),'esq',iHistDaLicao(alvo.de));
+ if(!alvo.uma) s+=linha(alvo.ate,'#9B30D9',String(alvo.ate),'dir',iHistDaLicao(alvo.ate));
+}
+
+/* ---------- 8. as etiquetas ---------- */
+function nota(x,y,txt,cor,anchor){
+ return '<text x="'+x+'" y="'+y+'" class="pg-nota" fill="'+(cor||'#5B6B7C')+'" text-anchor="'+(anchor||'start')+'">'+esc(txt)+'</text>'}
+if(r.inicio) s+=nota(X0,Y.tempo-16,'Iniciou o curso em '+dataCurta(r.inicio));
+if(r.fimContrato) s+=nota(X1+8,Y.tempo+12,'Término do contrato');
+if(r.fimContrato) s+=nota(X1+8,Y.tempo+26,dataCurta(r.fimContrato));
+if(r.aulasAtraso!=null&&r.aulasAtraso>0)
+ s+=nota(X1+8,Y.mod-14,'Atrasado '+r.aulasAtraso+' aulas','#C77700')
+  +nota(X1+8,Y.mod,'Lição esperada: '+(r.licaoEsperada||'—'),'#C77700');
+else if(r.aulasAtraso!=null)
+ s+=nota(X1+8,Y.mod-14,'Adiantado '+Math.abs(r.aulasAtraso)+' aulas','#1B7A3E')
+  +nota(X1+8,Y.mod,'Lição esperada: '+(r.licaoEsperada||'—'),'#1B7A3E');
+s+=nota(X1+8,Y.mod+26,(pos.licao||'—')+' de '+N+' lições','#3A4652');
+if(r.faltamLicoes!=null)
+ s+=nota(X1+8,Y.mod+40,'faltam '+r.faltamLicoes+'L ('+Math.round(r.faltamLicoes/N*100)+'%)');
+s+=nota(X1+8,Y.tar+24,String(r.faltas)+' falta(s)','#C77700');
+s+='</svg>';
+return s;
+}
+
 /* ===== O PROGRESSO DE UM ALUNO (2026-08-24, dele) =====
    Traduz para a tela o modelo da planilha "Progresso dos Alunos.xlsm": *"são duas porcentagens que
    competem uma com a outra"* — o LIVRO e o TEMPO DO CONTRATO. As duas barras são desenhadas na mesma
@@ -5214,22 +5395,13 @@ h+='<div class="pr-corrida">'
  +(r.excesso>0?'<div class="pr-veredito atras">O contrato já passou do ano em <b>'+progPct(r.excesso)
     +'</b> e o livro ainda não terminou.</div>':'')
  +'</div>';
-/* ---- A TRILHA, bloco a bloco: a linha do tempo de carregamento ---- */
-/* FEITA é a lição até a POSIÇÃO, não a que tem presença lançada: o aluno de 2021 fez 60 lições
-   antes de existir lançamento de frequência, e contar só o que tem data deixaria a trilha vazia
-   justamente em quem está quase acabando o livro. */
-var blocos={},ordemB=[],ate=(r.posicao?r.posicao.ordem:0);
-(r.linhas||[]).forEach(function(l){
- var b=(l.bloco==null?'—':l.bloco);
- if(!blocos[b]){blocos[b]={n:0,feitas:0};ordemB.push(b)}
- blocos[b].n++; if(l.ordem<=ate)blocos[b].feitas++});
-h+='<div class="pr-trilha"><div class="pr-tit">A trilha do livro <small>'+r.licoes+' lições em '
- +ordemB.filter(function(b){return b!=='—'}).length+' blocos</small></div><div class="pr-blocos">'
- +ordemB.map(function(b){var x=blocos[b],p=x.n?x.feitas/x.n:0;
-   return '<div class="pr-bl'+(p>=1?' cheio':(p>0?' meio':''))+'" title="'+(b==='—'?'abertura':'bloco '+b)
-    +': '+x.feitas+' de '+x.n+' lições">'
-    +'<i style="height:'+Math.round(p*100)+'%"></i><span>'+(b==='—'?'·':b)+'</span></div>'}).join('')
- +'</div></div>';
+/* ---- O PAINEL GRANULAR: as barras, as linhas e a costura (Figma dele) ---- */
+h+='<div class="pg-loc"><label for="pg-loc">Localizar lição</label>'
+ +'<input id="pg-loc" value="'+escBloco(PROG_LOC)+'" placeholder="29   ou   11 - 21"'
+ +' oninput="progLocalizar(this.value)" title="uma lição, ou um intervalo com hífen">'
+ +'<span class="pg-leg"><i class="c-fez"></i>lição dada<i class="c-rev"></i>revisão'
+   +'<i class="c-falta"></i>falta<i class="c-nao"></i>não-aula</span></div>';
+h+='<div class="pg-moldura">'+progSvg(r)+'</div>';
 /* ---- OS NÚMEROS, cada um com o seu gráfico ---- */
 function progTile(rot,val,sub,barra,cls){
  return '<div class="pr-tile'+(cls?' '+cls:'')+'"><div class="pr-tr-rot">'+rot+'</div>'

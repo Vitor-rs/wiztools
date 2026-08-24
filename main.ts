@@ -3657,12 +3657,25 @@ function projetarContrato({ idMatricula, livro, inicio, fechadosPre }: any) {
      horas da agenda vigente naquele dia da semana — quem faz duas aulas no sábado consome duas
      lições num lançamento só (`presenca` tem uma linha por DATA, não por hora). Nunca menos que 1. */
   const dadasFila: any[] = [];
+  /* ===== A LINHA DO TEMPO CRUA (2026-08-24, dele, com o Figma na mão) =====
+     *"Essa barra é dinâmica, autocrescente... as faltas acontecem ENTRE as lições, por isso ficam no
+     meio."* As barras de cima têm um lugar por LIÇÃO e nunca mudam de tamanho; a de baixo tem um lugar
+     por EVENTO — e é por isso que ela cresce, e que a linha que liga as duas abre em pé de galinha
+     onde houve falta. Sem esta lista a falta era só um número no cabeçalho. */
+  const eventos: any[] = [];
   let faltas = 0, naoAula = 0;
   for (const p of A(`SELECT data, status, entrada, saida, minutos, observacao, aulas_feitas, licao_ordem
                      FROM presenca WHERE id_matricula=? AND livro=? ORDER BY data`, idMatricula, c.livro)) {
-    if (p.status !== "P") { if (p.status === "F") faltas++; else naoAula++; continue; }
+    if (p.status !== "P") {
+      if (p.status === "F") faltas++; else naoAula++;
+      eventos.push({ data: p.data, tipo: p.status === "F" ? "falta" : "naoaula", ordem: null, licao: null });
+      continue;
+    }
     const quantas = Math.max(1, Number(p.aulas_feitas) || horasDoDia(p.data).length || 1);
-    for (let k = 0; k < quantas; k++) dadasFila.push({ ...p, ordem: k });
+    for (let k = 0; k < quantas; k++) {
+      dadasFila.push({ ...p, ordem: k, evento: eventos.length });
+      eventos.push({ data: p.data, tipo: "aula", ordem: null, licao: null, fila: dadasFila.length - 1 });
+    }
   }
   /* A ÂNCORA — e é ela que impede o disparate no contrato antigo. `presenca` só existe desde que o
      lançamento entrou no ar (fim de julho/2026); um contrato aberto em janeiro já tinha dezenas de
@@ -3708,6 +3721,11 @@ function projetarContrato({ idMatricula, livro, inicio, fechadosPre }: any) {
     alvo.status = p.status;
     alvo.mesmoLancamento = p.ordem > 0;
     alvo.afirmada = p.licao_ordem != null && !p.ordem;
+    /* o evento passa a saber QUAL lição ele consumiu — é o que liga a barra de baixo às de cima */
+    if (p.evento != null && eventos[p.evento]) {
+      eventos[p.evento].ordem = alvo.ordem; eventos[p.evento].licao = alvo.licao;
+      eventos[p.evento].tipoLicao = alvo.tipo;
+    }
     /* entrada, saída, duração e anotação são do LANÇAMENTO, e o lançamento é um só por data:
        repeti-los na 2ª lição do mesmo dia contaria a mesma hora — e a mesma anotação — duas vezes */
     if (!p.ordem) {
@@ -3788,7 +3806,12 @@ function projetarContrato({ idMatricula, livro, inicio, fechadosPre }: any) {
     : (progressoLivro < progressoTempo - 0.03 ? -1 : (progressoLivro < progressoTempo ? 0 : 1));
   const aulasAtraso = (progressoLivro == null || progressoTempo == null) ? null
     : Math.round((progressoTempo - progressoLivro) * licoes.length * 10) / 10;
-  return { ...cab, linhas, termino: certo ? termino : null, confianca,
+  /* A LIÇÃO ESPERADA: onde o relógio do contrato diz que ele deveria estar hoje. É a linha AMARELA
+     do desenho dele, a que fica ao lado da azul — *"tipo a linha do pedreiro, pra ver se a parede
+     está reta"*. */
+  const licaoEsperada = progressoTempo == null ? null
+    : Math.max(1, Math.min(licoes.length, Math.round(progressoTempo * licoes.length)));
+  return { ...cab, linhas, eventos, licaoEsperada, termino: certo ? termino : null, confianca,
     fimContrato, progressoTempo, progressoLivro, indicador, aulasAtraso, excesso,
     /* O SINAL DO PEDIDO DE LIVROS: a previsão cabe dentro do contrato? É o `ExcessoPrevisao` dela
        (coluna AL), invertido para a pergunta que ele faz na hora de comprar — *"garantir que o aluno

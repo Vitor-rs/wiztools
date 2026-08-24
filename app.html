@@ -1158,42 +1158,52 @@ th.ev.ultima .es-ev-data{background:var(--marca);color:#fff}
 .es-cx-corpo{padding:12px 13px 14px}
 
 /* ===== CURRÍCULO ===== */
-.cur-cab{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 10px}
-.cur-cab b{font-size:14px;color:var(--marca)}
-.cur-ct{font-size:11px;font-weight:700;font-variant-numeric:tabular-nums;background:var(--azul-cl);
+.plan-cab{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 10px}
+.plan-cab b{font-size:14px;color:var(--marca)}
+.plan-ct{font-size:11px;font-weight:700;font-variant-numeric:tabular-nums;background:var(--azul-cl);
   color:var(--azul-esc);border-radius:9px;padding:2px 9px}
-.cur-i{font-size:11.5px;color:var(--tx3)}
-.cur-troca{font-size:11.5px;padding:2px 6px;max-width:260px}
+.plan-i{font-size:11.5px;color:var(--tx3)}
+.plan-troca{font-size:11.5px;padding:2px 6px;max-width:260px}
 /* a tabela é longa (71 linhas) e larga: rola dentro da própria moldura, com o cabeçalho grudado */
-.cur-moldura{border:1px solid var(--borda);border-radius:10px;overflow:auto;max-height:60vh;background:#fff}
-.cur-tab{width:100%;border-collapse:separate;border-spacing:0;font-size:12.5px}
-.cur-tab thead th{position:sticky;top:0;z-index:2;background:#FBFCFD;text-align:left;padding:7px 8px;
+.plan-moldura{border:1px solid var(--borda);border-radius:10px;overflow:auto;max-height:60vh;background:#fff}
+.plan-tab{width:100%;border-collapse:separate;border-spacing:0;font-size:12.5px}
+.plan-tab thead th{position:sticky;top:0;z-index:2;background:#FBFCFD;text-align:left;padding:7px 8px;
   font-size:10.5px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.4px;
   border-bottom:1px solid var(--borda);white-space:nowrap}
-.cur-tab td{padding:4px 8px;border-bottom:1px solid #F1F4F7;vertical-align:middle}
-.cur-tab .c-mes,.cur-tab .c-ns,.cur-tab .c-ds,.cur-tab .c-dm,.cur-tab .c-aula,.cur-tab .c-hr,
-.cur-tab .c-dur{white-space:nowrap;font-variant-numeric:tabular-nums}
-.cur-tab .c-mes{font-weight:700;color:var(--marca);width:44px}
-.cur-tab .c-ns,.cur-tab .c-aula{width:38px;color:var(--tx3)}
-.cur-tab .c-ds{width:52px}
-.cur-tab .c-dm{width:74px}
-/* a hora ao lado da data: com troca de horário, "quando" deixou de ser só o dia */
-.cur-tab .c-dm small{color:var(--tx3);margin-left:5px;font-size:10.5px}
-.cur-tr{background:#FFF8E1;color:#8a5a00;border-radius:8px;padding:1px 8px;font-weight:700;
+.plan-tab td{padding:4px 8px;border-bottom:1px solid #F1F4F7;vertical-align:middle}
+.plan-tab .c-mes,.plan-tab .c-ns,.plan-tab .c-ds,.plan-tab .c-dm,.plan-tab .c-dr,.plan-tab .c-aula,
+.plan-tab .c-hr,.plan-tab .c-dur{white-space:nowrap;font-variant-numeric:tabular-nums}
+.plan-tab .c-mes{font-weight:700;color:var(--marca);width:44px}
+.plan-tab .c-ns,.plan-tab .c-aula{width:38px;color:var(--tx3)}
+.plan-tab .c-ds{width:52px}
+.plan-tab .c-dm{width:78px}
+.plan-tab .c-dr{width:78px;color:var(--tx3)}
+/* a hora ao lado da data planejada: com troca de horário, "quando" deixou de ser só o dia.
+   Na realizada o lugar é do DIA DA SEMANA — é ele que denuncia a reposição de olho nu: planejado
+   numa quarta, dado numa quinta. */
+.plan-tab .c-dm small,.plan-tab .c-dr small{color:var(--tx3);margin-left:5px;font-size:10.5px}
+/* DATA REALIZADA QUE NÃO É A PLANEJADA é o ponto inteiro desta coluna: quando as duas batem ela não
+   precisa gritar; quando divergem, precisa. */
+.plan-tab .c-dr.desloc{color:#8a5a00;font-weight:700}
+.plan-tab .c-dr.desloc small{color:#b98900}
+.plan-tr{background:#FFF8E1;color:#8a5a00;border-radius:8px;padding:1px 8px;font-weight:700;
   font-size:10.5px;cursor:help}
-.cur-tab .c-obs input{width:100%;padding:3px 6px;font-size:12px}
-.cur-tab .c-lic i{font-style:normal;font-weight:700;color:var(--tx2);margin-right:6px}
-.cur-ro{color:var(--tx3)}
+.plan-tab .c-obs input{width:100%;padding:3px 6px;font-size:12px}
+.plan-tab .c-lic i{font-style:normal;font-weight:700;color:var(--tx2);margin-right:6px}
+.plan-ro{color:var(--tx3)}
 /* a linha em que o mês VIRA ganha um fio mais forte: é por ele que o olho acha o começo do mês */
-.cur-tab tr.vira td{border-top:2px solid var(--borda)}
+.plan-tab tr.vira td{border-top:2px solid var(--borda)}
 /* o tipo da lição tinge a faixa da esquerda, o mesmo código de cor da aba Estrutura */
-.cur-tab tr.t-review .c-lic{color:#8a5a00}
-.cur-tab tr.t-especial .c-lic{color:var(--azul-esc)}
-.cur-tab tr.feita{background:#FAFCFE}
-.cur-p{font-size:10px;font-weight:700;border-radius:8px;padding:1px 7px;white-space:nowrap}
-.cur-p.p-P{background:var(--vc);color:#155724}
-.cur-p.p-F{background:#f8d7da;color:#721c24}
-.cur-p.p-N{background:#EFEFEF;color:#5F6771}
+.plan-tab tr.t-review .c-lic{color:#8a5a00}
+.plan-tab tr.t-especial .c-lic{color:var(--azul-esc)}
+.plan-tab tr.feita{background:#FAFCFE}
+.plan-p{font-size:10px;font-weight:700;border-radius:8px;padding:1px 7px;white-space:nowrap}
+.plan-p.p-P{background:var(--vc);color:#155724}
+.plan-p.p-F{background:#f8d7da;color:#721c24}
+.plan-p.p-N{background:#EFEFEF;color:#5F6771}
+/* os contadores do cabeçalho: aula dada e falta não ocupam linha, e é aqui que elas aparecem */
+.plan-ct2{background:var(--vc);color:#155724;border-radius:9px;padding:2px 9px;font-weight:700;font-size:11px}
+.plan-f{background:#f8d7da;color:#721c24;border-radius:9px;padding:2px 9px;font-weight:700;font-size:11px}
 
 /* ===== fila de unidades no painel de detalhes ===== */
 .es-seta-item{appearance:none;border:0;background:none;padding:0;margin-right:6px;cursor:pointer;
@@ -3740,7 +3750,7 @@ body.tem-ensaio{padding-top:29px}
 <button class="pg-aba on" data-s="situacao" onclick="alInfoAba('situacao')">Histórico de situação</button>
 <button class="pg-aba" data-s="horario" onclick="alInfoAba('horario')">Trocas de horário</button>
 <button class="pg-aba" data-s="freq" onclick="alInfoAba('freq')">Frequência</button>
-<button class="pg-aba" data-s="curriculo" onclick="alInfoAba('curriculo')">Currículo</button>
+<button class="pg-aba" data-s="planejamento" onclick="alInfoAba('planejamento')">Planejamento de aulas</button>
 </div>
 <!-- Percurso e histórico de situação diziam a mesma coisa em dois lugares — os dois viraram UM.
      O histórico é o ponto de entrada; o percurso continua no banco e se mantém sozinho a partir
@@ -3763,11 +3773,11 @@ body.tem-ensaio{padding-top:29px}
      A trilha de aulas do contrato ATUAL: onde cada lição do estágio cai no calendário, a partir do
      dia em que ele começou. É calculado a cada abertura, nunca gravado — mexer no calendário letivo
      tem de refletir aqui sem ninguém regerar nada. -->
-<section class="al-hist" id="al-s-curriculo" style="display:none">
-<h3>Currículo <small>as lições do contrato atual, dia a dia</small>
-<button type="button" class="al-hist-add" id="cur-recarregar" onclick="curCarregar()"
+<section class="al-hist" id="al-s-planejamento" style="display:none">
+<h3>Planejamento de aulas <small>as lições do contrato atual, dia a dia</small>
+<button type="button" class="al-hist-add" id="plan-recarregar" onclick="planCarregar()"
  title="Recalcular com o calendário de agora">↻</button></h3>
-<div id="cur-corpo"><div class="al-hist-vazio">Escolha um aluno.</div></div>
+<div id="plan-corpo"><div class="al-hist-vazio">Escolha um aluno.</div></div>
 </section>
 </div>
 </div>
@@ -4806,11 +4816,11 @@ function alInfoAba(s){
 AL_INFO_ABA=s;
 document.querySelectorAll('.al-sub-abas .pg-aba').forEach(function(b){
   b.classList.toggle('on',b.dataset.s===s)});
-['situacao','horario','freq','curriculo'].forEach(function(x){
+['situacao','horario','freq','planejamento'].forEach(function(x){
   var el=$('al-s-'+x);if(el)el.style.display=(x===s?'block':'none')});
 /* o currículo é a única aba que CALCULA em vez de listar — 800 dias de varredura e a expansão do
    calendário. Só se paga quando ele a abre, e não a cada troca de aluno. */
-if(s==='curriculo')curCarregar();
+if(s==='planejamento')planCarregar();
 }
 /* quem está aberto, no canto direito do cabeçalho: com o formulário em fileira o nome deixou de
    ser um título de coluna, e sem isto a tela não diz de quem são os históricos logo abaixo */
@@ -4869,12 +4879,12 @@ run('trocarIdMatricula',[{de:de,para:novo}],function(r){
 /* os três registros deixaram de ser sanfona: nesta aba eles SÃO o conteúdo, então carregam junto
    com o aluno. São três chamadas pequenas, e só quando alguém é escolhido. */
 function alHistoricos(){
-if(!alSel){histFechar();hhistFechar();freqFechar();curFechar();return}
+if(!alSel){histFechar();hhistFechar();freqFechar();planFechar();return}
 histCarregar();hhistCarregar();freqCarregar();
 /* o currículo NÃO entra aqui: ele é o único que calcula (800 dias de varredura mais a expansão do
    calendário), e trocar de aluno não pode custar isso enquanto a aba está fechada. Quem o dispara é
    `alInfoAba`, na hora em que ele abre. Se já estiver aberto, recarrega junto. */
-if(AL_INFO_ABA==='curriculo')curCarregar();
+if(AL_INFO_ABA==='planejamento')planCarregar();
 }
 /* ===== CURRÍCULO: a trilha de aulas do contrato atual (2026-08-24) =====
    Onze colunas, e elas se dividem em duas metades: as quatro primeiras e a lição são PROJEÇÃO — onde
@@ -4883,47 +4893,54 @@ if(AL_INFO_ABA==='curriculo')curCarregar();
    preenchendo sozinha conforme o aluno vem. */
 /* de qual livro é o currículo que está na tela — a anotação precisa dele para achar a linha de
    presença, e ele vem do SERVIDOR (que escolhe o contrato atual), não de um palpite do cliente. */
-var CUR_LIVRO=null;
-function curFechar(){CUR_LIVRO=null;var c=$('cur-corpo');if(c)c.innerHTML='<div class="al-hist-vazio">Escolha um aluno.</div>'}
-function curCarregar(livro){
-var c=$('cur-corpo');if(!c)return;
-if(!alSel){curFechar();return}
+var PLAN_LIVRO=null;
+function planFechar(){PLAN_LIVRO=null;var c=$('plan-corpo');if(c)c.innerHTML='<div class="al-hist-vazio">Escolha um aluno.</div>'}
+function planCarregar(livro){
+var c=$('plan-corpo');if(!c)return;
+if(!alSel){planFechar();return}
 c.innerHTML='<div class="al-hist-vazio">calculando…</div>';
-run('getCurriculo',[{idMatricula:alSel.id,livro:livro||null}],function(r){curPintar(r)});
+run('getPlanejamento',[{idMatricula:alSel.id,livro:livro||null}],function(r){planPintar(r)});
 }
-function curAviso(txt){return '<div class="al-hist-vazio">'+txt+'</div>'}
-function curPintar(r){
-var c=$('cur-corpo');if(!c)return;
-CUR_LIVRO=r.livro||null;
-if(r.semContrato){c.innerHTML=curAviso('Este aluno não tem contrato aberto — o currículo é do estágio que ele está cursando.');return}
+function planAviso(txt){return '<div class="al-hist-vazio">'+txt+'</div>'}
+function planPintar(r){
+var c=$('plan-corpo');if(!c)return;
+PLAN_LIVRO=r.livro||null;
+if(r.semContrato){c.innerHTML=planAviso('Este aluno não tem contrato aberto — o currículo é do estágio que ele está cursando.');return}
 /* o seletor só aparece quando há mais de um contrato aberto — com um só ele seria uma pergunta
    sem alternativa */
 var troca='';
 if((r.contratos||[]).length>1)
- troca='<select class="cur-troca" onchange="curCarregar(this.value)">'
+ troca='<select class="plan-troca" onchange="planCarregar(this.value)">'
   +r.contratos.map(function(x){
     return '<option value="'+escBloco(x.livro)+'"'+(x.atual?' selected':'')+'>'
      +escBloco(nomeLivro(x.livro))+' · '+escBloco(x.contrato)
      +(x.licoes?'':' (sem estrutura)')+'</option>'}).join('')+'</select>';
-var cab='<div class="cur-cab"><b>'+escBloco(r.estagio)+'</b>'
- +'<span class="cur-ct">'+escBloco(r.contrato)+'</span>'+troca
- +'<span class="cur-i">'+r.licoes+' lições</span>'
- +'<span class="cur-i">'+escBloco((r.agenda||[]).join(' · ')||'sem agenda')+'</span>'
- +(r.inicio?'<span class="cur-i">início '+dataCurta(r.inicio)+'</span>':'')
- +(r.ultima?'<span class="cur-i">última '+dataCurta(r.ultima)+'</span>':'')
+var cab='<div class="plan-cab"><b>'+escBloco(r.estagio)+'</b>'
+ +'<span class="plan-ct">'+escBloco(r.contrato)+'</span>'+troca
+ +'<span class="plan-i">'+r.licoes+' lições</span>'
+ +'<span class="plan-i">'+escBloco((r.agenda||[]).join(' · ')||'sem agenda')+'</span>'
+ +(r.inicio?'<span class="plan-i">início '+dataCurta(r.inicio)+'</span>':'')
+ +(r.ultima?'<span class="plan-i">última '+dataCurta(r.ultima)+'</span>':'')
  /* dizer que houve troca importa: sem isso, quem olha uma linha antiga num horário que já não
     existe acha que a tabela está errada */
- +(r.trocas?'<span class="cur-i cur-tr" title="A projeção usa a agenda que valia em cada época, não a de hoje.">'
+ +(r.trocas?'<span class="plan-i plan-tr" title="A projeção usa a agenda que valia em cada época, não a de hoje.">'
    +r.trocas+(r.trocas>1?' trocas de horário':' troca de horário')+'</span>':'')
+ /* O QUE JÁ ACONTECEU, contado. Falta e não-aula não ocupam linha nenhuma — elas gastam a data, não
+    a lição — então sem este contador elas sumiriam da tela. O detalhe delas fica na aba Frequência,
+    ao lado. */
+ +(r.dadas?'<span class="plan-i plan-ct2">'+r.dadas+(r.dadas>1?' aulas dadas':' aula dada')+'</span>':'')
+ +(r.faltas?'<span class="plan-i plan-f">'+r.faltas+(r.faltas>1?' faltas':' falta')+'</span>':'')
+ +(r.naoAula?'<span class="plan-i">'+r.naoAula+' não-aula</span>':'')
  +'</div>';
-if(r.precisaInicio){c.innerHTML=cab+curAviso('Ainda não há data de início: ela nasce da entrega do material ou da primeira presença. O currículo aparece assim que uma das duas acontecer.');return}
-if(r.semEstrutura){c.innerHTML=cab+curAviso('Este estágio ainda não tem lições digitadas — monte a estrutura dele em Biblioteca · Estágios.');return}
-if(r.semAgenda){c.innerHTML=cab+curAviso('Este contrato ainda não tem dias na agenda — marque os dias e horas na aba Cadastro.');return}
-var h=cab+'<div class="cur-moldura"><table class="cur-tab"><thead><tr>'
+if(r.precisaInicio){c.innerHTML=cab+planAviso('Ainda não há data de início: ela nasce da entrega do material ou da primeira presença. O planejamento aparece assim que uma das duas acontecer.');return}
+if(r.semEstrutura){c.innerHTML=cab+planAviso('Este estágio ainda não tem lições digitadas — monte a estrutura dele em Biblioteca · Estágios.');return}
+if(r.semAgenda){c.innerHTML=cab+planAviso('Este contrato ainda não tem dias na agenda — marque os dias e horas na aba Cadastro.');return}
+var h=cab+'<div class="plan-moldura"><table class="plan-tab"><thead><tr>'
  +'<th class="c-mes" title="mês">Mês</th>'
  +'<th class="c-ns" title="número da semana dentro do mês — a semana começa na segunda">NS</th>'
  +'<th class="c-ds" title="dia da semana">DS</th>'
- +'<th class="c-dm" title="dia/mês">D/M</th>'
+ +'<th class="c-dm" title="o dia em que esta lição deveria cair, pela agenda e pelo calendário letivo">Data planejada</th>'
+ +'<th class="c-dr" title="o dia em que a lição foi mesmo dada — vem do lançamento de frequência">Data realizada</th>'
  +'<th class="c-aula" title="número da aula no contrato">Aula</th>'
  +'<th class="c-comp" title="vem do lançamento de frequência">Comparecimento</th>'
  +'<th class="c-hr" title="check-in na recepção">Entrada</th>'
@@ -4937,33 +4954,52 @@ var mesAnt=null, ROT={P:'Presente',F:'Falta',N:'Não aula'};
  /* a faixa do mês só aparece quando ele VIRA: repetir "08" em catorze linhas seguidas é ruído, e o
     olho procura justamente a mudança */
  var viraMes=(l.mes!==mesAnt); mesAnt=l.mes;
- h+='<tr class="cur-l t-'+l.tipo+(l.status?' feita s-'+l.status:'')+(viraMes?' vira':'')+'">'
+ /* a comparação que ele pediu é justamente a diferença: quando as duas datas batem, a realizada não
+    precisa gritar; quando divergem, precisa */
+ var fora=(l.dataReal&&l.dataReal!==l.dataPlan);
+ h+='<tr class="plan-l t-'+l.tipo+(l.status?' feita s-'+l.status:'')+(viraMes?' vira':'')+'">'
   +'<td class="c-mes">'+(viraMes?l.mes:'')+'</td>'
   +'<td class="c-ns">'+l.ns+'</td>'
   +'<td class="c-ds">'+escBloco(l.ds)+'</td>'
-  +'<td class="c-dm">'+escBloco(l.dm)+'<small>'+escBloco(l.hora||'')+'</small></td>'
+  +'<td class="c-dm">'+escBloco(l.dmPlan)+'<small>'+escBloco(l.hora||'')+'</small></td>'
+  +'<td class="c-dr'+(fora?' desloc':'')+'">'+(l.dataReal
+     ?escBloco(l.dmReal)+'<small>'+escBloco(l.dsReal||'')+'</small>'
+     :'')+'</td>'
   +'<td class="c-aula">'+l.aula+'</td>'
-  +'<td class="c-comp">'+(l.status?'<span class="cur-p p-'+l.status+'">'+ROT[l.status]+'</span>':'')+'</td>'
+  +'<td class="c-comp">'+(l.status?'<span class="plan-p p-'+l.status+'">'+ROT[l.status]+'</span>':'')+'</td>'
+  /* a 2ª lição do mesmo lançamento repete a data, não a hora: entrada, saída e duração são de UMA
+     sentada só, e mostrá-las duas vezes somaria a mesma hora duas vezes no olho de quem lê */
   +'<td class="c-hr">'+escBloco(l.entrada||'')+'</td>'
   +'<td class="c-hr">'+escBloco(l.saida||'')+'</td>'
   +'<td class="c-lic">'+(l.licao?'<i>'+escBloco(l.licao)+'</i>':'')+escBloco(l.conteudo||'')+'</td>'
-  +'<td class="c-obs">'+(l.status
+  +'<td class="c-obs">'+(l.dataReal&&!l.mesmoLancamento
      ?'<input value="'+escBloco(l.observacao||'')+'" placeholder="—"'
-      +' onchange="curObs(&quot;'+escBloco(l.data)+'&quot;,this)">'
-     :'<span class="cur-ro" title="a anotação nasce com o lançamento da frequência">—</span>')+'</td>'
+      +' onchange="planObs(&quot;'+escBloco(l.dataReal)+'&quot;,this)">'
+     :'<span class="plan-ro" title="'+(l.mesmoLancamento
+        ?'a anotação é do lançamento do dia, e ele já tem uma caixa na linha de cima'
+        :'a anotação nasce com o lançamento da frequência')+'">—</span>')+'</td>'
   +'<td class="c-dur">'+(l.minutos!=null?l.minutos+' min':'')+'</td></tr>'});
 h+='</tbody></table></div>';
-if(r.incompleto)h+=curAviso('A projeção parou antes do fim das lições — o contrato passaria de dois anos com esta agenda.');
-/* aula lançada em dia que a projeção não previu: reposição, anteposição ou troca não registrada.
-   Contar e mostrar, porque uma tabela que parece completa escondendo aula de verdade é pior. */
-if((r.fora||[]).length)
- h+=curAviso((r.fora.length===1?'1 aula lançada não cai':r.fora.length+' aulas lançadas não caem')
-  +' em nenhum dia desta projeção: '+r.fora.map(dataCurta).join(', ')
-  +'. Costuma ser reposição, anteposição ou uma troca de horário que não passou pela tela de agenda.');
+if(r.incompleto)h+=planAviso('A projeção parou antes do fim das lições — o contrato passaria de dois anos com esta agenda.');
+/* A ÂNCORA, dita em voz alta. O lançamento de frequência só existe desde o fim de julho/2026: num
+   contrato mais velho que isso, a 1ª aula registrada não é a lição 1, e esconder essa escolha faria
+   a coluna "Aula" parecer errada. */
+if(r.ancora)h+=planAviso('A frequência deste contrato começa a ser registrada na aula '+(r.ancora+1)
+ +': antes disso o sistema de lançamento ainda não existia. A coluna "Data realizada" ancora aí, e a '
+ +'partir dela cada aula dada avança uma lição.');
+/* PLANO VENCIDO: a projeção já dava o livro por terminado antes da 1ª aula registrada. Encaixar
+   calado seria fingir que a data de início está certa — então a tela diz o que fez e por quê. */
+if(r.venceu)h+=planAviso('O plano deste contrato já previa terminar em '+dataCurta(r.ultima)
+ +', antes da primeira aula registrada ('+dataCurta(r.primeiraDada)+'). As aulas lançadas foram '
+ +'encaixadas nas últimas lições: quem manda aqui é a data de início do contrato'
+ +(r.inicio?' ('+dataCurta(r.inicio)+')':'')+' — se ela não confere, é ela que precisa de acerto.');
+if(r.alem)h+=planAviso(r.alem+(r.alem>1?' aulas dadas passam':' aula dada passa')
+ +' do fim do plano — o aluno andou mais que as lições que este estágio comporta.');
+c.innerHTML=h;
 c.innerHTML=h;
 }
-function curObs(data,el){
-run('salvarObservacaoAula',[{idMatricula:alSel.id,livro:CUR_LIVRO,data:data,texto:el.value}],function(){
+function planObs(data,el){
+run('salvarObservacaoAula',[{idMatricula:alSel.id,livro:PLAN_LIVRO,data:data,texto:el.value}],function(){
  msg('Anotação salva.')})}
 /* os históricos só depois das matrículas: o dropdown de livro da situação depende delas (ver o
    comentário em recarregarMatriculas) */

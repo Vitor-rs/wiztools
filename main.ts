@@ -3403,6 +3403,53 @@ function diasFechados(de: string, ate: string): Set<string> {
       for (const d of datasDaMarcacao(m, y)) if (d >= de && d <= ate) fora.add(d);
   return fora;
 }
+/* ===== A AGENDA MUDA COM O TEMPO, E O CURRÍCULO TEM DE SABER DISSO (2026-08-24, dele) =====
+   *"E se o aluno trocar de horário? Esse cálculo tem que ser feito de novo, mas não a tabela
+   inteira — só a partir de quando ele trocou."* Projetar tudo com a agenda de HOJE reescreveria o
+   passado: as aulas que ele já fez aconteceram na agenda antiga.
+   `aluno_horario_historico` guarda `antes`, `depois` e o `momento` do aviso — com data E HORA. É a
+   hora que resolve o caso fino que ele descreveu, e por isso ela não podia ser jogada fora. */
+const AGENDA_SEP = " · ";
+/* "3ª 18:00 · 5ª 18:00" de volta para pares (dia da semana, hora). O texto é o que
+   `textoAgenda` escreve; ler com o mesmo vocabulário (`dias.codigo`) é o que impede as duas
+   pontas de divergirem no dia em que alguém renomear um dia. */
+function lerAgendaTexto(txt: string): { dow: number; hora: string }[] {
+  const porCodigo: Record<string, number> = {};
+  for (const d of A("SELECT ordem, codigo FROM dias")) porCodigo[d.codigo] = d.ordem - 1;
+  return String(txt || "").split(AGENDA_SEP).map(s => s.trim()).filter(Boolean).map(s => {
+    const i = s.lastIndexOf(" ");
+    return { dow: porCodigo[s.slice(0, i).trim()] ?? -1, hora: s.slice(i + 1).trim() };
+  }).filter(x => x.dow >= 0 && /^[0-9][0-9]:[0-9][0-9]$/.test(x.hora));
+}
+/* As FASES da agenda, em ordem. A primeira não tem `desde`: vale desde sempre, e é o `antes` da
+   primeira troca — ou a agenda de hoje, quando nunca houve troca. */
+function fasesDaAgenda(idMatricula: string, livro: string) {
+  const trocas = A(`SELECT antes, depois, momento FROM aluno_horario_historico
+                    WHERE id_matricula=? AND livro=? ORDER BY momento, id`, idMatricula, livro);
+  if (!trocas.length)
+    return [{ desde: null as string | null, hora: null as string | null,
+              agenda: lerAgendaTexto(agendaTexto(idMatricula, livro)) }];
+  const fases = [{ desde: null as string | null, hora: null as string | null,
+                   agenda: lerAgendaTexto(trocas[0].antes) }];
+  for (const t of trocas)
+    fases.push({ desde: String(t.momento).slice(0, 10), hora: String(t.momento).slice(11, 16),
+                 agenda: lerAgendaTexto(t.depois) });
+  return fases;
+}
+/* QUAL FASE VALE NO INSTANTE (dia, hora) — e é aqui que mora a regra dele sobre o aviso:
+   *"Se o horário de aviso é antes do que ele vem, pode contabilizar a partir do mesmo dia. Se o
+   aviso é depois, não tem como: vai para o dia seguinte."*
+   A fase nova só alcança uma aula do PRÓPRIO dia do aviso se a aula ainda não tinha acontecido
+   (`hora do aviso <= hora da aula`). A aula que já passou naquele dia continua sendo da fase
+   anterior — ela aconteceu de verdade, no horário velho. */
+function faseNoInstante(fases: any[], dia: string, hora: string) {
+  let vale = fases[0];
+  for (const f of fases) {
+    if (f.desde === null) { vale = f; continue; }
+    if (f.desde < dia || (f.desde === dia && (f.hora || "00:00") <= hora)) vale = f;
+  }
+  return vale;
+}
 /* segunda=0 … domingo=6, o mesmo eixo que `dias.ordem-1` e que a grade do calendário usam */
 const diaDaSemana = (iso: string) => (new Date(iso + "T12:00:00Z").getUTCDay() + 6) % 7;
 /* A SEMANA DO MÊS, pela regra dele: a semana começa na SEGUNDA e a primeira é a que contém o dia 1,
@@ -3857,13 +3904,23 @@ const api: Record<string, (a: any) => unknown> = {
     const est = eId ? G("SELECT id, nome, nome_curto, licao_inicial FROM estagio WHERE id=?", eId) : null;
     const licoes = eId ? A(`SELECT ordem, numero, sigla, descricao, bloco, tipo FROM estagio_licao
                             WHERE dono_id=? ORDER BY ordem, id`, eId) : [];
-    /* a agenda por dia da semana: o aluno pode ter mais de uma hora no mesmo dia, e aí aquele dia
-       consome mais de uma lição */
+    /* A AGENDA AO LONGO DO TEMPO, não a de hoje: quem trocou de horário fez as aulas passadas na
+       agenda antiga, e projetar tudo com a nova reescreveria o que já aconteceu.
+       `candidatas[dow]` é a UNIÃO das horas de todas as fases naquele dia da semana — cada uma é
+       testada contra a fase que valia no instante dela. */
+    const fases = fasesDaAgenda(idMatricula, c.livro);
+    const candidatas: Record<number, string[]> = {};
+    for (const f of fases) for (const s of f.agenda) {
+      const l = (candidatas[s.dow] ||= []);
+      if (l.indexOf(s.hora) < 0) l.push(s.hora);
+    }
+    for (const k of Object.keys(candidatas)) candidatas[Number(k)].sort();
+    /* a agenda de HOJE é o que o cabeçalho mostra e o que conta como "por semana" */
     const agenda: Record<number, string[]> = {};
-    for (const a of A(`SELECT a.hora, d.ordem FROM aulas a JOIN dias d ON d.nome=a.dia
-                       WHERE a.id_matricula=? AND a.livro=? ORDER BY d.ordem, a.hora`, idMatricula, c.livro))
-      (agenda[a.ordem - 1] ||= []).push(a.hora);
+    for (const s of (fases[fases.length - 1].agenda || [])) (agenda[s.dow] ||= []).push(s.hora);
+    for (const k of Object.keys(agenda)) agenda[Number(k)].sort();
     const porSemana = Object.values(agenda).reduce((s: number, h: any) => s + h.length, 0);
+    const trocas = fases.length - 1;
     /* DE ONDE COMEÇA, na ordem em que a verdade é mais forte: o início gravado no percurso, senão a
        primeira presença registrada naquele livro, senão o que a tela mandou. Sem nenhum dos três o
        currículo não existe ainda — e dizer isso é melhor que inventar uma data. */
@@ -3898,9 +3955,12 @@ const api: Record<string, (a: any) => unknown> = {
     let dia = ini, i = 0, n = 0, passos = 0;
     while (i < licoes.length && passos++ < TETO) {
       const dow = diaDaSemana(dia);
-      const horas = agenda[dow];
+      /* de todas as horas que ALGUMA fase já teve neste dia da semana, ficam as que a fase vigente
+         naquele instante de fato tinha — é isto que faz a troca valer só a partir dela */
+      const horas = (candidatas[dow] || []).filter(h =>
+        faseNoInstante(fases, dia, h).agenda.some((s: any) => s.dow === dow && s.hora === h));
       const fds = (dow === 5 && !sabUtil) || (dow === 6 && !domUtil);
-      if (horas && !fds && !fechados.has(dia)) {
+      if (horas.length && !fds && !fechados.has(dia)) {
         for (const hora of horas) {
           if (i >= licoes.length) break;
           const l = licoes[i++]; const f = feito[dia];
@@ -3917,8 +3977,14 @@ const api: Record<string, (a: any) => unknown> = {
       }
       dia = maisDias(dia, 1);
     }
+    /* PRESENÇA QUE A PROJEÇÃO NÃO PREVIU é sinal de que o quadro e a realidade divergiram —
+       reposição, anteposição, ou uma troca de horário que ninguém registrou. Ele adiou o assunto
+       ("vamos lidar com isso posteriormente"), então aqui só se CONTA e se avisa: calar seria pior,
+       porque a tabela pareceria completa enquanto o aluno tem aula que ela não mostra. */
+    const previstas = new Set(linhas.map((l: any) => l.data));
+    const fora = Object.keys(feito).filter(d => !previstas.has(d)).sort();
     return { ...cab, linhas, ultima: linhas.length ? linhas[linhas.length - 1].data : null,
-      incompleto: i < licoes.length };
+      incompleto: i < licoes.length, trocas, fora };
   },
   /* a anotação de UMA aula. Só onde a aula foi lançada — ver a nota da coluna `presenca.observacao`. */
   salvarObservacaoAula({ idMatricula, livro, data, texto }: any) {

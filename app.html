@@ -1175,7 +1175,12 @@ th.ev.ultima .es-ev-data{background:var(--marca);color:#fff}
 .cur-tab .c-dur{white-space:nowrap;font-variant-numeric:tabular-nums}
 .cur-tab .c-mes{font-weight:700;color:var(--marca);width:44px}
 .cur-tab .c-ns,.cur-tab .c-aula{width:38px;color:var(--tx3)}
-.cur-tab .c-ds,.cur-tab .c-dm{width:52px}
+.cur-tab .c-ds{width:52px}
+.cur-tab .c-dm{width:74px}
+/* a hora ao lado da data: com troca de horário, "quando" deixou de ser só o dia */
+.cur-tab .c-dm small{color:var(--tx3);margin-left:5px;font-size:10.5px}
+.cur-tr{background:#FFF8E1;color:#8a5a00;border-radius:8px;padding:1px 8px;font-weight:700;
+  font-size:10.5px;cursor:help}
 .cur-tab .c-obs input{width:100%;padding:3px 6px;font-size:12px}
 .cur-tab .c-lic i{font-style:normal;font-weight:700;color:var(--tx2);margin-right:6px}
 .cur-ro{color:var(--tx3)}
@@ -4906,6 +4911,10 @@ var cab='<div class="cur-cab"><b>'+escBloco(r.estagio)+'</b>'
  +'<span class="cur-i">'+escBloco((r.agenda||[]).join(' · ')||'sem agenda')+'</span>'
  +(r.inicio?'<span class="cur-i">início '+dataCurta(r.inicio)+'</span>':'')
  +(r.ultima?'<span class="cur-i">última '+dataCurta(r.ultima)+'</span>':'')
+ /* dizer que houve troca importa: sem isso, quem olha uma linha antiga num horário que já não
+    existe acha que a tabela está errada */
+ +(r.trocas?'<span class="cur-i cur-tr" title="A projeção usa a agenda que valia em cada época, não a de hoje.">'
+   +r.trocas+(r.trocas>1?' trocas de horário':' troca de horário')+'</span>':'')
  +'</div>';
 if(r.precisaInicio){c.innerHTML=cab+curAviso('Ainda não há data de início: ela nasce da entrega do material ou da primeira presença. O currículo aparece assim que uma das duas acontecer.');return}
 if(r.semEstrutura){c.innerHTML=cab+curAviso('Este estágio ainda não tem lições digitadas — monte a estrutura dele em Biblioteca · Estágios.');return}
@@ -4932,7 +4941,7 @@ var mesAnt=null, ROT={P:'Presente',F:'Falta',N:'Não aula'};
   +'<td class="c-mes">'+(viraMes?l.mes:'')+'</td>'
   +'<td class="c-ns">'+l.ns+'</td>'
   +'<td class="c-ds">'+escBloco(l.ds)+'</td>'
-  +'<td class="c-dm">'+escBloco(l.dm)+'</td>'
+  +'<td class="c-dm">'+escBloco(l.dm)+'<small>'+escBloco(l.hora||'')+'</small></td>'
   +'<td class="c-aula">'+l.aula+'</td>'
   +'<td class="c-comp">'+(l.status?'<span class="cur-p p-'+l.status+'">'+ROT[l.status]+'</span>':'')+'</td>'
   +'<td class="c-hr">'+escBloco(l.entrada||'')+'</td>'
@@ -4945,6 +4954,12 @@ var mesAnt=null, ROT={P:'Presente',F:'Falta',N:'Não aula'};
   +'<td class="c-dur">'+(l.minutos!=null?l.minutos+' min':'')+'</td></tr>'});
 h+='</tbody></table></div>';
 if(r.incompleto)h+=curAviso('A projeção parou antes do fim das lições — o contrato passaria de dois anos com esta agenda.');
+/* aula lançada em dia que a projeção não previu: reposição, anteposição ou troca não registrada.
+   Contar e mostrar, porque uma tabela que parece completa escondendo aula de verdade é pior. */
+if((r.fora||[]).length)
+ h+=curAviso((r.fora.length===1?'1 aula lançada não cai':r.fora.length+' aulas lançadas não caem')
+  +' em nenhum dia desta projeção: '+r.fora.map(dataCurta).join(', ')
+  +'. Costuma ser reposição, anteposição ou uma troca de horário que não passou pela tela de agenda.');
 c.innerHTML=h;
 }
 function curObs(data,el){

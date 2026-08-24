@@ -5008,10 +5008,25 @@ const api: Record<string, (a: any) => unknown> = {
   excluirLicaoEstrutura: ({ alvo, id }: any) =>
     ({ ok: R(`DELETE FROM ${tabelaLicao(alvo)} WHERE id=?`, id).changes > 0 }),
   /* troca de lugar com a vizinha, trocando as duas ordens — nunca renumera a lista inteira */
-  moverLicaoEstrutura({ alvo, id, direcao }: any) {
+  /* `posicao` é o SALTO (2026-08-23, dele): *"um botãozinho pra pular, fazer saltos maiores... eu
+     quero colocar uma lição que vem antes da lição 6, mas ela tá lá embaixo"*. Uma seta por vez
+     custava dezenas de cliques numa lista de 70 lições.
+     Tira a lição da fila e a reinsere na posição pedida — as outras se deslocam para abrir espaço,
+     que é a semântica de "vem antes da 6", e não troca com quem está lá (isso é o que as setas
+     fazem, uma casa por vez). A renumeração 1..N no fim é a mesma dos dois caminhos. */
+  moverLicaoEstrutura({ alvo, id, direcao, posicao }: any) {
     const t = tabelaLicao(alvo);
     const eu = G(`SELECT * FROM ${t} WHERE id=?`, id);
     if (!eu) throw new Error("Lição não encontrada.");
+    if (posicao != null && posicao !== "") {
+      const fila = A(`SELECT id FROM ${t} WHERE dono_id=? ORDER BY ordem, id`, eu.dono_id).map(r => r.id);
+      const de = fila.indexOf(eu.id);
+      const para = Math.max(1, Math.min(fila.length, Number(posicao))) - 1;
+      if (de < 0 || de === para) return { ok: true, moveu: false, posicao: de + 1, total: fila.length };
+      fila.splice(para, 0, fila.splice(de, 1)[0]);
+      fila.forEach((rid, i) => R(`UPDATE ${t} SET ordem=? WHERE id=?`, i + 1, rid));
+      return { ok: true, moveu: true, posicao: para + 1, total: fila.length };
+    }
     const viz = G(`SELECT * FROM ${t} WHERE dono_id=? AND ordem ${direcao === "cima" ? "<" : ">"} ?
                    ORDER BY ordem ${direcao === "cima" ? "DESC" : "ASC"} LIMIT 1`, eu.dono_id, eu.ordem);
     if (!viz) return { ok: true, moveu: false };

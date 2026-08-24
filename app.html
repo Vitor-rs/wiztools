@@ -2334,6 +2334,8 @@ th.ev.ultima .es-ev-data{background:var(--marca);color:#fff}
 .eg-lic-tab .mv{background:#fff;border:1px solid var(--borda);border-radius:6px;color:var(--tx2);
   cursor:pointer;font-size:11px;line-height:1;width:24px;height:24px;padding:0;margin-left:3px;
   vertical-align:middle;transition:background .12s,border-color .12s,color .12s}
+/* o salto usa o mesmo corpo das setas; a glifo é mais larga, então ganha um respiro */
+.eg-lic-tab .mv.salto{letter-spacing:-1px}
 .eg-lic-tab .mv.seta:hover{border-color:var(--azul);background:var(--azul-cl);color:var(--azul-esc)}
 .eg-lic-tab .mv.x{font-size:12px}
 .eg-lic-tab .mv.x:hover{border-color:var(--perigo);background:#FDECEC;color:var(--perigo)}
@@ -8597,6 +8599,10 @@ lista.forEach(function(l,i){
   +'<td class="c-acoes">'
    +'<button class="mv seta"'+td+' title="subir uma posição" onclick="egLicMover('+q+',\'cima\')">▲</button>'
    +'<button class="mv seta"'+td+' title="descer uma posição" onclick="egLicMover('+q+',\'baixo\')">▼</button>'
+   /* o terceiro botão: o salto. Ao lado das setas porque é a mesma pergunta — para onde esta
+      lição vai —, só que sem contar de um em um. */
+   +'<button class="mv salto"'+td+' title="levar para uma posição específica"'
+   +' onclick="egLicSaltar('+q+','+(i+1)+','+lista.length+')">⇅</button>'
    +'<button class="mv x"'+td+' title="remover" onclick="egLicExcluir('+q+')">✕</button>'
   +'</td></tr>'});
 h+='</tbody></table></div>';
@@ -8616,8 +8622,21 @@ h+='<div class="eg-lic-rod">'
 return h}
 /* `EG_GERADAS` guarda a estrutura que o botão "partir de" vai copiar: o servidor não recalcula
    nada, copia o que esta tela já está mostrando — o gerador continua existindo num lugar só */
+/* qual moldura de lições está à vista — a da Estrutura do estágio ou a do modelo aberto. Uma só
+   de cada vez, e `offsetParent` é o teste barato de "está visível". */
+function egLicMoldura(){
+return [].slice.call(document.querySelectorAll('.eg-lic-moldura'))
+  .filter(function(m){return m.offsetParent})[0]||null}
+/* ===== O SCROLL NÃO VOLTA MAIS AO TOPO (2026-08-23, dele) =====
+   *"Eu aperto a seta de subir ou descer, o scroll volta tudo pro topo. Isso tá sendo muito ruim."*
+   E era: mover a lição 40 devolvia a lista à lição 1, então cada clique custava rolar de novo.
+   A tabela é redesenhada inteira (o `egCarregar` repinta, e a callback repinta outra vez), logo a
+   moldura de depois é um elemento NOVO — guardar o `scrollTop` do velho e devolvê-lo ao novo é o
+   que mantém o olho no lugar. Mesma doença da Onda 0, tratada do mesmo jeito. */
 function egLicRecarregar(alvo,alvoId){
-egCarregar(function(){ if(alvo==='modelo')egAbrirModelo(alvoId); else egDetalhe(); })}
+var m=egLicMoldura(), y=m?m.scrollTop:0;
+egCarregar(function(){ if(alvo==='modelo')egAbrirModelo(alvoId); else egDetalhe();
+ var novo=egLicMoldura(); if(novo&&y)novo.scrollTop=y; })}
 function egLicSalvar(alvo,id,campo,valor){
 var p={alvo:alvo,id:id};p[campo]=valor;
 run('salvarLicaoEstrutura',[p],function(){
@@ -8648,10 +8667,37 @@ run('moverLicaoEstrutura',[{alvo:alvo,id:id,direcao:dir}],function(r){
  egLicRecarregar(alvo,egLicDono(alvo))})}
 /* digitar outro Nº MOVE a lição para aquela posição — o índice é a fila, então mudá-lo é mudar de
    lugar. É o caminho para levar uma lição para longe sem clicar cinquenta vezes na seta. */
-/* `egLicPosicao` (digitar o Nº para mover a lição) SAIU em 2026-08-17: o número virou automático e
-   quem reordena são as setas. Era o segundo caminho para reordenar, e foi por ele que veio a
-   edição acidental que ele relatou. A rota `salvarLicaoEstrutura` continua aceitando `ordem` —
-   é o que as setas usam. */
+/* `egLicPosicao` (digitar o Nº direto na célula) SAIU em 2026-08-17: era um campo que se alterava
+   sem querer, e foi por ele que veio a edição acidental que ele relatou. O Nº continua sendo só
+   leitura por isso.
+   ===== O SALTO (2026-08-23) =====
+   Ele pediu as duas coisas — *"eu quero que o número seja editável"* e, logo depois, *"na verdade,
+   dá pra fazer outra coisa: um terceiro botãozinho pra pular, fazer saltos maiores"*. Ficou a
+   segunda, que é a que resolve sem trazer de volta o defeito: o destino se digita num diálogo, com
+   gesto deliberado, em vez de num campo que se altera de passagem.
+   As outras lições se DESLOCAM para abrir espaço — é o que "vem antes da 6" quer dizer. Trocar de
+   lugar com quem está lá é o que as setas já fazem, uma casa por vez. */
+function egLicSaltar(alvo,id,de,total){
+if(total<2)return;
+dlgTexto({titulo:'Levar para a posição',
+ texto:'Esta lição está na posição '+de+' de '+total+'.'+'\n\n'
+  +'Digite para onde ela vai: as outras se deslocam para abrir espaço e a numeração se refaz de 1 a '+total+'.',
+ label:'Nova posição',valor:String(de),tipoCampo:'number',ok:'Mover'},
+function(v){
+var n=parseInt(v,10);
+if(!(n>=1&&n<=total)){msg('A posição precisa estar entre 1 e '+total+'.',true);return}
+if(n===de)return;
+run('moverLicaoEstrutura',[{alvo:alvo,id:id,posicao:n}],function(r){
+ if(!r.moveu)return;
+ egPiscar(id);
+ msg('Lição levada para a posição '+r.posicao+'.');
+ egLicRecarregar(alvo,egLicDono(alvo));
+ /* rolar até ela: num salto longo o destino costuma estar fora da vista, e o realce sozinho não
+    ajuda quem não sabe para onde olhar. Depois do redesenho, por isso o tempo. */
+ setTimeout(function(){
+  var tr=document.querySelector('.eg-lic-moldura tr[data-l="'+id+'"]');
+  if(tr&&tr.scrollIntoView)tr.scrollIntoView({block:'center'})},260);
+})})}
 function egLicMaterializar(alvo,alvoId){
 var geradas=EG_GERADAS[alvo+'|'+alvoId]||[];
 if(!geradas.length){msg('Não há estrutura gerada para copiar.',true);return}

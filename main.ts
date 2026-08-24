@@ -397,6 +397,21 @@ addColuna("presenca", "observacao", "TEXT");
    É a diferença entre o que o sistema DEDUZ e o que a escola SABE: sem ela, a posição do aluno é a
    contagem automática de presenças; com ela, a contagem inteira se reancora no que ele digitou. */
 addColuna("presenca", "licao_ordem", "INTEGER");
+/* ===== DATA DE INÍCIO NO FUTURO (2026-08-24) =====
+   Achado ao cruzar o sistema com a planilha "Progresso dos Alunos.xlsm", que ele mantém à mão desde
+   2021. A matrícula 1988 (L. Kids 2) tinha `data_inicio` em **2027**-02-03: um ano à frente, e depois
+   da primeira presença dela, que é de 27/07/2026. Não é opinião contra opinião — é data impossível,
+   e ela desloca o planejamento INTEIRO do contrato (o aluno aparecia 198 dias "adiantado").
+   Correção de DADO, não de tela: sem migração ela não viaja pelo git e a recepção continuaria com o
+   ano errado. Trava por marca e por valor, então roda uma vez e não mexe em quem já está certo.
+   Há outros 6 contratos em que a planilha discorda do sistema em ~1 ano — esses ficam de fora: lá o
+   dado do sistema não é impossível, é só diferente, e a escolha é dele. */
+if (!G("SELECT valor FROM config WHERE chave='inicio_futuro_v1'")) {
+  const n = R(`UPDATE aluno_estagio SET data_inicio='2026-02-03'
+               WHERE id_matricula='1988' AND livro='L. Kids 2' AND data_inicio='2027-02-03'`).changes;
+  R("INSERT OR REPLACE INTO config (chave,valor) VALUES ('inicio_futuro_v1',?)", new Date().toISOString().slice(0,19).replace('T',' '));
+  if (n) console.log("correção: 1988/L. Kids 2 — início 2027-02-03 → 2026-02-03 (estava no futuro)");
+}
 if (!G("SELECT valor FROM config WHERE chave='material_avulso_v1'")) {
   R(`UPDATE estoque_item SET avulso=1 WHERE livro IS NOT NULL
        AND livro NOT IN (SELECT livro FROM estagio WHERE livro IS NOT NULL)`);
@@ -3745,7 +3760,48 @@ function projetarContrato({ idMatricula, livro, inicio, fechadosPre }: any) {
      É isto que o pedido dele resolve: com a lição registrada, `incerta` vira `afirmada`. */
   const confianca = afirmada ? "afirmada" : (venceu ? "incerta" : "deduzida");
   const certo = confianca !== "incerta";
-  return { ...cab, linhas, termino: certo ? termino : null, confianca, ultima: linhas.length ? linhas[linhas.length - 1].dataPlan : null,
+  /* ===== AS DUAS PORCENTAGENS QUE COMPETEM (da planilha dele, 2026-08-24) =====
+     Vem de "Progresso dos Alunos.xlsm", a planilha que ele mantém à mão desde 2021 e que continua
+     sendo a razão de o pedido de livros no e-commerce sair certo. O modelo dela é este:
+
+       Progresso LIVRO  = lições feitas ÷ lições do estágio
+       Progresso TEMPO  = quanto do CONTRATO já passou — e o contrato dura 365 dias corridos
+                          (`Fim Curso = Início Curso + 365`, fórmula da coluna O)
+
+     Uma corre contra a outra. Se o tempo passa mais rápido que o livro, o aluno não termina dentro do
+     contrato — e é ISSO que decide o pedido: livro pedido para quem não vai chegar lá vira encalhe,
+     e livro não pedido para quem chega vira aluno esperando.
+
+     `indicador`, com a tolerância de 3% que é dele (coluna Y): -1 atrasado · 0 no limite · 1 em dia.
+     `aulasAtraso` é a diferença das duas convertida em AULAS — a conta da coluna AA, escrita do jeito
+     simples: (tempo − livro) × total de lições. A dela repete o mesmo termo quatro vezes e soma um
+     ajuste de excesso; o resultado é o mesmo sinal e a mesma ordem de grandeza, e esta cabe numa
+     linha. Positivo = atrasado.
+     `excesso` (coluna Z) é o quanto o tempo passou de 100%: contrato vencido com livro por terminar. */
+  const fimContrato = ini ? maisDias(ini, 365) : null;
+  const tempoBruto = fimContrato && fimContrato > ini
+    ? 1 - diasEntre(hojeISO, fimContrato) / diasEntre(ini, fimContrato) : null;
+  const progressoTempo = tempoBruto == null ? null : Math.max(0, Math.min(1, tempoBruto));
+  const excesso = tempoBruto == null ? null : Math.max(0, tempoBruto - 1);
+  const progressoLivro = certo && licoes.length ? (idxAtual + 1) / licoes.length : null;
+  const indicador = (progressoLivro == null || progressoTempo == null) ? null
+    : (progressoLivro < progressoTempo - 0.03 ? -1 : (progressoLivro < progressoTempo ? 0 : 1));
+  const aulasAtraso = (progressoLivro == null || progressoTempo == null) ? null
+    : Math.round((progressoTempo - progressoLivro) * licoes.length * 10) / 10;
+  return { ...cab, linhas, termino: certo ? termino : null, confianca,
+    fimContrato, progressoTempo, progressoLivro, indicador, aulasAtraso, excesso,
+    /* O SINAL DO PEDIDO DE LIVROS: a previsão cabe dentro do contrato? É o `ExcessoPrevisao` dela
+       (coluna AL), invertido para a pergunta que ele faz na hora de comprar — *"garantir que o aluno
+       vai continuar pro próximo, pra não pedir a mais nem a menos"*.
+       NULO QUANDO O CONTRATO JÁ VENCEU, e isso não é detalhe: comparar a previsão com um prazo que
+       ficou para trás respondia "não termina no contrato" a quem vai fechar o livro em dois dias —
+       exatamente o aluno que MAIS precisa do próximo material. Contrato vencido é assunto de
+       renovação, não de pedido; quem decide o pedido ali é a previsão sozinha. */
+    terminaNoContrato: (certo && termino && fimContrato && !(excesso && excesso > 0))
+      ? termino <= fimContrato : null,
+    contratoVencido: !!(excesso && excesso > 0),
+    /* meses até o fim do contrato, como a linha "Tempo restante" do STATS dela */
+    mesesAteFim: fimContrato ? Math.round(diasEntre(hojeISO, fimContrato) / 30 * 10) / 10 : null, ultima: linhas.length ? linhas[linhas.length - 1].dataPlan : null,
     incompleto: i < licoes.length, trocas,
     dadas: dadasFila.length, faltas, naoAula, ancora, venceu,
     /* a posição é AFIRMADA quando alguém digitou a lição, DEDUZIDA quando saiu da contagem */
@@ -3791,6 +3847,9 @@ function progressoDosContratos() {
       posicao: r.posicao, afirmada: r.afirmada, faltamLicoes: r.faltamLicoes,
       faltamBlocos: r.faltamBlocos, totalBlocos: r.totalBlocos,
       dadas: r.dadas, faltas: r.faltas, agenda: r.agenda, venceu: r.venceu,
+      progressoLivro: r.progressoLivro, progressoTempo: r.progressoTempo, indicador: r.indicador,
+      aulasAtraso: r.aulasAtraso, excesso: r.excesso, fimContrato: r.fimContrato,
+      terminaNoContrato: r.terminaNoContrato, mesesAteFim: r.mesesAteFim,
       ultimaDada: r.posicao?.data ?? null, termino: r.termino,
       /* o atraso em dias da última lição dada: negativo é adiantado */
       defasagem: r.posicao && r.linhas.length
@@ -3809,6 +3868,12 @@ function progressoDosContratos() {
     incertos: linhas.filter((l: any) => l.confianca === "incerta").length,
     pertoDoFim: linhas.filter((l: any) => l.faltamLicoes != null && l.faltamLicoes > 0
       && l.faltamBlocos <= LIMITE_BLOCOS).length,
+    /* o número do PEDIDO: quantos terminam dentro do contrato (vão precisar do próximo livro) e
+       quantos não chegam lá com o ritmo de hoje */
+    terminamNoContrato: linhas.filter((l: any) => l.terminaNoContrato === true).length,
+    naoTerminam: linhas.filter((l: any) => l.terminaNoContrato === false).length,
+    atrasados: linhas.filter((l: any) => l.indicador === -1).length,
+    contratoVencido: linhas.filter((l: any) => l.excesso != null && l.excesso > 0).length,
     limiteBlocos: LIMITE_BLOCOS };
   PROGRESSO_MEMO = { em: MUTACOES, dados };
   return dados;

@@ -1200,6 +1200,63 @@ th.ev.ultima .es-ev-data{background:var(--marca);color:#fff}
   background:#2E9E5B;margin-left:5px;vertical-align:middle}
 .plan-lic-in{width:96px;padding:2px 6px;font-size:12px}
 
+
+/* ===== PROGRESSO DE UM ALUNO — a corrida entre o livro e o contrato =====
+   O desenho vem do modelo da planilha dele: duas porcentagens que competem. Elas ficam em duas
+   linhas na MESMA régua, alinhadas à esquerda, porque o que interessa é a diferença entre as pontas;
+   lado a lado, ou em anéis, o olho perde a comparação. */
+.pr-corrida{border:1px solid var(--borda);border-radius:12px;padding:12px 14px;background:#FBFCFD;margin:0 0 12px}
+.pr-tit{font-size:11px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.4px;
+  margin:0 0 10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.pr-tit small{text-transform:none;letter-spacing:0;font-weight:400}
+.pr-sel{border-radius:9px;padding:2px 9px;font-size:10.5px;font-weight:700;letter-spacing:0}
+.pr-sel.ok{background:var(--vc);color:#155724}
+.pr-sel.limite{background:#FFF8E1;color:#8a5a00}
+.pr-sel.atras{background:#f8d7da;color:#721c24}
+.pr-fraco{background:#EFEFEF;color:#5F6771;border-radius:9px;padding:2px 9px;font-size:10.5px;
+  font-weight:700;letter-spacing:0;cursor:help}
+.pr-linha{display:flex;align-items:center;gap:10px;margin:0 0 6px}
+.pr-rot{width:52px;font-size:11.5px;color:var(--tx2);font-weight:700}
+.pr-tr{flex:1;height:14px;background:#EDF1F5;border-radius:7px;overflow:hidden}
+.pr-fill{display:block;height:100%;border-radius:7px}
+.pr-fill.livro{background:linear-gradient(90deg,#4C8FD8,#2E6EBE)}
+.pr-fill.tempo{background:linear-gradient(90deg,#E8C46A,#C9962B)}
+.pr-num{width:56px;text-align:right;font-size:12px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--tx2)}
+.pr-veredito{margin:8px 0 0;font-size:12px;color:var(--tx2)}
+.pr-veredito.atras{color:#8a5a00}
+.pr-veredito.frente{color:#155724}
+
+/* a trilha do livro: uma coluna por bloco, enchendo conforme as lições são dadas */
+.pr-trilha{margin:0 0 12px}
+.pr-blocos{display:flex;gap:5px;align-items:flex-end}
+.pr-bl{flex:1;height:44px;background:#EDF1F5;border-radius:6px;position:relative;overflow:hidden;
+  display:flex;align-items:flex-end;justify-content:center;cursor:help}
+.pr-bl i{position:absolute;left:0;bottom:0;width:100%;background:#BFD8F2}
+.pr-bl.meio i{background:#8FB9E4}
+.pr-bl.cheio i{background:#2E6EBE}
+.pr-bl span{position:relative;font-size:9.5px;font-weight:700;color:var(--tx3);padding-bottom:3px}
+.pr-bl.cheio span{color:#fff}
+
+/* os números, cada um com o seu gráfico dentro */
+.pr-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:8px;margin:0 0 12px}
+.pr-tile{border:1px solid var(--borda);border-radius:10px;padding:9px 11px;background:#fff}
+.pr-tile.alerta{border-color:#F0D48A;background:#FFFCF3}
+.pr-tile.bom{border-color:#BEE3C8;background:#F8FCF9}
+.pr-tr-rot{font-size:10px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.4px}
+.pr-tr-val{font-size:19px;font-weight:700;color:var(--tx1);margin:2px 0 0;line-height:1.15}
+.pr-tr-val small{font-size:11px;font-weight:400;color:var(--tx3);margin-left:4px}
+.pr-tr-val i{font-style:normal;color:var(--marca)}
+.pr-mini{height:4px;background:#EDF1F5;border-radius:2px;margin:6px 0 0;overflow:hidden}
+.pr-mini i{display:block;height:100%;background:#2E6EBE;border-radius:2px}
+.pr-tr-sub{font-size:10.5px;color:var(--tx3);margin:5px 0 0;line-height:1.3}
+
+/* o veredito do pedido de livros — a frase que a tela existe para dizer */
+.pr-pedido{border-radius:10px;padding:10px 13px;font-size:12.5px;line-height:1.45}
+.pr-pedido.sim{background:var(--vc);color:#155724}
+.pr-pedido.nao{background:#FFF8E1;color:#8a5a00}
+.pr-pedido.vencido{background:#f8d7da;color:#721c24}
+.pr-rodape{display:flex;align-items:center;gap:12px;margin:12px 0 0;flex-wrap:wrap}
+.pr-rodape .acao{margin:0}
 /* ===== painel de Progresso: a mesma moldura da tabela de planejamento, outras colunas ===== */
 .prog-tab .c-al{min-width:190px}
 .prog-tab .c-al b{display:block;font-weight:600;color:var(--tx1)}
@@ -3712,7 +3769,7 @@ body.tem-ensaio{padding-top:29px}
      progresso"*. É a única da página que NÃO é sobre o aluno aberto: mostra a escola inteira, uma
      linha por contrato, ordenada por quem está mais perto de acabar o livro. O aluno aberto fica
      realçado, para a página não deixar de ser dele. -->
-<button class="pg-aba" data-p="progresso" onclick="alAba('progresso')">Progresso<span class="n" id="al-prog-n">0</span></button>
+<button class="pg-aba" data-p="progresso" onclick="alAba('progresso')">Progresso</button>
 <!-- os três botões saíram de dentro das abas e subiram para o trilho delas: valem para o aluno,
      não para a aba aberta, e escondidos lá dentro obrigavam a voltar para salvar -->
 <div class="al-acoes">
@@ -3820,16 +3877,17 @@ body.tem-ensaio{padding-top:29px}
 </section>
 </div>
 
-<!-- ===== PROGRESSO (2026-08-24) =====
-     Quem está perto de terminar o livro. Uma linha por CONTRATO aberto, não por aluno: quem faz dois
-     idiomas está em dois pontos de dois livros. A conta é a mesma da aba Planejamento — a projeção
-     roda aqui 132 vezes com o calendário resolvido uma só. -->
+<!-- ===== PROGRESSO DO ALUNO (2026-08-24, dele) =====
+     A tabela de TODOS os contratos saiu daqui para o Dashboard: esta página é de UM aluno.
+     O que fica é o painel dele — e o modelo é o da planilha "Progresso dos Alunos.xlsm", que ele
+     mantém à mão desde 2021: DUAS porcentagens que correm uma contra a outra. O livro andou tanto; o
+     contrato consumiu tanto. Quem ganha a corrida decide se o próximo livro precisa ser pedido. -->
 <div id="al-p-progresso" class="al-painel" style="display:none">
 <section class="al-hist">
-<h3>Progresso dos contratos <small>quem está mais perto de terminar o livro vem primeiro</small>
-<button type="button" class="al-hist-add" id="prog-recarregar" onclick="progCarregar(true)"
+<h3>Progresso do aluno <small>o livro contra o relógio do contrato</small>
+<button type="button" class="al-hist-add" id="prog-recarregar" onclick="progCarregar()"
  title="Recalcular">↻</button></h3>
-<div id="prog-corpo"><div class="al-hist-vazio">calculando…</div></div>
+<div id="prog-corpo"><div class="al-hist-vazio">Escolha um aluno.</div></div>
 </section>
 </div>
 </div>
@@ -4059,14 +4117,28 @@ Os horários da matriz costumam ser fixos e raramente mudam. Confirma que quer e
 <div class="pg-topo">
 <div class="pg-cab"><h2>Dashboard</h2><span class="pg-sub">gráficos e tabela de todas as matrículas</span></div>
 </div>
+<!-- DUAS ABAS (2026-08-24, dele): a tabela de progresso dos contratos nasceu na página de Alunos e
+     ele mandou mudá-la para cá — *"não faz sentido ela ficar ali... você só migra ela pra lá"*. E ele
+     tem razão: a página de Alunos é sobre UM aluno, e aquela tabela é sobre a escola inteira. -->
+<div class="pg-abas dash-abas">
+<button class="pg-aba on" data-d="geral" onclick="dashAba('geral')">Matrículas</button>
+<button class="pg-aba" data-d="progresso" onclick="dashAba('progresso')">Progresso dos contratos<span class="n" id="dash-prog-n">0</span></button>
+</div>
 <div class="pg-corpo pg-corpo-abas">
-<div class="pg-painel">
+<div class="pg-painel" id="dash-p-geral">
 <div class="pg-fixo">
 <div id="dash" class="dash-cards"></div>
 <div class="visao-filtros">Clique nas pílulas para filtrar a tabela (contagem ao lado de cada opção); os cabeçalhos ordenam.</div>
 <div id="filtros-inicio"></div>
 </div>
 <div class="dash-grade"><div id="grade-geral"></div></div>
+</div>
+<div class="pg-painel" id="dash-p-progresso" style="display:none">
+<section class="al-hist">
+<h3>Progresso dos contratos <small>quem está mais perto de terminar o livro vem primeiro</small>
+<button type="button" class="al-hist-add" onclick="dashProgCarregar(true)" title="Recalcular">↻</button></h3>
+<div id="dashprog-corpo"><div class="al-hist-vazio">calculando…</div></div>
+</section>
 </div>
 </div>
 </div>
@@ -4932,7 +5004,7 @@ run('trocarIdMatricula',[{de:de,para:novo}],function(r){
 /* os três registros deixaram de ser sanfona: nesta aba eles SÃO o conteúdo, então carregam junto
    com o aluno. São três chamadas pequenas, e só quando alguém é escolhido. */
 function alHistoricos(){
-if(!alSel){histFechar();hhistFechar();freqFechar();planFechar();return}
+if(!alSel){histFechar();hhistFechar();freqFechar();planFechar();progFechar();return}
 histCarregar();hhistCarregar();freqCarregar();
 /* o currículo NÃO entra aqui: ele é o único que calcula (800 dias de varredura mais a expansão do
    calendário), e trocar de aluno não pode custar isso enquanto a aba está fechada. Quem o dispara é
@@ -5093,20 +5165,137 @@ i.onblur=function(){
   /* recarrega porque afirmar a lição REANCORA a tabela inteira, para trás e para frente */
   planCarregar(PLAN_LIVRO)})};
 }
+/* ===== O PROGRESSO DE UM ALUNO (2026-08-24, dele) =====
+   Traduz para a tela o modelo da planilha "Progresso dos Alunos.xlsm": *"são duas porcentagens que
+   competem uma com a outra"* — o LIVRO e o TEMPO DO CONTRATO. As duas barras são desenhadas na mesma
+   régua, uma sobre a outra, porque é a DISTÂNCIA entre elas que é a informação; em barras separadas
+   o olho não a enxerga.
+   Reusa `getPlanejamento`, que já calcula tudo: uma chamada, não duas. */
+var PROGR=null;
+function progFechar(){PROGR=null;var c=$('prog-corpo');if(c)c.innerHTML='<div class="al-hist-vazio">Escolha um aluno.</div>'}
+function progCarregar(livro){
+var c=$('prog-corpo');if(!c)return;
+if(!alSel){progFechar();return}
+c.innerHTML='<div class="al-hist-vazio">calculando…</div>';
+run('getPlanejamento',[{idMatricula:alSel.id,livro:livro||null}],function(r){PROGR=r;progPintar()});
+}
+function progPct(x){return x==null?'—':(Math.round(x*1000)/10).toFixed(1)+'%'}
+function progPintar(){
+var c=$('prog-corpo'),r=PROGR;if(!c||!r)return;
+if(r.semContrato){c.innerHTML='<div class="al-hist-vazio">Este aluno não tem contrato aberto.</div>';return}
+var troca='';
+if((r.contratos||[]).length>1)
+ troca='<select class="plan-troca" onchange="progCarregar(this.value)">'
+  +r.contratos.map(function(x){return '<option value="'+escBloco(x.livro)+'"'+(x.atual?' selected':'')+'>'
+    +escBloco(nomeLivro(x.livro))+' · '+escBloco(x.contrato)+'</option>'}).join('')+'</select>';
+var h='<div class="plan-cab"><b>'+escBloco(r.estagio)+'</b><span class="plan-ct">'+escBloco(r.contrato)+'</span>'+troca+'</div>';
+if(r.precisaInicio||r.semEstrutura||r.semAgenda){
+ c.innerHTML=h+'<div class="al-hist-vazio">'+(r.precisaInicio
+   ?'Ainda não há data de início — o progresso nasce da entrega do material ou da primeira presença.'
+   :r.semEstrutura?'Este estágio ainda não tem lições digitadas — monte a estrutura em Biblioteca · Estágios.'
+   :'Este contrato ainda não tem dias na agenda — marque os dias na aba Cadastro.')+'</div>';return}
+var pos=r.posicao||{}, ind=r.indicador;
+var ROTIND={'-1':'Atrasado','0':'No limite','1':'Em dia'}, CLSIND={'-1':'atras','0':'limite','1':'ok'};
+/* ---- A CORRIDA: as duas barras na mesma régua ---- */
+h+='<div class="pr-corrida">'
+ +'<div class="pr-tit">A corrida do contrato'
+   +(ind!=null?'<span class="pr-sel '+CLSIND[String(ind)]+'">'+ROTIND[String(ind)]+'</span>':'')
+   +(r.confianca!=='afirmada'?'<span class="pr-fraco" title="Ninguém registrou a lição desta aula. Abra o Planejamento de aulas e diga qual foi — o quadro se reancora nela.">posição '+r.confianca+'</span>':'')
+ +'</div>'
+ +'<div class="pr-linha"><span class="pr-rot">Livro</span>'
+   +'<div class="pr-tr"><i class="pr-fill livro" style="width:'+Math.min(100,(r.progressoLivro||0)*100)+'%"></i></div>'
+   +'<span class="pr-num">'+progPct(r.progressoLivro)+'</span></div>'
+ +'<div class="pr-linha"><span class="pr-rot">Tempo</span>'
+   +'<div class="pr-tr"><i class="pr-fill tempo" style="width:'+Math.min(100,(r.progressoTempo||0)*100)+'%"></i></div>'
+   +'<span class="pr-num">'+progPct(r.progressoTempo)+'</span></div>'
+ +(r.aulasAtraso!=null?'<div class="pr-veredito '+(r.aulasAtraso>0?'atras':'frente')+'">'
+    +'<b>'+Math.abs(r.aulasAtraso)+'</b> aula(s) de '+(r.aulasAtraso>0?'atraso':'folga')
+    +' em relação ao relógio do contrato</div>':'')
+ +(r.excesso>0?'<div class="pr-veredito atras">O contrato já passou do ano em <b>'+progPct(r.excesso)
+    +'</b> e o livro ainda não terminou.</div>':'')
+ +'</div>';
+/* ---- A TRILHA, bloco a bloco: a linha do tempo de carregamento ---- */
+/* FEITA é a lição até a POSIÇÃO, não a que tem presença lançada: o aluno de 2021 fez 60 lições
+   antes de existir lançamento de frequência, e contar só o que tem data deixaria a trilha vazia
+   justamente em quem está quase acabando o livro. */
+var blocos={},ordemB=[],ate=(r.posicao?r.posicao.ordem:0);
+(r.linhas||[]).forEach(function(l){
+ var b=(l.bloco==null?'—':l.bloco);
+ if(!blocos[b]){blocos[b]={n:0,feitas:0};ordemB.push(b)}
+ blocos[b].n++; if(l.ordem<=ate)blocos[b].feitas++});
+h+='<div class="pr-trilha"><div class="pr-tit">A trilha do livro <small>'+r.licoes+' lições em '
+ +ordemB.filter(function(b){return b!=='—'}).length+' blocos</small></div><div class="pr-blocos">'
+ +ordemB.map(function(b){var x=blocos[b],p=x.n?x.feitas/x.n:0;
+   return '<div class="pr-bl'+(p>=1?' cheio':(p>0?' meio':''))+'" title="'+(b==='—'?'abertura':'bloco '+b)
+    +': '+x.feitas+' de '+x.n+' lições">'
+    +'<i style="height:'+Math.round(p*100)+'%"></i><span>'+(b==='—'?'·':b)+'</span></div>'}).join('')
+ +'</div></div>';
+/* ---- OS NÚMEROS, cada um com o seu gráfico ---- */
+function progTile(rot,val,sub,barra,cls){
+ return '<div class="pr-tile'+(cls?' '+cls:'')+'"><div class="pr-tr-rot">'+rot+'</div>'
+  +'<div class="pr-tr-val">'+val+'</div>'
+  +(barra!=null?'<div class="pr-mini"><i style="width:'+Math.max(0,Math.min(100,barra))+'%"></i></div>':'')
+  +(sub?'<div class="pr-tr-sub">'+sub+'</div>':'')+'</div>'}
+var feitas=(r.faltamLicoes!=null)?(r.licoes-r.faltamLicoes):null;
+h+='<div class="pr-tiles">'
+ +progTile('Lição atual',(pos.licao?'<i>'+escBloco(pos.licao)+'</i>':'—'),
+    escBloco(pos.conteudo||'')+(pos.bloco!=null?' · bloco '+pos.bloco:''),
+    feitas!=null?feitas/r.licoes*100:null)
+ +progTile('Faltam',(r.faltamLicoes!=null?r.faltamLicoes:'?')+'<small>lições</small>',
+    feitas!=null?feitas+' de '+r.licoes+' feitas':'posição a confirmar',
+    r.faltamLicoes!=null?(1-r.faltamLicoes/r.licoes)*100:null)
+ +progTile('Blocos',(r.faltamBlocos!=null?r.faltamBlocos:'?')+'<small>/'+r.totalBlocos+'</small>',
+    r.faltamBlocos!=null?'até o fim do livro':'',
+    r.faltamBlocos!=null?(1-r.faltamBlocos/r.totalBlocos)*100:null,
+    (r.faltamBlocos!=null&&r.faltamBlocos<=2&&r.faltamLicoes>0)?'alerta':'')
+ +progTile('Última aula',(pos.data?dataCurta(pos.data):'—'),r.dadas+' dadas · '+r.faltas+' faltas',null)
+ +progTile('Defasagem',(r.aulasAtraso!=null?(r.aulasAtraso>0?'+':'')+r.aulasAtraso:'—')+'<small>aulas</small>',
+    ind!=null?ROTIND[String(ind)]:'',null,ind===-1?'alerta':(ind===1?'bom':''))
+ +progTile('Término previsto',(r.termino?dataCurta(r.termino):'—'),
+    r.fimContrato?'contrato até '+dataCurta(r.fimContrato):'',null,
+    r.terminaNoContrato===false?'alerta':(r.terminaNoContrato===true?'bom':''))
+ +'</div>';
+/* ---- O VEREDITO DO PEDIDO: é para isto que a tela existe ----
+   *"Quando a gente faz pedido de livros, a gente tem que garantir que o aluno vai continuar pro
+   próximo, pra não fazer pedido a mais nem a menos."* */
+if(r.contratoVencido&&r.termino)
+ h+='<div class="pr-pedido vencido">O contrato <b>já venceu</b> ('+dataCurta(r.fimContrato)+') e o livro '
+  +'não acabou. Pela previsão ele fecha em <b>'+dataCurta(r.termino)+'</b>: o próximo material vai ser '
+  +'preciso — o que está em aberto aqui é a renovação, não o pedido.</div>';
+else if(r.terminaNoContrato!=null)
+ h+='<div class="pr-pedido '+(r.terminaNoContrato?'sim':'nao')+'">'
+  +(r.terminaNoContrato
+    ?'No ritmo de hoje ele <b>termina dentro do contrato</b> — conte com este aluno no pedido do próximo livro.'
+    :'No ritmo de hoje ele <b>não termina dentro do contrato</b> ('+dataCurta(r.termino)+' contra '
+      +dataCurta(r.fimContrato)+') — pedir o próximo agora é risco de encalhe.')+'</div>';
+h+='<div class="pr-rodape">'
+ +'<button type="button" class="acao sec" onclick="alAba(&quot;matriculas&quot;);alInfoAba(&quot;planejamento&quot;)">Ver o planejamento de aulas →</button>'
+ +'<span class="plan-i">'+(r.mesesAteFim!=null?(r.mesesAteFim>=0?r.mesesAteFim+' meses até o fim do contrato'
+    :'contrato vencido há '+Math.abs(r.mesesAteFim)+' meses'):'')+'</span></div>';
+c.innerHTML=h;
+}
+
 /* ===== PAINEL DE PROGRESSO (2026-08-24, dele) =====
    *"A gente quer saber os alunos que estão para terminar o livro, dependendo da lição que eles
    estejam."* A conta inteira é do servidor — a mesma projeção da aba Planejamento, rodada em todos
    os contratos. Aqui só há apresentação e o atalho para a tabela de quem interessa. */
-var PROG=null;
-function progCarregar(forcar){
-var c=$('prog-corpo');if(!c)return;
-if(PROG&&!forcar){progPintar();return}
-c.innerHTML='<div class="al-hist-vazio">calculando o progresso de todos os contratos…</div>';
-run('getProgresso',[{}],function(r){PROG=r;progPintar()});
+var DASHPROG=null;
+/* as duas abas do Dashboard. A de Progresso só calcula quando é aberta: é 1 s de varredura, e
+   ninguém deve pagar isso ao abrir a página para ver os gráficos de matrícula. */
+function dashAba(d){
+document.querySelectorAll('#tab-dashboard .dash-abas .pg-aba').forEach(function(b){b.classList.toggle('on',b.dataset.d===d)});
+['geral','progresso'].forEach(function(x){var e=$('dash-p-'+x);if(e)e.style.display=(x===d?'block':'none')});
+if(d==='progresso')dashProgCarregar();
 }
-function progPintar(){
-var c=$('prog-corpo');if(!c||!PROG)return;
-var r=PROG, n=$('al-prog-n');
+function dashProgCarregar(forcar){
+var c=$('dashprog-corpo');if(!c)return;
+if(DASHPROG&&!forcar){dashProgPintar();return}
+c.innerHTML='<div class="al-hist-vazio">calculando o progresso de todos os contratos…</div>';
+run('getProgresso',[{}],function(r){DASHPROG=r;dashProgPintar()});
+}
+function dashProgPintar(){
+var c=$('dashprog-corpo');if(!c||!DASHPROG)return;
+var r=DASHPROG, n=$('dash-prog-n');
 if(n){n.textContent=r.pertoDoFim;n.style.display=r.pertoDoFim?'inline-block':'none'}
 var cab='<div class="plan-cab">'
  +'<span class="plan-ct">'+r.linhas.length+' contratos</span>'
@@ -5133,7 +5322,7 @@ r.linhas.forEach(function(l){
  var pos=l.posicao||{}, perto=(l.faltamBlocos!=null&&l.faltamLicoes>0&&l.faltamBlocos<=r.limiteBlocos);
  var meu=(alSel&&String(alSel.id)===String(l.id));
  h+='<tr class="plan-l prog-l'+(perto?' perto':'')+(l.confianca==='incerta'?' incerta':'')+(meu?' meu':'')
-   +'" onclick="progAbrir(&quot;'+escBloco(l.id)+'&quot;,&quot;'+escBloco(l.livro)+'&quot;)"'
+   +'" onclick="dashProgAbrir(&quot;'+escBloco(l.id)+'&quot;,&quot;'+escBloco(l.livro)+'&quot;)"'
    +' title="abrir o planejamento deste contrato">'
   +'<td class="c-al"><b>'+escBloco(l.nome)+'</b><small>'+escBloco(l.contrato)+'</small></td>'
   +'<td class="c-est">'+escBloco(l.nomeCurto||l.estagio)+'</td>'
@@ -5156,7 +5345,7 @@ if(r.incertos)h+='<div class="al-hist-vazio">'+r.incertos+' contrato(s) estão c
 c.innerHTML=h;
 }
 /* clicar na linha leva ao planejamento DAQUELE contrato — é lá que se registra a lição */
-function progAbrir(id,livro){
+function dashProgAbrir(id,livro){
 var a=(ALUNOS||[]).filter(function(x){return String(x.id)===String(id)})[0];
 if(!a){msg('Aluno '+id+' não está na lista.',true);return}
 alCarregar(a);

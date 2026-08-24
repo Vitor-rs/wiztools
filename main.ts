@@ -359,6 +359,18 @@ addColuna("estoque_unidade", "finalidade", "TEXT NOT NULL DEFAULT 'venda'");
    legada precisa ser declarada e configurada no estoque, não no estágio"*). O estágio passa a só
    MOSTRAR o que a edição dele diz. */
 addColuna("estoque_edicao", "legada", "INTEGER NOT NULL DEFAULT 0");
+/* ===== A EDIÇÃO TEM TRÊS SITUAÇÕES, NÃO DUAS (2026-08-23, dele) =====
+   *"Tem três situações de edição: você tem atual, lançamento e legado."* O booleano `legada` só
+   sabia dizer "é a velha ou não é", e faltava justamente o começo da vida da edição — a que
+   acabou de sair e ainda não substituiu a corrente.
+   `legada` continua GRAVADA, sempre derivada desta coluna no mesmo UPDATE (`edicaoSituacao`), para
+   que banco que ainda não migrou continue lendo a resposta certa. Quem LÊ, daqui para a frente,
+   lê `situacao` — é ela a verdade. */
+addColuna("estoque_edicao", "situacao", "TEXT NOT NULL DEFAULT 'atual'");
+if (!G("SELECT valor FROM config WHERE chave='edicao_situacao_v1'")) {
+  R("UPDATE estoque_edicao SET situacao='legado' WHERE legada=1");
+  R("INSERT OR REPLACE INTO config (chave,valor) VALUES ('edicao_situacao_v1', datetime('now','localtime'))");
+}
 /* MATERIAL AVULSO (2026-08-23, dele): *"dá pra fazer, se o material ele é considerado um estágio ou
    não"*. O caso concreto é o "Kids Esp 1": livro de espanhol para crianças que a patroa dele trouxe
    dos EUA e ele adaptou à metodologia Wizard. Não existe no catálogo da Wizard — não é estágio, é
@@ -3887,7 +3899,7 @@ const api: Record<string, (a: any) => unknown> = {
          antes de chegar o primeira unidade dela. */
       /* ATIVAS primeiro (mais recente na frente, que é a que se usa), arquivadas no fim — é a ordem
          que ele pediu: "quando arquiva, vai pro fundo com aparência de desativado". */
-      i.edicoes = A(`SELECT e.id, e.nome, e.ano, e.padrao, e.legada, e.arquivada,
+      i.edicoes = A(`SELECT e.id, e.nome, e.ano, e.padrao, e.legada, e.situacao, e.arquivada,
                        (SELECT COUNT(*) FROM estoque_unidade u
                         WHERE u.edicao_id=e.id AND u.entrega_id IS NULL AND u.arquivado IS NULL
                           AND u.finalidade='venda') saldo,
@@ -3895,7 +3907,8 @@ const api: Record<string, (a: any) => unknown> = {
                      FROM estoque_edicao e WHERE e.item_id=?
                      ORDER BY (e.arquivada IS NOT NULL), e.padrao DESC, COALESCE(e.ano,0) DESC, e.id DESC`, i.id)
         .map(e => ({ id: e.id, nome: e.nome, ano: e.ano ?? null, saldo: e.saldo, total: e.total,
-                     padrao: e.padrao === 1, legada: e.legada === 1, arquivada: e.arquivada || null }));
+                     padrao: e.padrao === 1, situacao: e.situacao || "atual",
+                     legada: (e.situacao || "atual") === "legado", arquivada: e.arquivada || null }));
       /* A FILA INTEIRA vem numa lista só, com a finalidade em cada linha — a tela separa nas duas
          abas. Duas consultas dariam dois lugares para a mesma pergunta ficar desatualizada. */
       i.unidades = A(`SELECT u.id, u.entrada, u.origem, u.codigo, u.numero, u.conferido,
@@ -4271,11 +4284,14 @@ const api: Record<string, (a: any) => unknown> = {
   },
   /* MARCAR A EDIÇÃO COMO LEGADA. É aqui que a informação nasce — o estágio só a reflete. Legada não
      impede nada: ela continua entregável e com aluno cursando; só diz qual das duas é a antiga. */
-  edicaoLegada({ id, legada }: any) {
+  /* ATUAL · LANÇAMENTO · LEGADO — as três situações que ele nomeou. Uma escrita só grava as duas
+     colunas: `situacao` é a verdade e `legada` é derivada dela, para banco antigo continuar certo. */
+  edicaoSituacao({ id, situacao }: any) {
     const ed = G("SELECT item_id FROM estoque_edicao WHERE id=?", id);
     if (!ed) throw new Error("Edição não encontrada.");
-    R("UPDATE estoque_edicao SET legada=? WHERE id=?", legada ? 1 : 0, id);
-    return { ok: true, legada: !!legada };
+    const s = ["atual", "lancamento", "legado"].includes(situacao) ? situacao : "atual";
+    R("UPDATE estoque_edicao SET situacao=?, legada=? WHERE id=?", s, s === "legado" ? 1 : 0, id);
+    return { ok: true, situacao: s };
   },
   /* ===== O VÍNCULO ESTÁGIO × MATERIAL, CONFIGURADO PELO MATERIAL (2026-08-23, dele) =====
      *"Eu acho que o vínculo faz mais sentido a gente configurar lá no material, na aba de
@@ -4623,9 +4639,13 @@ const api: Record<string, (a: any) => unknown> = {
        "Kids 4 · 2nd Edition" no material vinculado deixava o rótulo mostrando a 3rd — o defeito
        que ele viu na tela. */
     const itemDe = (e: any) => e.item_edicao_id
-      ? G("SELECT nome AS edicao_nome, ano AS edicao_ano FROM estoque_edicao WHERE id=?", e.item_edicao_id)
+      ? G("SELECT nome AS edicao_nome, ano AS edicao_ano, situacao FROM estoque_edicao WHERE id=?", e.item_edicao_id)
+      /* sem edição fixada, vale a PADRÃO do material — e é dela que sai a situação, senão o estágio
+         mostraria o nome de uma edição e a tag de outra */
       : (e.item_estoque_id
-        ? G("SELECT edicao_nome, edicao_ano FROM estoque_item WHERE id=?", e.item_estoque_id) : null);
+        ? G(`SELECT i.edicao_nome, i.edicao_ano, (SELECT ed.situacao FROM estoque_edicao ed
+               WHERE ed.item_id=i.id AND ed.padrao=1 AND ed.arquivada IS NULL) situacao
+             FROM estoque_item i WHERE i.id=?`, e.item_estoque_id) : null);
     const limpa = (v: any) => (v && !/^oficial$/i.test(v) ? v : "");
     /* material vinculado manda; sem material (edição aposentada, por exemplo) vale o que está
        gravado no próprio estágio, senão duas edições do mesmo livro ficariam com o mesmo nome */
@@ -4658,6 +4678,8 @@ const api: Record<string, (a: any) => unknown> = {
          virada (os dois Kids 4 precisam continuar distinguíveis). */
       nomeExibicao: e.nome + (edicaoDe(e) ? " · " + edicaoDe(e) : ""),
       edicaoDoItem: edicaoDe(e), edicaoAnoDoItem: edicaoAnoDe(e),
+      /* atual | lancamento | legado — a tag que a ficha do estágio mostra depois do nome */
+      edicaoSituacao: itemDe(e)?.situacao || "atual",
       idioma: e.idioma, categoria: e.categoria,
       /* `grupo` saiu da resposta em 2026-08-17: a categoria é o único agrupamento do sistema */
       /* FINAL é HERDADO do material: quem decide é a página de Estoque, e aqui só se mostra.

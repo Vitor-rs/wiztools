@@ -1187,6 +1187,8 @@ th.ev.ultima .es-ev-data{background:var(--marca);color:#fff}
   cursor:help;vertical-align:1px}
 .es-travado{background:#F4F6F8;color:#5F6771;cursor:default}
 .es-ed-pop .nm .lg{background:#EFEFEF;color:#5F6771}
+.es-ed-pop .nm .sit.legado{background:#EFEFEF;color:#5F6771}
+.es-ed-pop .nm .sit.lancamento{background:var(--azul-cl);color:var(--azul-esc)}
 .es-ed-pop .nm .aq{background:#EEF1F4;color:var(--tx3)}
 .es-ed-pop .sd{font-size:11px;color:var(--tx3);font-variant-numeric:tabular-nums;min-width:22px;
   text-align:right}
@@ -2163,6 +2165,8 @@ th.ev.ultima .es-ev-data{background:var(--marca);color:#fff}
   line-height:16px;white-space:nowrap}
 .eg-p.entrada{background:#E4F4E8;color:var(--ok)}
 .eg-p.legado{background:#EFEFEF;color:#5F6771}
+/* lancamento e a edicao nova que ainda nao substituiu a corrente: azul, o mesmo do NOVO */
+.eg-p.lancamento{background:var(--azul-cl);color:var(--azul-esc)}
 /* desativado precisa saltar mais que legado: legado é um fato do catálogo, desativado é um aviso
    de "não use este" */
 .eg-p.off{background:#FDECEC;color:var(--perigo)}
@@ -2195,7 +2199,14 @@ th.ev.ultima .es-ev-data{background:var(--marca);color:#fff}
 .eg-lic.editavel:hover .mv{opacity:.55;width:auto}
 .eg-lic .mv:hover{opacity:1}
 /* formulário do estágio: rótulo em cima do campo, em grade que reflui */
-.eg-form{display:grid;gap:10px 14px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+/* QUATRO COLUNAS FIXAS (2026-08-23). Era `auto-fit`, e por isso o formulário tinha uma cara
+   diferente em cada largura — medido: 3 colunas num painel de 626px, 4 no dele. O desenho que ele
+   fez (material vinculado ocupando as duas primeiras, idades à direita, edição embaixo) só existe
+   com a contagem fixa. `minmax(0,1fr)` porque o mínimo automático de coluna é `auto`, e um select
+   com opção comprida a empurraria para fora. */
+.eg-form{display:grid;gap:10px 14px;grid-template-columns:repeat(4,minmax(0,1fr))}
+@media (max-width:1100px){.eg-form{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:700px){.eg-form{grid-template-columns:1fr}}
 .eg-campo{display:flex;flex-direction:column;min-width:0}
 .eg-campo label{margin:0 0 3px}
 .eg-campo.larga{grid-column:span 2}
@@ -2203,11 +2214,14 @@ th.ev.ultima .es-ev-data{background:var(--marca);color:#fff}
 .eg-chk{display:flex;align-items:center;gap:7px;font-weight:600;color:var(--tx2);font-size:12.5px;
   text-transform:none;letter-spacing:0;margin:0;align-self:end;padding-bottom:7px}
 .eg-chk input{width:auto;margin:0;flex:0 0 auto}
-/* dentro do campo Status, logo abaixo das pílulas e pela MESMA borda esquerda que elas.
-   O `align-self:end` e o `padding-bottom` do `.eg-chk` solto servem para quando ele é item
-   da GRADE; aqui ele é filho do campo, então os dois atrapalham e saem. */
-.eg-campo .eg-chk.eg-legada{align-self:auto;padding-bottom:0;margin-top:7px;white-space:nowrap}
-.eg-campo .eg-chk.eg-legada .es-i{flex:0 0 auto}
+/* A EDIÇÃO COMO FRASE: *"edição, negrito, dois pontos, o nome"*. Alinha pelo pé, como os campos
+   vizinhos da fileira, para a linha de base bater com os rótulos ao lado. */
+.eg-ed-campo{justify-content:flex-end}
+.eg-ed-linha{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:13px;color:var(--tx2);
+  min-height:32px;padding-bottom:7px}
+.eg-ed-linha b:first-child{color:var(--tx);font-weight:700}
+.eg-ed-linha small{color:var(--tx3)}
+.eg-ed-linha .vazio{color:var(--tx3);font-style:italic}
 .eg-kpis{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:12px}
 .eg-kpi{background:#fff;border:1px solid var(--borda);border-radius:9px;padding:8px 13px;min-width:88px}
 .eg-kpi b{display:block;font-size:19px;line-height:1.15;font-variant-numeric:tabular-nums;color:var(--marca)}
@@ -6574,7 +6588,7 @@ if(!eds.length)h+='<div class="vaz">Nenhuma edição cadastrada.</div>';
 eds.forEach(function(e){
  h+='<div class="lin'+(e.arquivada?' arq':'')+(ES_ED_EDIT&&ES_ED_EDIT.id===e.id?' edit':'')+'">'
   +'<span class="nm">'+escBloco(e.nome)+(e.ano?'<i>'+e.ano+'</i>':'')
-   +(e.padrao?'<b class="pd">padrão</b>':'')+(e.legada?'<b class="lg">legada</b>':'')
+   +(e.padrao?'<b class="pd">padrão</b>':'')+esEdTag(e.situacao)
    +(e.arquivada?'<b class="aq">arquivada</b>':'')+'</span>'
   +'<span class="sd" title="'+e.saldo+' na prateleira · '+e.total+' no total, contando entregues">'
    +e.saldo+'</span>'
@@ -6582,10 +6596,12 @@ eds.forEach(function(e){
    +(e.arquivada
      ?'<button onclick="esEdArquivar('+e.id+',true)" title="voltar a usar esta edição">desarquivar</button>'
      :((e.padrao?'':'<button onclick="esEdPadrao('+e.id+')" title="unidades novas passam a herdar esta">tornar padrão</button>')
-       /* É AQUI que "legada" nasce — o estágio só reflete (decisão dele, 2026-08-22) */
-       +'<button onclick="esEdLegada('+e.id+','+(e.legada?'false':'true')+')"'
-       +' title="'+(e.legada?'deixar de marcar como edição antiga':'marcar como a edição antiga deste material')+'">'
-       +(e.legada?'não é legada':'marcar legada')+'</button>'
+       /* É AQUI que a SITUAÇÃO da edição nasce — a ficha do estágio só reflete (decisão dele,
+          2026-08-22, e em 23/08 o booleano virou três estados). Um botão por situação, e o da
+          situação corrente não aparece: só se oferece o que muda alguma coisa. */
+       +ES_ED_SITS.filter(function(s){return s[0]!==(e.situacao||'atual')}).map(function(s){
+          return '<button onclick="esEdSituacao('+e.id+',&quot;'+s[0]+'&quot;)" title="'+s[2]+'">'
+           +s[1]+'</button>'}).join('')
        +'<button onclick="esEdEditar('+e.id+')" title="mudar o nome ou o ano desta edição">editar</button>'
        +'<button onclick="esEdArquivar('+e.id+',false)" title="sai da lista de uso; as unidades dela continuam">arquivar</button>'))
   +'</span></div>'});
@@ -6642,9 +6658,20 @@ ES_ED_EDIT={id:e.id,nome:e.nome,ano:e.ano||''};
 esEdPintar()}
 function esEdPadrao(id){
 run('edicaoPadraoDoItem',[{id:id}],function(){msg('Edição padrão trocada.');esEdRecarregar()})}
-function esEdLegada(id,v){
-run('edicaoLegada',[{id:id,legada:v}],function(){
- msg(v?'Marcada como edição legada.':'Deixou de ser legada.');
+/* As TRÊS situações que ele nomeou, num lugar só: rótulo do botão e o que ela quer dizer.
+   *"Um livro que é o Kids 4 antigo é da segunda edição, é o nome dela, só que eu tenho que
+   considerar como legado porque ela não tá sendo usada mais."* */
+var ES_ED_SITS=[
+ ['atual','é a atual','Edição em uso hoje neste material'],
+ ['lancamento','é lançamento','Edição nova, que ainda não substituiu a corrente'],
+ ['legado','é legado','Edição antiga: não se usa mais, mas ainda há aluno com ela']];
+function esEdTag(s){
+var r=ES_ED_SITS.filter(function(x){return x[0]===(s||'atual')})[0];
+if(!r||r[0]==='atual')return '';   /* atual é o normal: tag só para o que foge dele */
+return '<b class="sit '+r[0]+'">'+(r[0]==='lancamento'?'lançamento':'legado')+'</b>'}
+function esEdSituacao(id,s){
+run('edicaoSituacao',[{id:id,situacao:s}],function(){
+ msg('Edição marcada como '+(s==='lancamento'?'lançamento':s)+'.');
  esEdRecarregar()})}
 /* ARQUIVAR no lugar de apagar: unidade entregue aponta para a edição, e apagá-la deixaria o rastro
    sem nome. A janela diz quantas unidades ficam pendurados nela. */
@@ -7896,8 +7923,6 @@ h+='<div class="eg-cx" style="margin-bottom:14px"><div class="eg-cx-cab">Dados d
      return '<option value="'+m.id+'"'+(temEstrutura&&m.id===e.modeloId?' selected':'')+'>'+escBloco(m.nome)+'</option>'}).join('')+'</select>')
  +egC('Começa na lição','<input id="eg-licini" type="number" min="1" value="'+e.licaoInicial+'">')
 
- +'<label class="eg-chk"><input type="checkbox" id="eg-entrada"'+(e.entrada?' checked':'')
-   +'> Porta de entrada</label>'
  /* UM vínculo só, e é com o MATERIAL (2026-08-10, dele): *"o estágio é vinculado ao item no
     estoque"*. O antigo select de livro saiu — o `estagio.livro`, que matrícula e ficha impressa
     usam, passa a ser DERIVADO do item escolhido, no servidor. Dois selects dizendo quase a mesma
@@ -7923,12 +7948,17 @@ h+='<div class="eg-cx" style="margin-bottom:14px"><div class="eg-cx-cab">Dados d
            +(i.id===e.itemEstoqueId&&ed.id===e.itemEdicaoId?' selected':'')+'>'
            +base+' · '+escBloco(ed.nome)+(ed.ano?' ('+ed.ano+')':'')+'</option>'}).join('');
       }).join('')+'</select>','larga')
- /* A EDIÇÃO é do material e se edita no Estoque: aqui ela só se mostra. Foi a leitura dele — o que
-    ganha edição nova é a caixa (Student's Book, Workbook), não a estrutura pedagógica. */
- +egC('Edição <small style="font-weight:400;color:var(--tx3)">(vem do material)</small>',
-     '<div id="eg-ed-espelho" class="eg-espelho">'+egTextoEdicao(e)+'</div>')
  +egC('Idade mínima','<input id="eg-idmin" type="number" value="'+(e.idadeMin==null?'':e.idadeMin)+'">')
  +egC('Idade máxima','<input id="eg-idmax" type="number" value="'+(e.idadeMax==null?'':e.idadeMax)+'">')
+ /* ===== A EDIÇÃO VIROU UMA FRASE (2026-08-23, dele) =====
+    *"Você vai colocar edição, negrito, depois dois pontos, o nome da edição, e se ela for legada
+    ou não."* Era um campo com rótulo e caixa de leitura, ocupando espaço de campo editável para
+    mostrar uma linha de texto. Agora é a linha inteira: **Edição:** nome + a tag da situação.
+    O rótulo "(vem do material)" saiu do rosto e virou tooltip — a frase já é curta e ele não quer
+    texto explicativo ocupando tela. */
+ +'<div class="eg-campo larga eg-ed-campo" title="A edição vem do material vinculado.'
+   +' Quem a define, e diz se é atual, lançamento ou legado, é a aba Estoque · Materiais.">'
+   +'<div id="eg-ed-espelho" class="eg-ed-linha">'+egTextoEdicao(e)+'</div></div>'
  /* Duas pílulas, verde e vermelha. Status e "legado" são coisas diferentes: o Kids 4 antigo é
     legado E está ativo, com três alunos cursando nele. */
  /* A EDIÇÃO LEGADA ENTROU NO CAMPO DO STATUS (2026-08-23, correção dele): *"ele tá meio pra baixo,
@@ -7943,10 +7973,16 @@ h+='<div class="eg-cx" style="margin-bottom:14px"><div class="eg-cx-cab">Dados d
      +' onclick="egStatus(this,&quot;ativo&quot;)" title="Em uso: aparece no catálogo e pode receber matrícula">Ativado</button>'
      +'<button type="button" class="pil off'+(e.status==='desativado'?' sel':'')+'"'
      +' onclick="egStatus(this,&quot;desativado&quot;)" title="Sai do catálogo. Quem já está matriculado nele continua — só não entra gente nova">Desativado</button>'
-     +'</div>'
-     +'<label class="eg-chk travado eg-legada"><input type="checkbox" id="eg-legado" disabled'+(e.legado?' checked':'')+'>'
-       +'<span>Edição legada</span><span class="es-i" title="Declarado no Estoque, no painel de edições do material. Aqui é só leitura.">'
-       +icon('info',12)+'</span></label>')
+     +'</div>')
+ /* O CHECKBOX "Edição legada" SAIU (2026-08-23, dele): *"esse checkbox que não era pra ter
+    colocado... vai virar tag que eu tô definindo lá no estoque"*. Dizer "legada" com um quadradinho
+    travado ao lado do Status confundia duas coisas — o estágio estar ativo e a EDIÇÃO ser velha.
+    Agora a situação da edição é uma tag na própria linha da edição, com o nome que ela tem no
+    Estoque, e as três possibilidades que ele nomeou: atual, lançamento, legado.
+    A PORTA DE ENTRADA veio ocupar o lugar: ela é atributo do estágio, como o status, e estava
+    perdida no meio da grade de campos. */
+ +'<label class="eg-chk"><input type="checkbox" id="eg-entrada"'+(e.entrada?' checked':'')
+   +'> Porta de entrada</label>'
  +'</div>'
  /* A TRILHA EM FAIXA INTEIRA (2026-08-22). Dentro da grade de campos ela ficava espremida numa
     coluna e ilegível; ele pediu linear, na largura toda, com rolagem lateral se não couber. */
@@ -8213,8 +8249,13 @@ var nome=e.edicaoDoItem||(it?it.edicaoNome:'');
 var ano=e.edicaoAnoDoItem||(it?it.edicaoAno:null);
 /* recado curto de propósito: o rótulo do campo já diz "(vem do material)", então basta apontar
    ONDE se define. A frase longa quebrava em três linhas em coluna estreita. */
-if(!nome)return '<span class="vazio">sem edição — defina no Estoque</span>';
-return escBloco(nome)+(ano?' <small>· '+ano+'</small>':'')}
+if(!nome)return '<b>Edição:</b> <span class="vazio">sem edição — defina no Estoque</span>';
+/* a TAG só aparece quando foge do normal: marcar "atual" em toda edição corrente seria ruído em
+   29 estágios para não dizer nada. Legado e lançamento é que mudam o que a pessoa faz. */
+var s=e.edicaoSituacao||'atual';
+var tag=(s==='legado'||s==='lancamento')
+  ? ' <b class="eg-p '+s+'">'+(s==='legado'?'legado':'lançamento')+'</b>' : '';
+return '<b>Edição:</b> '+escBloco(nome)+(ano?' <small>· '+ano+'</small>':'')+tag}
 /* O VALOR DO SELECT é `id` ou `id:edicaoId` — um vínculo só, com a edição embutida quando o
    material tem mais de uma viva. Uma função para desmontar, usada pelo espelho e pelo salvar, para
    os dois não interpretarem o mesmo texto de jeitos diferentes. */

@@ -1190,6 +1190,40 @@ th.ev.ultima .es-ev-data{background:var(--marca);color:#fff}
   font-size:10.5px;cursor:help}
 .plan-tab .c-obs input{width:100%;padding:3px 6px;font-size:12px}
 .plan-tab .c-lic i{font-style:normal;font-weight:700;color:var(--tx2);margin-right:6px}
+/* o botão da lição é discreto até o mouse chegar: ele aparece em toda linha realizada, e um botão
+   forte em cinquenta linhas viraria ruído. O ponto verde marca o que FOI DITO por ele. */
+.plan-lic-bt{font:inherit;font-weight:700;color:var(--tx2);background:none;border:1px dashed transparent;
+  border-radius:6px;padding:0 5px;margin-right:4px;cursor:pointer}
+.plan-lic-bt:hover{border-color:var(--borda);background:#F7F9FB}
+.plan-lic-bt.dita{color:#155724}
+.plan-lic-bt.dita::after{content:"";display:inline-block;width:5px;height:5px;border-radius:50%;
+  background:#2E9E5B;margin-left:5px;vertical-align:middle}
+.plan-lic-in{width:96px;padding:2px 6px;font-size:12px}
+
+/* ===== painel de Progresso: a mesma moldura da tabela de planejamento, outras colunas ===== */
+.prog-tab .c-al{min-width:190px}
+.prog-tab .c-al b{display:block;font-weight:600;color:var(--tx1)}
+.prog-tab .c-al small,.prog-tab .c-lic2 small{display:block;color:var(--tx3);font-size:10.5px}
+.prog-tab .c-est{width:72px;font-weight:700;color:var(--tx2)}
+.prog-tab .c-lic2{width:104px}
+.prog-tab .c-lic2 i{font-style:normal;font-weight:700;color:var(--tx2)}
+.prog-tab .c-falta,.prog-tab .c-bl,.prog-tab .c-def{width:78px;font-variant-numeric:tabular-nums}
+.prog-l{cursor:pointer}
+.prog-l:hover td{background:#F7F9FB}
+/* a linha de quem está a dois blocos do fim é o ponto da tela: ela se anuncia sem precisar de ícone */
+.prog-l.perto td{background:#FFF8E1}
+.prog-l.perto:hover td{background:#FFF3CD}
+.prog-l.incerta td{color:var(--tx3)}
+/* o aluno aberto continua sendo o dono da página, mesmo numa aba que mostra a escola inteira */
+.prog-l.meu td{box-shadow:inset 0 0 0 9999px rgba(46,110,190,.06)}
+.prog-l.meu .c-al b{color:var(--azul-esc)}
+.prog-bl{font-weight:700;color:var(--tx2)}
+.prog-bl small{color:var(--tx3);font-weight:400}
+.prog-def.atras{color:#8a5a00;font-weight:700}
+.prog-def.frente{color:#155724;font-weight:700}
+.prog-perto{background:#FFF8E1;color:#8a5a00;border-radius:9px;padding:2px 9px;font-weight:700;font-size:11px}
+.prog-dita{display:inline-block;width:5px;height:5px;border-radius:50%;background:#2E9E5B;margin-left:5px;
+  vertical-align:middle}
 .plan-ro{color:var(--tx3)}
 /* a linha em que o mês VIRA ganha um fio mais forte: é por ele que o olho acha o começo do mês */
 .plan-tab tr.vira td{border-top:2px solid var(--borda)}
@@ -3674,6 +3708,11 @@ body.tem-ensaio{padding-top:29px}
 <div class="pg-abas al-abas">
 <button class="pg-aba on" data-p="cadastro" onclick="alAba('cadastro')">Cadastro</button>
 <button class="pg-aba" data-p="matriculas" onclick="alAba('matriculas')">Informações</button>
+<!-- A TERCEIRA ABA (2026-08-24, dele): *"cria uma terceira aba, como se fosse um dashboard de
+     progresso"*. É a única da página que NÃO é sobre o aluno aberto: mostra a escola inteira, uma
+     linha por contrato, ordenada por quem está mais perto de acabar o livro. O aluno aberto fica
+     realçado, para a página não deixar de ser dele. -->
+<button class="pg-aba" data-p="progresso" onclick="alAba('progresso')">Progresso<span class="n" id="al-prog-n">0</span></button>
 <!-- os três botões saíram de dentro das abas e subiram para o trilho delas: valem para o aluno,
      não para a aba aberta, e escondidos lá dentro obrigavam a voltar para salvar -->
 <div class="al-acoes">
@@ -3778,6 +3817,19 @@ body.tem-ensaio{padding-top:29px}
 <button type="button" class="al-hist-add" id="plan-recarregar" onclick="planCarregar()"
  title="Recalcular com o calendário de agora">↻</button></h3>
 <div id="plan-corpo"><div class="al-hist-vazio">Escolha um aluno.</div></div>
+</section>
+</div>
+
+<!-- ===== PROGRESSO (2026-08-24) =====
+     Quem está perto de terminar o livro. Uma linha por CONTRATO aberto, não por aluno: quem faz dois
+     idiomas está em dois pontos de dois livros. A conta é a mesma da aba Planejamento — a projeção
+     roda aqui 132 vezes com o calendário resolvido uma só. -->
+<div id="al-p-progresso" class="al-painel" style="display:none">
+<section class="al-hist">
+<h3>Progresso dos contratos <small>quem está mais perto de terminar o livro vem primeiro</small>
+<button type="button" class="al-hist-add" id="prog-recarregar" onclick="progCarregar(true)"
+ title="Recalcular">↻</button></h3>
+<div id="prog-corpo"><div class="al-hist-vazio">calculando…</div></div>
 </section>
 </div>
 </div>
@@ -4800,7 +4852,7 @@ function alAba(p){
    sub-abas de Informações e o trilho de matrículas), e o seletor largo apagava o `on` de todos —
    era por isso que "Histórico de situação" abria sem realce nenhum. */
 document.querySelectorAll('#tab-alunos .al-abas .pg-aba').forEach(function(b){b.classList.toggle('on',b.dataset.p===p)});
-['cadastro','matriculas'].forEach(function(x){$('al-p-'+x).style.display=(x===p?'block':'none')});
+['cadastro','matriculas','progresso'].forEach(function(x){$('al-p-'+x).style.display=(x===p?'block':'none')});
 /* a fileira do cadastro e o trilho de matrículas moram no bloco fixo (para ficarem parados junto
    com ele), então é aqui que os dois somem quando a aba aberta é a de Informações */
 $('al-faixa-cx').style.display=(p==='cadastro'?'block':'none');
@@ -4808,6 +4860,7 @@ var ma=$('al-mat-abas');if(ma)ma.style.display=(p==='cadastro'?'block':'none');
 /* reaplica a sub-aba corrente ao abrir Informações: o painel guarda a escolha, mas o realce
    precisa ser repintado */
 if(p==='matriculas')alInfoAba(AL_INFO_ABA);
+if(p==='progresso')progCarregar();
 }
 /* sub-abas da aba Informações. O conteúdo dos três carrega junto (são três consultas pequenas, já
    feitas ao escolher o aluno) — trocar de aba só troca o que está à vista. */
@@ -4971,7 +5024,17 @@ var mesAnt=null, ROT={P:'Presente',F:'Falta',N:'Não aula'};
      sentada só, e mostrá-las duas vezes somaria a mesma hora duas vezes no olho de quem lê */
   +'<td class="c-hr">'+escBloco(l.entrada||'')+'</td>'
   +'<td class="c-hr">'+escBloco(l.saida||'')+'</td>'
-  +'<td class="c-lic">'+(l.licao?'<i>'+escBloco(l.licao)+'</i>':'')+escBloco(l.conteudo||'')+'</td>'
+  /* A LIÇÃO DA LINHA REALIZADA É EDITÁVEL (2026-08-24, dele): *"na presença dele eu colocar a lição
+     que ele tá fazendo"*. Só onde houve aula — afirmar a lição de um dia que não aconteceu não quer
+     dizer nada — e só na 1ª lição do dia, porque a marca mora na presença, que é uma por data. */
+  +'<td class="c-lic">'+(l.dataReal&&!l.mesmoLancamento
+     ?'<button type="button" class="plan-lic-bt'+(l.afirmada?' dita':'')+'" data-ord="'+l.ordem+'"'
+      +' title="'+(l.afirmada?'lição registrada por você — clique para trocar ou apagar'
+                            :'clique para dizer qual lição foi dada nesta aula')+'"'
+      +' onclick="planLicaoEditar(this,&quot;'+escBloco(l.dataReal)+'&quot;)">'
+      +escBloco(l.licao||'?')+'</button> '
+     :(l.licao?'<i>'+escBloco(l.licao)+'</i>':''))
+   +escBloco(l.conteudo||'')+'</td>'
   +'<td class="c-obs">'+(l.dataReal&&!l.mesmoLancamento
      ?'<input value="'+escBloco(l.observacao||'')+'" placeholder="—"'
       +' onchange="planObs(&quot;'+escBloco(l.dataReal)+'&quot;,this)">'
@@ -4980,6 +5043,13 @@ var mesAnt=null, ROT={P:'Presente',F:'Falta',N:'Não aula'};
         :'a anotação nasce com o lançamento da frequência')+'">—</span>')+'</td>'
   +'<td class="c-dur">'+(l.minutos!=null?l.minutos+' min':'')+'</td></tr>'});
 h+='</tbody></table></div>';
+/* UM datalist para as 71 linhas: 71 opções uma vez, e não 71 × 71. O mapa rótulo→ordem fica aqui
+   porque é a tela que já conhece as duas coisas — mandar o texto para o servidor resolver obrigaria
+   ele a adivinhar se "51" é o número impresso ou a posição. */
+PLAN_ORD={};
+h+='<datalist id="plan-licoes">'+(r.linhas||[]).map(function(l){
+ PLAN_ORD[(l.licao||'').toUpperCase()]=l.ordem;
+ return '<option value="'+escBloco(l.licao||'')+'">'+escBloco(l.conteudo||'')+'</option>'}).join('')+'</datalist>';
 if(r.incompleto)h+=planAviso('A projeção parou antes do fim das lições — o contrato passaria de dois anos com esta agenda.');
 /* A ÂNCORA, dita em voz alta. O lançamento de frequência só existe desde o fim de julho/2026: num
    contrato mais velho que isso, a 1ª aula registrada não é a lição 1, e esconder essa escolha faria
@@ -4997,6 +5067,100 @@ if(r.alem)h+=planAviso(r.alem+(r.alem>1?' aulas dadas passam':' aula dada passa'
  +' do fim do plano — o aluno andou mais que as lições que este estágio comporta.');
 c.innerHTML=h;
 c.innerHTML=h;
+}
+var PLAN_ORD={};
+/* troca o botão por um campo com autocompletar. Enter/sair grava, Esc desiste — o mesmo par de
+   gestos das outras edições em linha da casa. */
+function planLicaoEditar(bt,data){
+var td=bt.parentNode, antes=td.innerHTML, atual=bt.textContent.trim();
+td.innerHTML='<input class="plan-lic-in" list="plan-licoes" value="'+escBloco(atual==='?'?'':atual)+'"'
+ +' placeholder="lição" title="deixe vazio para apagar a marcação">';
+var i=td.querySelector('input'); i.focus(); i.select();
+var pronto=false;
+function desiste(){if(pronto)return;pronto=true;td.innerHTML=antes}
+i.onkeydown=function(e){if(e.key==='Escape'){e.preventDefault();desiste()}
+ if(e.key==='Enter'){e.preventDefault();i.blur()}};
+i.onblur=function(){
+ if(pronto)return;
+ var v=i.value.trim();
+ if(v===(atual==='?'?'':atual)){desiste();return}
+ pronto=true;
+ var ord=v===''?null:PLAN_ORD[v.toUpperCase()];
+ if(v!==''&&ord===undefined){msg('Não achei a lição "'+v+'" na estrutura deste estágio.',true);
+  td.innerHTML=antes;return}
+ run('salvarLicaoDaAula',[{idMatricula:alSel.id,livro:PLAN_LIVRO,data:data,ordem:ord}],function(res){
+  msg(res.limpou?'Marcação apagada — a posição volta a ser deduzida.':'Lição registrada.');
+  /* recarrega porque afirmar a lição REANCORA a tabela inteira, para trás e para frente */
+  planCarregar(PLAN_LIVRO)})};
+}
+/* ===== PAINEL DE PROGRESSO (2026-08-24, dele) =====
+   *"A gente quer saber os alunos que estão para terminar o livro, dependendo da lição que eles
+   estejam."* A conta inteira é do servidor — a mesma projeção da aba Planejamento, rodada em todos
+   os contratos. Aqui só há apresentação e o atalho para a tabela de quem interessa. */
+var PROG=null;
+function progCarregar(forcar){
+var c=$('prog-corpo');if(!c)return;
+if(PROG&&!forcar){progPintar();return}
+c.innerHTML='<div class="al-hist-vazio">calculando o progresso de todos os contratos…</div>';
+run('getProgresso',[{}],function(r){PROG=r;progPintar()});
+}
+function progPintar(){
+var c=$('prog-corpo');if(!c||!PROG)return;
+var r=PROG, n=$('al-prog-n');
+if(n){n.textContent=r.pertoDoFim;n.style.display=r.pertoDoFim?'inline-block':'none'}
+var cab='<div class="plan-cab">'
+ +'<span class="plan-ct">'+r.linhas.length+' contratos</span>'
+ +(r.pertoDoFim?'<span class="plan-i prog-perto">'+r.pertoDoFim+' a '+r.limiteBlocos
+    +(r.limiteBlocos>1?' blocos':' bloco')+' do fim</span>':'')
+ /* dizer quantos ainda dependem de palpite é o que empurra o gesto de registrar a lição */
+ +(r.semAfirmacao?'<span class="plan-i">'+r.semAfirmacao+' sem lição registrada</span>':'')
+ +(r.incertos?'<span class="plan-i plan-tr" title="O plano do contrato venceu antes da primeira aula lançada. Registre a lição na aba Planejamento para o sistema saber onde o aluno está.">'
+    +r.incertos+' com posição a confirmar</span>':'')
+ +(r.semEstrutura?'<span class="plan-i">'+r.semEstrutura+' sem estrutura</span>':'')
+ +(r.semInicio?'<span class="plan-i">'+r.semInicio+' sem início</span>':'')
+ +'</div>';
+var h=cab+'<div class="plan-moldura"><table class="plan-tab prog-tab"><thead><tr>'
+ +'<th class="c-al">Aluno</th>'
+ +'<th class="c-est">Estágio</th>'
+ +'<th class="c-lic2" title="a lição em que ele está — registrada por você, ou deduzida da contagem de aulas">Lição atual</th>'
+ +'<th class="c-falta" title="lições que faltam para o fim do estágio">Faltam</th>'
+ +'<th class="c-bl" title="blocos que faltam, contando o que está em curso">Blocos</th>'
+ +'<th class="c-hr">Última aula</th>'
+ +'<th class="c-def" title="dias entre a data planejada e a realizada da última lição">Defasagem</th>'
+ +'<th class="c-dr">Término previsto</th>'
+ +'</tr></thead><tbody>';
+r.linhas.forEach(function(l){
+ var pos=l.posicao||{}, perto=(l.faltamBlocos!=null&&l.faltamLicoes>0&&l.faltamBlocos<=r.limiteBlocos);
+ var meu=(alSel&&String(alSel.id)===String(l.id));
+ h+='<tr class="plan-l prog-l'+(perto?' perto':'')+(l.confianca==='incerta'?' incerta':'')+(meu?' meu':'')
+   +'" onclick="progAbrir(&quot;'+escBloco(l.id)+'&quot;,&quot;'+escBloco(l.livro)+'&quot;)"'
+   +' title="abrir o planejamento deste contrato">'
+  +'<td class="c-al"><b>'+escBloco(l.nome)+'</b><small>'+escBloco(l.contrato)+'</small></td>'
+  +'<td class="c-est">'+escBloco(l.nomeCurto||l.estagio)+'</td>'
+  +'<td class="c-lic2">'+(pos.licao?'<i>'+escBloco(pos.licao)+'</i>':'<span class="plan-ro">—</span>')
+    +(l.afirmada?'<span class="prog-dita" title="lição registrada por você"></span>':'')
+    +(pos.bloco!=null?'<small>bloco '+pos.bloco+'</small>':'')+'</td>'
+  +'<td class="c-falta">'+(l.faltamLicoes!=null?l.faltamLicoes:'<span class="plan-ro">?</span>')+'</td>'
+  +'<td class="c-bl">'+(l.faltamBlocos!=null
+     ?'<span class="prog-bl">'+l.faltamBlocos+'<small>/'+l.totalBlocos+'</small></span>'
+     :'<span class="plan-ro">?</span>')+'</td>'
+  +'<td class="c-hr">'+(l.ultimaDada?dataCurta(l.ultimaDada):'<span class="plan-ro">—</span>')+'</td>'
+  +'<td class="c-def">'+(l.defasagem==null?'<span class="plan-ro">—</span>'
+     :'<span class="prog-def '+(l.defasagem>0?'atras':(l.defasagem<0?'frente':''))+'">'
+      +(l.defasagem>0?'+':'')+l.defasagem+' d</span>')+'</td>'
+  +'<td class="c-dr">'+(l.termino?dataCurta(l.termino):'<span class="plan-ro">—</span>')+'</td></tr>'});
+h+='</tbody></table></div>';
+if(r.incertos)h+='<div class="al-hist-vazio">'+r.incertos+' contrato(s) estão com a posição a confirmar: '
+ +'o plano deles venceu antes da primeira aula lançada, então a contagem automática não diz onde o aluno está. '
+ +'Abra o Planejamento de aulas e registre a lição da última aula — o quadro inteiro se reancora por ela.</div>';
+c.innerHTML=h;
+}
+/* clicar na linha leva ao planejamento DAQUELE contrato — é lá que se registra a lição */
+function progAbrir(id,livro){
+var a=(ALUNOS||[]).filter(function(x){return String(x.id)===String(id)})[0];
+if(!a){msg('Aluno '+id+' não está na lista.',true);return}
+alCarregar(a);
+setTimeout(function(){alAba('matriculas');alInfoAba('planejamento');planCarregar(livro)},220);
 }
 function planObs(data,el){
 run('salvarObservacaoAula',[{idMatricula:alSel.id,livro:PLAN_LIVRO,data:data,texto:el.value}],function(){

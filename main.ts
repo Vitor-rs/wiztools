@@ -20,7 +20,11 @@ const ENSAIO = !!Deno.env.get("WIZ_DB");
 const db = new DatabaseSync(PASTA + (Deno.env.get("WIZ_DB") || "wizard.db"));
 const A = (sql: string, ...p: any[]) => db.prepare(sql).all(...p) as any[];
 const G = (sql: string, ...p: any[]) => db.prepare(sql).get(...p) as any;
-const R = (sql: string, ...p: any[]) => db.prepare(sql).run(...p);
+/* TODA gravação passa por aqui, e é isso que faz este contador servir de "versão do banco": quem
+   guarda resultado caro (o painel de Progresso) só precisa comparar o número. As poucas chamadas
+   diretas a `db.exec` são DDL de migração, que rodam no boot, antes de existir cache. */
+let MUTACOES = 0;
+const R = (sql: string, ...p: any[]) => { MUTACOES++; return db.prepare(sql).run(...p); };
 /* ===== nomeLivro() DENTRO DO SQL (2026-08-23) =====
    As checagens da Central são strings de SQL que montam o próprio texto ("L. Kids 2 · desde ..."),
    e ali saía a CHAVE crua. Reescrever sete consultas para fazer JOIN com `estagio` deixaria cada uma
@@ -384,6 +388,15 @@ addColuna("estoque_item", "avulso", "INTEGER NOT NULL DEFAULT 0");
    ainda no futuro não tem onde guardar recado, e inventar linha de presença para isso mentiria
    sobre o aluno ter comparecido. */
 addColuna("presenca", "observacao", "TEXT");
+/* A LIÇÃO QUE ELE DE FATO DEU NAQUELA AULA (2026-08-24, dele) =====
+   *"Na presença dele eu colocar a lição que ele tá fazendo do livro... colocar qual lição que ele
+   fez, nessa data, tipo a última lição da última data."*
+   Guarda a POSIÇÃO (`estagio_licao.ordem`), não o id nem o número impresso: é a posição que o
+   Planejamento usa para casar lição com aula, e é ela que sobrevive a ele renomear a lição ou mudar
+   o número na capa. Nula em quase toda linha — só existe onde alguém AFIRMOU a posição.
+   É a diferença entre o que o sistema DEDUZ e o que a escola SABE: sem ela, a posição do aluno é a
+   contagem automática de presenças; com ela, a contagem inteira se reancora no que ele digitou. */
+addColuna("presenca", "licao_ordem", "INTEGER");
 if (!G("SELECT valor FROM config WHERE chave='material_avulso_v1'")) {
   R(`UPDATE estoque_item SET avulso=1 WHERE livro IS NOT NULL
        AND livro NOT IN (SELECT livro FROM estagio WHERE livro IS NOT NULL)`);
@@ -748,6 +761,16 @@ function maisDias(iso: string, n: number): string {
   d.setUTCDate(d.getUTCDate() + n);
   return d.toISOString().slice(0, 10);
 }
+/* distância em dias entre duas datas ISO, com sinal: negativo = a segunda veio ANTES. Mesmo cuidado
+   com fuso que `maisDias`. */
+function diasEntre(a: string, b: string): number {
+  return Math.round((new Date(b + "T12:00:00Z").getTime() - new Date(a + "T12:00:00Z").getTime()) / 86400000);
+}
+/* ===== "PRESTES A TERMINAR" TEM UM NÚMERO, E ELE É DELE (2026-08-24) =====
+   *"Falta mais ou menos pelo menos dois blocos para terminar o livro."* Fica em UM lugar só porque
+   quem usa são dois: o painel de Progresso, que destaca a linha, e a Central, que acende o aviso —
+   e os dois discordando seria pior que qualquer valor errado. */
+const LIMITE_BLOCOS = 2;
 db.exec(`CREATE TABLE IF NOT EXISTS calendario_marcacao (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   nome TEXT NOT NULL,
@@ -1128,9 +1151,12 @@ function semearCalendario() {
    chegar. Quem resolve o ALVO é o SQL, na coluna `a`: só o banco sabe virar um `aula.id` no aluno
    dono dela, e fazer o cliente adivinhar isso a partir da chave seria decorar o formato de cada
    regra em dois lugares. */
+/* `sql` OU `itens`: quase toda regra é uma consulta, mas "prestes a terminar o livro" depende da
+   PROJEÇÃO — âncora, calendário, agenda vigente — e reescrever isso em SQL criaria uma segunda
+   verdade, que divergiria da tela no primeiro ajuste. Então a regra também pode ser uma função. */
 type Checagem = { id: string; area: string; titulo: string; porque: string; acao: string;
-                  gravidade: "alta" | "media" | "baixa"; aba: string; sql: string;
-                  destino?: string; campo?: string };
+                  gravidade: "alta" | "media" | "baixa"; aba: string; sql?: string;
+                  itens?: () => any[]; destino?: string; campo?: string };
 const CHECAGENS: Checagem[] = [
   /* ---------- ALUNOS ---------- */
   { id: "aluno_sem_matricula", destino: "aluno", area: "Alunos", gravidade: "alta", aba: "alunos",
@@ -1194,6 +1220,25 @@ const CHECAGENS: Checagem[] = [
           WHERE ae.estado='cursando' AND ae.data_inicio IS NOT NULL
             AND date(ae.data_inicio,'+1 year') < date('now','localtime')
           ORDER BY ae.data_inicio` },
+  /* ===== PRESTES A TERMINAR O LIVRO (2026-08-24, dele) =====
+     *"Aí o sistema automaticamente saber quais alunos falta mais ou menos pelo menos dois blocos
+     para terminar o livro... manda lá na central de notificação."*
+     Não é defeito — é AGENDA: quem está a dois blocos do fim precisa de rematrícula conversada e de
+     material do próximo estágio na prateleira. Por isso `media` e não `alta`: não atrapalha o dia de
+     hoje, atrapalha o mês que vem se ninguém olhar.
+     Única regra da Central que não é SQL: a posição do aluno depende da projeção inteira. Ver o
+     comentário do tipo `Checagem`. */
+  { id: "perto_de_terminar", destino: "aluno", area: "Alunos", gravidade: "media", aba: "alunos",
+    titulo: "Aluno a dois blocos de terminar o livro",
+    porque: "Pelo ritmo lançado, falta " + LIMITE_BLOCOS + " bloco(s) ou menos para o fim do estágio — é hora de falar de rematrícula e de conferir o material do próximo.",
+    acao: "Abra o aluno na aba Progresso para ver a lição e o término previsto.",
+    itens: () => progressoDosContratos().linhas
+      .filter((l: any) => l.faltamLicoes != null && l.faltamLicoes > 0 && l.faltamBlocos <= LIMITE_BLOCOS)
+      .map((l: any) => ({ k: l.id + "|" + l.livro, r: l.nome,
+        d: (l.nomeCurto || l.estagio) + " · faltam " + l.faltamLicoes + " lição(ões)"
+           + (l.termino ? ", término previsto " + l.termino.slice(8, 10) + "/" + l.termino.slice(5, 7) + "/" + l.termino.slice(0, 4) : "")
+           + (l.afirmada ? "" : " (posição deduzida — nenhuma lição foi registrada)"),
+        a: l.id })) },
   { id: "entrega_sem_data", destino: "entrega", area: "Alunos", gravidade: "baixa", aba: "estoque",
     titulo: "Entrega registrada sem data",
     porque: "Sabe-se que o aluno recebeu, não quando. É o caso das entregas deduzidas das matrículas antigas.",
@@ -3460,6 +3505,315 @@ function semanaDoMes(iso: string): number {
   return Math.floor((Number(iso.slice(8, 10)) - 1 + desloc) / 7) + 1;
 }
 
+/* ===== O PLANEJAMENTO DE AULAS DO CONTRATO (2026-08-24, dele) =====
+   *"Uma trilha de aprendizado: quanto essas lições vão ocupar no contrato do aluno desde quando
+   ele fez a primeira aula."*
+   CHAMAVA-SE "Currículo" e ele renomeou no mesmo dia: *"mude o nome dela de currículo para
+   planejamento de aulas, senão vai começar a confundir"*. Currículo, na escola, é outra coisa.
+   DERIVADO, NUNCA GRAVADO — e essa é a decisão que sustenta o resto. Ele foi explícito: *"tem que
+   ser uma geração atualizada dinamicamente, dependendo de como o calendário letivo é
+   configurado"*. Guardar as datas obrigaria a regerar tudo a cada recesso que ele criasse, e a
+   primeira vez que alguém esquecesse de regerar o quadro passaria a mentir. Aqui a projeção é
+   função de (estrutura do estágio, agenda do aluno, data de início, calendário) e se refaz a cada
+   leitura: mexeu no calendário, o planejamento já sai certo.
+   O QUE JÁ ACONTECEU não é projetado, é lido: comparecimento, entrada, saída, duração e anotação
+   saem de `presenca`. Duas datas por linha — a PLANEJADA, que a projeção calcula, e a REALIZADA,
+   que é o dia em que a lição foi mesmo dada. Ver o casamento por ordem, mais abaixo.
+   SÓ O CONTRATO ATUAL, por ordem dele — *"os outros não precisa, porque já é passado"*. */
+function projetarContrato({ idMatricula, livro, inicio, fechadosPre }: any) {
+  if (!idMatricula) throw new Error("Aluno é obrigatório.");
+  /* MAIS DE UM CONTRATO ABERTO É NORMAL, não exceção: quem faz inglês e espanhol ao mesmo tempo
+     tem dois, e a matrícula 1638 tem KIDS 4 e o avulso Kids Esp 1. "O livro atual" não os
+     distingue, então a tela escolhe — e o padrão, quando ninguém escolheu, é o contrato que TEM
+     estrutura, porque é o único sobre o qual dá para projetar alguma coisa. */
+  const abertos = A(`SELECT al.*, (SELECT COUNT(*) FROM estagio_licao l
+                       WHERE l.dono_id=(SELECT e.id FROM estagio e WHERE e.livro=al.livro
+                                        ORDER BY (e.status='ativo') DESC, e.legado, e.id LIMIT 1)) licoes
+                     FROM aluno_livro al WHERE al.id_matricula=? ORDER BY al.contrato_seq DESC, al.rowid DESC`, idMatricula);
+  if (!abertos.length) return { semContrato: true };
+  const c = livro ? abertos.find(x => x.livro === livro)
+    : (abertos.find(x => x.licoes > 0) || abertos[0]);
+  if (!c) return { semContrato: true };
+  const contratos = abertos.map(x => ({ livro: x.livro, contrato: idMatricula + "/" + (x.contrato_seq ?? "—"),
+    licoes: x.licoes, atual: x.livro === c.livro }));
+  const eId = estagioDoLivro(c.livro);
+  const est = eId ? G("SELECT id, nome, nome_curto, licao_inicial FROM estagio WHERE id=?", eId) : null;
+  const licoes = eId ? A(`SELECT ordem, numero, sigla, descricao, bloco, tipo FROM estagio_licao
+                          WHERE dono_id=? ORDER BY ordem, id`, eId) : [];
+  /* A AGENDA AO LONGO DO TEMPO, não a de hoje: quem trocou de horário fez as aulas passadas na
+     agenda antiga, e projetar tudo com a nova reescreveria o que já aconteceu.
+     `candidatas[dow]` é a UNIÃO das horas de todas as fases naquele dia da semana — cada uma é
+     testada contra a fase que valia no instante dela. */
+  const fases = fasesDaAgenda(idMatricula, c.livro);
+  const candidatas: Record<number, string[]> = {};
+  for (const f of fases) for (const s of f.agenda) {
+    const l = (candidatas[s.dow] ||= []);
+    if (l.indexOf(s.hora) < 0) l.push(s.hora);
+  }
+  for (const k of Object.keys(candidatas)) candidatas[Number(k)].sort();
+  /* a agenda de HOJE é o que o cabeçalho mostra e o que conta como "por semana" */
+  const agenda: Record<number, string[]> = {};
+  for (const s of (fases[fases.length - 1].agenda || [])) (agenda[s.dow] ||= []).push(s.hora);
+  for (const k of Object.keys(agenda)) agenda[Number(k)].sort();
+  const porSemana = Object.values(agenda).reduce((s: number, h: any) => s + h.length, 0);
+  const trocas = fases.length - 1;
+  /* DE ONDE COMEÇA, na ordem em que a verdade é mais forte: o início gravado no percurso, senão a
+     primeira presença registrada naquele livro, senão o que a tela mandou. Sem nenhum dos três o
+     planejamento não existe ainda — e dizer isso é melhor que inventar uma data. */
+  const perc = G(`SELECT data_inicio FROM aluno_estagio WHERE id_matricula=? AND livro=?
+                  ORDER BY id DESC LIMIT 1`, idMatricula, c.livro);
+  const prim = G("SELECT MIN(data) d FROM presenca WHERE id_matricula=? AND livro=?", idMatricula, c.livro);
+  const ini = perc?.data_inicio || prim?.d || (inicio || null);
+  const cab = { contratos, contrato: idMatricula + "/" + (c.contrato_seq ?? "—"), livro: c.livro,
+    estagio: est?.nome || c.livro, nomeCurto: est?.nome_curto || null,
+    licoes: licoes.length, porSemana, inicio: ini,
+    agenda: Object.keys(agenda).sort().map(k => G("SELECT codigo FROM dias WHERE ordem=?", Number(k) + 1)?.codigo
+      + " " + agenda[Number(k)].join("/")) };
+  if (!ini) return { ...cab, precisaInicio: true, linhas: [] };
+  if (!licoes.length) return { ...cab, semEstrutura: true, linhas: [] };
+  if (!porSemana) return { ...cab, semAgenda: true, linhas: [] };
+  const sabUtil = (G("SELECT valor FROM config WHERE chave='cal_sabado_util'")?.valor ?? "1") === "1";
+  const domUtil = (G("SELECT valor FROM config WHERE chave='cal_domingo_util'")?.valor ?? "0") === "1";
+  /* 800 dias de varredura: 72 lições a uma aula por semana dão ~504 dias, e a folga cobre feriado
+     e recesso. É teto de segurança contra laço infinito, não regra de negócio — se ele estourar,
+     a resposta diz que ficou incompleta em vez de calar. */
+  const TETO = 800;
+  /* a janela do calendário cobre o PLANO (que sai de `ini`) e também a PREVISÃO (que sai de hoje):
+     num contrato antigo os dois intervalos não se sobrepõem, e pedir `fecha` fora da janela devolveria
+     "não fecha" para todo feriado — a previsão sairia curta. */
+  const hojeISO = dataISO(new Date());
+  const fim = maisDias(ini > hojeISO ? ini : hojeISO, TETO);
+  /* `fechadosPre` chega pronto quando quem chama vai projetar MUITOS contratos de uma vez (o
+     painel de Progresso): recalcular as marcações do calendário 132 vezes é o custo que fazia a
+     varredura inteira demorar. Vindo nulo, cada projeção resolve o seu — que é o caso da tela de
+     um aluno só. */
+  const fechados: Set<string> = fechadosPre || diasFechados(ini, fim);
+  const codigo: Record<number, string> = {};
+  for (const d of A("SELECT ordem, codigo FROM dias")) codigo[d.ordem - 1] = d.codigo;
+  /* as horas que a fase vigente DE FATO tinha naquele dia da semana. Serve à projeção e também à
+     contagem de quantas lições um lançamento consome — a mesma verdade nos dois lugares. */
+  const horasDoDia = (d: string) => {
+    const dow = diaDaSemana(d);
+    return (candidatas[dow] || []).filter(h =>
+      faseNoInstante(fases, d, h).agenda.some((s: any) => s.dow === dow && s.hora === h));
+  };
+  /* ---------- 1. O PLANEJADO: uma linha por LIÇÃO, na data em que ela deveria cair ---------- */
+  const linhas: any[] = [];
+  let dia = ini, i = 0, n = 0, passos = 0;
+  while (i < licoes.length && passos++ < TETO) {
+    const dow = diaDaSemana(dia);
+    const horas = horasDoDia(dia);
+    const fds = (dow === 5 && !sabUtil) || (dow === 6 && !domUtil);
+    /* `fechados` é a única coisa que pula: são as marcações com `fecha=1`, isto é, "a escola não
+       abre nesse dia". O TIPO do evento não decide nada — no dado dele, Carnaval é `facultativo` e
+       fecha; Dia do Servidor Público é `facultativo` e NÃO fecha. Foi o que ele disse: *"o que
+       importa é se a gente marcou se aquilo vai ter aula ou não"*. Mexeu na marcação, esta tabela
+       sai diferente na leitura seguinte, sem regerar nada. */
+    if (horas.length && !fds && !fechados.has(dia)) {
+      for (const hora of horas) {
+        if (i >= licoes.length) break;
+        const l = licoes[i++];
+        linhas.push({
+          mes: dia.slice(5, 7), ns: semanaDoMes(dia), ds: codigo[dow],
+          dmPlan: dia.slice(8, 10) + "/" + dia.slice(5, 7), dataPlan: dia, hora, aula: ++n,
+          ordem: l.ordem,
+          licao: (l.sigla || (l.numero != null ? String(l.numero) : "")) || null,
+          conteudo: l.descricao, bloco: l.bloco ?? null, tipo: l.tipo,
+          dataReal: null, dmReal: null, dsReal: null, mesmoLancamento: false, afirmada: false,
+          status: null, entrada: null, saida: null, minutos: null, observacao: null,
+        });
+      }
+    }
+    dia = maisDias(dia, 1);
+  }
+  /* ---------- 2. O REALIZADO: casado por ORDEM, não por data (2026-08-24, dele) ----------
+     *"A data planejada é a data que supostamente o aluno deveria fazer aquela lição, mas ele faz
+     em outra data, pode ser anterior ou posterior. É só pra questão de comparação."*
+     Antes a presença era casada com a linha PELA DATA, e por isso a aula reposta numa quinta não
+     aparecia em lição nenhuma — caía numa lista de "fora da projeção". Agora a linha é a LIÇÃO e a
+     presença diz QUANDO ela foi dada.
+
+     QUEM CONSOME LIÇÃO É SÓ O `P`. Falta e não-aula gastam a data, não o conteúdo: quem faltou não
+     recebeu a lição e vai recebê-la na próxima vez que vier — é exatamente isso que abre a
+     defasagem entre planejado e realizado. As duas ficam CONTADAS no cabeçalho e detalhadas na aba
+     Frequência, ao lado; reposição e anteposição ele adiou de propósito.
+
+     QUANTAS LIÇÕES UM LANÇAMENTO CONSOME: `aulas_feitas`, quando alguém digitou; senão o número de
+     horas da agenda vigente naquele dia da semana — quem faz duas aulas no sábado consome duas
+     lições num lançamento só (`presenca` tem uma linha por DATA, não por hora). Nunca menos que 1. */
+  const dadasFila: any[] = [];
+  let faltas = 0, naoAula = 0;
+  for (const p of A(`SELECT data, status, entrada, saida, minutos, observacao, aulas_feitas, licao_ordem
+                     FROM presenca WHERE id_matricula=? AND livro=? ORDER BY data`, idMatricula, c.livro)) {
+    if (p.status !== "P") { if (p.status === "F") faltas++; else naoAula++; continue; }
+    const quantas = Math.max(1, Number(p.aulas_feitas) || horasDoDia(p.data).length || 1);
+    for (let k = 0; k < quantas; k++) dadasFila.push({ ...p, ordem: k });
+  }
+  /* A ÂNCORA — e é ela que impede o disparate no contrato antigo. `presenca` só existe desde que o
+     lançamento entrou no ar (fim de julho/2026); um contrato aberto em janeiro já tinha dezenas de
+     lições dadas sem registro nenhum. Casar a 1ª presença com a LIÇÃO 1 diria que o aluno está no
+     começo do livro. Então a 1ª aula registrada ancora na primeira lição que o PLANO ainda não
+     tinha dado por vencida naquele dia, e dali em diante cada aula avança uma. A defasagem passa a
+     contar do dia em que existe dado — o único período sobre o qual dá para afirmar algo. */
+  let ancora = 0, venceu = false, afirmada: any = null;
+  /* ===== A LIÇÃO AFIRMADA MANDA NA ÂNCORA (2026-08-24, dele) =====
+     *"Na presença dele eu colocar a lição que ele tá fazendo... tipo a última lição da última
+     data."* A dedução automática abaixo é palpite educado; isto aqui é a escola falando. A ÚLTIMA
+     afirmação vence, porque é a fala mais recente sobre onde o aluno está — e reancorar por ela
+     conserta a tabela inteira de uma vez, para trás e para frente.
+     Só a 1ª lição do dia carrega a marca: `presenca` é uma linha por DATA, então num dia de duas
+     aulas a afirmação é sobre a primeira delas — e a tela só deixa editar essa. */
+  for (let k = 0; k < dadasFila.length; k++)
+    if (dadasFila[k].licao_ordem != null && !dadasFila[k].ordem) afirmada = { k, ordem: dadasFila[k].licao_ordem };
+  if (afirmada) {
+    const alvo = licoes.findIndex((l: any) => l.ordem === afirmada.ordem);
+    if (alvo >= 0) ancora = Math.max(0, alvo - afirmada.k);
+    else afirmada = null;   // a lição afirmada saiu da estrutura desde então
+  }
+  if (!afirmada && dadasFila.length) {
+    const d0 = dadasFila[0].data;
+    const k = linhas.findIndex((l: any) => l.dataPlan >= d0);
+    ancora = k < 0 ? linhas.length : k;
+    /* O PLANO PODE TER VENCIDO ANTES DA 1ª AULA REGISTRADA. Acontece em 34 dos contratos abertos:
+       a `data_inicio` é de mais de um ano atrás, a projeção dá o livro por terminado, e a âncora
+       cairia depois da última linha — a coluna "Data realizada" ficaria VAZIA na tabela inteira,
+       justo em quem mais precisa dela. Então a âncora é limitada ao teto que ainda comporta todas
+       as aulas dadas, e a tela DIZ que o plano venceu: encaixar calado seria fingir que a data de
+       início está certa. */
+    const teto = Math.max(0, linhas.length - dadasFila.length);
+    if (ancora > teto) { ancora = teto; venceu = true; }
+  }
+  for (let k = 0; k < dadasFila.length; k++) {
+    const alvo = linhas[ancora + k];
+    if (!alvo) break;
+    const p = dadasFila[k];
+    alvo.dataReal = p.data;
+    alvo.dmReal = p.data.slice(8, 10) + "/" + p.data.slice(5, 7);
+    alvo.dsReal = codigo[diaDaSemana(p.data)];
+    alvo.status = p.status;
+    alvo.mesmoLancamento = p.ordem > 0;
+    alvo.afirmada = p.licao_ordem != null && !p.ordem;
+    /* entrada, saída, duração e anotação são do LANÇAMENTO, e o lançamento é um só por data:
+       repeti-los na 2ª lição do mesmo dia contaria a mesma hora — e a mesma anotação — duas vezes */
+    if (!p.ordem) {
+      alvo.entrada = p.entrada; alvo.saida = p.saida;
+      alvo.minutos = p.minutos; alvo.observacao = p.observacao;
+    }
+  }
+  /* ===== ONDE O ALUNO ESTÁ, E QUANTO FALTA (2026-08-24, dele) =====
+     *"A gente quer saber os alunos que estão para terminar o livro, dependendo da lição que eles
+     estejam."* A unidade que ele usa é o BLOCO, não a lição — e a estrutura da escola é regular:
+     10 blocos de 7 nos estágios de Teens/W, 6 blocos de 11 nos de Kids. "Faltam dois blocos" é uma
+     frase que ele diz; "faltam catorze lições" não é.
+     Os blocos que faltam INCLUEM o que está em curso: quem está no meio do bloco 9 de 10 ainda tem
+     dois pela frente, e é assim que ele conta. */
+  const idxAtual = Math.min(linhas.length, ancora + dadasFila.length) - 1;
+  const atual = idxAtual >= 0 ? licoes[idxAtual] : null;
+  const restantes = licoes.slice(idxAtual + 1);
+  const blocosRestantes = new Set(restantes.map((l: any) => l.bloco).filter((b: any) => b != null));
+  /* o bloco em curso conta junto: a lição atual ainda pertence a ele */
+  if (atual?.bloco != null && restantes.length) blocosRestantes.add(atual.bloco);
+  const totalBlocos = new Set(licoes.map((l: any) => l.bloco).filter((b: any) => b != null)).size;
+  /* ===== O TÉRMINO PREVISTO SAI DE ONDE ELE ESTÁ, NÃO DE ONDE COMEÇOU =====
+     A data planejada da última lição nasce da data de INÍCIO, e por isso já venceu em quem atrasou —
+     dizer que ele "termina em maio de 2026" quando estamos em agosto não ajuda ninguém. Esta anda a
+     partir da última aula dada, no ritmo da agenda vigente, pulando o que o calendário fecha: é a
+     mesma regra da projeção, aplicada ao trecho que falta. */
+  let termino: string | null = null;
+  if (restantes.length) {
+    /* nunca antes de HOJE: quem parou de vir em maio tem a última aula em maio, e prever o término
+       para junho seria uma data já vencida — previsão que olha para trás não serve para nada. Quanto
+       tempo ele está parado é outra coluna (a última aula dada), e essa continua dizendo a verdade. */
+    const partida = dadasFila.length ? maisDias(dadasFila[dadasFila.length - 1].data, 1) : ini;
+    let d = partida > hojeISO ? partida : hojeISO;
+    let faltam = restantes.length, giros = 0;
+    while (faltam > 0 && giros++ < TETO) {
+      const dow = diaDaSemana(d);
+      const horas = horasDoDia(d);
+      const fds = (dow === 5 && !sabUtil) || (dow === 6 && !domUtil);
+      if (horas.length && !fds && !fechados.has(d)) { faltam -= horas.length; if (faltam <= 0) { termino = d; break; } }
+      d = maisDias(d, 1);
+    }
+  }
+  /* ===== QUANTA FÉ SE PODE TER NA POSIÇÃO =====
+     `afirmada` — alguém digitou a lição naquela data. É a escola falando.
+     `deduzida` — ninguém digitou, mas o plano ainda corria: a âncora saiu de onde o plano dizia que
+        ele estaria e a contagem seguiu dali. Palpite educado.
+     `incerta`  — o plano já tinha VENCIDO antes da 1ª aula registrada. O encaixe no fim serve para a
+        tabela mostrar as datas realizadas, mas dizer "faltam 0 lições" a partir dele seria inventar
+        que o aluno terminou o livro. Então quanto falta vem NULO e a tela pede a lição.
+     É isto que o pedido dele resolve: com a lição registrada, `incerta` vira `afirmada`. */
+  const confianca = afirmada ? "afirmada" : (venceu ? "incerta" : "deduzida");
+  const certo = confianca !== "incerta";
+  return { ...cab, linhas, termino: certo ? termino : null, confianca, ultima: linhas.length ? linhas[linhas.length - 1].dataPlan : null,
+    incompleto: i < licoes.length, trocas,
+    dadas: dadasFila.length, faltas, naoAula, ancora, venceu,
+    /* a posição é AFIRMADA quando alguém digitou a lição, DEDUZIDA quando saiu da contagem */
+    posicao: atual ? { ordem: atual.ordem, licao: (atual.sigla || (atual.numero != null ? String(atual.numero) : "")) || null,
+                       conteudo: atual.descricao, bloco: atual.bloco ?? null,
+                       data: dadasFila.length ? dadasFila[dadasFila.length - 1].data : null } : null,
+    afirmada: !!afirmada,
+    faltamLicoes: certo ? restantes.length : null,
+    faltamBlocos: certo ? blocosRestantes.size : null, totalBlocos,
+    primeiraDada: dadasFila.length ? dadasFila[0].data : null,
+    /* aula dada que já passou do fim do plano: o aluno andou mais que o livro comporta */
+    alem: Math.max(0, ancora + dadasFila.length - linhas.length),
+    ultimaDada: dadasFila.length ? dadasFila[dadasFila.length - 1].data : null };
+}
+
+/* O painel varre 132 contratos e custa ~1 s. Ele é lido pela aba Progresso E pela checagem da
+   Central, que roda depois de toda gravação — sem isto, a mesma varredura aconteceria duas vezes
+   seguidas por gesto. A chave é o contador de escrita: mudou qualquer linha, o cache morre. */
+let PROGRESSO_MEMO: { em: number; dados: any } | null = null;
+function progressoDosContratos() {
+  if (PROGRESSO_MEMO && PROGRESSO_MEMO.em === MUTACOES) return PROGRESSO_MEMO.dados;
+  const hoje = dataISO(new Date());
+  const menor = G(`SELECT MIN(d) d FROM (SELECT MIN(data_inicio) d FROM aluno_estagio
+                   UNION ALL SELECT MIN(data) FROM presenca)`)?.d;
+  const maior = G("SELECT MAX(data_inicio) d FROM aluno_estagio")?.d;
+  const de = String(menor || hoje).slice(0, 10);
+  const base = maior && maior > hoje ? String(maior).slice(0, 10) : hoje;
+  const fechadosPre = diasFechados(de, maisDias(base, 900));
+  const linhas: any[] = [];
+  let semEstrutura = 0, semInicio = 0, semAgenda = 0;
+  for (const c of A(`SELECT al.id_matricula, al.livro, al.contrato_seq, a.nome
+                     FROM aluno_livro al JOIN alunos a ON a.id_matricula=al.id_matricula
+                     ORDER BY a.nome, al.contrato_seq`)) {
+    let r: any;
+    try { r = projetarContrato({ idMatricula: c.id_matricula, livro: c.livro, fechadosPre }); }
+    catch { continue; }
+    if (r.semEstrutura) { semEstrutura++; continue; }
+    if (r.semAgenda) { semAgenda++; continue; }
+    if (r.precisaInicio) { semInicio++; continue; }
+    linhas.push({ id: c.id_matricula, nome: c.nome, livro: c.livro, contrato: r.contrato,
+      confianca: r.confianca,
+      estagio: r.estagio, nomeCurto: r.nomeCurto, licoes: r.licoes,
+      posicao: r.posicao, afirmada: r.afirmada, faltamLicoes: r.faltamLicoes,
+      faltamBlocos: r.faltamBlocos, totalBlocos: r.totalBlocos,
+      dadas: r.dadas, faltas: r.faltas, agenda: r.agenda, venceu: r.venceu,
+      ultimaDada: r.posicao?.data ?? null, termino: r.termino,
+      /* o atraso em dias da última lição dada: negativo é adiantado */
+      defasagem: r.posicao && r.linhas.length
+        ? (() => { const l = r.linhas.find((x: any) => x.ordem === r.posicao.ordem);
+                   return l && l.dataReal ? diasEntre(l.dataPlan, l.dataReal) : null; })()
+        : null });
+  }
+  /* a ordem do painel é a pergunta dele: quem está mais perto do fim vem primeiro */
+  /* a ordem do painel é a pergunta dele — quem está mais perto do fim vem primeiro. Quem não tem
+     posição confiável vai para o fim: não dá para ordenar por um número que não existe. */
+  linhas.sort((a, b) => (a.faltamBlocos == null ? 1 : 0) - (b.faltamBlocos == null ? 1 : 0)
+    || ((a.faltamBlocos ?? 0) - (b.faltamBlocos ?? 0)) || ((a.faltamLicoes ?? 0) - (b.faltamLicoes ?? 0))
+    || String(a.nome).localeCompare(String(b.nome)));
+  const dados = { linhas, semEstrutura, semInicio, semAgenda,
+    semAfirmacao: linhas.filter((l: any) => !l.afirmada).length,
+    incertos: linhas.filter((l: any) => l.confianca === "incerta").length,
+    pertoDoFim: linhas.filter((l: any) => l.faltamLicoes != null && l.faltamLicoes > 0
+      && l.faltamBlocos <= LIMITE_BLOCOS).length,
+    limiteBlocos: LIMITE_BLOCOS };
+  PROGRESSO_MEMO = { em: MUTACOES, dados };
+  return dados;
+}
+
 const api: Record<string, (a: any) => unknown> = {
   getDominios() {
     const horariosPorDia: Record<string, string[]> = {};
@@ -3872,185 +4226,32 @@ const api: Record<string, (a: any) => unknown> = {
       status: at ? G("SELECT status FROM v_alunos WHERE id_matricula=?", at.id_matricula)?.status : null };
   },
 
-  /* ===== O PLANEJAMENTO DE AULAS DO CONTRATO (2026-08-24, dele) =====
-     *"Uma trilha de aprendizado: quanto essas lições vão ocupar no contrato do aluno desde quando
-     ele fez a primeira aula."*
-     CHAMAVA-SE "Currículo" e ele renomeou no mesmo dia: *"mude o nome dela de currículo para
-     planejamento de aulas, senão vai começar a confundir"*. Currículo, na escola, é outra coisa.
-     DERIVADO, NUNCA GRAVADO — e essa é a decisão que sustenta o resto. Ele foi explícito: *"tem que
-     ser uma geração atualizada dinamicamente, dependendo de como o calendário letivo é
-     configurado"*. Guardar as datas obrigaria a regerar tudo a cada recesso que ele criasse, e a
-     primeira vez que alguém esquecesse de regerar o quadro passaria a mentir. Aqui a projeção é
-     função de (estrutura do estágio, agenda do aluno, data de início, calendário) e se refaz a cada
-     leitura: mexeu no calendário, o planejamento já sai certo.
-     O QUE JÁ ACONTECEU não é projetado, é lido: comparecimento, entrada, saída, duração e anotação
-     saem de `presenca`. Duas datas por linha — a PLANEJADA, que a projeção calcula, e a REALIZADA,
-     que é o dia em que a lição foi mesmo dada. Ver o casamento por ordem, mais abaixo.
-     SÓ O CONTRATO ATUAL, por ordem dele — *"os outros não precisa, porque já é passado"*. */
-  getPlanejamento({ idMatricula, livro, inicio }: any) {
-    if (!idMatricula) throw new Error("Aluno é obrigatório.");
-    /* MAIS DE UM CONTRATO ABERTO É NORMAL, não exceção: quem faz inglês e espanhol ao mesmo tempo
-       tem dois, e a matrícula 1638 tem KIDS 4 e o avulso Kids Esp 1. "O livro atual" não os
-       distingue, então a tela escolhe — e o padrão, quando ninguém escolheu, é o contrato que TEM
-       estrutura, porque é o único sobre o qual dá para projetar alguma coisa. */
-    const abertos = A(`SELECT al.*, (SELECT COUNT(*) FROM estagio_licao l
-                         WHERE l.dono_id=(SELECT e.id FROM estagio e WHERE e.livro=al.livro
-                                          ORDER BY (e.status='ativo') DESC, e.legado, e.id LIMIT 1)) licoes
-                       FROM aluno_livro al WHERE al.id_matricula=? ORDER BY al.contrato_seq DESC, al.rowid DESC`, idMatricula);
-    if (!abertos.length) return { semContrato: true };
-    const c = livro ? abertos.find(x => x.livro === livro)
-      : (abertos.find(x => x.licoes > 0) || abertos[0]);
-    if (!c) return { semContrato: true };
-    const contratos = abertos.map(x => ({ livro: x.livro, contrato: idMatricula + "/" + (x.contrato_seq ?? "—"),
-      licoes: x.licoes, atual: x.livro === c.livro }));
-    const eId = estagioDoLivro(c.livro);
-    const est = eId ? G("SELECT id, nome, nome_curto, licao_inicial FROM estagio WHERE id=?", eId) : null;
-    const licoes = eId ? A(`SELECT ordem, numero, sigla, descricao, bloco, tipo FROM estagio_licao
-                            WHERE dono_id=? ORDER BY ordem, id`, eId) : [];
-    /* A AGENDA AO LONGO DO TEMPO, não a de hoje: quem trocou de horário fez as aulas passadas na
-       agenda antiga, e projetar tudo com a nova reescreveria o que já aconteceu.
-       `candidatas[dow]` é a UNIÃO das horas de todas as fases naquele dia da semana — cada uma é
-       testada contra a fase que valia no instante dela. */
-    const fases = fasesDaAgenda(idMatricula, c.livro);
-    const candidatas: Record<number, string[]> = {};
-    for (const f of fases) for (const s of f.agenda) {
-      const l = (candidatas[s.dow] ||= []);
-      if (l.indexOf(s.hora) < 0) l.push(s.hora);
-    }
-    for (const k of Object.keys(candidatas)) candidatas[Number(k)].sort();
-    /* a agenda de HOJE é o que o cabeçalho mostra e o que conta como "por semana" */
-    const agenda: Record<number, string[]> = {};
-    for (const s of (fases[fases.length - 1].agenda || [])) (agenda[s.dow] ||= []).push(s.hora);
-    for (const k of Object.keys(agenda)) agenda[Number(k)].sort();
-    const porSemana = Object.values(agenda).reduce((s: number, h: any) => s + h.length, 0);
-    const trocas = fases.length - 1;
-    /* DE ONDE COMEÇA, na ordem em que a verdade é mais forte: o início gravado no percurso, senão a
-       primeira presença registrada naquele livro, senão o que a tela mandou. Sem nenhum dos três o
-       planejamento não existe ainda — e dizer isso é melhor que inventar uma data. */
-    const perc = G(`SELECT data_inicio FROM aluno_estagio WHERE id_matricula=? AND livro=?
-                    ORDER BY id DESC LIMIT 1`, idMatricula, c.livro);
-    const prim = G("SELECT MIN(data) d FROM presenca WHERE id_matricula=? AND livro=?", idMatricula, c.livro);
-    const ini = perc?.data_inicio || prim?.d || (inicio || null);
-    const cab = { contratos, contrato: idMatricula + "/" + (c.contrato_seq ?? "—"), livro: c.livro,
-      estagio: est?.nome || c.livro, nomeCurto: est?.nome_curto || null,
-      licoes: licoes.length, porSemana, inicio: ini,
-      agenda: Object.keys(agenda).sort().map(k => G("SELECT codigo FROM dias WHERE ordem=?", Number(k) + 1)?.codigo
-        + " " + agenda[Number(k)].join("/")) };
-    if (!ini) return { ...cab, precisaInicio: true, linhas: [] };
-    if (!licoes.length) return { ...cab, semEstrutura: true, linhas: [] };
-    if (!porSemana) return { ...cab, semAgenda: true, linhas: [] };
-    const sabUtil = (G("SELECT valor FROM config WHERE chave='cal_sabado_util'")?.valor ?? "1") === "1";
-    const domUtil = (G("SELECT valor FROM config WHERE chave='cal_domingo_util'")?.valor ?? "0") === "1";
-    /* 800 dias de varredura: 72 lições a uma aula por semana dão ~504 dias, e a folga cobre feriado
-       e recesso. É teto de segurança contra laço infinito, não regra de negócio — se ele estourar,
-       a resposta diz que ficou incompleta em vez de calar. */
-    const TETO = 800;
-    const fim = maisDias(ini, TETO);
-    const fechados = diasFechados(ini, fim);
-    const codigo: Record<number, string> = {};
-    for (const d of A("SELECT ordem, codigo FROM dias")) codigo[d.ordem - 1] = d.codigo;
-    /* as horas que a fase vigente DE FATO tinha naquele dia da semana. Serve à projeção e também à
-       contagem de quantas lições um lançamento consome — a mesma verdade nos dois lugares. */
-    const horasDoDia = (d: string) => {
-      const dow = diaDaSemana(d);
-      return (candidatas[dow] || []).filter(h =>
-        faseNoInstante(fases, d, h).agenda.some((s: any) => s.dow === dow && s.hora === h));
-    };
-    /* ---------- 1. O PLANEJADO: uma linha por LIÇÃO, na data em que ela deveria cair ---------- */
-    const linhas: any[] = [];
-    let dia = ini, i = 0, n = 0, passos = 0;
-    while (i < licoes.length && passos++ < TETO) {
-      const dow = diaDaSemana(dia);
-      const horas = horasDoDia(dia);
-      const fds = (dow === 5 && !sabUtil) || (dow === 6 && !domUtil);
-      /* `fechados` é a única coisa que pula: são as marcações com `fecha=1`, isto é, "a escola não
-         abre nesse dia". O TIPO do evento não decide nada — no dado dele, Carnaval é `facultativo` e
-         fecha; Dia do Servidor Público é `facultativo` e NÃO fecha. Foi o que ele disse: *"o que
-         importa é se a gente marcou se aquilo vai ter aula ou não"*. Mexeu na marcação, esta tabela
-         sai diferente na leitura seguinte, sem regerar nada. */
-      if (horas.length && !fds && !fechados.has(dia)) {
-        for (const hora of horas) {
-          if (i >= licoes.length) break;
-          const l = licoes[i++];
-          linhas.push({
-            mes: dia.slice(5, 7), ns: semanaDoMes(dia), ds: codigo[dow],
-            dmPlan: dia.slice(8, 10) + "/" + dia.slice(5, 7), dataPlan: dia, hora, aula: ++n,
-            licao: (l.sigla || (l.numero != null ? String(l.numero) : "")) || null,
-            conteudo: l.descricao, bloco: l.bloco ?? null, tipo: l.tipo,
-            dataReal: null, dmReal: null, dsReal: null, mesmoLancamento: false,
-            status: null, entrada: null, saida: null, minutos: null, observacao: null,
-          });
-        }
-      }
-      dia = maisDias(dia, 1);
-    }
-    /* ---------- 2. O REALIZADO: casado por ORDEM, não por data (2026-08-24, dele) ----------
-       *"A data planejada é a data que supostamente o aluno deveria fazer aquela lição, mas ele faz
-       em outra data, pode ser anterior ou posterior. É só pra questão de comparação."*
-       Antes a presença era casada com a linha PELA DATA, e por isso a aula reposta numa quinta não
-       aparecia em lição nenhuma — caía numa lista de "fora da projeção". Agora a linha é a LIÇÃO e a
-       presença diz QUANDO ela foi dada.
+  /* a tela de UM aluno. A projeção mora fora deste objeto porque o painel de Progresso
+     também a chama — 132 vezes seguidas, com o calendário resolvido uma vez só. */
+  getPlanejamento: (a: any) => projetarContrato(a),
 
-       QUEM CONSOME LIÇÃO É SÓ O `P`. Falta e não-aula gastam a data, não o conteúdo: quem faltou não
-       recebeu a lição e vai recebê-la na próxima vez que vier — é exatamente isso que abre a
-       defasagem entre planejado e realizado. As duas ficam CONTADAS no cabeçalho e detalhadas na aba
-       Frequência, ao lado; reposição e anteposição ele adiou de propósito.
-
-       QUANTAS LIÇÕES UM LANÇAMENTO CONSOME: `aulas_feitas`, quando alguém digitou; senão o número de
-       horas da agenda vigente naquele dia da semana — quem faz duas aulas no sábado consome duas
-       lições num lançamento só (`presenca` tem uma linha por DATA, não por hora). Nunca menos que 1. */
-    const dadasFila: any[] = [];
-    let faltas = 0, naoAula = 0;
-    for (const p of A(`SELECT data, status, entrada, saida, minutos, observacao, aulas_feitas
-                       FROM presenca WHERE id_matricula=? AND livro=? ORDER BY data`, idMatricula, c.livro)) {
-      if (p.status !== "P") { if (p.status === "F") faltas++; else naoAula++; continue; }
-      const quantas = Math.max(1, Number(p.aulas_feitas) || horasDoDia(p.data).length || 1);
-      for (let k = 0; k < quantas; k++) dadasFila.push({ ...p, ordem: k });
-    }
-    /* A ÂNCORA — e é ela que impede o disparate no contrato antigo. `presenca` só existe desde que o
-       lançamento entrou no ar (fim de julho/2026); um contrato aberto em janeiro já tinha dezenas de
-       lições dadas sem registro nenhum. Casar a 1ª presença com a LIÇÃO 1 diria que o aluno está no
-       começo do livro. Então a 1ª aula registrada ancora na primeira lição que o PLANO ainda não
-       tinha dado por vencida naquele dia, e dali em diante cada aula avança uma. A defasagem passa a
-       contar do dia em que existe dado — o único período sobre o qual dá para afirmar algo. */
-    let ancora = 0, venceu = false;
-    if (dadasFila.length) {
-      const d0 = dadasFila[0].data;
-      const k = linhas.findIndex((l: any) => l.dataPlan >= d0);
-      ancora = k < 0 ? linhas.length : k;
-      /* O PLANO PODE TER VENCIDO ANTES DA 1ª AULA REGISTRADA. Acontece em 34 dos contratos abertos:
-         a `data_inicio` é de mais de um ano atrás, a projeção dá o livro por terminado, e a âncora
-         cairia depois da última linha — a coluna "Data realizada" ficaria VAZIA na tabela inteira,
-         justo em quem mais precisa dela. Então a âncora é limitada ao teto que ainda comporta todas
-         as aulas dadas, e a tela DIZ que o plano venceu: encaixar calado seria fingir que a data de
-         início está certa. */
-      const teto = Math.max(0, linhas.length - dadasFila.length);
-      if (ancora > teto) { ancora = teto; venceu = true; }
-    }
-    for (let k = 0; k < dadasFila.length; k++) {
-      const alvo = linhas[ancora + k];
-      if (!alvo) break;
-      const p = dadasFila[k];
-      alvo.dataReal = p.data;
-      alvo.dmReal = p.data.slice(8, 10) + "/" + p.data.slice(5, 7);
-      alvo.dsReal = codigo[diaDaSemana(p.data)];
-      alvo.status = p.status;
-      alvo.mesmoLancamento = p.ordem > 0;
-      /* entrada, saída, duração e anotação são do LANÇAMENTO, e o lançamento é um só por data:
-         repeti-los na 2ª lição do mesmo dia contaria a mesma hora — e a mesma anotação — duas vezes */
-      if (!p.ordem) {
-        alvo.entrada = p.entrada; alvo.saida = p.saida;
-        alvo.minutos = p.minutos; alvo.observacao = p.observacao;
-      }
-    }
-    return { ...cab, linhas, ultima: linhas.length ? linhas[linhas.length - 1].dataPlan : null,
-      incompleto: i < licoes.length, trocas,
-      dadas: dadasFila.length, faltas, naoAula, ancora, venceu,
-      primeiraDada: dadasFila.length ? dadasFila[0].data : null,
-      /* aula dada que já passou do fim do plano: o aluno andou mais que o livro comporta */
-      alem: Math.max(0, ancora + dadasFila.length - linhas.length),
-      ultimaDada: dadasFila.length ? dadasFila[dadasFila.length - 1].data : null };
+  /* ===== A LIÇÃO QUE ELE DE FATO DEU NAQUELA AULA (2026-08-24, dele) =====
+     *"Eu vou lá na tabela de planejamento e coloco qual lição que ele fez, nessa data."*
+     Grava a POSIÇÃO na estrutura do estágio, não o texto: é a posição que reancora a tabela inteira.
+     Vazio APAGA a afirmação e devolve o comando à dedução automática — desfazer tem de ser tão fácil
+     quanto afirmar, senão um clique errado vira dado permanente. */
+  salvarLicaoDaAula({ idMatricula, livro, data, ordem }: any) {
+    const vazio = ordem === null || ordem === undefined || ordem === "";
+    const o = vazio ? null : Number(ordem);
+    if (o !== null && !(Number.isInteger(o) && o > 0)) throw new Error("Lição inválida.");
+    const n = R("UPDATE presenca SET licao_ordem=? WHERE id_matricula=? AND livro=? AND data=?",
+      o, idMatricula, livro, data).changes;
+    if (!n) throw new Error("Esta aula ainda não foi lançada — a lição se registra sobre um lançamento de frequência.");
+    return { ok: true, limpou: vazio };
   },
+  /* ===== O PAINEL DE PROGRESSO (2026-08-24, dele) =====
+     *"Um dashboard de progresso... a gente quer saber os alunos que estão para terminar o livro,
+     dependendo da lição que eles estejam."*
+     Uma linha por CONTRATO ABERTO, não por aluno: quem faz inglês e espanhol ao mesmo tempo está em
+     dois pontos diferentes de dois livros, e uma linha só teria de escolher qual mentir.
+     A projeção é a mesma da tela de um aluno — o que muda é o calendário resolvido UMA VEZ para
+     todos, e não 132 vezes. */
+  getProgresso: () => progressoDosContratos(),
   /* a anotação de UMA aula. Só onde a aula foi lançada — ver a nota da coluna `presenca.observacao`. */
   salvarObservacaoAula({ idMatricula, livro, data, texto }: any) {
     const n = R("UPDATE presenca SET observacao=? WHERE id_matricula=? AND livro=? AND data=?",
@@ -5352,7 +5553,7 @@ const api: Record<string, (a: any) => unknown> = {
       let itens: any[] = [];
       /* uma consulta quebrada não pode derrubar a página inteira: a central existe justamente para
          quem quer ver o estado do sistema, e sumir em silêncio seria o pior desfecho possível */
-      try { itens = A(c.sql); } catch (e) {
+      try { itens = c.itens ? c.itens() : A(c.sql!); } catch (e) {
         return { id: c.id, area: c.area, titulo: c.titulo, porque: c.porque, acao: c.acao,
           gravidade: c.gravidade, aba: c.aba, erro: (e as Error).message,
           destino: c.destino || null, campo: c.campo || null,
@@ -5409,7 +5610,7 @@ const api: Record<string, (a: any) => unknown> = {
   limparSilenciosObsoletos() {
     const vivos: Record<string, boolean> = {};
     for (const c of CHECAGENS) {
-      try { for (const r of A(c.sql)) vivos[c.id + " " + String(r.k)] = true; } catch { /* regra quebrada não apaga nada */ }
+      try { for (const r of (c.itens ? c.itens() : A(c.sql!))) vivos[c.id + " " + String(r.k)] = true; } catch { /* regra quebrada não apaga nada */ }
     }
     let n = 0;
     for (const s of A("SELECT regra, chave FROM aviso_silenciado WHERE chave<>'*'")) {

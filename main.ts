@@ -1985,10 +1985,15 @@ function situacaoCorrente(idMatricula: string): string | null {
      aluno da casa, entre livros" quer dizer. O contrato encerrado continua encerrado no cartão
      dele: `SIT_FECHA` e `sincronizarPercurso` não mudaram. */
   if (geral === "Encerrado") {
+    /* SÓ VOLTA À ENTRADA SE ELA EXISTIR. "Encerrado não desliga" vale para quem terminou um livro
+       DENTRO de um percurso — matriculou, cursou, encerrou, e a rematrícula é o passo seguinte.
+       Sem nenhum registro de entrada não há percurso nenhum: o que existe é a saída, sozinha, e é
+       ela que manda.
+       A primeira versão desta regra chutava "Matriculado" nesse caso e reativou 5 alunos que já
+       tinham saído — a Central passou a cobrar entrega e professor para gente que não estuda mais.
+       Ele viu na tela antes de mim. *Chutar entrada onde só há saída é inventar percurso.* */
     const entrada = linhas.find(l => SIT_ENTRADA.includes(l.situacao));
-    return entrada?.situacao
-      /* encerrou sem entrada registrada: o número do contrato ainda diz se foi a primeira vez */
-      || (abertos.length && abertos[0].contrato_seq > 1 ? "Rematriculado" : "Matriculado");
+    return entrada?.situacao || geral;
   }
   if (geral) return geral;
   return abertos.length ? (abertos[0].contrato_seq > 1 ? "Rematriculado" : "Matriculado") : null;
@@ -3186,8 +3191,54 @@ try { acertarContratos(); } catch (e) { console.warn("acerto de contratos falhou
    (ver `situacaoCorrente`) valer para quem JÁ estava encerrado. `sincronizarSituacao` só roda em
    escrita — sem isto, a matrícula 541 continuaria "Desativado" até alguém salvar algo nela.
    A trava de não-reativar continua de pé: quem tem saída só no cadastro não é tocado. */
+/* ===== SAÍDA REGISTRADA, CONTRATO ESQUECIDO ABERTO (2026-08-23) — roda UMA vez =====
+   Ele achou na tela: a aba Entregas cobrava livro para cinco alunos que *"já têm seu livro"* e não
+   estudam mais. Medido, o defeito é maior que os cinco — são **9 contratos** em que a saída foi
+   gravada no histórico e o `aluno_livro` nunca saiu junto: a agenda continua ocupada, a matrícula
+   continua aberta e a Central cobra entrega e professor de quem foi embora.
+   Conserto só nos CINCO que ele ditou, um a um, porque o estado de cada um é informação dele e não
+   dedução minha. Os outros quatro ficam relatados — mexer neles seria eu decidindo o que ele não
+   disse.
+   TRANCADO NÃO FECHA O CONTRATO: regra dele, de 22/08 — quem pausou volta ao MESMO estágio, e o
+   horário fica reservado. É a Márcia. O cadastro dela desativa pela própria situação. */
 try {
-  if (!G("SELECT valor FROM config WHERE chave='encerrado_nao_desativa_v1'")) {
+  if (!G("SELECT valor FROM config WHERE chave='saidas_sem_contrato_v1'")) {
+    /* [id, livro, situação que ELE ditou, fecha o contrato?] */
+    const CASOS: [string, string, string, boolean][] = [
+      ["2197", "W4", "Encerrado", true],          // encerrou o W4
+      ["1694", "Español 4", "Trancado", false],   // *"ela trancou o curso, ela pausou"*
+      ["528", "W12", "Encerrado", true],          // terminou o W12
+      ["2210", "Teens 2", "Encerrado", true],     // encerrou
+      ["2151", "Teens 2", "Evadido", true],       // *"ele deu como evadido"*
+    ];
+    let arrumados = 0;
+    for (const [id, livro, situacao, fecha] of CASOS) {
+      if (!G("SELECT 1 FROM alunos WHERE id_matricula=?", id)) continue;
+      /* 1. a situação que ele ditou substitui a que estava gravada NAQUELE contrato. Só a última
+            linha de saída: registro anterior é história e não se reescreve. */
+      const ult = G(`SELECT id, situacao, data FROM aluno_situacao_historico
+                     WHERE id_matricula=? AND livro=? ORDER BY data DESC, id DESC LIMIT 1`, id, livro);
+      if (ult && ult.situacao !== situacao && SIT_FECHA[ult.situacao])
+        R("UPDATE aluno_situacao_historico SET situacao=? WHERE id=?", situacao, ult.id);
+      /* 2. *"todas já têm seu livro... pode dar como entregue, sem vínculo de unidade"*.
+            `deduzida=1` é exatamente isto: o aluno tem o material e ele NÃO saiu da prateleira —
+            puxar uma unidade aqui tiraria do estoque um livro que ninguém entregou. */
+      const it = G("SELECT id FROM estoque_item WHERE livro=?", livro);
+      R(`INSERT INTO entrega_material (id_matricula,livro,item_id,data,hora,deduzida,momento)
+         VALUES (?,?,?,?,NULL,1,?) ON CONFLICT(id_matricula,livro) DO NOTHING`,
+        id, livro, it?.id ?? null, ult?.data ?? null, agora());
+      /* 3. o contrato acompanha a saída: fora de `aluno_livro`, e a cascata leva a agenda. */
+      if (fecha) R("DELETE FROM aluno_livro WHERE id_matricula=? AND livro=?", id, livro);
+      /* 4. o percurso se refaz da linha do tempo — é ela que decide encerrado/trancado/evadido */
+      sincronizarPercurso(id, livro);
+      arrumados++;
+    }
+    R("INSERT OR REPLACE INTO config (chave,valor) VALUES ('saidas_sem_contrato_v1',?)", agora());
+    if (arrumados) console.log("contratos: " + arrumados + " saída(s) que estavam com o contrato aberto foram fechadas");
+  }
+} catch (e) { console.warn("acerto das saídas falhou (segue o baile):", e); }
+try {
+  if (!G("SELECT valor FROM config WHERE chave='encerrado_nao_desativa_v2'")) {
     let n = 0;
     for (const a of A("SELECT id_matricula, situacao FROM alunos")) {
       sincronizarSituacao(a.id_matricula);
@@ -3195,7 +3246,10 @@ try {
          a trava de não-reativar a manda desistir, e aí o número diria 50 onde 7 linhas mudaram */
       if (G("SELECT situacao FROM alunos WHERE id_matricula=?", a.id_matricula)?.situacao !== a.situacao) n++;
     }
-    R("INSERT OR REPLACE INTO config (chave,valor) VALUES ('encerrado_nao_desativa_v1',?)", agora());
+    /* v2: a v1 rodou com a regra que chutava "Matriculado" para saída sem entrada registrada, e
+       reativou 5 alunos que tinham ido embora. Marca nova para reavaliar todo mundo com a regra
+       corrigida — a v1 fica no `config` como registro de que passou por aqui. */
+    R("INSERT OR REPLACE INTO config (chave,valor) VALUES ('encerrado_nao_desativa_v2',?)", agora());
     if (n) console.log("situação: " + n + " aluno(s) reavaliados — encerrar contrato não desliga o cadastro");
   }
 } catch (e) { console.warn("reavaliação das situações falhou (segue o baile):", e); }

@@ -1241,10 +1241,6 @@ th.ev.ultima .es-ev-data{background:var(--marca);color:#fff}
 .es-fila-tit{font-size:10.5px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;
   color:var(--tx3);margin-bottom:6px}
 /* as duas abas da fila: mesma linguagem das abas de página, em tamanho menor */
-.es-balao-lado{appearance:none;width:100%;border:1px dashed var(--borda);background:none;
-  border-radius:7px;font:inherit;font-size:11px;color:var(--tx2);padding:6px;cursor:pointer;
-  margin-top:2px}
-.es-balao-lado:hover{border-color:var(--azul);color:var(--azul-esc);background:var(--azul-cl)}
 .es-fila-abas{display:flex;gap:4px;margin:10px 0 2px}
 .es-fila-aba{appearance:none;border:1px solid var(--borda);background:#fff;border-radius:8px 8px 0 0;
   border-bottom-color:transparent;font:inherit;font-size:11.5px;font-weight:600;color:var(--tx3);
@@ -1315,8 +1311,24 @@ th.ev.ultima .es-ev-data{background:var(--marca);color:#fff}
    campos do botão de salvar, de cancelar, da finalidade... fica mais compacto"*. A caixa tinha
    padding de cartão e ficava 17px mais alta que os botões ao lado. `align-self:end` mantém o pé
    alinhado com o resto da fileira, que é o que a grade já faz com os outros. */
-.es-final-cx2{display:flex;align-items:center;gap:6px;border:1px solid var(--borda);
-  border-radius:8px;padding:0 9px;min-height:29px;background:#FBFCFD;align-self:end}
+.es-final-cx2{display:flex;flex-direction:row;align-items:center;gap:6px;flex-wrap:nowrap;
+  border:1px solid var(--borda);border-radius:8px;padding:0 8px;min-height:29px;background:#FBFCFD;
+  align-self:end;overflow:hidden}
+/* a bolinha é o último da fila e não encolhe: *"no fim, depois do O de coleção"* */
+.es-cad .es-final-cx2 .es-i{flex:0 0 auto;order:3}
+/* OS TRÊS NUMA LINHA SÓ, o checkbox PRIMEIRO (2026-08-23, correção dele):
+   *"o checkbox fica na esquerda desse container, depois dele fica escrito último da coleção e no fim
+   você coloca o circulozinho de informação... não fica esse jeito horroroso com o checkbox em cima
+   da frase"*.
+   O CULPADO era `.es-cad label{display:flex;flex-direction:column}`, a regra que veste TODO rótulo
+   do formulário — e ela ganhava em especificidade (0,1,1 contra os 0,1,0 de `.es-final2`), então a
+   caixa empilhava: checkbox em cima, texto embaixo. Medido na tela antes de mexer: checkbox em
+   y=377 e texto em y=393, com o checkbox ainda por cima À DIREITA do texto.
+   Os três seletores aqui fazem (0,3,0) e resolvem o empate de vez. `nowrap` no texto porque, na
+   coluna estreita, quebrar a frase traria o empilhamento de volta por outro caminho. */
+.es-cad .es-final-cx2 .es-final2{display:flex;flex-direction:row;align-items:center;gap:7px;
+  margin:0;font-size:11.5px;cursor:pointer;line-height:1.2;white-space:nowrap}
+.es-cad .es-final-cx2 .es-final2 input{width:auto;margin:0;flex:0 0 auto}
 .es-final2{display:flex;align-items:center;gap:7px;margin:0;font-size:11.5px;cursor:pointer;
   line-height:1.2}
 .es-final2 input{width:auto;margin:0}
@@ -2190,7 +2202,12 @@ th.ev.ultima .es-ev-data{background:var(--marca);color:#fff}
 @media (max-width:700px){.eg-campo.larga{grid-column:span 1}}
 .eg-chk{display:flex;align-items:center;gap:7px;font-weight:600;color:var(--tx2);font-size:12.5px;
   text-transform:none;letter-spacing:0;margin:0;align-self:end;padding-bottom:7px}
-.eg-chk input{width:auto;margin:0}
+.eg-chk input{width:auto;margin:0;flex:0 0 auto}
+/* dentro do campo Status, logo abaixo das pílulas e pela MESMA borda esquerda que elas.
+   O `align-self:end` e o `padding-bottom` do `.eg-chk` solto servem para quando ele é item
+   da GRADE; aqui ele é filho do campo, então os dois atrapalham e saem. */
+.eg-campo .eg-chk.eg-legada{align-self:auto;padding-bottom:0;margin-top:7px;white-space:nowrap}
+.eg-campo .eg-chk.eg-legada .es-i{flex:0 0 auto}
 .eg-kpis{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:12px}
 .eg-kpi{background:#fff;border:1px solid var(--borda);border-radius:9px;padding:8px 13px;min-width:88px}
 .eg-kpi b{display:block;font-size:19px;line-height:1.15;font-variant-numeric:tabular-nums;color:var(--marca)}
@@ -6233,14 +6250,14 @@ m.innerHTML='<div class="tit">Unidade</div>'
  +'<input id="es-bl-cod" value="'+escBloco(u.codigo||'')+'" placeholder="WZ01001000220"></label>'
  +'<label class="es-balao-c"><span>Entrada</span>'
  +'<input id="es-bl-dt" type="datetime-local" value="'+escBloco(esParaInput(u.entrada))+'"></label>'
- /* PASSAR DE LADO: o guia do professor lançado como venda por engano (e o contrário) se conserta
-    aqui, que é onde a unidade já é editada — criar uma ação de página para uma correção pontual
-    seria botão a mais numa tela que já tem muitos. */
- +'<button class="es-balao-lado" onclick="esFinalidadeUnidade('+id+',&quot;'
- +((u.finalidade||'venda')==='escola'?'venda':'escola')+'&quot;)">'
- +((u.finalidade||'venda')==='escola'
-   ? '↩ voltar para unidades de venda'
-   : '→ passar para materiais da escola')+'</button>'
+ /* O BOTÃO "passar para materiais da escola" SAIU DAQUI (2026-08-23, ordem dele): *"eu não pedi
+    pra você fazer isso, eu não quero isso, você tira isso daí"*. Ele estava certo sobre o efeito:
+    obrigava a dar entrada na aba de venda e depois converter unidade por unidade, quando o caminho
+    natural é entrar na aba certa e lançar ali. Com a aba de escola clicável (ver a fila), o
+    "+ dar entrada" já respeita a aba aberta e o desvio deixou de existir.
+    `esFinalidadeUnidade` era o único chamador deste botão e saiu junto, com o CSS dela. Quem
+    classifica a unidade agora é o próprio formulário de entrada, que já manda `finalidade` em
+    `adicionarUnidades` conforme a aba aberta — uma porta só para o mesmo fato. */
  +'<div class="es-balao-pe">'
  +'<button class="es-bt desfaz" onclick="esExcluirUnidade('+id+')">excluir</button>'
  +'<button class="acao" style="margin:0;padding:5px 11px" onclick="esSalvarUnidade('+id+')">Salvar</button>'
@@ -6344,7 +6361,12 @@ if(ES_ED_FILTRO.length)us=us.filter(function(u){return ES_ED_FILTRO.indexOf(u.ed
    O SALDO conta só a aba de venda: o guia está na prateleira mas não é estoque de aluno. */
 var usVenda=us.filter(function(u){return (u.finalidade||'venda')!=='escola'});
 var usEscola=us.filter(function(u){return (u.finalidade||'venda')==='escola'});
-if(ES_FILA_ABA==='escola'&&!usEscola.length&&usVenda.length)ES_FILA_ABA='venda';
+/* ABA VAZIA CONTINUA ABERTA (2026-08-23, correção dele): *"essa aba eu não consigo clicar nela...
+   ela pode estar ativa, ela pode ser clicável. Ela é uma lista vazia, mas tá ali"*.
+   Havia aqui uma linha que devolvia a aba para "venda" toda vez que a lista da escola estava vazia
+   — ele clicava e o próprio redesenho o trazia de volta, sem dizer nada. E era justamente o caminho
+   de que ele precisa: é entrando na aba vazia que se lança o primeiro guia do professor, porque o
+   "+ dar entrada" respeita a aba aberta. */
 us=(ES_FILA_ABA==='escola')?usEscola:usVenda;
 h+='<div class="es-fila-abas">'
  +'<button class="es-fila-aba'+(ES_FILA_ABA!=='escola'?' on':'')+'" onclick="esFilaAba(\'venda\')"'
@@ -6352,7 +6374,7 @@ h+='<div class="es-fila-abas">'
  +'Unidades de venda<span class="n">'+usVenda.length+'</span></button>'
  +'<button class="es-fila-aba'+(ES_FILA_ABA==='escola'?' on':'')+'" onclick="esFilaAba(\'escola\')"'
  +' title="Guia do professor e o que é de uso da escola. Não entra no saldo nem sai para aluno.">'
- +'Materiais escola<span class="n">'+usEscola.length+'</span></button>'
+ +'Materiais da escola<span class="n">'+usEscola.length+'</span></button>'
  +'</div>';
 /* ORDEM DOS NÚMEROS × ORDEM DA FILA: a fila sai por `entrada`, e o número é o que está escrito a
    caneta na unidade. Retrodatar a entrada de uma unidade já numerada faz as duas discordarem — foi
@@ -6531,12 +6553,6 @@ var ES_FILA_ABA='venda';
 function esFilaAba(a){ES_FILA_ABA=a;esDetalheMaterial()}
 /* passar uma unidade de um lado para o outro — o guia que foi lançado como venda por engano, e o
    contrário. O servidor recusa se ela já estiver com um aluno. */
-function esFinalidadeUnidade(id,para){
-run('ajustarUnidade',[{id:id,finalidade:para}],function(){
- msg(para==='escola'?'Passou para materiais da escola — saiu do saldo.'
-   :'Voltou para unidades de venda — entrou no saldo.');
- ES_FILA_ABA=para;
- esCarregar(function(){esDetalheMaterial()})})}
 var ES_ED_FILTRO=[],ES_ED_PAINEL=null,ES_ED_EDIT=null,ES_ED_ITEM=null;
 function esEdFechar(){if(ES_ED_PAINEL){ES_ED_PAINEL.remove();ES_ED_PAINEL=null;ES_ED_EDIT=null;
   ES_ED_ITEM=null;document.removeEventListener('mousedown',esEdForaPainel,true)}}
@@ -7805,6 +7821,12 @@ egChips()}
 function egEscolher(id){
 var e=(EG&&EG.estagios||[]).filter(function(x){return x.id===id})[0];
 if(!e)return;
+/* ABRIR UM ESTÁGIO COMEÇA EM "DADOS DO ESTÁGIO" (2026-08-23, dele): *"quando a gente abre um
+   estágio qualquer, por padrão a aba Dados do estágio deve estar selecionada"*.
+   `EG_ABA_DET` já nascia em 'dados' e `egZerar` já o devolvia ao SAIR da página — o que faltava era
+   trocar de estágio DENTRO dela: quem tivesse parado no Guia do professor abria o próximo estágio
+   ali, olhando outra aba sem ter pedido. Escolher um estágio é começar de novo. */
+EG_ABA_DET='dados';
 EG_SEL=e;
 /* o grupo do escolhido abre junto — também por classe. Só acontece quando a linha veio de um grupo
    fechado (chamada de fora da lista); pelo clique normal ele já está aberto. */
@@ -7909,17 +7931,22 @@ h+='<div class="eg-cx" style="margin-bottom:14px"><div class="eg-cx-cab">Dados d
  +egC('Idade máxima','<input id="eg-idmax" type="number" value="'+(e.idadeMax==null?'':e.idadeMax)+'">')
  /* Duas pílulas, verde e vermelha. Status e "legado" são coisas diferentes: o Kids 4 antigo é
     legado E está ativo, com três alunos cursando nele. */
+ /* A EDIÇÃO LEGADA ENTROU NO CAMPO DO STATUS (2026-08-23, correção dele): *"ele tá meio pra baixo,
+    não tá alinhado — quero que fique alinhado às duas pílulas de status"*.
+    Ela era um `.eg-chk` SOLTO na grade de campos, então caía como próximo item: primeira coluna da
+    linha seguinte, longe do Status, que mora na terceira. Medido: pílulas em x=1073 e o checkbox
+    em x=647. Dentro do mesmo campo ele nasce colado nelas, pela mesma borda esquerda.
+    LEITURA: quem declara que a edição é legada é o ESTOQUE, no painel de edições do material
+    (2026-08-22, decisão dele). Aqui só se mostra. */
  +egC('Status','<div class="eg-status" id="eg-status" data-v="'+(e.status==='desativado'?'desativado':'ativo')+'">'
      +'<button type="button" class="pil on'+(e.status!=='desativado'?' sel':'')+'"'
      +' onclick="egStatus(this,&quot;ativo&quot;)" title="Em uso: aparece no catálogo e pode receber matrícula">Ativado</button>'
      +'<button type="button" class="pil off'+(e.status==='desativado'?' sel':'')+'"'
      +' onclick="egStatus(this,&quot;desativado&quot;)" title="Sai do catálogo. Quem já está matriculado nele continua — só não entra gente nova">Desativado</button>'
-     +'</div>')
- /* LEITURA: quem declara que a edição é legada é o ESTOQUE, no painel de edições do material
-    (2026-08-22, decisão dele). Aqui só se mostra. */
- +'<label class="eg-chk travado"><input type="checkbox" id="eg-legado" disabled'+(e.legado?' checked':'')+'>'
-   +' Edição legada <span class="es-i" title="Declarado no Estoque, no painel de edições do material. Aqui é só leitura.">'
-   +icon('info',12)+'</span></label>'
+     +'</div>'
+     +'<label class="eg-chk travado eg-legada"><input type="checkbox" id="eg-legado" disabled'+(e.legado?' checked':'')+'>'
+       +'<span>Edição legada</span><span class="es-i" title="Declarado no Estoque, no painel de edições do material. Aqui é só leitura.">'
+       +icon('info',12)+'</span></label>')
  +'</div>'
  /* A TRILHA EM FAIXA INTEIRA (2026-08-22). Dentro da grade de campos ela ficava espremida numa
     coluna e ilegível; ele pediu linear, na largura toda, com rolagem lateral se não couber. */

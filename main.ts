@@ -6917,6 +6917,110 @@ async function tentarSyncCalendario() {
 setInterval(tentarSyncCalendario, 10 * 60 * 1000);
 setTimeout(tentarSyncCalendario, 20000);   // e uma tentativa 20s depois de subir
 
+/* ===== A MATRÍCULA 270 ESTAVA NO LIVRO ERRADO (2026-08-24) =====
+   Achado por ele, olhando a planilha CONTROLE contra a tela: *"ele tá na lição 255, ele não tá na
+   203"*.
+
+   A PROVA, e ela não depende de acreditar em nenhuma das duas fontes:
+   - A lição **255** só existe em **W10** (faixa 241–300). Em Teens 8, que é 181–240, ela não cabe.
+   - Na planilha, `Comum=255` e `Revisão=2`. Na estrutura do W10, a lição 255 está na **ordem 18** e
+     tem **exatamente 2 revisões antes dela**. Os dois números fecham sozinhos.
+   - `Início Curso` da planilha (03/02/2026) é o MESMO dia que o sistema gravou. Não é progressão de
+     um livro para o outro — é o livro que nasceu errado no cadastro, e por isso a correção MOVE o
+     contrato em vez de abrir um novo (`trocarLivroAluno` abriria, e inventaria um Teens 8 cursado de
+     fevereiro a agosto que nunca houve).
+   - A agenda: a planilha diz `3|5` (terça e quinta) e o sistema só tinha terça — mas ele **veio numa
+     quinta**, em 06/08. A presença lançada decide.
+
+   ===== E O SEEDING DAS PRESENÇAS, que ele pediu com todas as letras =====
+   *"Eu quero que você preencha todos os dados que ele fez a lição, até bater com a lição 255. Você
+   pode inventar dados se quiser, desde que não coincida com as datas do calendário letivo que não
+   têm aula."*
+   O lançamento de frequência só existe desde julho/2026; o contrato é de fevereiro. Então as 15
+   aulas de fevereiro a julho ACONTECERAM e não têm registro. O que se inventa aqui é a DATA de cada
+   uma, não o fato — e as datas saem da própria projeção, que já pula feriado e recesso.
+   Elas ficam marcadas em `diario` com tipo `seed`, e é por ali que se acham e se desfazem. */
+function corrigir270ParaW10() {
+  if (G("SELECT valor FROM config WHERE chave='arthur_w10_v1'")) return;
+  const ID = "270", DE = "Teens 8", PARA = "W10";
+  if (!G("SELECT 1 FROM aluno_livro WHERE id_matricula=? AND livro=?", ID, DE)) return;
+  if (G("SELECT 1 FROM aluno_livro WHERE id_matricula=? AND livro=?", ID, PARA)) return;
+  const est = G("SELECT id FROM estagio WHERE livro=? ORDER BY (status='ativo') DESC, legado, id LIMIT 1", PARA);
+  const item = G("SELECT id FROM estoque_item WHERE livro=? LIMIT 1", PARA);
+  if (!est) return;
+  db.exec("BEGIN");
+  try {
+    /* O NOVO PRIMEIRO, O VELHO POR ÚLTIMO. `aulas`, `presenca` e as outras apontam para
+       `aluno_livro(id_matricula,livro)`: trocar o PAI antes deixaria os filhos órfãos por um instante
+       e o SQLite recusa (FOREIGN KEY constraint failed — foi exatamente o que aconteceu na 1ª tentativa).
+       O contrato novo herda tudo do antigo, inclusive o `contrato_seq`: não é matrícula nova, é a
+       mesma com o livro certo. */
+    const velho = G("SELECT * FROM aluno_livro WHERE id_matricula=? AND livro=?", ID, DE);
+    R(`INSERT INTO aluno_livro (id_matricula,livro,modalidade,vip,tipo_encontro,contrato_seq)
+       VALUES (?,?,?,?,?,?)`, ID, PARA, velho.modalidade, velho.vip, velho.tipo_encontro, velho.contrato_seq);
+    R("UPDATE aulas SET livro=? WHERE id_matricula=? AND livro=?", PARA, ID, DE);
+    R("UPDATE aluno_estagio SET livro=?, estagio_id=? WHERE id_matricula=? AND livro=?", PARA, est.id, ID, DE);
+    R("UPDATE aluno_situacao_historico SET livro=? WHERE id_matricula=? AND livro=?", PARA, ID, DE);
+    if (item) R("UPDATE entrega_material SET livro=?, item_id=? WHERE id_matricula=? AND livro=?", PARA, item.id, ID, DE);
+    R("UPDATE presenca SET livro=? WHERE id_matricula=? AND livro=?", PARA, ID, DE);
+    R("UPDATE diario SET livro=? WHERE id_matricula=? AND livro=?", PARA, ID, DE);
+    R("UPDATE encontro_avulso SET livro=? WHERE id_matricula=? AND livro=?", PARA, ID, DE);
+    R("DELETE FROM aluno_livro WHERE id_matricula=? AND livro=?", ID, DE);
+    /* a quinta que faltava, com as mesmas professoras da terça */
+    if (!G("SELECT 1 FROM aulas WHERE id_matricula=? AND livro=? AND dia='Quinta'", ID, PARA)) {
+      const nova = R("INSERT INTO aulas (id_matricula,dia,hora,livro) VALUES (?,?,?,?)", ID, "Quinta", "14:00", PARA);
+      for (const f of A(`SELECT DISTINCT ap.funcionario_id fid FROM aula_professor ap
+                         JOIN aulas a ON a.id=ap.aula_id
+                         WHERE a.id_matricula=? AND a.livro=? AND a.id<>?`, ID, PARA, nova.lastInsertRowid))
+        R("INSERT INTO aula_professor (aula_id,funcionario_id) VALUES (?,?)", nova.lastInsertRowid, f.fid);
+    }
+    db.exec("COMMIT");
+  } catch (e) { db.exec("ROLLBACK"); console.warn("correção da 270 falhou:", e); return; }
+  console.log("correção: matrícula 270 movida de Teens 8 para W10, e a quinta-feira entrou na agenda");
+
+  /* ---- as 15 aulas sem registro, nas datas que a própria projeção considera válidas ---- */
+  const alvo = G(`SELECT ordem FROM estagio_licao WHERE dono_id=? AND numero=255`, est.id);
+  if (!alvo) return;
+  const p = projetarContrato({ idMatricula: ID, livro: PARA }) as any;
+  if (!p?.linhas?.length) return;
+  const jaTem = new Set(A("SELECT data FROM presenca WHERE id_matricula=? AND livro=?", ID, PARA).map(r => r.data));
+  const primeiraReal = G("SELECT MIN(data) d FROM presenca WHERE id_matricula=? AND livro=? AND status='P'", ID, PARA)?.d;
+  const jaP = G("SELECT COUNT(*) n FROM presenca WHERE id_matricula=? AND livro=? AND status='P'", ID, PARA)?.n ?? 0;
+  const faltam = alvo.ordem - jaP;
+  if (faltam <= 0) return;
+  /* candidatas: dias de aula previstos ANTES da primeira presença de verdade e ainda livres */
+  const livres = p.linhas.map((l: any) => l.dataPlan)
+    .filter((d: string, i: number, arr: string[]) => arr.indexOf(d) === i)
+    .filter((d: string) => (!primeiraReal || d < primeiraReal) && !jaTem.has(d));
+  if (livres.length < faltam) return;
+  /* espalhadas pelo período inteiro, e não empilhadas no começo: ele veio pouco, mas veio ao longo
+     dos seis meses — e é a defasagem crescente que a tabela precisa mostrar */
+  const passo = livres.length / faltam;
+  const escolhidas: string[] = [];
+  for (let k = 0; k < faltam; k++) escolhidas.push(livres[Math.min(livres.length - 1, Math.floor(k * passo))]);
+  db.exec("BEGIN");
+  try {
+    escolhidas.forEach((d, k) => {
+      const ent = "14:0" + (k % 9);
+      const sai = "14:5" + ((k * 3) % 9);
+      R(`INSERT OR IGNORE INTO presenca (id_matricula,livro,data,status,entrada,saida,auto)
+         VALUES (?,?,?,'P',?,?,0)`, ID, PARA, d, ent, sai);
+      R(`INSERT INTO diario (momento,id_matricula,livro,data,tipo,valor,detalhe)
+         VALUES (?,?,?,?,'seed','P',?)`, agora(), ID, PARA, d,
+        "presença reconstruída no acerto do W10 — a data é estimada pela projeção, a aula aconteceu");
+    });
+    /* a âncora: na última aula lançada ele estava na lição 255 */
+    const ultima = G("SELECT MAX(data) d FROM presenca WHERE id_matricula=? AND livro=? AND status='P'", ID, PARA)?.d;
+    if (ultima) R("UPDATE presenca SET licao_ordem=? WHERE id_matricula=? AND livro=? AND data=?",
+      alvo.ordem, ID, PARA, ultima);
+    R("INSERT OR REPLACE INTO config (chave,valor) VALUES ('arthur_w10_v1',?)", agora());
+    db.exec("COMMIT");
+  } catch (e) { db.exec("ROLLBACK"); console.warn("seeding da 270 falhou:", e); return; }
+  console.log("seeding: " + escolhidas.length + " presença(s) reconstruída(s) para a 270 entre "
+    + escolhidas[0] + " e " + escolhidas[escolhidas.length - 1] + "; âncora na lição 255");
+}
+try { corrigir270ParaW10(); } catch (e) { console.warn("acerto da 270 falhou (segue o baile):", e); }
+
 /* 8420 e ponto. É a porta que `iniciar.bat`, `iniciar-app.vbs`, `iniciar-sala.vbs`, `servidor.vbs`
    e a regra do firewall conhecem — não há segunda porta em lugar nenhum do projeto, e não deve
    haver. Ensaio sobe aqui também, depois de parar este servidor. */

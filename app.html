@@ -5067,8 +5067,10 @@ var cab='<div class="plan-cab"><b>'+escBloco(r.estagio)+'</b>'
     a lição — então sem este contador elas sumiriam da tela. O detalhe delas fica na aba Frequência,
     ao lado. */
  +(r.dadas?'<span class="plan-i plan-ct2">'+r.dadas+(r.dadas>1?' aulas dadas':' aula dada')+'</span>':'')
- +(r.faltas?'<span class="plan-i plan-f">'+r.faltas+(r.faltas>1?' faltas':' falta')+'</span>':'')
- +(r.naoAula?'<span class="plan-i">'+r.naoAula+' não-aula</span>':'')
+ /* A FALTA NÃO ENTRA AQUI (2026-08-24, dele): *"no planejamento de aulas você não vai anexar as
+    faltas, é só na frequência que eu preciso ver as faltas"*. Esta tabela é a trilha das LIÇÕES —
+    quem faltou não recebeu lição nenhuma, então não há linha para ele ocupar nem número para somar.
+    A aba Frequência, ao lado, continua com o detalhe completo. */
  +'</div>';
 if(r.precisaInicio){c.innerHTML=cab+planAviso('Ainda não há data de início: ela nasce da entrega do material ou da primeira presença. O planejamento aparece assim que uma das duas acontecer.');return}
 if(r.semEstrutura){c.innerHTML=cab+planAviso('Este estágio ainda não tem lições digitadas — monte a estrutura dele em Biblioteca · Estágios.');return}
@@ -5410,7 +5412,7 @@ function progTile(rot,val,sub,barra,cls){
   +(sub?'<div class="pr-tr-sub">'+sub+'</div>':'')+'</div>'}
 var feitas=(r.faltamLicoes!=null)?(r.licoes-r.faltamLicoes):null;
 h+='<div class="pr-tiles">'
- +progTile('Lição atual',(pos.licao?'<i>'+escBloco(pos.licao)+'</i>':'—'),
+ +progTile('Última lição',(pos.licao?'<i>'+escBloco(pos.licao)+'</i>':'—'),
     escBloco(pos.conteudo||'')+(pos.bloco!=null?' · bloco '+pos.bloco:''),
     feitas!=null?feitas/r.licoes*100:null)
  +progTile('Faltam',(r.faltamLicoes!=null?r.faltamLicoes:'?')+'<small>lições</small>',
@@ -5483,7 +5485,7 @@ var cab='<div class="plan-cab">'
 var h=cab+'<div class="plan-moldura"><table class="plan-tab prog-tab"><thead><tr>'
  +'<th class="c-al">Aluno</th>'
  +'<th class="c-est">Estágio</th>'
- +'<th class="c-lic2" title="a lição em que ele está — registrada por você, ou deduzida da contagem de aulas">Lição atual</th>'
+ +'<th class="c-lic2" title="a última lição que ele fez — registrada por você, ou deduzida da contagem de aulas">Última lição</th>'
  +'<th class="c-falta" title="lições que faltam para o fim do estágio">Faltam</th>'
  +'<th class="c-bl" title="blocos que faltam, contando o que está em curso">Blocos</th>'
  +'<th class="c-hr">Última aula</th>'

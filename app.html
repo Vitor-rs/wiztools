@@ -286,16 +286,27 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
 /* o ID é um número de 4 dígitos: largura de 4 dígitos, não a do nome completo */
 .al-campo-id{width:120px}
 .al-campo-id input{text-align:center;font-variant-numeric:tabular-nums;letter-spacing:.04em}
-/* nova matrícula: rótulo, campo e o ⓘ numa fileira só */
-.nm-linha{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
-.nm-linha label{margin:0;white-space:nowrap}
+/* o campo e o ⓘ numa fileira só — o rótulo subiu para cima, junto dos vizinhos */
+.nm-linha{display:flex;align-items:center;gap:10px;flex-wrap:nowrap;margin:0}
 .nm-linha .sug{width:300px}
+.al-campo-novo{flex:0 1 auto}
 .nm-info{appearance:none;width:20px;height:20px;flex-shrink:0;border-radius:50%;cursor:pointer;
   border:1px solid var(--azul-borda);background:var(--azul-cl);color:var(--azul-esc);
   font:700 12px/1 Georgia,serif;font-style:italic;padding:0}
 .nm-info:hover{background:var(--azul);color:#fff;border-color:var(--azul)}
-.al-campo-status{width:auto;min-width:96px}
-.al-campo-status .badge{align-self:flex-start;margin-top:5px}
+/* ===== O STATUS COM CARA DE BOTÃO (2026-08-24, dele) =====
+   *"A tag ativado ou desativado você coloca ela mais alta, fica tipo um botão... coloca um botão
+   que seja do tamanho da largura do desativado."*
+   Duas coisas estavam tortas e as duas foram medidas: o rótulo "Status" ficava 9px ABAIXO dos
+   vizinhos (por causa do `margin-top:5px` no badge, que empurrava a caixa toda para baixo num
+   contêiner alinhado pelo pé), e a pílula tinha 19px de altura contra os 33 dos campos.
+   LARGURA FIXA para as duas palavras: "Desativado" mede 58px nesta fonte e "Ativado" 41 — sem
+   travar, a pílula mudava de tamanho a cada aluno, e era isso que desequilibrava a fileira.
+   Os 92px cabem a maior com folga e ainda o "NOVO", que vem com ícone. */
+.al-campo-status{width:auto}
+.al-campo-status .badge{display:inline-flex;align-items:center;justify-content:center;
+  box-sizing:border-box;min-width:92px;height:33px;margin:0;padding:0 12px;border-radius:9px;
+  font-size:12px}
 .al-acoes{display:flex;gap:0;align-items:center;flex-wrap:wrap}
 .al-acoes .acao{margin:0 6px 0 0}
 /* `.al-sep-v` (divisória entre busca e cadastro) saiu: a busca deixou de dividir fileira com o
@@ -348,7 +359,7 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
 @keyframes alPulsa{0%,100%{opacity:.35}50%{opacity:1}}
 @media (prefers-reduced-motion:reduce){.al-quem.tem::after{animation:none;opacity:.8}}
 /* o campo de nova matrícula ocupa o lugar que era dos botões, no fim da fileira do cadastro */
-.al-faixa .nm-linha{margin-left:auto;margin-bottom:0}
+.al-faixa .al-campo-novo{margin-left:auto}
 
 /* O trilho de sub-abas da aba Informações: um nível abaixo do trilho da página, então o fio é mais
    leve e as abas são menores — quem olha precisa saber que está DENTRO de Informações. */
@@ -3650,12 +3661,18 @@ body.tem-ensaio{padding-top:29px}
 <label for="al-status">Status</label>
 <span id="al-status" class="badge b-off" data-v="">—</span>
 </div>
-<!-- o campo de nova matrícula ocupou o lugar que era dos três botões: é a ação natural de quem
-     acabou de conferir o cadastro, e ali ela fica na mesma fileira -->
+<!-- o campo de novo contrato ocupou o lugar que era dos três botões: é a ação natural de quem
+     acabou de conferir o cadastro, e ali ela fica na mesma fileira.
+     ROTULO EM CIMA, como os vizinhos (2026-08-24, dele): ele vinha ao LADO do campo, então era o
+     único rótulo da faixa fora da linha dos outros — medido, 27px abaixo deles.
+     "Novo contrato em estágio" e não "nova matrícula": matrícula é a primeira vez do aluno na
+     escola; o que se cria aqui é o contrato `ID/N`, que pode muito bem ser uma rematrícula. -->
+<div class="al-campo al-campo-novo">
+<label for="nm-livro">Novo contrato em estágio</label>
 <div class="nm-linha">
-<label for="nm-livro">+ Nova matrícula em estágio</label>
 <div class="sug"><input id="nm-livro" placeholder="Digite o estágio..." autocomplete="off" disabled><div class="lista" id="nm-livro-sug"></div></div>
-<button type="button" class="nm-info" onclick="dlgAviso({titulo:'Matrícula em estágio',texto:'Cada estágio é uma matrícula própria: modalidade, VIP, tipo de encontro e agenda ficam aqui, não na turma.\n\nO contrato é a matrícula do aluno mais a ordem do vínculo — 2068/1 é o primeiro estágio dele, 2068/2 o segundo, independente do idioma.'})" title="O que é uma matrícula em estágio">i</button>
+<button type="button" class="nm-info" onclick="dlgAviso({titulo:'Contrato em estágio',texto:'Cada estágio é um contrato próprio: modalidade, VIP, tipo de encontro e agenda ficam aqui, não na turma.\n\nO contrato é a matrícula do aluno mais a ordem do vínculo — 2068/1 é o primeiro estágio dele, 2068/2 o segundo, independente do idioma.'})" title="O que é um contrato em estágio">i</button>
+</div>
 </div>
 </div>
 <div id="al-aviso"></div>

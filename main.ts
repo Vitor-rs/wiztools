@@ -378,6 +378,12 @@ if (!G("SELECT valor FROM config WHERE chave='edicao_situacao_v1'")) {
    como estágio FALTANDO e passa a ser o que é. Diferente de "Complementar", que é estágio Wizard
    fora da trilha oficial (Business Empire). */
 addColuna("estoque_item", "avulso", "INTEGER NOT NULL DEFAULT 0");
+/* ANOTAÇÃO DA AULA (2026-08-24, dele): a coluna "observações e anotações" do Currículo —
+   *"pode ser qualquer comentário do professor"*. Mora na presença porque é da AULA daquele dia,
+   e a presença já é a linha de aluno × livro × data. Só existe onde a aula foi lançada: aula
+   ainda no futuro não tem onde guardar recado, e inventar linha de presença para isso mentiria
+   sobre o aluno ter comparecido. */
+addColuna("presenca", "observacao", "TEXT");
 if (!G("SELECT valor FROM config WHERE chave='material_avulso_v1'")) {
   R(`UPDATE estoque_item SET avulso=1 WHERE livro IS NOT NULL
        AND livro NOT IN (SELECT livro FROM estagio WHERE livro IS NOT NULL)`);
@@ -3383,6 +3389,30 @@ function acertarContratos() {
 }
 
 /* ===== API (mesmo contrato do painel GAS) ===== */
+/* ===== O CALENDÁRIO VISTO POR QUEM PROJETA AULA (2026-08-24) =====
+   `getCalendario` resolve um ANO em grade de 12 meses; o currículo de um contrato atravessa o
+   virar do ano e precisa da mesma verdade num intervalo qualquer. Em vez de reescrever a regra,
+   isto reusa `datasDaMarcacao` — a mesma função que a tela do calendário usa — ano a ano.
+   `fecha=1` é "a escola não abre": é o campo que ele mexe quando decide emendar uma ponte ou
+   trabalhar num facultativo, e é por isso que o currículo se atualiza sozinho quando ele mexe. */
+function diasFechados(de: string, ate: string): Set<string> {
+  const fora = new Set<string>();
+  const marcs = A("SELECT * FROM calendario_marcacao WHERE arquivado IS NULL AND fecha=1");
+  for (let y = Number(de.slice(0, 4)); y <= Number(ate.slice(0, 4)); y++)
+    for (const m of marcs)
+      for (const d of datasDaMarcacao(m, y)) if (d >= de && d <= ate) fora.add(d);
+  return fora;
+}
+/* segunda=0 … domingo=6, o mesmo eixo que `dias.ordem-1` e que a grade do calendário usam */
+const diaDaSemana = (iso: string) => (new Date(iso + "T12:00:00Z").getUTCDay() + 6) % 7;
+/* A SEMANA DO MÊS, pela regra dele: a semana começa na SEGUNDA e a primeira é a que contém o dia 1,
+   *"nem que ela tenha um dia só"* — mês que começa no domingo tem uma semana 1 de um dia, e a
+   semana 2 começa na segunda, dia 2. */
+function semanaDoMes(iso: string): number {
+  const desloc = diaDaSemana(iso.slice(0, 8) + "01");
+  return Math.floor((Number(iso.slice(8, 10)) - 1 + desloc) / 7) + 1;
+}
+
 const api: Record<string, (a: any) => unknown> = {
   getDominios() {
     const horariosPorDia: Record<string, string[]> = {};
@@ -3795,6 +3825,108 @@ const api: Record<string, (a: any) => unknown> = {
       status: at ? G("SELECT status FROM v_alunos WHERE id_matricula=?", at.id_matricula)?.status : null };
   },
 
+  /* ===== O CURRÍCULO DO CONTRATO (2026-08-24, dele) =====
+     *"Uma trilha de aprendizado: quanto essas lições vão ocupar no contrato do aluno desde quando
+     ele fez a primeira aula."*
+     DERIVADO, NUNCA GRAVADO — e essa é a decisão que sustenta o resto. Ele foi explícito: *"tem que
+     ser uma geração atualizada dinamicamente, dependendo de como o calendário letivo é
+     configurado"*. Guardar as datas obrigaria a regerar tudo a cada recesso que ele criasse, e a
+     primeira vez que alguém esquecesse de regerar o quadro passaria a mentir. Aqui a projeção é
+     função de (estrutura do estágio, agenda do aluno, data de início, calendário) e se refaz a cada
+     leitura: mexeu no calendário, o currículo já sai certo.
+     O QUE JÁ ACONTECEU não é projetado, é lido: comparecimento, entrada, saída, duração e anotação
+     saem de `presenca`, casando pela data. Uma coluna só do futuro, o resto é memória.
+     SÓ O CONTRATO ATUAL, por ordem dele — *"os outros não precisa, porque já é passado"*. */
+  getCurriculo({ idMatricula, livro, inicio }: any) {
+    if (!idMatricula) throw new Error("Aluno é obrigatório.");
+    /* MAIS DE UM CONTRATO ABERTO É NORMAL, não exceção: quem faz inglês e espanhol ao mesmo tempo
+       tem dois, e a matrícula 1638 tem KIDS 4 e o avulso Kids Esp 1. "O livro atual" não os
+       distingue, então a tela escolhe — e o padrão, quando ninguém escolheu, é o contrato que TEM
+       estrutura, porque é o único sobre o qual dá para projetar alguma coisa. */
+    const abertos = A(`SELECT al.*, (SELECT COUNT(*) FROM estagio_licao l
+                         WHERE l.dono_id=(SELECT e.id FROM estagio e WHERE e.livro=al.livro
+                                          ORDER BY (e.status='ativo') DESC, e.legado, e.id LIMIT 1)) licoes
+                       FROM aluno_livro al WHERE al.id_matricula=? ORDER BY al.contrato_seq DESC, al.rowid DESC`, idMatricula);
+    if (!abertos.length) return { semContrato: true };
+    const c = livro ? abertos.find(x => x.livro === livro)
+      : (abertos.find(x => x.licoes > 0) || abertos[0]);
+    if (!c) return { semContrato: true };
+    const contratos = abertos.map(x => ({ livro: x.livro, contrato: idMatricula + "/" + (x.contrato_seq ?? "—"),
+      licoes: x.licoes, atual: x.livro === c.livro }));
+    const eId = estagioDoLivro(c.livro);
+    const est = eId ? G("SELECT id, nome, nome_curto, licao_inicial FROM estagio WHERE id=?", eId) : null;
+    const licoes = eId ? A(`SELECT ordem, numero, sigla, descricao, bloco, tipo FROM estagio_licao
+                            WHERE dono_id=? ORDER BY ordem, id`, eId) : [];
+    /* a agenda por dia da semana: o aluno pode ter mais de uma hora no mesmo dia, e aí aquele dia
+       consome mais de uma lição */
+    const agenda: Record<number, string[]> = {};
+    for (const a of A(`SELECT a.hora, d.ordem FROM aulas a JOIN dias d ON d.nome=a.dia
+                       WHERE a.id_matricula=? AND a.livro=? ORDER BY d.ordem, a.hora`, idMatricula, c.livro))
+      (agenda[a.ordem - 1] ||= []).push(a.hora);
+    const porSemana = Object.values(agenda).reduce((s: number, h: any) => s + h.length, 0);
+    /* DE ONDE COMEÇA, na ordem em que a verdade é mais forte: o início gravado no percurso, senão a
+       primeira presença registrada naquele livro, senão o que a tela mandou. Sem nenhum dos três o
+       currículo não existe ainda — e dizer isso é melhor que inventar uma data. */
+    const perc = G(`SELECT data_inicio FROM aluno_estagio WHERE id_matricula=? AND livro=?
+                    ORDER BY id DESC LIMIT 1`, idMatricula, c.livro);
+    const prim = G("SELECT MIN(data) d FROM presenca WHERE id_matricula=? AND livro=?", idMatricula, c.livro);
+    const ini = perc?.data_inicio || prim?.d || (inicio || null);
+    const cab = { contratos, contrato: idMatricula + "/" + (c.contrato_seq ?? "—"), livro: c.livro,
+      estagio: est?.nome || c.livro, nomeCurto: est?.nome_curto || null,
+      licoes: licoes.length, porSemana, inicio: ini,
+      agenda: Object.keys(agenda).sort().map(k => G("SELECT codigo FROM dias WHERE ordem=?", Number(k) + 1)?.codigo
+        + " " + agenda[Number(k)].join("/")) };
+    if (!ini) return { ...cab, precisaInicio: true, linhas: [] };
+    if (!licoes.length) return { ...cab, semEstrutura: true, linhas: [] };
+    if (!porSemana) return { ...cab, semAgenda: true, linhas: [] };
+    /* o que já foi lançado, por data — é o lado REALIZADO da tabela */
+    const feito: Record<string, any> = {};
+    for (const r of A(`SELECT data, status, entrada, saida, minutos, observacao, aulas_feitas
+                       FROM presenca WHERE id_matricula=? AND livro=?`, idMatricula, c.livro))
+      feito[r.data] = r;
+    const sabUtil = (G("SELECT valor FROM config WHERE chave='cal_sabado_util'")?.valor ?? "1") === "1";
+    const domUtil = (G("SELECT valor FROM config WHERE chave='cal_domingo_util'")?.valor ?? "0") === "1";
+    /* 800 dias de varredura: 72 lições a uma aula por semana dão ~504 dias, e a folga cobre feriado
+       e recesso. É teto de segurança contra laço infinito, não regra de negócio — se ele estourar,
+       a resposta diz que ficou incompleta em vez de calar. */
+    const TETO = 800;
+    const fim = maisDias(ini, TETO);
+    const fechados = diasFechados(ini, fim);
+    const codigo: Record<number, string> = {};
+    for (const d of A("SELECT ordem, codigo FROM dias")) codigo[d.ordem - 1] = d.codigo;
+    const linhas: any[] = [];
+    let dia = ini, i = 0, n = 0, passos = 0;
+    while (i < licoes.length && passos++ < TETO) {
+      const dow = diaDaSemana(dia);
+      const horas = agenda[dow];
+      const fds = (dow === 5 && !sabUtil) || (dow === 6 && !domUtil);
+      if (horas && !fds && !fechados.has(dia)) {
+        for (const hora of horas) {
+          if (i >= licoes.length) break;
+          const l = licoes[i++]; const f = feito[dia];
+          linhas.push({
+            mes: dia.slice(5, 7), ns: semanaDoMes(dia), ds: codigo[dow], dm: dia.slice(8, 10) + "/" + dia.slice(5, 7),
+            data: dia, hora, aula: ++n,
+            licao: (l.sigla || (l.numero != null ? String(l.numero) : "")) || null,
+            conteudo: l.descricao, bloco: l.bloco ?? null, tipo: l.tipo,
+            /* o realizado: só existe onde houve lançamento */
+            status: f?.status ?? null, entrada: f?.entrada ?? null, saida: f?.saida ?? null,
+            minutos: f?.minutos ?? null, observacao: f?.observacao ?? null,
+          });
+        }
+      }
+      dia = maisDias(dia, 1);
+    }
+    return { ...cab, linhas, ultima: linhas.length ? linhas[linhas.length - 1].data : null,
+      incompleto: i < licoes.length };
+  },
+  /* a anotação de UMA aula. Só onde a aula foi lançada — ver a nota da coluna `presenca.observacao`. */
+  salvarObservacaoAula({ idMatricula, livro, data, texto }: any) {
+    const n = R("UPDATE presenca SET observacao=? WHERE id_matricula=? AND livro=? AND data=?",
+      String(texto ?? "").trim() || null, idMatricula, livro, data).changes;
+    if (!n) throw new Error("Esta aula ainda não foi lançada — a anotação nasce com o lançamento da frequência.");
+    return { ok: true };
+  },
   getAulasAluno: (id) => A("SELECT * FROM aulas WHERE id_matricula=?", id).map(r => ({ linha: r.id, dia: r.dia, horario: r.hora, livro: r.livro,
     professores: A("SELECT f.nome FROM aula_professor ap JOIN funcionarios f ON f.id=ap.funcionario_id WHERE ap.aula_id=?", r.id).map(x => x.nome) })),
   /* ===== ESTOQUE =====

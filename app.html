@@ -5114,7 +5114,7 @@ var mesAnt=null, ROT={P:'Presente',F:'Falta',N:'Não aula'};
   /* A LIÇÃO DA LINHA REALIZADA É EDITÁVEL (2026-08-24, dele): *"na presença dele eu colocar a lição
      que ele tá fazendo"*. Só onde houve aula — afirmar a lição de um dia que não aconteceu não quer
      dizer nada — e só na 1ª lição do dia, porque a marca mora na presença, que é uma por data. */
-  +'<td class="c-lic">'+(l.dataReal&&!l.mesmoLancamento
+  +'<td class="c-lic">'+(l.dataReal&&l.ultimoDoDia
      ?'<button type="button" class="plan-lic-bt'+(l.afirmada?' dita':'')+'" data-ord="'+l.ordem+'"'
       +' title="'+(l.afirmada?'lição registrada por você — clique para trocar ou apagar'
                             :'clique para dizer qual lição foi dada nesta aula')+'"'

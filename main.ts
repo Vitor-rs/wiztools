@@ -3551,7 +3551,16 @@ function projetarContrato({ idMatricula, livro, inicio, fechadosPre }: any) {
   if (!c) return { semContrato: true };
   const contratos = abertos.map(x => ({ livro: x.livro, contrato: idMatricula + "/" + (x.contrato_seq ?? "—"),
     licoes: x.licoes, atual: x.livro === c.livro }));
-  const eId = estagioDoLivro(c.livro);
+  /* ===== QUEM MANDA NO ESTÁGIO É O PERCURSO DO ALUNO, NÃO O LIVRO (2026-08-24) =====
+     `estagioDoLivro` devolve o estágio CORRENTE do livro — e para quase todo mundo é o certo. Mas o
+     KIDS 4 tem dois: o de 3ª edição (lições 1–60) e o **legado, 2nd Edition** (lições 61–120, sigla
+     K4_O). Três alunas ainda estão no legado, e projetá-las pelo corrente dava a estrutura errada:
+     a lição 120 delas simplesmente não existe lá.
+     `aluno_estagio.estagio_id` já guardava a resposta desde sempre — só ninguém a estava lendo aqui.
+     Ver [[project_edicao_legada]]: a edição é do ESTOQUE, e o estágio a reflete. */
+  const percEst = G(`SELECT estagio_id FROM aluno_estagio WHERE id_matricula=? AND livro=?
+                     ORDER BY id DESC LIMIT 1`, idMatricula, c.livro);
+  const eId = percEst?.estagio_id ?? estagioDoLivro(c.livro);
   const est = eId ? G("SELECT id, nome, nome_curto, licao_inicial FROM estagio WHERE id=?", eId) : null;
   const licoes = eId ? A(`SELECT ordem, numero, sigla, descricao, bloco, tipo FROM estagio_licao
                           WHERE dono_id=? ORDER BY ordem, id`, eId) : [];
@@ -3634,7 +3643,7 @@ function projetarContrato({ idMatricula, livro, inicio, fechadosPre }: any) {
           ordem: l.ordem,
           licao: (l.sigla || (l.numero != null ? String(l.numero) : "")) || null,
           conteudo: l.descricao, bloco: l.bloco ?? null, tipo: l.tipo,
-          dataReal: null, dmReal: null, dsReal: null, mesmoLancamento: false, afirmada: false,
+          dataReal: null, dmReal: null, dsReal: null, mesmoLancamento: false, afirmada: false, ultimoDoDia: false,
           status: null, entrada: null, saida: null, minutos: null, observacao: null,
         });
       }
@@ -3689,10 +3698,13 @@ function projetarContrato({ idMatricula, livro, inicio, fechadosPre }: any) {
      data."* A dedução automática abaixo é palpite educado; isto aqui é a escola falando. A ÚLTIMA
      afirmação vence, porque é a fala mais recente sobre onde o aluno está — e reancorar por ela
      conserta a tabela inteira de uma vez, para trás e para frente.
-     Só a 1ª lição do dia carrega a marca: `presenca` é uma linha por DATA, então num dia de duas
-     aulas a afirmação é sobre a primeira delas — e a tela só deixa editar essa. */
+     A marca vale para a ÚLTIMA lição do dia, e isso importa em quem faz duas aulas seguidas:
+     `presenca` é uma linha por DATA, então a lição afirmada é "a última que ele deu naquele dia" —
+     que é o mesmo sentido do `Comum` da planilha dele. Ancorar na primeira deixava a tela um passo à
+     frente do que ele tinha digitado (L75 quando ele disse 74), e uma tela que discorda do que a
+     pessoa acabou de escrever parece quebrada. */
   for (let k = 0; k < dadasFila.length; k++)
-    if (dadasFila[k].licao_ordem != null && !dadasFila[k].ordem) afirmada = { k, ordem: dadasFila[k].licao_ordem };
+    if (dadasFila[k].licao_ordem != null) afirmada = { k, ordem: dadasFila[k].licao_ordem };
   if (afirmada) {
     const alvo = licoes.findIndex((l: any) => l.ordem === afirmada.ordem);
     if (alvo >= 0) ancora = Math.max(0, alvo - afirmada.k);
@@ -3720,7 +3732,9 @@ function projetarContrato({ idMatricula, livro, inicio, fechadosPre }: any) {
     alvo.dsReal = codigo[diaDaSemana(p.data)];
     alvo.status = p.status;
     alvo.mesmoLancamento = p.ordem > 0;
-    alvo.afirmada = p.licao_ordem != null && !p.ordem;
+    /* a ÚLTIMA lição do lançamento é a que carrega a marca e o botão de editar */
+    alvo.ultimoDoDia = !(dadasFila[k + 1] && dadasFila[k + 1].data === p.data);
+    alvo.afirmada = p.licao_ordem != null && alvo.ultimoDoDia;
     /* o evento passa a saber QUAL lição ele consumiu — é o que liga a barra de baixo às de cima */
     if (p.evento != null && eventos[p.evento]) {
       eventos[p.evento].ordem = alvo.ordem; eventos[p.evento].licao = alvo.licao;
@@ -6916,6 +6930,111 @@ async function tentarSyncCalendario() {
 /* 10 minutos: fino o bastante para acertar a hora escolhida, grosso o bastante para não pesar */
 setInterval(tentarSyncCalendario, 10 * 60 * 1000);
 setTimeout(tentarSyncCalendario, 20000);   // e uma tentativa 20s depois de subir
+
+/* ===== O ACERTO DOS LIVROS, CONFERIDO POR ELE UM A UM (2026-08-24) =====
+   A varredura da planilha CONTROLE contra o sistema achou 15 contratos em que a faixa de lições de
+   um não cabia no livro do outro. Ele revisou a lista e ditou o veredito de cada caso — e em três
+   deles a PLANILHA é que estava errada, o que é o motivo de nada disto ser automático.
+
+   O padrão da correção é o mesmo da 270: **contrato NOVO primeiro, filhos depois, velho por último**,
+   porque `aulas` e `presenca` apontam para `aluno_livro(id_matricula,livro)` e trocar o pai antes
+   estoura a FK. E é MOVER, não `trocarLivroAluno`: o livro nasceu errado no cadastro, não houve
+   progressão de um estágio para o outro — as datas de início batem nos dois lados.
+
+   A ÂNCORA de cada um vem do `Comum` da planilha convertido em posição na estrutura. As revisões
+   intercaladas antes dela conferem com o `Rev.` dela em 5 dos 7 casos, ±1 nos outros dois — que é a
+   deriva conhecida (ela conta revisão FEITA, a estrutura conta a que vem ANTES). */
+const ACERTO_LIVROS: any[] = [
+  /* id, livro de, livro para, lição da planilha (Comum). estagioAlvo só quando o livro NÃO muda. */
+  { id: "328", de: "W12", para: "W10", comum: 264 },        // "ela tá no W10, não no W12"
+  { id: "1864", de: "Teens 6", para: "Teens 8", comum: 223 }, // "ele tá no Teens 8"
+  { id: "1989", de: "Teens 2", para: "Teens 4", comum: 72 },  // "ele tá no Teens 4 também"
+  /* as duas de italiano: *"elas estão fazendo o italiano 2"*. A planilha delas parou em out/2024 e
+     nenhuma tem presença lançada, então não há onde ancorar — só o livro se corrige. */
+  { id: "2009", de: "Italiano 4", para: "Italiano 2", comum: 26 },
+  { id: "2011", de: "Italiano 4", para: "Italiano 2", comum: 26 },
+  /* ===== O CASO EM QUE A PLANILHA ERRA =====
+     *"Esses três estão no Kids 4 antigo ainda, que é a Second Edition. Eles não estão no Little
+     Kids 4. A planilha tá errada."* O livro está certo no sistema; o que está errado é a EDIÇÃO: o
+     percurso aponta para o estágio corrente (3ª ed., lições 1–60) e eles estão no legado (id 8,
+     2nd Edition, lições 61–120). Por isso `para` é o mesmo livro e o que muda é `estagioAlvo`. */
+  { id: "2232", de: "KIDS 4", para: "KIDS 4", estagioAlvo: 8, comum: 120 },
+  { id: "1986", de: "KIDS 4", para: "KIDS 4", estagioAlvo: 8, comum: 111 },
+  { id: "1991", de: "KIDS 4", para: "KIDS 4", estagioAlvo: 8, comum: 74 },
+  /* o livro já estava certo; a planilha só tinha `Desde=240` no lugar de 241, um dígito. Fica só a
+     posição, que é o que ela tinha de novo. */
+  { id: "391", de: "W10", para: "W10", comum: 277 },
+];
+function acertarLivrosConferidos() {
+  if (G("SELECT valor FROM config WHERE chave='acerto_livros_v1'")) return;
+  let movidos = 0, ancorados = 0;
+  for (const a of ACERTO_LIVROS) {
+    try {
+      const atual = G("SELECT * FROM aluno_livro WHERE id_matricula=? AND livro=?", a.id, a.de);
+      if (!atual) continue;
+      const est = a.estagioAlvo
+        ? G("SELECT id FROM estagio WHERE id=?", a.estagioAlvo)
+        : G("SELECT id FROM estagio WHERE livro=? ORDER BY (status='ativo') DESC, legado, id LIMIT 1", a.para);
+      if (!est) continue;
+      const item = G("SELECT id FROM estoque_item WHERE livro=? LIMIT 1", a.para);
+      db.exec("BEGIN");
+      try {
+        if (a.de !== a.para) {
+          if (G("SELECT 1 FROM aluno_livro WHERE id_matricula=? AND livro=?", a.id, a.para)) { db.exec("ROLLBACK"); continue; }
+          R(`INSERT INTO aluno_livro (id_matricula,livro,modalidade,vip,tipo_encontro,contrato_seq)
+             VALUES (?,?,?,?,?,?)`, a.id, a.para, atual.modalidade, atual.vip, atual.tipo_encontro, atual.contrato_seq);
+          R("UPDATE aulas SET livro=? WHERE id_matricula=? AND livro=?", a.para, a.id, a.de);
+          R("UPDATE aluno_situacao_historico SET livro=? WHERE id_matricula=? AND livro=?", a.para, a.id, a.de);
+          if (item) R("UPDATE entrega_material SET livro=?, item_id=? WHERE id_matricula=? AND livro=?", a.para, item.id, a.id, a.de);
+          R("UPDATE presenca SET livro=? WHERE id_matricula=? AND livro=?", a.para, a.id, a.de);
+          R("UPDATE diario SET livro=? WHERE id_matricula=? AND livro=?", a.para, a.id, a.de);
+          R("UPDATE encontro_avulso SET livro=? WHERE id_matricula=? AND livro=?", a.para, a.id, a.de);
+          R("UPDATE aluno_horario_historico SET livro=? WHERE id_matricula=? AND livro=?", a.para, a.id, a.de);
+          R("UPDATE aluno_estagio SET livro=?, estagio_id=? WHERE id_matricula=? AND livro=?", a.para, est.id, a.id, a.de);
+          R("DELETE FROM aluno_livro WHERE id_matricula=? AND livro=?", a.id, a.de);
+          movidos++;
+        } else {
+          /* mesma prateleira, outra edição: só o percurso muda de estágio */
+          R("UPDATE aluno_estagio SET estagio_id=? WHERE id_matricula=? AND livro=?", est.id, a.id, a.para);
+        }
+        /* a âncora: na última aula lançada ele estava na lição que a planilha diz */
+        const l = G("SELECT ordem FROM estagio_licao WHERE dono_id=? AND numero=?", est.id, a.comum);
+        const ult = G(`SELECT MAX(data) d FROM presenca WHERE id_matricula=? AND livro=? AND status='P'`, a.id, a.para)?.d;
+        if (l && ult) {
+          R("UPDATE presenca SET licao_ordem=? WHERE id_matricula=? AND livro=? AND data=?", l.ordem, a.id, a.para, ult);
+          ancorados++;
+        }
+        db.exec("COMMIT");
+      } catch (e) { db.exec("ROLLBACK"); console.warn("acerto da " + a.id + " falhou:", e); }
+    } catch (e) { console.warn("acerto da " + a.id + " falhou:", e); }
+  }
+  /* ===== A REMATRÍCULA QUE NÃO ACONTECEU (541) =====
+     *"Ele apenas encerrou o Teens 4, nem sequer rematriculou ainda. Pode remover a rematrícula do
+     Teens 6."* O contrato de Teens 6 foi aberto por engano numa sessão anterior; o aluno segue com
+     cadastro ativo e sem estágio nenhum, que é a situação real dele — e a Central vai acender
+     "Aluno ativo sem nenhuma matrícula", que é exatamente o aviso certo para esse estado. */
+  const t6 = G("SELECT 1 FROM aluno_livro WHERE id_matricula='541' AND livro='Teens 6'");
+  const semPresenca = !G("SELECT 1 FROM presenca WHERE id_matricula='541' AND livro='Teens 6'");
+  if (t6 && semPresenca) {
+    db.exec("BEGIN");
+    try {
+      R("DELETE FROM aula_professor WHERE aula_id IN (SELECT id FROM aulas WHERE id_matricula='541' AND livro='Teens 6')");
+      R("DELETE FROM aulas WHERE id_matricula='541' AND livro='Teens 6'");
+      R("DELETE FROM aluno_estagio WHERE id_matricula='541' AND livro='Teens 6'");
+      R("DELETE FROM aluno_situacao_historico WHERE id_matricula='541' AND livro='Teens 6' AND situacao='Rematriculado'");
+      R("DELETE FROM aluno_livro WHERE id_matricula='541' AND livro='Teens 6'");
+      db.exec("COMMIT");
+      console.log("acerto: a rematrícula em Teens 6 da 541 foi desfeita — ela não aconteceu");
+    } catch (e) { db.exec("ROLLBACK"); console.warn("desfazer a rematrícula da 541 falhou:", e); }
+  }
+  R("INSERT OR REPLACE INTO config (chave,valor) VALUES ('acerto_livros_v1',?)", agora());
+  if (movidos || ancorados)
+    console.log("acerto de livros: " + movidos + " contrato(s) movido(s), " + ancorados + " lição(ões) afirmada(s)");
+  /* a situação de quem mexeu tem de ser reafirmada: o histórico mudou embaixo dela */
+  for (const a of ACERTO_LIVROS) { try { sincronizarSituacao(a.id); } catch { /* segue */ } }
+  try { sincronizarSituacao("541"); } catch { /* segue */ }
+}
+try { acertarLivrosConferidos(); } catch (e) { console.warn("acerto de livros falhou (segue o baile):", e); }
 
 /* ===== A MATRÍCULA 270 ESTAVA NO LIVRO ERRADO (2026-08-24) =====
    Achado por ele, olhando a planilha CONTROLE contra a tela: *"ele tá na lição 255, ele não tá na

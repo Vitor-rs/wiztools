@@ -465,14 +465,27 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
 /* ===== AS QUATRO ABAS DO CONTRATO, no estilo compacto da referência que ele mandou =====
    Trilho colado no topo do cartão, aba ativa em branco emendando com o corpo — é o que faz as duas
    coisas parecerem uma pasta só, e não uma caixa dentro de outra. */
+/* ===== ALTURA FIXA, E NADA DE ROLAGEM VERTICAL (2026-08-24, dele) =====
+   Ele viu uma barrinha de rolagem no canto do trilho, e a roda do mouse deslocava tudo 2mm.
+   A causa é uma regra sutil do CSS: quando só UM eixo recebe `overflow` diferente de `visible`, o
+   outro deixa de poder ser `visible` e vira `auto` sozinho. `overflow-x:auto` estava, portanto,
+   ligando a rolagem VERTICAL também — e a aba ativa, deslocada 1px para baixo, dava a ela 1px de
+   sobra para rolar.
+   Agora: altura FIXA (o trilho é uma régua, não um contêiner elástico), `overflow-y:hidden`
+   explícito, e as abas alinhadas pelo pé. */
 .mat-tabs{margin:0;display:flex;gap:0;background:#EDF3FA;border:1px solid var(--borda);
-  border-radius:0;padding:5px 6px 0;overflow-x:auto}
+  border-radius:0;padding:5px 6px 0;height:40px;box-sizing:border-box;align-items:flex-end;
+  overflow-x:auto;overflow-y:hidden;overscroll-behavior:contain}
+/* `margin-bottom:0`: `.pg-aba` traz -1px do estilo geral (era o truque do sublinhado das abas de
+   pagina), e dentro de um trilho de altura fixa essa margem negativa deixava 1px de sobra rolavel --
+   o "sobe dois milimetros" que ele viu. */
 .mat-tabs .pg-aba{font-size:12.5px;padding:7px 15px 8px;border-radius:8px 8px 0 0;border:1px solid transparent;
-  border-bottom:0;color:var(--tx2);white-space:nowrap;background:transparent}
+  border-bottom:0;color:var(--tx2);white-space:nowrap;background:transparent;margin-bottom:0}
 .mat-tabs .pg-aba i{font-style:normal;opacity:.4;margin:0 3px}
 .mat-tabs .pg-aba:hover{background:rgba(255,255,255,.6);color:var(--marca)}
-.mat-tabs .pg-aba.on{background:#fff;border-color:var(--borda);color:var(--marca);font-weight:700;
-  position:relative;top:1px}
+/* sem `top:1px`: a emenda com o cabeçalho já é feita pelo `margin-top:-1px` dele, e o deslocamento
+   era exatamente o pixel que criava a sobra de rolagem */
+.mat-tabs .pg-aba.on{background:#fff;border-color:var(--borda);color:var(--marca);font-weight:700}
 .mat-tabs .pg-aba.on::after{display:none}
 /* ===== SALVAR CONTRATO: o watchdog em duas cores (2026-08-24, dele) =====
    PARADO ele é um azul esmaecido — está ali, dá para clicar, mas não chama. SUJO ele fecha em azul
@@ -6059,8 +6072,14 @@ run('getAulasAluno',[alSel.id],function(aulas){var por={};aulas.forEach(function
    NENHUMA ABERTA ao entrar no aluno — é o "recolhida por padrão" que ele pediu: o trilho já diz
    quantos estágios existem e quais são, e abrir um é escolha, não default. */
 var MAT_ABA=null,MAT_ABA_DE=null;
+/* ===== O CONTRATO ATIVO MAIS ANTIGO FICA MAIS À ESQUERDA (2026-08-24, ordem dele) =====
+   A ordem era puramente cronológica, e por isso um estágio ENCERRADO velho ocupava a primeira aba —
+   empurrando para a direita justamente o que está em curso. Agora os abertos vêm primeiro (entre
+   eles, o mais antigo à frente) e os encerrados ficam depois, também em ordem. A trilha continua
+   legível; só deixou de começar pelo passado. */
 function matOrdenadas(){
 return MATRICULAS.slice().sort(function(a,b){
+  if(!!a.fechado!==!!b.fechado)return a.fechado?1:-1;
   var da=(a.percurso&&a.percurso.dataInicio)||'',db=(b.percurso&&b.percurso.dataInicio)||'';
   if(da&&db&&da!==db)return da<db?-1:1;
   if(da&&!db)return -1;

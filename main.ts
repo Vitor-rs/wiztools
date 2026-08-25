@@ -3837,6 +3837,54 @@ function projetarContrato({ idMatricula, livro, inicio, fechadosPre }: any) {
       d = maisDias(d, 1);
     }
   }
+  /* ===== O REPLANEJAMENTO DAS LIÇÕES FUTURAS (2026-08-24, dele) =====
+     *"O que já foi planejado e realizado não mexe. Você usa isso como base de cálculo, porque a
+     partir dali é que você vai fazer outra data planejada."*
+     O passado é HISTÓRIA: a data planejada original de cada lição já dada fica como está, porque é
+     ela que mostra a defasagem. Da última aula dada para baixo, a data planejada é REFEITA — com a
+     agenda de HOJE (que pode ter mudado ontem) e a partir do próximo dia de aula.
+
+     E O FECHAMENTO DA SEMANA SAI DE GRAÇA: ele definiu que a semana fecha no sábado, e a regra
+     "próximo slot depois da última aula dada" já produz esse comportamento sozinha. Quem perde a
+     sexta e repõe no sábado tem, como próximo slot, o mesmo da semana seguinte em que a lição
+     seguinte já estava — nada desloca. Quem só volta na segunda empurra tudo. Sem código especial.
+
+     QUANDO O CONTRATO VENCE, o plano troca de régua: deixa de ser regido pelo contrato e passa a ser
+     regido pelas lições que faltam — *"não vai ser em relação ao contrato, mas ao número de lições
+     que falta pro livro terminar"*. Isso já cai do laço de cima, que continua enquanto houver lição
+     mesmo depois de `fimUtil`; e as VAGAS somem sozinhas, que é o "platô" que ele descreveu. */
+  const ultReal = dadasFila.length ? dadasFila[dadasFila.length - 1].data : null;
+  if (ultReal) {
+    /* de qual linha em diante se replaneja: a primeira que ainda não tem data realizada */
+    let k = 0;
+    for (let x = 0; x < linhas.length; x++) if (linhas[x].dataReal) k = x + 1;
+    if (k < linhas.length) {
+      let d = maisDias(ultReal, 1), giros = 0, idx = k;
+      while (idx < linhas.length && giros++ < TETO) {
+        const dw = diaDaSemana(d);
+        const hs = horasDoDia(d);
+        const fds = (dw === 5 && !sabUtil) || (dw === 6 && !domUtil);
+        if (hs.length && !fds && !fechados.has(d)) {
+          for (const hora of hs) {
+            if (idx >= linhas.length) break;
+            const L = linhas[idx++];
+            L.dataPlan = d; L.dmPlan = d.slice(8, 10) + "/" + d.slice(5, 7);
+            L.mes = d.slice(5, 7); L.ns = semanaDoMes(d); L.ds = codigo[dw]; L.hora = hora;
+            L.replanejada = true;
+          }
+        }
+        d = maisDias(d, 1);
+      }
+      /* o que não coube até aqui perdeu a data: acabou o horizonte de varredura */
+      for (let x = idx; x < linhas.length; x++) { linhas[x].dataPlan = null; linhas[x].dmPlan = null; }
+      /* AS VAGAS QUE PASSARAM DO CONTRATO SOMEM. É o platô: enquanto o contrato corre, a folga
+         aparece e vai encolhendo conforme ele atrasa; vencido o contrato, o que sobra é só lição. */
+      for (let x = linhas.length - 1; x >= 0; x--) {
+        if (linhas[x].vaga && (!linhas[x].dataPlan || linhas[x].dataPlan > fimUtil)) linhas.splice(x, 1);
+      }
+      linhas.forEach((L: any, n2: number) => { L.aula = n2 + 1; });
+    }
+  }
   /* ===== QUANTA FÉ SE PODE TER NA POSIÇÃO =====
      `afirmada` — alguém digitou a lição naquela data. É a escola falando.
      `deduzida` — ninguém digitou, mas o plano ainda corria: a âncora saiu de onde o plano dizia que

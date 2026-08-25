@@ -1400,13 +1400,11 @@ th.ev.ultima .es-ev-data{background:var(--marca);color:#fff}
    O desenho vem do modelo da planilha dele: duas porcentagens que competem. Elas ficam em duas
    linhas na MESMA régua, alinhadas à esquerda, porque o que interessa é a diferença entre as pontas;
    lado a lado, ou em anéis, o olho perde a comparação. */
-/* ===== DUAS COLUNAS: as barras à esquerda, os seis cartões à direita (2026-08-24, dele) =====
-   A esquerda tem largura PRÓPRIA e curta — as barras dizem duas porcentagens e não precisavam da
-   tela toda. O que sobrava de faixa branca virou a grade dos cartões. */
+/* ===== TRÊS ANDARES: título+veredito · as duas barras · a faixa dos cartões =====
+   As barras voltaram à largura inteira porque comparar 56,3% com 55,9% em 150px é impossível — e
+   comparar as duas é justamente o que esta caixa existe para fazer. */
 .pr-corrida{border:1px solid var(--borda);border-radius:12px;padding:12px 14px;background:#FBFCFD;
-  margin:0 0 12px;display:grid;grid-template-columns:minmax(280px,340px) 1fr;gap:16px;align-items:start}
-@media (max-width:1080px){.pr-corrida{grid-template-columns:1fr}}
-.pr-corrida-esq{min-width:0}
+  margin:0 0 12px}
 /* um ponto a mais de corpo, que foi o que ele pediu: 11 → 12 */
 .pr-tit{font-size:12px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.4px;
   margin:0 0 10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
@@ -1419,15 +1417,16 @@ th.ev.ultima .es-ev-data{background:var(--marca);color:#fff}
   font-weight:700;letter-spacing:0;cursor:help}
 .pr-linha{display:flex;align-items:center;gap:10px;margin:0 0 6px}
 .pr-rot{width:52px;font-size:11.5px;color:var(--tx2);font-weight:700}
-/* BARRA CURTA e de largura fixa: a porcentagem encosta nela em vez de ficar na outra ponta da tela */
-.pr-tr{flex:0 0 auto;width:150px;height:14px;background:#EDF1F5;border-radius:7px;overflow:hidden}
+.pr-tr{flex:1 1 auto;min-width:0;height:14px;background:#EDF1F5;border-radius:7px;overflow:hidden}
 .pr-fill{display:block;height:100%;border-radius:7px}
 .pr-fill.livro{background:linear-gradient(90deg,#4C8FD8,#2E6EBE)}
 .pr-fill.tempo{background:linear-gradient(90deg,#E8C46A,#C9962B)}
-.pr-num{width:auto;text-align:left;font-size:12px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--tx2)}
+.pr-num{width:52px;text-align:right;font-size:12px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--tx2)}
 .pr-rot{width:42px;flex:0 0 auto}
-.pr-veredito{margin:8px 0 0;font-size:12px;color:var(--tx2);display:flex;align-items:center;
-  gap:9px;flex-wrap:wrap}
+/* o veredito é o canto superior direito da caixa: `margin-left:auto` dentro do título */
+.pr-veredito{margin:0 0 0 auto;font-size:12px;color:var(--tx2);display:flex;align-items:center;
+  gap:9px;flex-wrap:wrap;text-transform:none;letter-spacing:0;font-weight:400}
+.pr-veredito.pr-excesso{margin:8px 0 0}
 /* o pipe que separa a folga dos meses: mais grosso e mais alto que a fonte, como ele desenhou */
 .pr-pipe{display:inline-block;width:2px;height:15px;border-radius:1px;background:#C6CED8;flex:0 0 auto}
 .pr-veredito.atras{color:#8a5a00}
@@ -1496,16 +1495,29 @@ th.ev.ultima .es-ev-data{background:var(--marca);color:#fff}
    sozinha e quebrava esse pareamento. */
 .pr-tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:0}
 @media (max-width:760px){.pr-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
-.pr-tile{border:1px solid var(--borda);border-radius:10px;padding:9px 11px;background:#fff}
+/* ===== CARTÃO BAIXO E COMPRIDO: 1,3cm de altura (2026-08-24, dele) =====
+   `max-height:49px` são os 1,3cm em 96dpi. O conteúdo é UMA linha — rótulo, valor e legenda — com o
+   anel à esquerda servindo de âncora vertical. */
+.pr-tile{border:1px solid var(--borda);border-radius:10px;padding:0 11px;background:#fff;
+  min-height:44px;max-height:49px;display:flex;align-items:center;gap:9px;overflow:hidden}
+.pr-anel{flex:0 0 auto;display:block}
+.pr-anel-n{font-size:11px;font-weight:700;fill:var(--tx2);text-anchor:middle}
+.pr-tr-txt{min-width:0;display:flex;align-items:baseline;gap:6px;flex-wrap:nowrap;overflow:hidden}
+.pr-tr-pipe{display:inline-block;width:1px;height:11px;background:#D3DAE3;flex:0 0 auto;
+  align-self:center}
 .pr-tile.alerta{border-color:#F0D48A;background:#FFFCF3}
 .pr-tile.bom{border-color:#BEE3C8;background:#F8FCF9}
-.pr-tr-rot{font-size:10px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.4px}
-.pr-tr-val{font-size:19px;font-weight:700;color:var(--tx1);margin:2px 0 0;line-height:1.15}
+.pr-tr-rot{font-size:10px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.4px;
+  flex:0 0 auto;white-space:nowrap}
+/* menor que antes, e é o pedido: o número gigante gastava a altura de um cartão inteiro */
+.pr-tr-val{font-size:13.5px;font-weight:700;color:var(--tx1);margin:0;line-height:1.2;
+  white-space:nowrap;flex:0 0 auto}
 .pr-tr-val small{font-size:11px;font-weight:400;color:var(--tx3);margin-left:4px}
 .pr-tr-val i{font-style:normal;color:var(--marca)}
 .pr-mini{height:4px;background:#EDF1F5;border-radius:2px;margin:6px 0 0;overflow:hidden}
 .pr-mini i{display:block;height:100%;background:#2E6EBE;border-radius:2px}
-.pr-tr-sub{font-size:10.5px;color:var(--tx3);margin:5px 0 0;line-height:1.3}
+.pr-tr-sub{font-size:10.5px;color:var(--tx3);margin:0;line-height:1.3;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;min-width:0}
 
 /* o veredito do pedido de livros — a frase que a tela existe para dizer */
 .pr-pedido{border-radius:10px;padding:10px 13px;font-size:12.5px;line-height:1.45}
@@ -5801,17 +5813,61 @@ var ROTIND={'-1':'Atrasado','0':'No limite','1':'Em dia'}, CLSIND={'-1':'atras',
    metades da mesma pergunta ficam lado a lado — e o que sobrava de faixa branca virou conteúdo. */
 /* Os cartões nascem ANTES do canvas agora: eles são a coluna direita da corrida, e a ordem no
    HTML tem de ser a ordem visual — `.pr-corrida` fecha só depois deles. */
+/* ===== O CARTÃO VIROU UMA LINHA SÓ (2026-08-24, dele) =====
+   *"Você coloca última lição, dois pontos, a lição em negrito só que numa fonte menor, um pipe, e o
+   bloco... deixa tudo numa linha só."* Eram quatro andares — rótulo, número grande, barra e
+   legenda — e o número grande sozinho gastava a altura de um cartão inteiro. Agora tudo cabe em
+   ~1,3cm e sobra largura, que é o que ele prefere: cartão comprido e baixo.
+   E o gráfico deixou de ser barra: *"um anel, tipo um gauge, fica melhor pra alinhar tudo"*. Um
+   anel de 34px alinha-se sozinho na vertical com o texto, o que a barra embaixo não fazia. */
+var PR_ANEL=0;
+function progAnel(pct){
+ if(pct==null)return '';
+ var p=Math.max(0,Math.min(100,pct)), R=13, C=2*Math.PI*R, id='prAnel'+(++PR_ANEL);
+ return '<svg class="pr-anel" viewBox="0 0 34 34" width="34" height="34" aria-hidden="true">'
+  /* DEGRADÊ DE COMPLETUDE, na língua da casa: vermelho no começo, azul Wizard no fim. Ele pediu a
+     mistura das duas cores da marca em vez de um azul chapado — assim a cor já conta o quanto falta,
+     e não só o tamanho do arco. */
+  +'<defs><linearGradient id="'+id+'" x1="0" y1="1" x2="1" y2="0">'
+  +'<stop offset="0" stop-color="#D9534F"/><stop offset=".55" stop-color="#8E5FA8"/>'
+  +'<stop offset="1" stop-color="#33AAE3"/></linearGradient></defs>'
+  +'<circle cx="17" cy="17" r="'+R+'" fill="none" stroke="#E8ECF1" stroke-width="5"/>'
+  +'<circle cx="17" cy="17" r="'+R+'" fill="none" stroke="url(#'+id+')" stroke-width="5"'
+  +' stroke-linecap="round" transform="rotate(-90 17 17)"'
+  +' stroke-dasharray="'+(C*p/100).toFixed(2)+' '+C.toFixed(2)+'"/>'
+  +'<text x="17" y="20.5" class="pr-anel-n">'+Math.round(p)+'</text></svg>';
+}
 function progTile(rot,val,sub,barra,cls){
- return '<div class="pr-tile'+(cls?' '+cls:'')+'"><div class="pr-tr-rot">'+rot+'</div>'
-  +'<div class="pr-tr-val">'+val+'</div>'
-  +(barra!=null?'<div class="pr-mini"><i style="width:'+Math.max(0,Math.min(100,barra))+'%"></i></div>':'')
-  +(sub?'<div class="pr-tr-sub">'+sub+'</div>':'')+'</div>'}
+ return '<div class="pr-tile'+(cls?' '+cls:'')+'">'
+  +progAnel(barra)
+  +'<div class="pr-tr-txt">'
+   +'<span class="pr-tr-rot">'+rot+':</span>'
+   +'<span class="pr-tr-val">'+val+'</span>'
+   +(sub?'<span class="pr-tr-pipe"></span><span class="pr-tr-sub">'+sub+'</span>':'')
+  +'</div></div>'}
 var feitas=(r.faltamLicoes!=null)?(r.licoes-r.faltamLicoes):null;
-h+='<div class="pr-corrida"><div class="pr-corrida-esq">'
+/* ===== A CORRIDA, EM TRÊS ANDARES (2026-08-24, dele) =====
+   As barras voltaram à LARGURA INTEIRA: *"se forem duas porcentagens muito parecidas, visualmente
+   não dá pra ver a diferença"* — e ele tem razão, comparar 56,3% com 55,9% em 150px é impossível.
+   A porcentagem vai no fim de cada barra. As duas frases (folga e meses) subiram para o canto
+   superior direito, na linha do título. E os seis cartões viraram uma faixa embaixo. */
+h+='<div class="pr-corrida">'
  +'<div class="pr-tit">A corrida do contrato'
    +(ind!=null?'<span class="pr-sel '+CLSIND[String(ind)]+'">'+ROTIND[String(ind)]+'</span>':'')
-   +'<button type="button" class="pr-recalc" onclick="progRecalcular()" title="Recalcular este progresso">↻</button>' 
+   +'<button type="button" class="pr-recalc" onclick="progRecalcular()" title="Recalcular este progresso">↻</button>'
    +(r.confianca!=='afirmada'?'<span class="pr-fraco" title="Ninguém registrou a lição desta aula. Abra o Planejamento de aulas e diga qual foi — o quadro se reancora nela.">posição '+r.confianca+'</span>':'')
+   /* o veredito mora AQUI, encostado à direita do título: é o resumo da corrida, e resumo pede o
+      lugar de maior atenção da caixa */
+   +'<div class="pr-veredito '+(r.aulasAtraso>0?'atras':'frente')+'">'
+     +(r.aulasAtraso!=null?'<span><b>'+Math.abs(r.aulasAtraso)+'</b> aula(s) de '
+       +(r.aulasAtraso>0?'atraso':'folga')+'</span>':'')
+     +(r.aulasAtraso!=null&&r.mesesAteFim!=null?'<span class="pr-pipe"></span>':'')
+     /* meses INTEIROS: ele fala "cinco meses", não "5,4", e a casa decimal não muda decisão nenhuma
+        nesta linha — a precisão continua no `término previsto`, que é uma data */
+     +(r.mesesAteFim!=null?'<span>'+(r.mesesAteFim>=0
+        ?'<b>'+Math.round(r.mesesAteFim)+'</b> meses para a finalização do contrato'
+        :'contrato vencido há <b>'+Math.round(Math.abs(r.mesesAteFim))+'</b> meses')+'</span>':'')
+   +'</div>'
  +'</div>'
  +'<div class="pr-linha"><span class="pr-rot">Livro</span>'
    +'<div class="pr-tr"><i class="pr-fill livro" style="width:'+Math.min(100,(r.progressoLivro||0)*100)+'%"></i></div>'
@@ -5819,22 +5875,8 @@ h+='<div class="pr-corrida"><div class="pr-corrida-esq">'
  +'<div class="pr-linha"><span class="pr-rot">Tempo</span>'
    +'<div class="pr-tr"><i class="pr-fill tempo" style="width:'+Math.min(100,(r.progressoTempo||0)*100)+'%"></i></div>'
    +'<span class="pr-num">'+progPct(r.progressoTempo)+'</span></div>'
- /* A LINHA DE BAIXO: a folga/atraso e os meses que faltam, separados por um pipe alto. A frase
-    "em relação ao relógio do contrato" saiu — ela explicava o número uma vez e depois só ocupava
-    espaço —, e no lugar dela entrou o dado que estava perdido no rodapé lá embaixo. */
- +'<div class="pr-veredito '+(r.aulasAtraso>0?'atras':'frente')+'">'
-   +(r.aulasAtraso!=null?'<span><b>'+Math.abs(r.aulasAtraso)+'</b> aula(s) de '
-     +(r.aulasAtraso>0?'atraso':'folga')+'</span>':'')
-   +(r.aulasAtraso!=null&&r.mesesAteFim!=null?'<span class="pr-pipe"></span>':'')
-   /* meses INTEIROS: ele fala "cinco meses", não "5,4" — e a casa decimal não muda decisão nenhuma
-      nesta linha. A precisão continua no `término previsto`, que é uma data. */
-   +(r.mesesAteFim!=null?'<span>'+(r.mesesAteFim>=0
-      ?'<b>'+Math.round(r.mesesAteFim)+'</b> meses para a finalização do contrato'
-      :'contrato vencido há <b>'+Math.round(Math.abs(r.mesesAteFim))+'</b> meses')+'</span>':'')
- +'</div>'
- +(r.excesso>0?'<div class="pr-veredito atras">O contrato já passou do ano em <b>'+progPct(r.excesso)
-    +'</b> e o livro ainda não terminou.</div>':'')
- +'</div>';
+ +(r.excesso>0?'<div class="pr-veredito atras pr-excesso">O contrato já passou do ano em <b>'+progPct(r.excesso)
+    +'</b> e o livro ainda não terminou.</div>':'');
 /* ---- O PAINEL GRANULAR: as barras, as linhas e a costura (Figma dele) ---- */
 h+='<div class="pr-tiles">'
  +progTile('Última lição',(pos.licao?'<i>'+escBloco(pos.licao)+'</i>':'—'),
@@ -5853,7 +5895,7 @@ h+='<div class="pr-tiles">'
  +progTile('Término previsto',(r.termino?dataCurta(r.termino):'—'),
     r.fimContrato?'contrato até '+dataCurta(r.fimContrato):'',null,
     r.terminaNoContrato===false?'alerta':(r.terminaNoContrato===true?'bom':''))
- +'</div></div>';   /* fecha .pr-tiles e .pr-corrida */
+ +'</div></div>';   /* fecha .pr-tiles e .pr-corrida — a faixa dos cartões é o 3º andar */
 h+='<div class="pg-loc"><label for="pg-loc">Localizar lição</label>'
  +'<input id="pg-loc" value="'+escBloco(PROG_LOC)+'" placeholder="29   ou   11 - 21"'
  +' oninput="progLocalizar(this.value)" title="uma lição, ou um intervalo com hífen">'

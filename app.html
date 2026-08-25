@@ -474,6 +474,34 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
 .mat-tabs .pg-aba.on{background:#fff;border-color:var(--borda);color:var(--marca);font-weight:700;
   position:relative;top:1px}
 .mat-tabs .pg-aba.on::after{display:none}
+/* ===== SALVAR CONTRATO: o watchdog em duas cores (2026-08-24, dele) =====
+   PARADO ele é um azul esmaecido — está ali, dá para clicar, mas não chama. SUJO ele fecha em azul
+   escuro com um halo, e é a única coisa da tela que muda de peso: é assim que se vê "tem coisa não
+   salva" sem ler nada. Volta ao esmaecido sozinho quando o estado retorna ao de origem.
+   `align-self:center` e `height:calc(100% - 4px)`: os 4px que ele pediu, dois de cada lado. */
+/* POSIÇÃO ABSOLUTA e não `margin-left:auto`: o trilho é `overflow-x:auto`, e num flex rolável a
+   margem automática não empurra nada — o botão ficava a 600px da borda. Ancorado por `top` e
+   `bottom` em 2px, a altura sai exatamente 4px menor que a do trilho, que foi a medida dele.
+   `padding-right` no trilho reserva a faixa para as abas não correrem por baixo do botão.
+   SELETOR FORTE (`.mat-tabs .acao.mat-salvar`): `.acao` pinta fundo escuro e ganhava da regra de
+   classe única — as duas cores saíam invertidas, escuro parado e claro ao editar. */
+.matricula-card>.mat-tabs{position:relative;padding-right:160px}
+.mat-tabs .acao.mat-salvar{position:absolute;right:8px;top:2px;bottom:2px;margin:0;height:auto;
+  padding:0 16px;font-size:12.5px;font-weight:700;border-radius:8px;white-space:nowrap;
+  background:#DCE9F7;color:#517099;border:1px solid #C2D8EE;box-shadow:none;
+  transition:background .15s ease,color .15s ease,box-shadow .15s ease,border-color .15s ease}
+.mat-tabs .acao.mat-salvar:hover{background:#CBDDF2;color:var(--marca)}
+/* SUJO é o azul-marinho da marca com halo do azul-claro — *"azul escuro com a borda meio
+   brilhante"*. `--azul` sozinho é o azul-CLARO Wizard (#33AAE3) e saía mais fraco que o botão
+   parado, que é o contrário do que o estado tem de dizer. */
+.mat-tabs .acao.mat-salvar.sujo{background:var(--marca);color:#fff;border-color:var(--azul);
+  box-shadow:0 0 0 3px rgba(51,170,227,.35),0 1px 5px rgba(7,29,73,.28)}
+.mat-tabs .acao.mat-salvar.sujo:hover{background:var(--marca-md);color:#fff}
+/* o ↻ do planejamento mora DENTRO do cabeçalho da coluna Duração, como um intruso discreto */
+.plan-recalc{appearance:none;background:none;border:0;color:var(--tx3);cursor:pointer;
+  font-size:13px;line-height:1;padding:0 2px;margin-left:6px;vertical-align:middle;
+  transition:color .12s ease,transform .2s ease}
+.plan-recalc:hover{color:var(--marca);transform:rotate(90deg)}
 /* ===== O CABEÇALHO COMUM ÀS QUATRO ABAS =====
    `1fr auto 1fr` põe a situação no centro geométrico mesmo com a direita cheia de botões. */
 /* `minmax(0,1fr)` e não `1fr`: com `1fr` puro a coluna não encolhe abaixo do conteúdo, e a frase
@@ -500,8 +528,13 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
    feio."* Frequência e Progresso perdem o teto: o conteúdo deles é curto e quem rola passa a ser a
    página. O Planejamento mantém teto porque são 71 linhas — sem ele a página vira um quilômetro —
    mas ele subiu de 60vh para 78vh, que é o "aumenta um pouquinho". */
+/* Nenhuma rolagem DENTRO da aba: quem rola é a página. Sobravam duas — a lista da frequência
+   (teto de 300px) e a moldura do planejamento (78vh). O teto fazia sentido quando as listas eram do
+   aluno INTEIRO e viviam numa aba compartilhada; agora cada uma é de um contrato só, e uma barra de
+   rolagem dentro de um painel dentro de um cartão é a "coisa feia" que ele apontou. */
 .mat-slot .al-hist-corpo,.mat-slot #freq-corpo,.mat-slot #prog-corpo{max-height:none;overflow:visible}
-.mat-slot .plan-moldura{max-height:78vh}
+.mat-slot .freq-lista{max-height:none;overflow:visible}
+.mat-slot .plan-moldura{max-height:none;overflow-x:auto;overflow-y:visible}
 /* arquivar: discreto até o mouse chegar, e aí cresce um pouco — o gesto tira o estágio da tela */
 .mat-arquivar{appearance:none;background:none;border:1px solid transparent;border-radius:8px;
   width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;
@@ -4007,7 +4040,6 @@ body.tem-ensaio{padding-top:29px}
 <div id="hhist-corpo"><div class="al-hist-vazio">Escolha um aluno.</div></div>
 </section>
 <section class="al-hist" id="al-s-freq" style="display:none">
-<h3>Frequência <small>presenças e faltas</small></h3>
 <div id="freq-corpo"><div class="al-hist-vazio">Escolha um aluno.</div></div>
 </section>
 <!-- ===== CURRÍCULO (2026-08-24) =====
@@ -4015,9 +4047,6 @@ body.tem-ensaio{padding-top:29px}
      dia em que ele começou. É calculado a cada abertura, nunca gravado — mexer no calendário letivo
      tem de refletir aqui sem ninguém regerar nada. -->
 <section class="al-hist" id="al-s-planejamento" style="display:none">
-<h3>Planejamento de aulas <small>as lições do contrato atual, dia a dia</small>
-<button type="button" class="al-hist-add" id="plan-recarregar" onclick="planCarregar()"
- title="Recalcular com o calendário de agora">↻</button></h3>
 <div id="plan-corpo"><div class="al-hist-vazio">Escolha um aluno.</div></div>
 </section>
 </div>
@@ -5209,6 +5238,8 @@ if(!alSel){planFechar();return}
 c.innerHTML='<div class="al-hist-vazio">calculando…</div>';
 run('getPlanejamento',[{idMatricula:alSel.id,livro:livro||null}],function(r){planPintar(r)});
 }
+/* recalcular DE VERDADE: o cache guarda a resposta, então limpá-lo antes é o que dá sentido ao botão */
+function planRecalcular(){cacheLimpar();planCarregar(MAT_CTX||undefined)}
 function planAviso(txt){return '<div class="al-hist-vazio">'+txt+'</div>'}
 function planPintar(r){
 var c=$('plan-corpo');if(!c)return;
@@ -5223,25 +5254,15 @@ if((r.contratos||[]).length>1)
     return '<option value="'+escBloco(x.livro)+'"'+(x.atual?' selected':'')+'>'
      +escBloco(nomeLivro(x.livro))+' · '+escBloco(x.contrato)
      +(x.licoes?'':' (sem estrutura)')+'</option>'}).join('')+'</select>';
-var cab='<div class="plan-cab"><b>'+escBloco(r.estagio)+'</b>'
- +'<span class="plan-ct">'+escBloco(r.contrato)+'</span>'+troca
- +'<span class="plan-i">'+r.licoes+' lições</span>'
- +'<span class="plan-i">'+escBloco((r.agenda||[]).join(' · ')||'sem agenda')+'</span>'
- +(r.inicio?'<span class="plan-i">início '+dataCurta(r.inicio)+'</span>':'')
- +(r.ultima?'<span class="plan-i">última '+dataCurta(r.ultima)+'</span>':'')
- /* dizer que houve troca importa: sem isso, quem olha uma linha antiga num horário que já não
-    existe acha que a tabela está errada */
- +(r.trocas?'<span class="plan-i plan-tr" title="A projeção usa a agenda que valia em cada época, não a de hoje.">'
-   +r.trocas+(r.trocas>1?' trocas de horário':' troca de horário')+'</span>':'')
- /* O QUE JÁ ACONTECEU, contado. Falta e não-aula não ocupam linha nenhuma — elas gastam a data, não
-    a lição — então sem este contador elas sumiriam da tela. O detalhe delas fica na aba Frequência,
-    ao lado. */
- +(r.dadas?'<span class="plan-i plan-ct2">'+r.dadas+(r.dadas>1?' aulas dadas':' aula dada')+'</span>':'')
- /* A FALTA NÃO ENTRA AQUI (2026-08-24, dele): *"no planejamento de aulas você não vai anexar as
-    faltas, é só na frequência que eu preciso ver as faltas"*. Esta tabela é a trilha das LIÇÕES —
-    quem faltou não recebeu lição nenhuma, então não há linha para ele ocupar nem número para somar.
-    A aba Frequência, ao lado, continua com o detalhe completo. */
- +'</div>';
+/* ===== NADA ACIMA DA TABELA (2026-08-24, dele) =====
+   *"Todas essas informações em cima da tabela de planejamento de aulas, tira."* Havia ali o nome do
+   estágio, a pílula do contrato, um seletor de livro, a contagem de lições, a agenda, o início, a
+   última aula, as trocas e as aulas dadas — nove coisas, e as cinco primeiras já estão no cabeçalho
+   do contrato, três centímetros acima. O seletor de livro era pior que redundante: era a porta para
+   sair do contrato aberto sem perceber.
+   O aviso das trocas de horário sobreviveu, mas mudou de lugar: virou `title` do ↻, porque continua
+   sendo a explicação de por que uma linha antiga aparece num horário que já não existe. */
+var cab='';
 if(r.precisaInicio){c.innerHTML=cab+planAviso('Ainda não há data de início: ela nasce da entrega do material ou da primeira presença. O planejamento aparece assim que uma das duas acontecer.');return}
 if(r.semEstrutura){c.innerHTML=cab+planAviso('Este estágio ainda não tem lições digitadas — monte a estrutura dele em Biblioteca · Estágios.');return}
 if(r.semAgenda){c.innerHTML=cab+planAviso('Este contrato ainda não tem dias na agenda — marque os dias e horas na aba Cadastro.');return}
@@ -5257,7 +5278,10 @@ var h=cab+'<div class="plan-moldura"><table class="plan-tab"><thead><tr>'
  +'<th class="c-hr" title="check-out">Saída</th>'
  +'<th class="c-lic">Lição / conteúdo</th>'
  +'<th class="c-obs">Observações e anotações</th>'
- +'<th class="c-dur" title="derivada da entrada e da saída">Duração</th>'
+ +'<th class="c-dur" title="derivada da entrada e da saída">Duração'
+   +'<button type="button" class="plan-recalc" onclick="planRecalcular()" title="Recalcular com o calendário de agora'
+   +(r.trocas?' — a projeção usa a agenda que valia em cada época, e este contrato tem '
+     +r.trocas+(r.trocas>1?' trocas de horário':' troca de horário'):'')+'">↻</button></th>'
  +'</tr></thead><tbody>';
 var mesAnt=null, ROT={P:'Presente',F:'Falta',N:'Não aula'};
 (r.linhas||[]).forEach(function(l){
@@ -6172,8 +6196,49 @@ var previewBox=document.createElement('div');previewBox.className='prev-box';pre
 previewBox.innerHTML='<div class="prev-vazio">Marque dia/horário para ver a prévia.</div>';
 corpoIn.appendChild(previewBox);
 
-var salvarBtn=document.createElement('button');salvarBtn.type='button';salvarBtn.className='acao';salvarBtn.textContent='Salvar matrícula';
-corpoIn.appendChild(salvarBtn);
+/* ===== SALVAR CONTRATO MORA NO TRILHO DAS ABAS (2026-08-24, dele) =====
+   *"Ele não devia estar ali pra cada aba... coloca ele no canto, na direita total."* Estava no pé do
+   corpo da aba Info, então quem editava o horário e ia conferir a frequência voltava sem saber se
+   tinha salvo. No trilho ele fica à vista nas quatro abas, e a altura dele acompanha a do trilho —
+   4px mais baixo, que foi a medida que ele deu.
+   "Matrícula" virou "contrato", que é o nome que ele usa: matrícula é a primeira vez do aluno na
+   escola; o que se salva aqui é o vínculo `ID/N`. */
+var salvarBtn=document.createElement('button');salvarBtn.type='button';
+salvarBtn.className='acao mat-salvar';salvarBtn.textContent='Salvar contrato';
+tabs.appendChild(salvarBtn);
+/* ===== O WATCHDOG DE ALTERAÇÕES =====
+   *"É que nem o Excel: qualquer coisinha que mude ele fica azul escuro; se eu desfizer e o estado
+   voltar ao que era, o botão volta ao normal."* Não basta um sinalizador de "mexeram" — tem de
+   COMPARAR com o estado de origem, senão desfazer não apaga o alerta.
+   A assinatura é uma string com tudo que o contrato guarda; comparar duas strings é barato o
+   bastante para rodar a cada tecla. */
+function matAssinatura(){
+ try{
+  return JSON.stringify({
+   mod:selMod?selMod.value:null, tipo:selTipo?selTipo.value:null,
+   vip:vipChk?!!vipChk.checked:null,
+   profs:profsWidget?profsWidget.get().slice().sort():null,
+   agenda:lerItensEditor(editor).map(function(x){return x.dia+' '+x.hora}).sort()
+  });
+ }catch(e){return null}
+}
+var matBase=null;
+function matVerSujo(){
+ if(matBase===null)return;
+ var mudou=matAssinatura()!==matBase;
+ salvarBtn.classList.toggle('sujo',mudou);
+ salvarBtn.title=mudou?'Há alterações não salvas neste contrato':'Nada mudou neste contrato';
+}
+function matMarcarLimpo(){matBase=matAssinatura();matVerSujo()}
+/* pendurado no cartão para `matAba` e o gravar poderem rearmar de fora do fecho */
+card.matMarcarLimpo=matMarcarLimpo;
+card.matVerSujo=matVerSujo;
+/* qualquer tecla, clique ou troca dentro do contrato reavalia. Um listener no cartão inteiro em vez
+   de um por campo: a grade de horários nasce e morre a cada repintura, e listener por campo se
+   perderia junto com ela. */
+['input','change','click'].forEach(function(ev){
+ card.addEventListener(ev,function(){setTimeout(matVerSujo,0)},true)});
+setTimeout(matMarcarLimpo,0);
 
 /* O contador de sequência é DESTE cartão, não global.
    Era `PREV_SEQ` compartilhado: com o aluno em dois livros, os dois cartões pediam a prévia ao
@@ -6465,7 +6530,10 @@ if(HIST_EDIT===h.id){
    function(r){HIST_EDIT=null;msg('Registro atualizado.');histDepois(r)})};
  var no=document.createElement('button');no.type='button';no.className='remover';no.textContent='✕';
  no.title='Cancelar';no.onclick=function(){HIST_EDIT=null;histRender(hs)};
- row.appendChild(eSit);row.appendChild(eLiv);row.appendChild(eData);
+ /*  saiu quando o dropdown de estagio foi removido, e este appendChild ficou para tras:
+    ReferenceError no meio do forEach, que abortava o render inteiro -- o registro simplesmente
+    SUMIA ao clicar no lapis. Lembrete: remover a criacao de um no obriga a caçar todos os usos. */
+ row.appendChild(eSit);row.appendChild(eData);
  var ac=document.createElement('span');ac.className='hist-acoes';
  ac.appendChild(ok);ac.appendChild(no);row.appendChild(ac);
  lista.appendChild(row);return}

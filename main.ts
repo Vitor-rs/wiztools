@@ -3724,7 +3724,21 @@ function projetarContrato({ idMatricula, livro, inicio, fechadosPre }: any) {
        Num dia com uma hora regular e um avulso, a PRIMEIRA é a aula normal e a segunda é a extra. */
     const regulares = horasDoDia(p.data).length;
     const extras = avulsosPorData[p.data] || [];
-    const quantas = Math.max(1, Number(p.aulas_feitas) || (regulares + extras.length) || 1);
+    /* ===== A AULA DE TAREFA NÃO CONSOME LIÇÃO (2026-08-25, dele) =====
+       *"Nem sempre a aula que ela tem é aula de lição, às vezes é aula de tarefa."* `aulas_feitas=0`
+       é exatamente isso: a aula ACONTECEU — está lançada, conta na frequência, aparece na linha do
+       tempo — e o planejamento não anda. O `Math.max(1, …)` de antes engolia o zero e obrigava toda
+       presença a gastar uma lição, que é o que fazia a posição do aluno correr na frente da
+       realidade. Zero só vale quando foi DIGITADO; `null` continua caindo na dedução pela agenda. */
+    const digitou = p.aulas_feitas != null && p.aulas_feitas !== "";
+    const quantas = digitou ? Math.max(0, Number(p.aulas_feitas))
+                            : Math.max(1, (regulares + extras.length) || 1);
+    if (!quantas) {
+      /* fica na linha do tempo como aula dada que não avançou lição — some do planejamento, não da
+         história */
+      eventos.push({ data: p.data, tipo: "tarefa", ordem: null, licao: null });
+      continue;
+    }
     for (let k = 0; k < quantas; k++) {
       const extra = k >= regulares ? (extras[k - regulares] || extras[0] || null) : null;
       dadasFila.push({ ...p, ordem: k, evento: eventos.length,
@@ -7367,6 +7381,42 @@ function acertar2316() {
   } catch (e) { db.exec("ROLLBACK"); console.warn("acerto da 2316 falhou:", e); return; }
   console.log("acerto: 2316 — 04/08 vale 2 lições (Useful Language + Lesson 1) e a lição de hoje é L4");
 }
+/* ===== E A CONTA TEM DE FECHAR EM L4 HOJE (2026-08-25, ordem dele) =====
+   *"Ela tá na lição 4 hoje, nem que você tenha que criar um registro, fazer um malabarismo."*
+   Havia duas lições-slot a mais entre 04/08 e hoje. O malabarismo usa um mecanismo que já é do
+   domínio, não um remendo: `aulas_feitas = 0` marca a AULA DE TAREFA — a aula que aconteceu e não
+   avançou lição, que foi a explicação dele mesmo (*"nem sempre a aula é de lição, às vezes é de
+   tarefa"*). Assim a presença continua lançada, a frequência continua contando, e só o planejamento
+   deixa de andar naquele dia.
+   ESCOLHI 06/08 E 13/08 e digo por quê: são as duas datas em que a lição planejada e a realizada
+   ficavam mais afastadas, então tirá-las da contagem é o que mais aproxima o quadro do calendário
+   real. Não sei quais foram de fato as aulas de tarefa — quem sabe é ele, e trocar é mudar dois
+   valores aqui. Cada uma fica registrada no diário com tipo `ajuste`, e é por ali que se acham. */
+function fechar2316EmL4() {
+  if (G("SELECT valor FROM config WHERE chave='is2316_l4_v1'")) return;
+  const ID = "2316", LV = "Teens 2";
+  const est = G(`SELECT id FROM estagio WHERE livro=? ORDER BY (status='ativo') DESC, legado, id LIMIT 1`, LV);
+  const l4 = est ? G("SELECT ordem FROM estagio_licao WHERE dono_id=? AND numero=4", est.id) : null;
+  if (!l4) return;
+  const hoje = dataISO(new Date());
+  const tarefa = ["2026-08-06", "2026-08-13"];
+  db.exec("BEGIN");
+  try {
+    for (const d of tarefa) {
+      const n = R(`UPDATE presenca SET aulas_feitas=0 WHERE id_matricula=? AND livro=? AND data=? AND status='P'`,
+        ID, LV, d).changes;
+      if (n) R(`INSERT INTO diario (momento,id_matricula,livro,data,tipo,valor,detalhe)
+                VALUES (?,?,?,?,'ajuste','tarefa',?)`, agora(), ID, LV, d,
+        "aula de tarefa: aconteceu e não avançou lição — ajuste para a posição fechar em L4");
+    }
+    R("UPDATE presenca SET licao_ordem=NULL WHERE id_matricula=? AND livro=?", ID, LV);
+    R("UPDATE presenca SET licao_ordem=? WHERE id_matricula=? AND livro=? AND data=?", l4.ordem, ID, LV, hoje);
+    R("INSERT OR REPLACE INTO config (chave,valor) VALUES ('is2316_l4_v1',?)", agora());
+    db.exec("COMMIT");
+  } catch (e) { db.exec("ROLLBACK"); console.warn("fechar a 2316 em L4 falhou:", e); return; }
+  console.log("acerto: 2316 — 06/08 e 13/08 marcadas como aula de tarefa; a posição de hoje fecha em L4");
+}
+try { fechar2316EmL4(); } catch (e) { console.warn("fechar a 2316 em L4 falhou (segue o baile):", e); }
 try { acertar2316(); } catch (e) { console.warn("acerto da 2316 falhou (segue o baile):", e); }
 
 /* ===== O CONTRATO COMEÇOU UM ANO ANTES (2026-08-25) =====

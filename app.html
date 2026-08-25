@@ -528,13 +528,39 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
    feio."* Frequência e Progresso perdem o teto: o conteúdo deles é curto e quem rola passa a ser a
    página. O Planejamento mantém teto porque são 71 linhas — sem ele a página vira um quilômetro —
    mas ele subiu de 60vh para 78vh, que é o "aumenta um pouquinho". */
-/* Nenhuma rolagem DENTRO da aba: quem rola é a página. Sobravam duas — a lista da frequência
-   (teto de 300px) e a moldura do planejamento (78vh). O teto fazia sentido quando as listas eram do
-   aluno INTEIRO e viviam numa aba compartilhada; agora cada uma é de um contrato só, e uma barra de
-   rolagem dentro de um painel dentro de um cartão é a "coisa feia" que ele apontou. */
-.mat-slot .al-hist-corpo,.mat-slot #freq-corpo,.mat-slot #prog-corpo{max-height:none;overflow:visible}
-.mat-slot .freq-lista{max-height:none;overflow:visible}
-.mat-slot .plan-moldura{max-height:none;overflow-x:auto;overflow-y:visible}
+/* ===== A FRONTEIRA DA ROLAGEM MUDA DE LUGAR (2026-08-24, dele) =====
+   *"O header que tem essas quatro abas tá indo junto... esse header e o sub-header não podem ser
+   scrolláveis, cuidado com isso."*
+   Até aqui quem rolava era o `.pg-corpo` da página, e o cartão inteiro subia com ele — abas e
+   cabeçalho do contrato inclusive, que é justamente o que precisa ficar à vista.
+   Agora a página NÃO rola: `.pg-corpo` vira uma coluna que só distribui altura, o cartão aberto toma
+   o que sobra, e a rolagem nasce DENTRO dele, abaixo do cabeçalho comum.
+   `min-height:0` em cada degrau da corrente é o que permite ao filho encolher — sem ele, um item
+   flex nunca fica menor que o próprio conteúdo e a rolagem volta para a janela. */
+#tab-alunos>.pg-corpo{overflow:hidden;display:flex;flex-direction:column;padding-bottom:0}
+/* `#al-p-cadastro` estava FORA da corrente: `#mat-lista` nao e filho direto do `.pg-corpo`, e um
+   degrau em display:block no meio quebra a distribuicao de altura inteira -- o conteudo estourava e
+   ficava CORTADO, que e pior que rolar. */
+#tab-alunos>.pg-corpo>#al-p-cadastro{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
+#mat-lista{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
+#mat-lista>.matricula-card{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
+.matricula-card>.mat-tabs,.matricula-card>.mat-cab{flex:0 0 auto}
+/* o acordeão morreu quando o cartão passou a existir só com a aba escolhida; o grid de linhas dele
+   atrapalha o cálculo de altura do flex */
+.matricula-card>.mat-corpo{display:block;flex:1 1 auto;min-height:0;overflow:auto;
+  scrollbar-gutter:stable}
+.matricula-card>.mat-slot{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+.mat-slot>.al-hist{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
+.mat-slot>.al-hist>div{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
+/* ===== E CADA ABA ROLA NO LUGAR QUE ELE ESCOLHEU =====
+   PLANEJAMENTO: *"prefiro que o scrolling fique só na tabela"*. FREQUÊNCIA: os cartõezinhos ficam
+   parados e a lista rola. PROGRESSO: *"toda a região desse dashboard"*. INFO: tudo abaixo do
+   cabeçalho. */
+.matricula-card[data-sub="prog"]>.mat-slot{overflow:auto;scrollbar-gutter:stable}
+.mat-slot .plan-moldura{flex:1 1 auto;min-height:0;max-height:none;overflow:auto;scrollbar-gutter:stable}
+.mat-slot .freq-resumo{flex:0 0 auto}
+.mat-slot .freq-lista{flex:1 1 auto;min-height:0;max-height:none;overflow:auto;scrollbar-gutter:stable}
+.mat-slot .al-hist-corpo,.mat-slot #freq-corpo,.mat-slot #prog-corpo{max-height:none}
 /* arquivar: discreto até o mouse chegar, e aí cresce um pouco — o gesto tira o estágio da tela */
 .mat-arquivar{appearance:none;background:none;border:1px solid transparent;border-radius:8px;
   width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;

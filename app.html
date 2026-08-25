@@ -1425,9 +1425,41 @@ th.ev.ultima .es-ev-data{background:var(--marca);color:#fff}
 .pg-leg i.c-rev{background:#2E9E5B}
 .pg-leg i.c-falta{background:#F2A93B}
 .pg-leg i.c-nao{background:#CBD2DA}
-.pg-moldura{border:1px solid var(--borda);border-radius:12px;background:#EFF1F3;padding:6px;
-  overflow-x:auto;margin:0 0 12px}
-.pg-svg{display:block;width:100%;min-width:820px;height:auto}
+/* ===== A MOLDURA VIROU O PALCO DO CANVAS (2026-08-24) =====
+   Nada de `overflow-x:auto` nem de `min-width`: quem recorta agora é o `viewBox`, e barra de rolagem
+   dentro de um canvas navegável seria uma segunda forma — concorrente — de mover a mesma coisa. */
+.pg-moldura{position:relative;border:1px solid var(--borda);border-radius:12px;background:#EFF1F3;
+  padding:6px;margin:0 0 12px;overflow:hidden}
+.pg-svg{display:block;width:100%;height:auto;cursor:grab;touch-action:none;user-select:none}
+.pg-svg.arrastando{cursor:grabbing}
+/* ===== OS CONTROLES, no canto superior direito, como em canvas de diagrama ===== */
+.pg-ctrl{position:absolute;top:10px;right:12px;display:flex;gap:3px;z-index:2;
+  background:rgba(255,255,255,.92);border:1px solid var(--borda);border-radius:9px;padding:3px;
+  box-shadow:0 1px 4px rgba(0,0,0,.10)}
+.pg-ctrl button{appearance:none;width:26px;height:24px;border:0;background:none;border-radius:6px;
+  color:var(--tx2);font-size:14px;line-height:1;cursor:pointer;display:inline-flex;
+  align-items:center;justify-content:center;transition:background .12s ease,color .12s ease}
+.pg-ctrl button:hover{background:var(--azul-cl);color:var(--marca)}
+.pg-ctrl button.fechar:hover{background:#FDECEE;color:#B23A48}
+/* ===== O DIALOG DE TELA CHEIA =====
+   `position:fixed` com as bordas medidas na abertura: a de cima sai do fio abaixo do nome do aluno,
+   as laterais da área de conteúdo. Ele cobre a página do aluno da linha cinza para baixo, e só. */
+.pg-max{position:fixed;z-index:900;background:#fff;border:1px solid var(--borda);
+  border-radius:12px 12px 0 0;box-shadow:0 -2px 24px rgba(7,29,73,.18);
+  display:flex;flex-direction:column;overflow:hidden;animation:pgMaxEntra .16s ease-out}
+/* SÓ OPACIDADE na entrada, nunca `transform`: uma animação que não chega ao fim (aba em segundo
+   plano nem sempre compõe frames) deixaria o dialog PARADO 8px fora do lugar, e a posição dele é
+   medida, não decorativa. */
+@keyframes pgMaxEntra{from{opacity:0}to{opacity:1}}
+@media (prefers-reduced-motion:reduce){.pg-max{animation:none}}
+.pg-max-barra{flex:0 0 auto;display:flex;align-items:center;gap:10px;padding:8px 12px;
+  border-bottom:1px solid var(--borda);background:#FBFCFD}
+.pg-max-barra b{font-size:13px;color:var(--marca)}
+.pg-max-barra span{font-size:11px;color:var(--tx3);font-variant-numeric:tabular-nums}
+.pg-max-barra .pg-ctrl{position:static;margin-left:auto;box-shadow:none;background:transparent;border:0;padding:0}
+/* o palco ocupa o resto e o SVG se ajusta a ele — o "shrink to fit" que ele pediu sai daqui */
+.pg-max-palco{flex:1 1 auto;min-height:0;background:#EFF1F3;padding:8px;display:flex}
+.pg-max-palco .pg-svg{width:100%;height:100%;min-width:0}
 .pg-svg .pg-rot{font-size:11px;fill:var(--azul-esc);text-anchor:end;font-weight:600}
 .pg-svg .pg-rot.pg-pend{fill:#C0392B;font-size:9.5px;font-weight:400}
 .pg-svg .pg-rot.pg-hist{text-anchor:start;fill:#7B4BC9;font-size:12px}
@@ -5589,6 +5621,135 @@ run('getPlanejamento',[{idMatricula:alSel.id,livro:livro||null}],function(r){PRO
 /* recalcular DE VERDADE: o cache das abas guarda a resposta, então limpar antes é o que faz o
    botão significar alguma coisa */
 function progRecalcular(){cacheLimpar();progCarregar(MAT_CTX||undefined)}
+
+/* ===== O CANVAS DO DASHBOARD =====
+   O desenho inteiro mede 1120×524 em unidades próprias. A VISTA é um retângulo dentro dele, e é ela
+   que vira o `viewBox`. Zoom = encolher/crescer o retângulo em torno de um ponto; pan = deslocá-lo.
+   TUDO EM UNIDADES DO DESENHO, nunca em pixels: assim a mesma conta serve para o painel de 1000px e
+   para a tela cheia, e o "shrink to fit" sai de graça. */
+var PG_W=1120, PG_H=524;
+/* a faixa da barra do tempo: rótulos em y=116, barra em 132..162, "término do contrato" em 144/158 */
+var PG_PADRAO={x:0,y:100,w:PG_W,h:72};
+var PG_VISTA=null, PG_ARRASTE=null;
+function pgSvgs(){return [].slice.call(document.querySelectorAll('.pg-svg'))}
+function pgAplicar(){
+ if(!PG_VISTA)return;
+ var v=PG_VISTA;
+ pgSvgs().forEach(function(el){el.setAttribute('viewBox',
+   v.x.toFixed(1)+' '+v.y.toFixed(1)+' '+v.w.toFixed(1)+' '+v.h.toFixed(1))});
+}
+/* LIMITES, não canvas infinito: o desenho não some de vista por mais que se arraste, e o zoom para
+   antes de virar um pixel gigante ou o mapa-múndi. Ele foi explícito — *"não infinito, mas ele tem
+   constraints"*. */
+function pgLimitar(){
+ var v=PG_VISTA;
+ v.w=Math.max(90,Math.min(PG_W*1.6,v.w));
+ v.h=v.w*(PG_PADRAO.h/PG_PADRAO.w)*(PG_VISTA.prop||1);
+ v.x=Math.max(-PG_W*0.25,Math.min(PG_W*1.25-v.w,v.x));
+ v.y=Math.max(-PG_H*0.25,Math.min(PG_H*1.25-v.h,v.y));
+}
+function pgDefinir(vista,prop){
+ PG_VISTA={x:vista.x,y:vista.y,w:vista.w,h:vista.h,prop:prop||(vista.h/vista.w)/(PG_PADRAO.h/PG_PADRAO.w)};
+ pgLimitar();pgAplicar();
+}
+function pgHome(){pgDefinir(PG_PADRAO,1)}
+function pgFit(){pgDefinir({x:-8,y:-8,w:PG_W+16,h:PG_H+16},((PG_H+16)/(PG_W+16))/(PG_PADRAO.h/PG_PADRAO.w))}
+/* zoom em torno do CENTRO da vista: aproximar não pode fazer o que se está olhando escapar */
+function pgZoom(fator,cx,cy){
+ if(!PG_VISTA)pgHome();
+ var v=PG_VISTA;
+ var px=(cx==null?v.x+v.w/2:cx), py=(cy==null?v.y+v.h/2:cy);
+ var nw=v.w*fator, nh=v.h*fator;
+ v.x=px-(px-v.x)*(nw/v.w); v.y=py-(py-v.y)*(nh/v.h);
+ v.w=nw; v.h=nh;
+ pgLimitar();pgAplicar();
+}
+/* arrastar: o delta em pixels vira delta em unidades do desenho pela regra de três da largura */
+function pgIniciarArraste(ev,el){
+ if(ev.button!==0)return;
+ var cx=ev.clientX,cy=ev.clientY,v={x:PG_VISTA.x,y:PG_VISTA.y};
+ var cxa=el.getBoundingClientRect();
+ PG_ARRASTE={mover:function(e){
+   var k=PG_VISTA.w/Math.max(1,cxa.width);
+   PG_VISTA.x=v.x-(e.clientX-cx)*k;
+   PG_VISTA.y=v.y-(e.clientY-cy)*k*( (PG_VISTA.h/PG_VISTA.w) / (cxa.height/cxa.width) );
+   pgLimitar();pgAplicar();
+ }};
+ el.classList.add('arrastando');
+ document.addEventListener('mousemove',PG_ARRASTE.mover);
+ document.addEventListener('mouseup',function fim(){
+   document.removeEventListener('mousemove',PG_ARRASTE.mover);
+   document.removeEventListener('mouseup',fim);
+   pgSvgs().forEach(function(x){x.classList.remove('arrastando')});
+   PG_ARRASTE=null;},{once:true});
+ ev.preventDefault();
+}
+/* ===== TELA CHEIA: um DIALOG, e ele se mede na hora de abrir =====
+   *"Ele vai ocupar tudo, exceto o nome do aluno... dessa linha cinza para baixo."* O componente que
+   ele descreveu tem nome: é um **dialog** (no shadcn, `Dialog`; no Material-UI, `Modal`) — toast é a
+   notificaçãozinha e popover é o balão ancorado num elemento.
+   A borda de cima NÃO é um número fixo: sai de `getBoundingClientRect()` do fio, na abertura e de
+   novo a cada `resize`. É o "ele precisa se localizar pra ser exibido" — a régua é a tela de quem
+   está olhando, não um palpite meu. */
+var PG_MAX=null;
+function pgMedirMax(){
+ if(!PG_MAX)return;
+ var fio=document.querySelector('#al-faixa-cx .pg-fio');
+ var area=document.getElementById('conteudo');
+ var rf=fio?fio.getBoundingClientRect():{bottom:120};
+ var ra=area?area.getBoundingClientRect():{left:0,right:innerWidth};
+ PG_MAX.style.top=Math.round(rf.bottom+6)+'px';
+ PG_MAX.style.left=Math.round(ra.left)+'px';
+ PG_MAX.style.width=Math.round(ra.right-ra.left)+'px';
+ PG_MAX.style.bottom='0px';
+}
+function pgMaximizar(){
+ if(PG_MAX){pgFecharMax();return}
+ var r=PROGR; if(!r)return;
+ PG_MAX=document.createElement('div');
+ PG_MAX.className='pg-max';
+ PG_MAX.setAttribute('role','dialog');
+ PG_MAX.setAttribute('aria-label','Progresso do aluno em tela cheia');
+ PG_MAX.innerHTML='<div class="pg-max-barra">'
+  +'<b>'+escBloco(r.estagio||'')+'</b><span>'+escBloco(r.contrato||'')+'</span>'
+  +'<div class="pg-ctrl">'
+  +'<button type="button" onclick="pgZoom(0.8)" title="Aproximar">+</button>'
+  +'<button type="button" onclick="pgZoom(1.25)" title="Afastar">−</button>'
+  +'<button type="button" onclick="pgHome()" title="Voltar à vista padrão">⌖</button>'
+  +'<button type="button" onclick="pgFit()" title="Ver o desenho inteiro">⤢</button>'
+  +'<button type="button" class="fechar" onclick="pgFecharMax()" title="Fechar (Esc)">✕</button>'
+  +'</div></div>'
+  +'<div class="pg-max-palco">'+progSvg(r)+'</div>';
+ document.body.appendChild(PG_MAX);
+ pgMedirMax();
+ addEventListener('resize',pgMedirMax);
+ document.addEventListener('keydown',pgEscMax,true);
+ pgLigarGestos();
+ /* abre mostrando o desenho INTEIRO: é para isso que se maximiza. O ⌖ traz de volta a faixa padrão. */
+ pgFit();
+}
+function pgEscMax(e){if(e.key==='Escape'){e.preventDefault();pgFecharMax()}}
+function pgFecharMax(){
+ if(!PG_MAX)return;
+ removeEventListener('resize',pgMedirMax);
+ document.removeEventListener('keydown',pgEscMax,true);
+ PG_MAX.remove();PG_MAX=null;
+ pgHome();
+}
+/* liga os gestos nos SVGs que existirem agora (o do painel e, quando aberto, o da tela cheia) */
+function pgLigarGestos(){
+ pgSvgs().forEach(function(el){
+  if(el.dataset.ligado)return; el.dataset.ligado='1';
+  el.addEventListener('mousedown',function(e){pgIniciarArraste(e,el)});
+  el.addEventListener('wheel',function(e){
+   e.preventDefault();
+   var r=el.getBoundingClientRect(), v=PG_VISTA||PG_PADRAO;
+   var px=v.x+((e.clientX-r.left)/r.width)*v.w;
+   var py=v.y+((e.clientY-r.top)/r.height)*v.h;
+   pgZoom(e.deltaY>0?1.15:0.87,px,py);
+  },{passive:false});
+ });
+}
 function progPct(x){return x==null?'—':(Math.round(x*1000)/10).toFixed(1)+'%'}
 function progPintar(){
 var c=$('prog-corpo'),r=PROGR;if(!c||!r)return;
@@ -5630,7 +5791,23 @@ h+='<div class="pg-loc"><label for="pg-loc">Localizar lição</label>'
  +' oninput="progLocalizar(this.value)" title="uma lição, ou um intervalo com hífen">'
  +'<span class="pg-leg"><i class="c-fez"></i>lição dada<i class="c-rev"></i>revisão'
    +'<i class="c-falta"></i>falta<i class="c-nao"></i>não-aula</span></div>';
-h+='<div class="pg-moldura">'+progSvg(r)+'</div>';
+/* ===== O DASHBOARD VIROU CANVAS NAVEGÁVEL (2026-08-24, dele) =====
+   *"Como se fosse um canvas... tipo Mermaid.js, o Miro, que você navega com o botão de mais e
+   menos, de maximizar, de localizar o ponto padrão de visualização."*
+   Quem navega é o `viewBox` do próprio SVG, não um `transform` de CSS: zoom em vetor não borra, o
+   texto continua nítido em qualquer aproximação, e a conta de pan/zoom vira aritmética simples em
+   unidades do desenho.
+   A VISTA PADRÃO é a faixa da barra do tempo, que foi o que ele pediu para ver ao abrir — o resto
+   do desenho continua lá, a um gesto de distância. */
+h+='<div class="pg-moldura" id="pg-moldura">'
+ +'<div class="pg-ctrl">'
+ +'<button type="button" onclick="pgZoom(0.8)" title="Aproximar">+</button>'
+ +'<button type="button" onclick="pgZoom(1.25)" title="Afastar">−</button>'
+ +'<button type="button" onclick="pgHome()" title="Voltar à vista padrão: a barra do tempo">⌖</button>'
+ +'<button type="button" onclick="pgFit()" title="Ver o desenho inteiro">⤢</button>'
+ +'<button type="button" onclick="pgMaximizar()" title="Abrir em tela cheia">⛶</button>'
+ +'</div>'
+ +progSvg(r)+'</div>';
 /* ---- OS NÚMEROS, cada um com o seu gráfico ---- */
 function progTile(rot,val,sub,barra,cls){
  return '<div class="pr-tile'+(cls?' '+cls:'')+'"><div class="pr-tr-rot">'+rot+'</div>'
@@ -5670,10 +5847,13 @@ else if(r.terminaNoContrato!=null)
     :'No ritmo de hoje ele <b>não termina dentro do contrato</b> ('+dataCurta(r.termino)+' contra '
       +dataCurta(r.fimContrato)+') — pedir o próximo agora é risco de encalhe.')+'</div>';
 h+='<div class="pr-rodape">'
- +'<button type="button" class="acao sec" onclick="alAba(&quot;matriculas&quot;);alInfoAba(&quot;planejamento&quot;)">Ver o planejamento de aulas →</button>'
+ +'<button type="button" class="acao sec" onclick="matIrPara(&quot;plan&quot;)">Ver o planejamento de aulas →</button>'
  +'<span class="plan-i">'+(r.mesesAteFim!=null?(r.mesesAteFim>=0?r.mesesAteFim+' meses até o fim do contrato'
     :'contrato vencido há '+Math.abs(r.mesesAteFim)+' meses'):'')+'</span></div>';
 c.innerHTML=h;
+/* a vista padrão vale a cada repintura: trocar de aluno ou de contrato não pode herdar o zoom do
+   anterior, senão a tela abre num pedaço aleatório do desenho de outra pessoa */
+pgHome();pgLigarGestos();
 }
 
 /* ===== PAINEL DE PROGRESSO (2026-08-24, dele) =====
@@ -6346,6 +6526,13 @@ var MAT_SEC={info:['al-s-situacao','al-s-horario'],freq:['al-s-freq'],
    `slot.innerHTML=''` DESTRUÍA a seção que estava lá — `al-s-freq` sumia do documento para sempre, e
    o próximo clique achava `freq-corpo` nulo e estourava em `Cannot set properties of null`.
    Agora o inquilino anterior VOLTA para o depósito antes de o próximo entrar. */
+/* atalho entre as abas do contrato aberto — usado pelos botões "ver o planejamento" e afins, que
+   antes navegavam pelas abas de topo que já não existem */
+function matIrPara(t){
+var card=[].slice.call(document.querySelectorAll('#mat-lista .matricula-card'))
+ .filter(function(c){return c.style.display!=='none'})[0];
+if(card)matSubAba(card,t);
+}
 function matEsvaziarSlot(slot){
 if(!slot)return;
 var casa=$('al-p-matriculas'), casaP=$('al-p-progresso');

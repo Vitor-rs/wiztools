@@ -122,3 +122,28 @@ segurança.
 | `criar-atalho.bat` / `.ps1` | roda uma vez no Dell pra criar o atalho "Wizard Recepção" |
 | `criar-atalho-sala.bat` / `.ps1` | roda uma vez em cada notebook pra criar o atalho "Wizard Sala" |
 | `liberar-firewall.bat` | roda uma vez no Dell, como admin: abre a porta 8420 para a rede |
+| `aluno-modelo.ts` | esvazia um banco de cópia e monta o aluno fictício de desenvolvimento |
+| `modelo-dados-aluno.xlsx` | o modelo de dados em planilha: uma aba por tabela do banco |
+
+## Banco de trabalho com um aluno fictício
+
+O `wizard.db` da recepção tem gente real e a operação de verdade. Para desenvolver e testar sem
+tocar nele existe o **aluno-modelo**: um banco com o catálogo inteiro (livros, estágios, materiais,
+calendário) e **um único aluno inventado** — João da Silva, matrícula 9001, Kids 2 3rd Edition,
+terças e quintas às 13:00, matriculado em 13/04/2026.
+
+```
+copy wizard.db wizard-ensaio.db          (ou: deno run -A main.ts --init, com WIZ_DB apontado)
+deno run -A aluno-modelo.ts --db=wizard-ensaio.db
+```
+
+Ele apaga toda a operação, preserva o catálogo e reconstrói o João com frequência até hoje: faltas,
+reposições, anteposições, duas aulas de tarefa e um primeiro dia com duas lições na mesma hora — o
+bastante para as telas de planejamento, progresso e encaminhamentos terem o que mostrar.
+
+Três travas, porque o script apaga dados: `--db` é obrigatório, `wizard.db` é recusado pelo nome, e
+a porta 8420 precisa estar livre (ele sobe o servidor sozinho para construir pelas rotas do app).
+
+O **`modelo-dados-aluno.xlsx`** é esse mesmo banco exportado: uma aba por tabela, 42 no total, com
+um índice na frente agrupado por assunto. Serve para ler o modelo de dados inteiro sem abrir o
+SQLite — e para ver, tabela a tabela, tudo o que uma única matrícula toca.

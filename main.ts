@@ -397,48 +397,6 @@ addColuna("presenca", "observacao", "TEXT");
    É a diferença entre o que o sistema DEDUZ e o que a escola SABE: sem ela, a posição do aluno é a
    contagem automática de presenças; com ela, a contagem inteira se reancora no que ele digitou. */
 addColuna("presenca", "licao_ordem", "INTEGER");
-/* ===== DATA DE INÍCIO NO FUTURO (2026-08-24) =====
-   Achado ao cruzar o sistema com a planilha "Progresso dos Alunos.xlsm", que ele mantém à mão desde
-   2021. A matrícula 1988 (L. Kids 2) tinha `data_inicio` em **2027**-02-03: um ano à frente, e depois
-   da primeira presença dela, que é de 27/07/2026. Não é opinião contra opinião — é data impossível,
-   e ela desloca o planejamento INTEIRO do contrato (o aluno aparecia 198 dias "adiantado").
-   Correção de DADO, não de tela: sem migração ela não viaja pelo git e a recepção continuaria com o
-   ano errado. Trava por marca e por valor, então roda uma vez e não mexe em quem já está certo.
-   Há outros 6 contratos em que a planilha discorda do sistema em ~1 ano — esses ficam de fora: lá o
-   dado do sistema não é impossível, é só diferente, e a escolha é dele. */
-if (!G("SELECT valor FROM config WHERE chave='inicio_futuro_v1'")) {
-  const n = R(`UPDATE aluno_estagio SET data_inicio='2026-02-03'
-               WHERE id_matricula='1988' AND livro='L. Kids 2' AND data_inicio='2027-02-03'`).changes;
-  R("INSERT OR REPLACE INTO config (chave,valor) VALUES ('inicio_futuro_v1',?)", new Date().toISOString().slice(0,19).replace('T',' '));
-  if (n) console.log("correção: 1988/L. Kids 2 — início 2027-02-03 → 2026-02-03 (estava no futuro)");
-}
-if (!G("SELECT valor FROM config WHERE chave='material_avulso_v1'")) {
-  R(`UPDATE estoque_item SET avulso=1 WHERE livro IS NOT NULL
-       AND livro NOT IN (SELECT livro FROM estagio WHERE livro IS NOT NULL)`);
-  /* `datetime('now','localtime')` e NAO agora(): `agora` e um const la na linha ~2843 e aqui em
-     cima ainda esta na zona morta — chamá-la aqui derruba o boot com ReferenceError. Ja aconteceu. */
-  R("INSERT OR REPLACE INTO config (chave,valor) VALUES ('material_avulso_v1', datetime('now','localtime'))");
-}
-/* ACERTO ÚNICO das descrições que já divergiam do nome do estágio. Hoje há um caso: ele renomeou o
-   estágio para "PORTUGUÊS 2" e o material continuou "PORT 2".
-   Uma vez só, de propósito: daqui para a frente quem mantém o espelho é `salvarEstagio`. Rodar isto
-   em TODA partida faria o mesmo estrago do `nome_curto` — desfazer em silêncio uma edição feita à
-   mão na tela de Estoque. Migração conserta o passado; regra cuida do futuro. */
-if (!G("SELECT valor FROM config WHERE chave='descricao_espelha_estagio_v1'")) {
-  R(`UPDATE estoque_item SET descricao=(
-       SELECT e.nome FROM estagio e WHERE e.livro=estoque_item.livro ORDER BY e.id LIMIT 1)
-     WHERE livro IS NOT NULL
-       AND EXISTS (SELECT 1 FROM estagio e WHERE e.livro=estoque_item.livro AND e.nome<>estoque_item.descricao)`);
-  R("INSERT OR REPLACE INTO config (chave,valor) VALUES ('descricao_espelha_estagio_v1', datetime('now','localtime'))");
-}
-/* semeia a partir do que já estava marcado no estágio, para nada se perder na virada */
-if (!G("SELECT valor FROM config WHERE chave='edicao_legada_v1'")) {
-  R(`UPDATE estoque_edicao SET legada=1 WHERE id IN (
-       SELECT item_edicao_id FROM estagio WHERE legado=1 AND item_edicao_id IS NOT NULL)`);
-  /* relógio do SQLite e não `agora()`: esta migração roda no topo do arquivo, antes de a função
-     existir — o typecheck pegou */
-  R("INSERT OR REPLACE INTO config (chave,valor) VALUES ('edicao_legada_v1', datetime('now','localtime'))");
-}
 /* A edição que hoje está no MATERIAL vira a primeira edição dele, e as unidades existentes
    passam a apontar para ela — ninguém fica sem edição por causa da mudança de desenho.
    Self-limiting: só cria o que ainda não existe e só liga unidade que está sem edição. */
@@ -1842,13 +1800,25 @@ function semearEstagios() {
       livroOk = null;
     }
     const item = livroOk ? G("SELECT id FROM estoque_item WHERE livro=?", livroOk) : null;
+    /* STATUS DO CATÁLOGO → STATUS DO BANCO (2026-08-25).
+       O CHECK de `estagio.status` passou a aceitar só 'ativo'/'desativado' quando o legado virou
+       coluna própria — mas as 29 linhas de CAT_ESTAGIOS continuaram com os valores antigos. Três
+       delas ('legado' ×2, 'lancamento' ×1) derrubavam o INSERT, e como esta função NÃO corre em
+       transação ela abortava no meio: 7 estágios entravam, a marca `estagios_semeados` nunca era
+       gravada, e todo boot seguinte repetia o mesmo erro. É a mesma armadilha que o comentário
+       acima descreve para o Pre-Teens — só que pelo status, não pelo livro, e só aparece em
+       instalação NOVA (num banco já semeado a migração já converteu os valores).
+       A conversão aqui é a MESMA da migração que roda em banco existente: 'legado' vira ativo com
+       a marca `legado=1`, e 'lancamento' vira ativo — o valor não descrevia estado de catálogo. */
+    const legado = status === "legado" ? 1 : 0;
+    const statusOk = (status === "legado" || status === "lancamento") ? "ativo" : status;
     /* a semeadura continua trazendo `grupo` na tupla (são 29 linhas de dados, não vale reescrevê-las)
        — ele simplesmente não é mais gravado */
     const r = R(`INSERT INTO estagio (sigla,nome,idioma,categoria,modelo_id,licao_inicial,entrada,
-        ordem,escala_ativa,edicao_nome,edicao_ano,status,livro,item_estoque_id)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        ordem,escala_ativa,edicao_nome,edicao_ano,status,legado,livro,item_estoque_id)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       sigla, nome, idioma, cat, mods[mod], licIni, entrada, ordem, escala,
-      edNome, edAno, status, livroOk, item?.id ?? null);
+      edNome, edAno, statusOk, legado, livroOk, item?.id ?? null);
     const id = Number(r.lastInsertRowid);
     (especiais as string[]).forEach((rot, i) =>
       R("INSERT INTO estagio_licao_extra (estagio_id,ordem,rotulo,posicao) VALUES (?,?,?,'abertura')", id, i + 1, rot));
@@ -7572,6 +7542,58 @@ function reconstruirHistoricoDasAulas() {
       + (curtos ? " — " + curtos + " ficaram curtos (a data de início não comporta as lições feitas)" : ""));
 }
 try { reconstruirHistoricoDasAulas(); } catch (e) { console.warn("reconstrução do histórico falhou (segue o baile):", e); }
+
+/* ===== CORREÇÕES PONTUAIS DE DADO — NO FIM DA FILA (2026-08-25) =====
+   Estas quatro moravam no TOPO do arquivo, junto das migrações de coluna. Só que elas não criam
+   nada: elas TOCAM tabelas e colunas que nascem bem mais abaixo (`aluno_estagio`, `estagio.legado`).
+   Num banco já em uso isso passava despercebido — as tabelas vinham do boot anterior. Em instalação
+   NOVA o servidor não subia: `no such table: aluno_estagio`, e depois `no such column: legado`.
+   O lugar certo é aqui, no fim, depois de todo o esquema existir — e dentro do mesmo `try` que o
+   resto da fila usa, porque correção de dado que falha não pode impedir a escola de abrir o app. */
+try {
+  /* ===== DATA DE INÍCIO NO FUTURO (2026-08-24) =====
+     Achado ao cruzar o sistema com a planilha "Progresso dos Alunos.xlsm", que ele mantém à mão desde
+     2021. A matrícula 1988 (L. Kids 2) tinha `data_inicio` em **2027**-02-03: um ano à frente, e depois
+     da primeira presença dela, que é de 27/07/2026. Não é opinião contra opinião — é data impossível,
+     e ela desloca o planejamento INTEIRO do contrato (o aluno aparecia 198 dias "adiantado").
+     Correção de DADO, não de tela: sem migração ela não viaja pelo git e a recepção continuaria com o
+     ano errado. Trava por marca e por valor, então roda uma vez e não mexe em quem já está certo.
+     Há outros 6 contratos em que a planilha discorda do sistema em ~1 ano — esses ficam de fora: lá o
+     dado do sistema não é impossível, é só diferente, e a escolha é dele. */
+  if (!G("SELECT valor FROM config WHERE chave='inicio_futuro_v1'")) {
+    const n = R(`UPDATE aluno_estagio SET data_inicio='2026-02-03'
+                 WHERE id_matricula='1988' AND livro='L. Kids 2' AND data_inicio='2027-02-03'`).changes;
+    R("INSERT OR REPLACE INTO config (chave,valor) VALUES ('inicio_futuro_v1',?)", new Date().toISOString().slice(0,19).replace('T',' '));
+    if (n) console.log("correção: 1988/L. Kids 2 — início 2027-02-03 → 2026-02-03 (estava no futuro)");
+  }
+  if (!G("SELECT valor FROM config WHERE chave='material_avulso_v1'")) {
+    R(`UPDATE estoque_item SET avulso=1 WHERE livro IS NOT NULL
+         AND livro NOT IN (SELECT livro FROM estagio WHERE livro IS NOT NULL)`);
+    /* `datetime('now','localtime')` e NAO agora(): `agora` e um const la na linha ~2843 e aqui em
+       cima ainda esta na zona morta — chamá-la aqui derruba o boot com ReferenceError. Ja aconteceu. */
+    R("INSERT OR REPLACE INTO config (chave,valor) VALUES ('material_avulso_v1', datetime('now','localtime'))");
+  }
+  /* ACERTO ÚNICO das descrições que já divergiam do nome do estágio. Hoje há um caso: ele renomeou o
+     estágio para "PORTUGUÊS 2" e o material continuou "PORT 2".
+     Uma vez só, de propósito: daqui para a frente quem mantém o espelho é `salvarEstagio`. Rodar isto
+     em TODA partida faria o mesmo estrago do `nome_curto` — desfazer em silêncio uma edição feita à
+     mão na tela de Estoque. Migração conserta o passado; regra cuida do futuro. */
+  if (!G("SELECT valor FROM config WHERE chave='descricao_espelha_estagio_v1'")) {
+    R(`UPDATE estoque_item SET descricao=(
+         SELECT e.nome FROM estagio e WHERE e.livro=estoque_item.livro ORDER BY e.id LIMIT 1)
+       WHERE livro IS NOT NULL
+         AND EXISTS (SELECT 1 FROM estagio e WHERE e.livro=estoque_item.livro AND e.nome<>estoque_item.descricao)`);
+    R("INSERT OR REPLACE INTO config (chave,valor) VALUES ('descricao_espelha_estagio_v1', datetime('now','localtime'))");
+  }
+  /* semeia a partir do que já estava marcado no estágio, para nada se perder na virada */
+  if (!G("SELECT valor FROM config WHERE chave='edicao_legada_v1'")) {
+    R(`UPDATE estoque_edicao SET legada=1 WHERE id IN (
+         SELECT item_edicao_id FROM estagio WHERE legado=1 AND item_edicao_id IS NOT NULL)`);
+    /* relógio do SQLite e não `agora()`: esta migração roda no topo do arquivo, antes de a função
+       existir — o typecheck pegou */
+    R("INSERT OR REPLACE INTO config (chave,valor) VALUES ('edicao_legada_v1', datetime('now','localtime'))");
+  }
+} catch (e) { console.warn("correções pontuais de dado falharam (segue o baile):", e); }
 
 /* 8420 e ponto. É a porta que `iniciar.bat`, `iniciar-app.vbs`, `iniciar-sala.vbs`, `servidor.vbs`
    e a regra do firewall conhecem — não há segunda porta em lugar nenhum do projeto, e não deve

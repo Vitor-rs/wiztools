@@ -1417,6 +1417,50 @@ th.ev.ultima .es-ev-data{background:var(--marca);color:#fff}
   margin-right:6px;vertical-align:middle}
 /* linha replanejada: a data planejada dela foi refeita a partir da última aula dada */
 .plan-tab tr.replan .c-dm{color:var(--azul-esc)}
+/* ===== O CORTE DO ADENDO =====
+   Um vão maior e um fio grosso com o rótulo no meio — é a divisa entre o contrato original e a
+   extensão. Só visual: o adendo é DERIVADO da data de início, então mexer nela move o corte. */
+.plan-tab tr.plan-adendo td{padding:22px 0 6px;border:0;background:transparent;position:relative;text-align:center}
+.plan-tab tr.plan-adendo td::before{content:"";position:absolute;left:8px;right:8px;top:50%;
+  height:3px;border-radius:2px;background:#C9D2DC}
+.plan-tab tr.plan-adendo span{position:relative;display:inline-block;background:#fff;
+  border:1px solid #C9D2DC;border-radius:999px;padding:2px 14px;font-size:10.5px;font-weight:700;
+  letter-spacing:.08em;text-transform:uppercase;color:var(--tx2)}
+/* tudo que vive no adendo fica levemente marcado: já não é o contrato que ele assinou */
+.plan-tab tr.emAdendo td{background:#FCFBF7}
+.plan-tab tr.emAdendo.vaga td{background:#FBFAF6}
+
+/* ===== ENCAMINHAMENTOS: a fila de faltas ===== */
+.enc-topo{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:0 0 12px}
+.enc-kpi{border:1px solid var(--borda);border-radius:10px;padding:8px 11px;background:#fff;
+  display:flex;flex-direction:column;gap:1px}
+.enc-kpi b{font-size:19px;color:var(--tx1);line-height:1.1;font-variant-numeric:tabular-nums}
+.enc-kpi span{font-size:10px;color:var(--tx3);text-transform:uppercase;letter-spacing:.4px;font-weight:700}
+.enc-kpi.alerta{background:#FFF8E1;border-color:#F0DFA8}
+.enc-kpi.alerta b{color:#8a5a00}
+.enc-kpi.bom b{color:#1B7A3E}
+.enc-aviso{border-radius:10px;padding:9px 12px;font-size:12.5px;line-height:1.45;margin:0 0 12px}
+.enc-aviso.ok{background:var(--vc,#E6F4EA);color:#155724}
+.enc-aviso.aperto{background:#FFF8E1;color:#8a5a00}
+.enc-cols{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}
+@media (max-width:820px){.enc-cols{grid-template-columns:1fr}.enc-topo{grid-template-columns:repeat(2,1fr)}}
+.enc-bloco h4{margin:0 0 8px;font-size:12px;color:var(--marca);display:flex;align-items:baseline;gap:7px}
+.enc-bloco h4 small{font-weight:400;color:var(--tx3);font-size:10.5px}
+.enc-fila{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:3px}
+.enc-fila li{display:flex;align-items:center;gap:9px;padding:6px 9px;border-radius:8px;
+  background:#fff;border:1px solid var(--borda);font-size:12px}
+/* a numeração é a fila: 1 é a mais antiga, e é ela que a próxima reposição paga */
+.enc-n{flex:0 0 auto;width:20px;height:20px;border-radius:50%;display:inline-flex;align-items:center;
+  justify-content:center;font-size:10.5px;font-weight:700;background:#EDF1F5;color:var(--tx2)}
+.enc-d{flex:0 0 auto;font-variant-numeric:tabular-nums;color:var(--tx2);font-weight:600}
+.enc-st{font-size:11px;color:var(--tx3);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.enc-st.ok{color:#1B7A3E}
+.enc-st.ab{color:#8a5a00;font-weight:700}
+.enc-fila li.aberta{background:#FFFCF2;border-color:#F0DFA8}
+.enc-fila li.aberta .enc-n{background:#F2A93B;color:#fff}
+.enc-fila li.paga .enc-n{background:#DCEFE3;color:#1B7A3E}
+.enc-fila li.sobra{border-style:dashed}
+.enc-fila.ante li .enc-n{background:#E4F2FB;color:var(--azul-esc)}
 /* A LINHA DA VAGA: o contrato rende ~98–102 aulas e o livro pede 70–72. O que sobra não é aula
    nenhuma — é a folga que absorve falta, e ela só existe na tela desde que o plano passou a ir até
    o fim do contrato. */
@@ -4174,6 +4218,13 @@ body.tem-ensaio{padding-top:29px}
 <section class="al-hist" id="al-s-planejamento" style="display:none">
 <div id="plan-corpo"><div class="al-hist-vazio">Escolha um aluno.</div></div>
 </section>
+<!-- ===== ENCAMINHAMENTOS (2026-08-25, dele) =====
+     A fila de faltas em FIFO: a mais antiga é a primeira a ser paga. De um lado o que está em
+     aberto e o que já foi reposto; do outro as anteposições, que são pagas antes de a falta
+     existir e por isso não entram na fila. -->
+<section class="al-hist" id="al-s-encaminha" style="display:none">
+<div id="enc-corpo"><div class="al-hist-vazio">Escolha um aluno.</div></div>
+</section>
 </div>
 
 <!-- ===== PROGRESSO DO ALUNO (2026-08-24, dele) =====
@@ -5416,8 +5467,16 @@ var mesAnt=null, ROT={P:'Presente',F:'Falta',N:'Não aula'};
  /* a comparação que ele pediu é justamente a diferença: quando as duas datas batem, a realizada não
     precisa gritar; quando divergem, precisa */
  var fora=(l.dataReal&&l.dataReal!==l.dataPlan);
+ /* ===== A FAIXA DO ADENDO (2026-08-25, dele) =====
+    *"Coloca uma linha mais grossa, um espaçamento maior entre o planejamento normal e o adendo, e
+    no meio ali escreve adendo 01."* O contrato de 12 meses não se estica — quando o aluno passa de
+    um ano sem terminar o livro, a escola emenda outro pedaço. A tabela continua UMA só; o que muda
+    é o corte, porque o que vem depois já é outro contrato. */
+ if(l.abreAdendo)
+  h+='<tr class="plan-adendo"><td colspan="11"><span>Adendo '
+   +String(l.abreAdendo).padStart(2,'0')+'</span></td></tr>';
  h+='<tr class="plan-l'+(l.vaga?' vaga':' t-'+l.tipo)+(l.status?' feita s-'+l.status:'')
-   +(l.replanejada?' replan':'')+(viraMes?' vira':'')+'">'
+   +(l.replanejada?' replan':'')+(l.adendo?' emAdendo':'')+(viraMes?' vira':'')+'">'
   +'<td class="c-mes">'+(viraMes?l.mes:'')+'</td>'
   +'<td class="c-ns">'+l.ns+'</td>'
   +'<td class="c-ds">'+escBloco(l.ds)+'</td>'
@@ -5702,6 +5761,70 @@ run('getPlanejamento',[{idMatricula:alSel.id,livro:livro||null}],function(r){PRO
 /* recalcular DE VERDADE: o cache das abas guarda a resposta, então limpar antes é o que faz o
    botão significar alguma coisa */
 function progRecalcular(){cacheLimpar();progCarregar(MAT_CTX||undefined)}
+
+/* ===== ENCAMINHAMENTOS: a fila de faltas (2026-08-25, dele) =====
+   *"A falta mais antiga é a que vai sendo paga, tipo first in first out."* Duas colunas: à esquerda
+   a FILA — cada falta com o dia em que foi reposta, ou em aberto —, à direita as anteposições, que
+   ficam de fora da fila porque são pagas antes de a falta existir.
+   Tudo é derivado de `presenca` + `encontro_avulso`; nada aqui é gravado. */
+function encCarregar(livro){
+var c=$('enc-corpo');if(!c)return;
+if(!alSel){c.innerHTML='<div class="al-hist-vazio">Escolha um aluno.</div>';return}
+c.innerHTML='<div class="al-hist-vazio">calculando…</div>';
+run('getPlanejamento',[{idMatricula:alSel.id,livro:livro||null}],function(r){encPintar(r)});
+}
+function encPintar(r){
+var c=$('enc-corpo');if(!c)return;
+var e=r.encaminhamentos;
+if(!e){c.innerHTML='<div class="al-hist-vazio">Sem dados para este contrato.</div>';return}
+var kpi=function(rot,val,cls){return '<div class="enc-kpi'+(cls?' '+cls:'')+'"><b>'+val+'</b><span>'+rot+'</span></div>'};
+var h='<div class="enc-topo">'
+ +kpi('faltas em aberto',e.emAberto,e.emAberto?'alerta':'bom')
+ +kpi('faltas repostas',e.quitadas,'bom')
+ +kpi('anteposições',e.adiantadas,'')
+ +kpi('vagas no contrato',r.vagas!=null?r.vagas:'—','')
+ +'</div>';
+/* a folga é a resposta prática: sobra aula no contrato para pagar o que está devendo? */
+if(e.emAberto)
+ h+='<div class="enc-aviso '+((r.vagas||0)>=e.emAberto?'ok':'aperto')+'">'
+  +(( r.vagas||0)>=e.emAberto
+    ?'As <b>'+e.emAberto+'</b> falta(s) em aberto cabem nas <b>'+r.vagas+'</b> vaga(s) que sobram no contrato.'
+    :'São <b>'+e.emAberto+'</b> falta(s) em aberto para <b>'+(r.vagas||0)+'</b> vaga(s) restante(s): '
+     +'repor tudo dentro deste contrato não fecha — é caso de adendo.')+'</div>';
+h+='<div class="enc-cols">';
+/* ---- a fila ---- */
+h+='<div class="enc-bloco"><h4>Fila de faltas<small>a mais antiga é a primeira a ser paga</small></h4>';
+if(!e.fila.length)h+='<div class="al-hist-vazio">Nenhuma falta registrada neste contrato.</div>';
+else{
+ h+='<ol class="enc-fila">';
+ e.fila.forEach(function(f,i){
+  h+='<li class="'+(f.sobra?'sobra':(f.paga?'paga':'aberta'))+'">'
+   +'<span class="enc-n">'+(f.sobra?'+':(i+1))+'</span>'
+   +'<span class="enc-d">'+(f.data?dataCurta(f.data):'—')+'</span>'
+   +(f.sobra
+     ?'<span class="enc-st">reposição sem falta correspondente — reforço ou aula a mais, em '+dataCurta(f.paga)+'</span>'
+     :(f.paga
+       ?'<span class="enc-st ok">reposta em '+dataCurta(f.paga)+(f.licao?' · '+escBloco(f.licao):'')+'</span>'
+       :'<span class="enc-st ab">em aberto</span>'))
+   +'</li>'});
+ h+='</ol>';
+}
+h+='</div>';
+/* ---- as anteposições ---- */
+h+='<div class="enc-bloco"><h4>Anteposições<small>pagas antes de a falta existir</small></h4>';
+if(!e.antepostas.length)h+='<div class="al-hist-vazio">Nenhuma anteposição registrada.</div>';
+else{
+ h+='<ul class="enc-fila ante">';
+ e.antepostas.forEach(function(a){
+  h+='<li class="paga"><span class="enc-n">↑</span><span class="enc-d">'+dataCurta(a.data)+'</span>'
+   +'<span class="enc-st ok">adiantada'+(a.licao?' · '+escBloco(a.licao):'')+'</span></li>'});
+ h+='</ul>';
+}
+h+='</div></div>';
+if(e.semFalta)h+='<div class="al-hist-vazio">'+e.semFalta+' reposição(ões) lançada(s) sem falta correspondente. '
+ +'Não é erro: costuma ser reforço ou aula a mais — mas fica dito, porque a conta não fecha sozinha.</div>';
+c.innerHTML=h;
+}
 
 /* ===== O CANVAS DO DASHBOARD =====
    O desenho inteiro mede 1120×524 em unidades próprias. A VISTA é um retângulo dentro dele, e é ela
@@ -6319,7 +6442,7 @@ var tabs=document.createElement('div');tabs.className='pg-abas mat-tabs';
    não configurar horário. Configurações — sem o "Info |", que dizia a mesma coisa duas vezes —
    passa a ser o segundo, porque é para onde se vai quando algo precisa MUDAR. */
 [['prog','Painel'],['info','Configurações'],['freq','Frequência'],
- ['plan','Planejamento de aulas']].forEach(function(t,i){
+ ['plan','Planejamento de aulas'],['enc','Encaminhamentos']].forEach(function(t,i){
   var b=document.createElement('button');b.type='button';
   b.className='pg-aba'+(i===0?' on':'');b.dataset.t=t[0];b.innerHTML=t[1];
   b.onclick=function(ev){ev.stopPropagation();matSubAba(card,t[0])};
@@ -6655,7 +6778,7 @@ return card;
    contrato só" ser verdade e não só arrumação visual. */
 var MAT_CTX=null;
 var MAT_SEC={info:['al-s-situacao','al-s-horario'],freq:['al-s-freq'],
-             plan:['al-s-planejamento'],prog:['al-s-progresso']};
+             plan:['al-s-planejamento'],prog:['al-s-progresso'],enc:['al-s-encaminha']};
 /* ===== NUNCA `innerHTML=''` NUM CONTÊINER QUE GUARDA NÓ EMPRESTADO (2026-08-24) =====
    Era o defeito que ele relatou: *"abro frequência, depois planejamento, depois progresso; aí
    clico em planejamento de novo, depois frequência, e o erro começa a disparar."*
@@ -6698,6 +6821,7 @@ if(sec){slot.appendChild(sec);sec.style.display=''}
 if(t==='freq')freqCarregar(livro);
 if(t==='plan')planCarregar(livro);
 if(t==='prog')progCarregar(livro);
+if(t==='enc')encCarregar(livro);
 }
 /* ---- gravar a agenda, perguntando antes quando é TROCA de horário ----
    O servidor é quem decide se é troca (compara a agenda que está no banco com a que veio da tela) e

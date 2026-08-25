@@ -3885,6 +3885,27 @@ function projetarContrato({ idMatricula, livro, inicio, fechadosPre }: any) {
       linhas.forEach((L: any, n2: number) => { L.aula = n2 + 1; });
     }
   }
+  /* ===== O ADENDO CONTRATUAL (2026-08-25, dele) =====
+     *"Quando o aluno passa de um ano e não terminou o livro, a gente gera um adendo, que seria uma
+     continuação do contrato, uma extensão."* É prática da escola, não invenção minha: o contrato de
+     12 meses é uma questão financeira e não se estica — o que se faz é emendar outro pedaço.
+     Aqui ele é só o CORTE: a lição que cai depois do fim do contrato abre o adendo 1, e a cada ano
+     seguinte abre o próximo. A tabela continua uma só; o que muda é uma faixa dizendo onde o
+     contrato original acabou — *"é só uma questão visual, você tá dividindo"*.
+     Vale a pena não gravar nada: o adendo é DERIVADO da data de início e do fim do contrato, e se
+     ele mexer numa das duas o corte anda sozinho. Mesma decisão da projeção inteira. */
+  {
+    let adendoAtual = 0, limite = fimUtil;
+    for (const L of linhas) {
+      if (!L.dataPlan) { L.adendo = adendoAtual; continue; }
+      while (L.dataPlan > limite && adendoAtual < 12) {
+        adendoAtual++;
+        limite = maisDias(limite, 365);
+        L.abreAdendo = adendoAtual;   /* esta linha é a primeira do adendo: a tela desenha a faixa aqui */
+      }
+      L.adendo = adendoAtual;
+    }
+  }
   /* ===== QUANTA FÉ SE PODE TER NA POSIÇÃO =====
      `afirmada` — alguém digitou a lição naquela data. É a escola falando.
      `deduzida` — ninguém digitou, mas o plano ainda corria: a âncora saiu de onde o plano dizia que
@@ -3939,9 +3960,34 @@ function projetarContrato({ idMatricula, livro, inicio, fechadosPre }: any) {
   const reposicoes = dadasFila.filter((x: any) => x.extra === "Reposição").length;
   const anteposicoes = dadasFila.filter((x: any) => x.extra === "Anteposição").length;
   const debito = Math.max(0, faltas - reposicoes);
+  /* ===== O ENCAMINHAMENTO DE CADA FALTA (2026-08-25, dele) =====
+     *"A falta mais antiga é a que vai sendo paga, tipo first in first out."* A fila é literal: as
+     faltas entram na ordem em que aconteceram e cada aula EXTRA quita a primeira que estiver em
+     aberto. Reposição paga o que já ficou devendo; ANTEPOSIÇÃO não entra na fila — ela é paga antes
+     de a falta existir, *"é tipo fatura de cartão, você adianta"*, e por isso aparece à parte.
+     Nada disso é gravado: sai da mesma leitura de `presenca` + `encontro_avulso` que o resto da
+     projeção usa. Lançou a reposição, a fila anda sozinha. */
+  const fila: any[] = [];
+  for (const e of eventos) {
+    if (e.tipo === "falta") { fila.push({ data: e.data, paga: null, licao: null }); continue; }
+    if (e.tipo === "aula" && e.extra === "Reposição") {
+      const aberta = fila.find((f: any) => !f.paga);
+      if (aberta) { aberta.paga = e.data; aberta.licao = e.licao || null; }
+      else fila.push({ data: null, paga: e.data, licao: e.licao || null, sobra: true });
+    }
+  }
+  const antepostas = eventos.filter((e: any) => e.tipo === "aula" && e.extra === "Anteposição")
+    .map((e: any) => ({ data: e.data, licao: e.licao || null }));
+  const encaminhamentos = { fila, antepostas,
+    emAberto: fila.filter((f: any) => f.data && !f.paga).length,
+    quitadas: fila.filter((f: any) => f.data && f.paga).length,
+    adiantadas: antepostas.length,
+    /* reposição lançada sem falta correspondente: não é erro, é reforço ou aula a mais — e contar
+       calada seria esconder que a conta não fecha */
+    semFalta: fila.filter((f: any) => f.sobra).length };
   const vagas = linhas.filter((l: any) => l.vaga).length;
   return { ...cab, linhas, eventos, licaoEsperada, termino: certo ? termino : null, confianca,
-    reposicoes, anteposicoes, debito, vagas,
+    reposicoes, anteposicoes, debito, vagas, encaminhamentos,
     fimContrato, progressoTempo, progressoLivro, indicador, aulasAtraso, excesso,
     /* O SINAL DO PEDIDO DE LIVROS: a previsão cabe dentro do contrato? É o `ExcessoPrevisao` dela
        (coluna AL), invertido para a pergunta que ele faz na hora de comprar — *"garantir que o aluno
@@ -7273,6 +7319,58 @@ function corrigir270ParaW10() {
     + escolhidas[0] + " e " + escolhidas[escolhidas.length - 1] + "; âncora na lição 255");
 }
 try { corrigir270ParaW10(); } catch (e) { console.warn("acerto da 270 falhou (segue o baile):", e); }
+
+/* ===== O CONTRATO COMEÇOU UM ANO ANTES (2026-08-25) =====
+   Ele abriu a matrícula 1985 e viu: *"ela começou o curso dia 29 do 4 de 2025, não 2026. Tem vários
+   alunos que tá errado aqui, isso tem que ser respeitado."*
+   São contratos em que o sistema gravou o ano seguinte ao verdadeiro — e a data de início é a régua
+   de TUDO: o plano inteiro, o progresso do tempo, o fim do contrato e a previsão saem dela.
+
+   O CRITÉRIO PARA ENTRAR AQUI, e ele é estreito de propósito:
+   - a diferença é de ~365 dias e a planilha é a MAIS ANTIGA;
+   - o nome do módulo casa com o estágio do sistema (faixa de lições NÃO basta — KIDS 2 e KIDS 4 são
+     as duas 1–60, e foi essa armadilha que deixou a checagem anterior passar batido);
+   - e a linha da planilha está VIVA (mexida em 2026). A Claudinéia (30) tem a mesma diferença de um
+     ano mas a linha dela parou em outubro/2024: chutar dois anos para trás não é correção, é
+     palpite, e fica para ele decidir.
+
+   Como o histórico semeado foi construído sobre a data errada, ele sai junto: as presenças
+   reconstruídas destes contratos são apagadas e a semeadura roda de novo, agora da data certa. */
+const INICIO_UM_ANO: any[] = [
+  { id: "1985", livro: "KIDS 2", de: "2026-04-29", para: "2025-04-29" },
+  { id: "1992", livro: "KIDS 2", de: "2026-04-29", para: "2025-04-29" },
+  { id: "2046", livro: "KIDS 4", de: "2026-06-17", para: "2025-06-17" },
+];
+function corrigirInicioUmAno() {
+  if (G("SELECT valor FROM config WHERE chave='inicio_um_ano_v1'")) return;
+  let n = 0, limpas = 0;
+  db.exec("BEGIN");
+  try {
+    for (const a of INICIO_UM_ANO) {
+      const mudou = R(`UPDATE aluno_estagio SET data_inicio=? WHERE id_matricula=? AND livro=? AND data_inicio=?`,
+        a.para, a.id, a.livro, a.de).changes;
+      if (!mudou) continue;
+      n++;
+      /* o histórico semeado nasceu da data errada: sai inteiro, e a semeadura o refaz */
+      const datas = A(`SELECT data FROM diario WHERE id_matricula=? AND livro=? AND tipo='seed'`, a.id, a.livro)
+        .map((x: any) => x.data);
+      for (const d of datas) {
+        limpas += R("DELETE FROM presenca WHERE id_matricula=? AND livro=? AND data=?", a.id, a.livro, d).changes as number;
+      }
+      R("DELETE FROM diario WHERE id_matricula=? AND livro=? AND tipo='seed'", a.id, a.livro);
+    }
+    if (n) {
+      /* solta a trava da semeadura: ela é idempotente — para quem já tem histórico, `falta` dá zero
+         e nada é inserido; só os três recém-limpos voltam a ser preenchidos, agora da data certa */
+      R("DELETE FROM config WHERE chave='seed_historico_v1'");
+    }
+    R("INSERT OR REPLACE INTO config (chave,valor) VALUES ('inicio_um_ano_v1',?)", agora());
+    db.exec("COMMIT");
+  } catch (e) { db.exec("ROLLBACK"); console.warn("correção do início falhou:", e); return; }
+  if (n) console.log("correção: " + n + " contrato(s) com início um ano à frente, e " + limpas
+    + " presença(s) semeadas sobre a data errada foram refeitas");
+}
+try { corrigirInicioUmAno(); } catch (e) { console.warn("correção do início falhou (segue o baile):", e); }
 
 /* ===== O HISTÓRICO QUE ACONTECEU E NÃO FOI LANÇADO (2026-08-24, ordem dele) =====
    *"Eu preciso de dados, eu quero que você injete dados... preencha todos os dados que ele fez a

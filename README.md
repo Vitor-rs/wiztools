@@ -125,6 +125,7 @@ segurança.
 | `ensaiar-aluno-modelo.bat` | dois cliques: copia o banco, monta o aluno fictício e sobe o app na cópia |
 | `aluno-modelo.ts` | esvazia um banco de cópia e monta o aluno fictício de desenvolvimento |
 | `modelo-dados-aluno.xlsx` | o modelo de dados em planilha: uma aba por tabela do banco |
+| `exportar-modelo-xlsx.py` | refaz essa planilha quando o esquema mudar (dev; precisa de openpyxl) |
 
 ## Banco de trabalho com um aluno fictício
 
@@ -157,4 +158,6 @@ a porta 8420 precisa estar livre (ele sobe o servidor sozinho para construir pel
 
 O **`modelo-dados-aluno.xlsx`** é esse mesmo banco exportado: uma aba por tabela, 42 no total, com
 um índice na frente agrupado por assunto. Serve para ler o modelo de dados inteiro sem abrir o
-SQLite — e para ver, tabela a tabela, tudo o que uma única matrícula toca.
+SQLite — e para ver, tabela a tabela, tudo o que uma única matrícula toca. Quando o esquema mudar,
+refaça a planilha com `python exportar-modelo-xlsx.py wizard-ensaio.db modelo-dados-aluno.xlsx`
+(ferramenta de desenvolvimento; o app em si continua sem dependência nenhuma).

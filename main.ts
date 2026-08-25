@@ -44,6 +44,24 @@ const PASTA = new URL(".", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "
 
    Antes disto o mock exigia copiar o banco de verdade, subir um servidor à parte numa segunda
    porta e rodar um script separado — malabarismo demais para o que era, no fim, um `deno run`. */
+/* ARGUMENTO DESCONHECIDO É ERRO, e isto custou uma sessão inteira para aparecer (2026-08-25).
+   Ele rodou `deno run -A main.ts --mock` numa cópia do repositório que ainda não tinha esta
+   versão — o `--mock` não existia ali, o Deno passa adiante o que não entende, e o programa
+   ABRIU O BANCO DA ESCOLA sem dizer nada. Da tela, o sintoma foi "ainda aparecem os alunos
+   reais"; do terminal, uma linha de subida idêntica à de sempre.
+   Um argumento que o programa não conhece nunca é inofensivo: ou é um pedido que ele não sabe
+   atender, ou é a versão errada do arquivo. Nos dois casos, parar e dizer é melhor do que
+   seguir fazendo silenciosamente outra coisa — ainda mais quando "outra coisa" é abrir os dados
+   de 163 pessoas reais. */
+const CONHECIDOS = ["--init", "--mock", "--novo"];
+const intruso = Deno.args.find((a) => !CONHECIDOS.includes(a));
+if (intruso) {
+  console.error(`Argumento desconhecido: ${intruso}`);
+  console.error(`Esta versão entende: ${CONHECIDOS.join(", ")}`);
+  console.error("Se você esperava que ele funcionasse, o arquivo pode estar desatualizado —");
+  console.error("`git fetch origin` antes do merge, e confira com `git log --oneline -1`.");
+  Deno.exit(2);
+}
 const MOCK = Deno.args.includes("--mock");
 const ARQUIVO_DB = MOCK ? "wizard-mock.db" : (Deno.env.get("WIZ_DB") || "wizard.db");
 /* precisa ser decidido ANTES de abrir: `DatabaseSync` cria o arquivo, e depois disso não dá mais

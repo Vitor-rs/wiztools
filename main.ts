@@ -3621,10 +3621,28 @@ function projetarContrato({ idMatricula, livro, inicio, fechadosPre }: any) {
     return (candidatas[dow] || []).filter(h =>
       faseNoInstante(fases, d, h).agenda.some((s: any) => s.dow === dow && s.hora === h));
   };
-  /* ---------- 1. O PLANEJADO: uma linha por LIÇÃO, na data em que ela deveria cair ---------- */
+  /* ===== O FIM DO CONTRATO CAI NUM DIA DE AULA (2026-08-24, dele) =====
+     *"Se a finalização do contrato terminar num dia que não seja da aula dele, ele vai dar
+     preferência pra menos de um ano: vai pegar o dia de aula anterior."* O aniversário do contrato é
+     uma data do calendário; o fim ÚTIL dele é a última aula que cabe antes disso. Recuar (e não
+     avançar) é o certo: contrato de 12 meses não se estica. */
+  const fimCru = maisDias(ini, 365);   /* o aniversario do contrato; `fimContrato` la embaixo reusa isto */
+  let fimUtil = fimCru;
+  for (let k = 0; k < 21; k++) {
+    const d = maisDias(fimCru, -k), dw = diaDaSemana(d);
+    const fds = (dw === 5 && !sabUtil) || (dw === 6 && !domUtil);
+    if (horasDoDia(d).length && !fds && !fechados.has(d)) { fimUtil = d; break; }
+  }
+  /* ---------- 1. O PLANEJADO: uma linha por LIÇÃO, e depois o resto do CONTRATO ----------
+     ===== A CAPACIDADE DO CONTRATO É MAIOR QUE O LIVRO (2026-08-24, dele) =====
+     *"Um ano inteiro pode ter de 98 para 102 aulas, e o livro tem de 70 para 72 lições. Você pode
+     colocar vazio até cair no último dia dessa data de contrato."*
+     A tabela parava na última lição e por isso escondia a FOLGA — as ~28 aulas que sobram no ano são
+     exatamente o que absorve falta e reposição. Agora ela vai até o fim do contrato, e as linhas
+     depois da última lição ficam vazias: são vagas, não aulas. */
   const linhas: any[] = [];
   let dia = ini, i = 0, n = 0, passos = 0;
-  while (i < licoes.length && passos++ < TETO) {
+  while ((i < licoes.length || dia <= fimUtil) && passos++ < TETO) {
     const dow = diaDaSemana(dia);
     const horas = horasDoDia(dia);
     const fds = (dow === 5 && !sabUtil) || (dow === 6 && !domUtil);
@@ -3635,8 +3653,18 @@ function projetarContrato({ idMatricula, livro, inicio, fechadosPre }: any) {
        sai diferente na leitura seguinte, sem regerar nada. */
     if (horas.length && !fds && !fechados.has(dia)) {
       for (const hora of horas) {
-        if (i >= licoes.length) break;
-        const l = licoes[i++];
+        if (i >= licoes.length && dia > fimUtil) break;
+        /* passada a última lição, a linha continua existindo mas sem conteúdo: é a VAGA que sobra no
+           contrato, e é ela que diz quanta falta ainda cabe */
+        const l = i < licoes.length ? licoes[i++] : null;
+        if (!l) { linhas.push({
+          mes: dia.slice(5, 7), ns: semanaDoMes(dia), ds: codigo[dow],
+          dmPlan: dia.slice(8, 10) + "/" + dia.slice(5, 7), dataPlan: dia, hora, aula: ++n,
+          ordem: null, licao: null, conteudo: null, bloco: null, tipo: null, vaga: true,
+          dataReal: null, dmReal: null, dsReal: null, mesmoLancamento: false, afirmada: false,
+          ultimoDoDia: false, status: null, entrada: null, saida: null, minutos: null, observacao: null,
+          extra: null,
+        }); continue; }
         linhas.push({
           mes: dia.slice(5, 7), ns: semanaDoMes(dia), ds: codigo[dow],
           dmPlan: dia.slice(8, 10) + "/" + dia.slice(5, 7), dataPlan: dia, hora, aula: ++n,
@@ -3644,7 +3672,7 @@ function projetarContrato({ idMatricula, livro, inicio, fechadosPre }: any) {
           licao: (l.sigla || (l.numero != null ? String(l.numero) : "")) || null,
           conteudo: l.descricao, bloco: l.bloco ?? null, tipo: l.tipo,
           dataReal: null, dmReal: null, dsReal: null, mesmoLancamento: false, afirmada: false, ultimoDoDia: false,
-          status: null, entrada: null, saida: null, minutos: null, observacao: null,
+          status: null, entrada: null, saida: null, minutos: null, observacao: null, extra: null, vaga: false,
         });
       }
     }
@@ -3673,6 +3701,12 @@ function projetarContrato({ idMatricula, livro, inicio, fechadosPre }: any) {
      onde houve falta. Sem esta lista a falta era só um número no cabeçalho. */
   const eventos: any[] = [];
   let faltas = 0, naoAula = 0;
+  /* os encontros FORA da agenda, por data: é o que transforma "veio num dia estranho" em
+     "repôs" ou "antepôs" — a diferença que ele faz questão de separar */
+  const avulsosPorData: Record<string, any[]> = {};
+  for (const e of A(`SELECT data, hora, motivo FROM encontro_avulso WHERE id_matricula=? AND livro=?
+                     ORDER BY data, hora`, idMatricula, c.livro))
+    (avulsosPorData[e.data] ||= []).push(e);
   for (const p of A(`SELECT data, status, entrada, saida, minutos, observacao, aulas_feitas, licao_ordem
                      FROM presenca WHERE id_matricula=? AND livro=? ORDER BY data`, idMatricula, c.livro)) {
     if (p.status !== "P") {
@@ -3680,10 +3714,23 @@ function projetarContrato({ idMatricula, livro, inicio, fechadosPre }: any) {
       eventos.push({ data: p.data, tipo: p.status === "F" ? "falta" : "naoaula", ordem: null, licao: null });
       continue;
     }
-    const quantas = Math.max(1, Number(p.aulas_feitas) || horasDoDia(p.data).length || 1);
+    /* ===== O QUE É AULA NORMAL E O QUE É REPOSIÇÃO (2026-08-24, dele) =====
+       *"Tudo fora do horário-aula já configurado é reposição ou anteposição. Se o aluno faz uma aula
+       dentro do horário dele, do dia da semana dele, não é nem uma coisa nem outra — sempre a
+       primeira aula da hora dele vai ser uma aula normal."*
+       Então a conta do dia é: as HORAS REGULARES daquele dia da semana (pela fase vigente) somadas
+       aos ENCONTROS AVULSOS marcados naquela data. O avulso já existia no banco desde sempre, com
+       data, hora e motivo — 126 reposições lançadas — e é ele que distingue as duas coisas.
+       Num dia com uma hora regular e um avulso, a PRIMEIRA é a aula normal e a segunda é a extra. */
+    const regulares = horasDoDia(p.data).length;
+    const extras = avulsosPorData[p.data] || [];
+    const quantas = Math.max(1, Number(p.aulas_feitas) || (regulares + extras.length) || 1);
     for (let k = 0; k < quantas; k++) {
-      dadasFila.push({ ...p, ordem: k, evento: eventos.length });
-      eventos.push({ data: p.data, tipo: "aula", ordem: null, licao: null, fila: dadasFila.length - 1 });
+      const extra = k >= regulares ? (extras[k - regulares] || extras[0] || null) : null;
+      dadasFila.push({ ...p, ordem: k, evento: eventos.length,
+        extra: extra ? (extra.motivo || "Reposição") : null });
+      eventos.push({ data: p.data, tipo: "aula", ordem: null, licao: null,
+        extra: extra ? (extra.motivo || "Reposição") : null, fila: dadasFila.length - 1 });
     }
   }
   /* A ÂNCORA — e é ela que impede o disparate no contrato antigo. `presenca` só existe desde que o
@@ -3738,6 +3785,8 @@ function projetarContrato({ idMatricula, livro, inicio, fechadosPre }: any) {
     alvo.dsReal = codigo[diaDaSemana(p.data)];
     alvo.status = p.status;
     alvo.mesmoLancamento = p.ordem > 0;
+    /* 'Reposição' | 'Anteposição' | null — null é aula normal, dentro do horário dele */
+    alvo.extra = p.extra || null;
     /* a ÚLTIMA lição do lançamento é a que carrega a marca e o botão de editar */
     alvo.ultimoDoDia = !(dadasFila[k + 1] && dadasFila[k + 1].data === p.data);
     alvo.afirmada = p.licao_ordem != null && alvo.ultimoDoDia;
@@ -3816,7 +3865,9 @@ function projetarContrato({ idMatricula, livro, inicio, fechadosPre }: any) {
      ajuste de excesso; o resultado é o mesmo sinal e a mesma ordem de grandeza, e esta cabe numa
      linha. Positivo = atrasado.
      `excesso` (coluna Z) é o quanto o tempo passou de 100%: contrato vencido com livro por terminar. */
-  const fimContrato = ini ? maisDias(ini, 365) : null;
+  /* o fim do contrato que a tela mostra e o UTIL: a ultima aula que cabe antes do aniversario.
+     Ver o calculo de `fimUtil`, la em cima, onde a agenda ja esta resolvida. */
+  const fimContrato = ini ? fimUtil : null;
   const tempoBruto = fimContrato && fimContrato > ini
     ? 1 - diasEntre(hojeISO, fimContrato) / diasEntre(ini, fimContrato) : null;
   const progressoTempo = tempoBruto == null ? null : Math.max(0, Math.min(1, tempoBruto));
@@ -3831,7 +3882,18 @@ function projetarContrato({ idMatricula, livro, inicio, fechadosPre }: any) {
      está reta"*. */
   const licaoEsperada = progressoTempo == null ? null
     : Math.max(1, Math.min(licoes.length, Math.round(progressoTempo * licoes.length)));
+  /* ===== O DÉBITO DE FALTAS, PILHA FIFO (2026-08-24, dele) =====
+     *"É tipo um stack de faltas: a falta mais antiga é a que vai sendo paga."* A reposição quita a
+     falta mais velha; a ANTEPOSIÇÃO não entra na conta, porque ela é paga antes de existir —
+     *"é tipo fatura de cartão, você adianta"*.
+     A FOLGA DO CONTRATO é a outra metade da resposta: o ano rende ~98–102 aulas e o livro pede
+     70–72, então o que sobra é quanta falta ainda cabe sem estourar o prazo. */
+  const reposicoes = dadasFila.filter((x: any) => x.extra === "Reposição").length;
+  const anteposicoes = dadasFila.filter((x: any) => x.extra === "Anteposição").length;
+  const debito = Math.max(0, faltas - reposicoes);
+  const vagas = linhas.filter((l: any) => l.vaga).length;
   return { ...cab, linhas, eventos, licaoEsperada, termino: certo ? termino : null, confianca,
+    reposicoes, anteposicoes, debito, vagas,
     fimContrato, progressoTempo, progressoLivro, indicador, aulasAtraso, excesso,
     /* O SINAL DO PEDIDO DE LIVROS: a previsão cabe dentro do contrato? É o `ExcessoPrevisao` dela
        (coluna AL), invertido para a pergunta que ele faz na hora de comprar — *"garantir que o aluno

@@ -1407,6 +1407,16 @@ th.ev.ultima .es-ev-data{background:var(--marca);color:#fff}
 .plan-lic-bt.dita::after{content:"";display:inline-block;width:5px;height:5px;border-radius:50%;
   background:#2E9E5B;margin-left:5px;vertical-align:middle}
 .plan-lic-in{width:96px;padding:2px 6px;font-size:12px}
+/* a marca de aula extra na data realizada: discreta, porque a maioria das aulas é normal */
+.plan-extra{display:inline-block;margin-left:5px;padding:0 5px;border-radius:999px;font-size:9px;
+  font-weight:700;text-transform:uppercase;letter-spacing:.4px;vertical-align:middle}
+.plan-extra.rep{background:#FDECEE;color:#B23A48}
+.plan-extra.ant{background:#E6F4EA;color:#1B7A3E}
+/* A LINHA DA VAGA: o contrato rende ~98–102 aulas e o livro pede 70–72. O que sobra não é aula
+   nenhuma — é a folga que absorve falta, e ela só existe na tela desde que o plano passou a ir até
+   o fim do contrato. */
+.plan-tab tr.vaga td{color:var(--tx3);background:#FCFDFE}
+.plan-tab tr.vaga .c-lic{font-style:italic;color:#AEB8C4}
 
 
 /* ===== PROGRESSO DE UM ALUNO — a corrida entre o livro e o contrato =====
@@ -5401,13 +5411,21 @@ var mesAnt=null, ROT={P:'Presente',F:'Falta',N:'Não aula'};
  /* a comparação que ele pediu é justamente a diferença: quando as duas datas batem, a realizada não
     precisa gritar; quando divergem, precisa */
  var fora=(l.dataReal&&l.dataReal!==l.dataPlan);
- h+='<tr class="plan-l t-'+l.tipo+(l.status?' feita s-'+l.status:'')+(viraMes?' vira':'')+'">'
+ h+='<tr class="plan-l'+(l.vaga?' vaga':' t-'+l.tipo)+(l.status?' feita s-'+l.status:'')+(viraMes?' vira':'')+'">'
   +'<td class="c-mes">'+(viraMes?l.mes:'')+'</td>'
   +'<td class="c-ns">'+l.ns+'</td>'
   +'<td class="c-ds">'+escBloco(l.ds)+'</td>'
   +'<td class="c-dm">'+escBloco(l.dmPlan)+'<small>'+escBloco(l.hora||'')+'</small></td>'
+  /* ===== REPOSIÇÃO E ANTEPOSIÇÃO NA DATA REALIZADA (2026-08-24, dele) =====
+     A regra é dele e é fina: *"tudo fora do horário-aula já configurado é reposição ou anteposição;
+     se o aluno faz dentro do horário dele não é nem uma coisa nem outra"* — e num dia com duas
+     aulas, a PRIMEIRA é a normal. Sem a marca, a coluna dizia só "veio neste dia", que é metade da
+     história: não distinguia quem repôs de quem veio no dia certo. */
   +'<td class="c-dr'+(fora?' desloc':'')+'">'+(l.dataReal
      ?escBloco(l.dmReal)+'<small>'+escBloco(l.dsReal||'')+'</small>'
+      +(l.extra?'<span class="plan-extra '+(l.extra==='Anteposição'?'ant':'rep')+'" title="'
+        +escBloco(l.extra)+' — aula fora do horário regular deste contrato">'
+        +(l.extra==='Anteposição'?'ant':'rep')+'</span>':'')
      :'')+'</td>'
   +'<td class="c-aula">'+l.aula+'</td>'
   +'<td class="c-comp">'+(l.status?'<span class="plan-p p-'+l.status+'">'+ROT[l.status]+'</span>':'')+'</td>'

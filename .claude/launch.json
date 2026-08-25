@@ -1,37 +1,28 @@
 {
   "_comentario": [
-    "DUAS PORTAS, E SO DUAS: 8420 o painel de verdade, 8421 o ensaio.",
+    "UMA PORTA, A 8420. O botao de PLAY sobe o app em modo --mock: banco proprio (wizard-mock.db),",
+    "aluno ficticio, e o wizard.db da escola nunca aberto. E o modo de desenvolver desde 2026-08-25.",
     "",
-    "Houve aqui uma entrada 'wizard-ensaio' com autoPort:true, e era ela a fabrica de portas: o",
-    "harness escolhia uma LIVRE a cada ensaio (8421, 8422, 8423...). Saiu em 2026-08-23 por ordem",
-    "dele, junto com a porta separada. Em 2026-08-25 a segunda porta voltou -- ele quer os dois no",
-    "ar ao mesmo tempo --, mas o autoPort NAO volta: e ele que produzia a escalada, nao a porta.",
-    "As duas entradas abaixo tem autoPort:false e porta fixa.",
+    "Houve aqui uma segunda entrada com autoPort:true, e era ela a fabrica de portas: o harness",
+    "escolhia uma LIVRE a cada ensaio (8421, 8422, 8423...). Saiu, e nao volta -- com o mock em",
+    "arquivo separado nao ha mais o que separar por porta.",
     "",
-    "2026-08-24: o botao de PLAY nao subia nada, e a causa estava aqui -- a entrada tinha `port` e",
-    "`url` mas NENHUM comando, entao ela so sabia ANEXAR a um servidor que ja estivesse de pe. Com",
-    "`runtimeExecutable` o play passa a iniciar o Deno de verdade."
+    "2026-08-24: o play nao subia nada porque a entrada tinha `port` e `url` mas NENHUM comando --",
+    "so sabia ANEXAR a um servidor ja de pe. `runtimeExecutable` faz o play iniciar o Deno de verdade."
   ],
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "wizard-local",
+      "name": "wizard-mock",
       "runtimeExecutable": "deno",
       "runtimeArgs": [
         "run",
         "-A",
-        "main.ts"
+        "main.ts",
+        "--mock"
       ],
       "port": 8420,
       "url": "http://localhost:8420",
-      "autoPort": false
-    },
-    {
-      "name": "wizard-ensaio",
-      "runtimeExecutable": ".claude\\ensaio.cmd",
-      "runtimeArgs": [],
-      "port": 8421,
-      "url": "http://localhost:8421",
       "autoPort": false
     }
   ]

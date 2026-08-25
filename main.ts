@@ -1,7 +1,8 @@
 /* main.ts — Wizard local: Deno 2.2+ + SQLite (node:sqlite, zero dependências)
    Iniciar banco:  deno run -A main.ts --init
    Rodar:          deno run -A main.ts   →  http://localhost:8420
-   Ensaiar:        WIZ_DB=copia.db deno run -A main.ts   →  http://localhost:8421  */
+   Desenvolver:    deno run -A main.ts --mock          →  http://localhost:8420, com aluno fictício
+                   deno run -A main.ts --mock --novo   →  remonta o banco de mock do zero  */
 import { DatabaseSync } from "node:sqlite";
 
 const PASTA = new URL(".", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
@@ -29,8 +30,33 @@ const PASTA = new URL(".", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "
        pode acordar num número diferente por causa de uma variável esquecida no ambiente.
    A faixa de ensaio na tela continua — ela diz QUAL banco está aberto, que é o que a porta nunca
    soube dizer. */
-const ENSAIO = !!Deno.env.get("WIZ_DB");
-const db = new DatabaseSync(PASTA + (Deno.env.get("WIZ_DB") || "wizard.db"));
+/* ===== `--mock`: O MODO DE DESENVOLVER (2026-08-25) =====
+   *"Eu quero a forma simples de desenvolver. Não quero usar o banco de verdade. Tipo assim no
+   terminal e dar um deno run e acabou."*
+
+       deno run -A main.ts --mock          → http://localhost:8420, com o aluno fictício
+       deno run -A main.ts --mock --novo   → joga fora e remonta o banco de mock do zero
+
+   Um comando, a porta de sempre, e o `wizard.db` da escola nunca é aberto — o mock vive num
+   arquivo próprio, o `wizard-mock.db`. A primeira execução cria o banco do zero (schema + seed) e
+   monta o João da Silva; as seguintes só abrem o que já está lá, então o que você mexer testando
+   continua ali amanhã. `--novo` é o botão de recomeçar.
+
+   Antes disto o mock exigia copiar o banco de verdade, subir um servidor à parte numa segunda
+   porta e rodar um script separado — malabarismo demais para o que era, no fim, um `deno run`. */
+const MOCK = Deno.args.includes("--mock");
+const ARQUIVO_DB = MOCK ? "wizard-mock.db" : (Deno.env.get("WIZ_DB") || "wizard.db");
+/* precisa ser decidido ANTES de abrir: `DatabaseSync` cria o arquivo, e depois disso não dá mais
+   para saber se ele já existia */
+let mockNascendo = false;
+if (MOCK) {
+  if (Deno.args.includes("--novo")) { try { Deno.removeSync(PASTA + ARQUIVO_DB); } catch { /* já não existia */ } }
+  try { Deno.statSync(PASTA + ARQUIVO_DB); } catch { mockNascendo = true; }
+}
+/* a faixa listrada no topo da tela vale para os dois: o que ela diz é "este não é o banco da
+   recepção", e isso é verdade tanto no mock quanto numa cópia aberta com WIZ_DB */
+const ENSAIO = MOCK || !!Deno.env.get("WIZ_DB");
+const db = new DatabaseSync(PASTA + ARQUIVO_DB);
 const A = (sql: string, ...p: any[]) => db.prepare(sql).all(...p) as any[];
 const G = (sql: string, ...p: any[]) => db.prepare(sql).get(...p) as any;
 /* TODA gravação passa por aqui, e é isso que faz este contador servir de "versão do banco": quem
@@ -61,14 +87,16 @@ function nomeDoLivro(v: any): string {
    elas pressupõem as tabelas do schema.sql já existindo, e num arquivo recém-nascido o índice em
    `aulas` morria com "no such table: main.aulas" — ou seja, instalar numa máquina nova não funcionava.
    Nada se perde na troca de ordem: o schema.sql já nasce com tudo que as migrações aplicariam. */
-if (Deno.args.includes("--init")) {
+/* mesmo nascimento para os dois: `--init` cria e sai; `--mock` cria e SEGUE, porque ali a criação
+   do banco é só o primeiro passo de subir o app */
+if (Deno.args.includes("--init") || mockNascendo) {
   db.exec(await Deno.readTextFile(PASTA + "schema.sql"));
   db.exec("PRAGMA foreign_keys = OFF;"); // seed.sql grava aulas antes de aluno_livro existir; a migração abaixo preenche
   db.exec(await Deno.readTextFile(PASTA + "seed.sql"));
   db.exec("PRAGMA foreign_keys = ON;");
   migrarAlunoLivro();
-  console.log("wizard.db criado com schema + dados.");
-  Deno.exit(0);
+  if (!mockNascendo) { console.log("wizard.db criado com schema + dados."); Deno.exit(0); }
+  console.log("mock: " + ARQUIVO_DB + " criado do zero (schema + seed)");
 }
 
 db.exec("CREATE TABLE IF NOT EXISTS config (chave TEXT PRIMARY KEY, valor TEXT NOT NULL)"); // migração aditiva (preferências, ex.: pasta de backup)
@@ -7070,7 +7098,7 @@ function estacaoDoIP(ip: string) {
      que a porta voltou a ser só a 8420, a URL não distingue mais o ensaio do painel de verdade: quem
      avisa é a faixa que o cliente pinta com isto. Sem ela, ele olharia dados de uma cópia achando
      que são os da escola, que é o acidente que a porta separada evitava. */
-  const extra = { ensaio: ENSAIO, banco: Deno.env.get("WIZ_DB") || "wizard.db" };
+  const extra = { ensaio: ENSAIO, banco: ARQUIVO_DB };
   if (ESTACOES[ip]) return { ip, ...ESTACOES[ip], conhecida: true, ...extra };
   const local = ip === "127.0.0.1" || ip === "::1" || ip === "::ffff:127.0.0.1";
   return { ip, nome: local ? "Esta máquina (servidor)" : "Estação não cadastrada",
@@ -7608,13 +7636,26 @@ try {
   }
 } catch (e) { console.warn("correções pontuais de dado falharam (segue o baile):", e); }
 
-/* 8420 e ponto. É a porta que `iniciar.bat`, `iniciar-app.vbs`, `iniciar-sala.vbs`, `servidor.vbs`
-   e a regra do firewall conhecem — não há segunda porta em lugar nenhum do projeto, e não deve
-   haver. Ensaio sobe aqui também, depois de parar este servidor. */
-/* 8420 é da recepção e não se negocia; a 8421 é do ensaio e só existe quando há banco de ensaio.
-   `WIZ_PORT` é a escotilha para quem precisar de um terceiro (dois ensaios lado a lado), e é
-   ignorada sem `WIZ_DB` — ver a nota da ida e volta lá em cima. */
-const PORTA = ENSAIO ? Number(Deno.env.get("WIZ_PORT") || 8421) : 8420;
+/* ===== O ALUNO FICTÍCIO, MONTADO AQUI DENTRO =====
+   Só no primeiro boot de um mock recém-nascido — depois disso o banco já tem o João, e remontá-lo
+   apagaria o que você mexeu testando. Para recomeçar: `--novo`.
+   A montagem chama as funções de `API` DIRETO. A primeira versão disto era um script separado que
+   subia um servidor só para conversar com ele por HTTP, numa segunda porta, sobre uma cópia do
+   banco de verdade — três peças móveis para fazer o que daqui é uma chamada de função. O ganho não
+   é só de linhas: passando pelas rotas, o mock nasce com o diário de auditoria, as travas de
+   domínio e o percurso abertos pelo próprio app, que é o que o torna um teste válido. */
+if (MOCK && !G("SELECT 1 FROM alunos WHERE id_matricula='9001'")) {
+  const { montarAlunoModelo } = await import("./aluno-modelo.ts");
+  montarAlunoModelo({ A, G, R, API: api, agora });
+}
+
+/* 8420 e ponto — a porta que `iniciar.bat`, `iniciar-app.vbs`, `iniciar-sala.vbs`, `servidor.vbs`
+   e a regra do firewall conhecem. O mock sobe AQUI também: ele é o app de desenvolvimento, não um
+   segundo app, e trocar de porta só serviria para a tela do dia a dia mudar de endereço.
+   `WIZ_PORT` existe para o caso de precisar dos dois lado a lado (o de verdade e o mock), e é
+   ignorada fora de ensaio/mock: nenhuma variável esquecida no ambiente pode fazer a recepção
+   acordar num número que o firewall não liberou. */
+const PORTA = ENSAIO ? Number(Deno.env.get("WIZ_PORT") || 8420) : 8420;
 if (!Number.isInteger(PORTA) || PORTA < 1 || PORTA > 65535) {
   console.error("WIZ_PORT inválida: " + Deno.env.get("WIZ_PORT"));
   Deno.exit(1);
@@ -7691,7 +7732,7 @@ Deno.serve({ port: PORTA, hostname: "0.0.0.0" }, async (req, info) => {
 /* O log diz QUAL BANCO, já que a porta não distingue mais — é o mesmo aviso que a faixa dá na tela,
    para quem estiver olhando o terminal em vez do navegador. */
 console.log(`Wizard local em http://localhost:${PORTA}  (painel único: Alunos, Turmas, Horários e Impressão)`
-  + (ENSAIO ? `  [ENSAIO sobre ${Deno.env.get("WIZ_DB")} — não é o banco da recepção]` : ""));
+  + (ENSAIO ? `  [${MOCK ? "MOCK" : "ENSAIO"} sobre ${ARQUIVO_DB} — não é o banco da recepção]` : ""));
 /* endereços por onde os notebooks alcançam esta máquina — a recepção precisa saber qual digitar
    nos outros computadores, e o IP do Wi-Fi muda de vez em quando */
 try {

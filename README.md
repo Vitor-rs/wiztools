@@ -7,9 +7,13 @@ externas — roda offline, os dados ficam na máquina.
 ## Rodar (desenvolvimento)
 
 ```
-deno run -A main.ts        →  http://localhost:8420
+deno run -A main.ts --mock →  DESENVOLVER: banco próprio, aluno fictício, http://localhost:8420
+deno run -A main.ts        →  produção: abre o wizard.db de verdade
 deno run -A main.ts --init →  cria wizard.db do zero (SÓ na primeira vez — ver aviso abaixo)
 ```
+
+Para desenvolver é só a primeira linha: ela abre o `wizard-mock.db` — nunca o banco da escola —,
+monta o aluno fictício na primeira vez e sobe na 8420 de sempre.
 
 ## Colocar em produção (desktop da recepção)
 
@@ -87,17 +91,6 @@ gravado naquela máquina.
 
 O Dell precisa estar **ligado e com o Wizard aberto** para os notebooks funcionarem.
 
-### As duas portas
-
-| Porta | O quê | Quem conhece |
-|---|---|---|
-| **8420** | o painel de verdade, sobre o `wizard.db` | `iniciar.bat`, `iniciar-app.vbs`, `iniciar-sala.vbs`, `servidor.vbs`, a regra do firewall e os notebooks |
-| **8421** | o ensaio, sobre uma cópia | `ensaiar-aluno-modelo.bat` e `.claude/ensaio.cmd` |
-
-A 8421 só existe quando há `WIZ_DB` — sem banco de ensaio a porta é 8420 e ponto, para que nenhuma
-variável esquecida no ambiente faça a recepção acordar num número que o firewall não liberou. As
-duas são FIXAS: ocupada, o ensaio recusa e diz, em vez de escorregar para a 8422.
-
 ### Tempo real
 
 As telas conversam por WebSocket: lançou na sala, a recepção vê na hora, e vice-versa. Se a
@@ -133,47 +126,35 @@ segurança.
 | `criar-atalho.bat` / `.ps1` | roda uma vez no Dell pra criar o atalho "Wizard Recepção" |
 | `criar-atalho-sala.bat` / `.ps1` | roda uma vez em cada notebook pra criar o atalho "Wizard Sala" |
 | `liberar-firewall.bat` | roda uma vez no Dell, como admin: abre a porta 8420 para a rede |
-| `ensaiar-aluno-modelo.bat` | dois cliques: copia o banco, monta o aluno fictício e sobe o app na cópia |
-| `aluno-modelo.ts` | esvazia um banco de cópia e monta o aluno fictício de desenvolvimento |
+| `aluno-modelo.ts` | monta o aluno fictício do `--mock` (chamado pelo `main.ts`, não roda sozinho) |
 | `modelo-dados-aluno.xlsx` | o modelo de dados em planilha: uma aba por tabela do banco |
 | `exportar-modelo-xlsx.py` | refaz essa planilha quando o esquema mudar (dev; precisa de openpyxl) |
 
-## Banco de trabalho com um aluno fictício
-
-O `wizard.db` da recepção tem gente real e a operação de verdade. Para desenvolver e testar sem
-tocar nele existe o **aluno-modelo**: um banco com o catálogo inteiro (livros, estágios, materiais,
-calendário) e **um único aluno inventado** — João da Silva, matrícula 9001, Kids 2 3rd Edition,
-terças e quintas às 13:00, matriculado em 13/04/2026.
-
-**Dois cliques em `ensaiar-aluno-modelo.bat`.** Ele copia o `wizard.db`, monta o João na cópia e
-sobe o app em cima dela — **na 8421**, sem encostar no painel de verdade, que continua na 8420. Os
-dois rodam ao mesmo tempo, em duas abas: `localhost:8420` é a escola, `localhost:8421` é o ensaio,
-com uma faixa listrada no topo dizendo qual banco está aberto. Fechar a janela preta encerra o
-ensaio. O `wizard.db` não é tocado em momento nenhum.
-
-À mão, se preferir:
+## Desenvolver: `--mock`
 
 ```
-deno run -A aluno-modelo.ts --de=wizard.db --db=wizard-ensaio.db
-set WIZ_DB=wizard-ensaio.db  &&  deno run -A main.ts     → http://localhost:8421
+deno run -A main.ts --mock
 ```
 
-A cópia é feita por dentro, com `VACUUM INTO`, e não por `copy`: com o painel de verdade no ar,
-copiar o arquivo de um SQLite aberto pode pegar um estado torto. É o mesmo mecanismo que o backup
-automático do `main.ts` usa antes de cada migração.
+Um comando. Ele abre o **`wizard-mock.db`** — um banco só de desenvolvimento, que nasce do
+`schema.sql` + `seed.sql` na primeira vez — e monta dentro dele **um único aluno inventado**: João
+da Silva, matrícula 9001, Kids 2 3rd Edition, terças e quintas às 13:00, matriculado em 13/04/2026,
+com frequência até ontem: 6 faltas, 4 reposições, 2 anteposições, 2 aulas de tarefa e um primeiro
+dia com duas lições na mesma hora. O bastante para as telas de planejamento, progresso e
+encaminhamentos terem o que mostrar.
 
-Ele apaga toda a operação, preserva o catálogo e reconstrói o João com frequência até hoje: faltas,
-reposições, anteposições, duas aulas de tarefa e um primeiro dia com duas lições na mesma hora — o
-bastante para as telas de planejamento, progresso e encaminhamentos terem o que mostrar.
+O `wizard.db` da escola **não é aberto em momento nenhum** nesse modo, e a faixa listrada no topo
+da tela diz qual banco está no ar.
 
-O catálogo sobrevive inteiro, inclusive o **trabalho editorial**: se o estágio já tem lições
-digitadas, elas ficam como estão — a fórmula do modelo só entra quando não há nenhuma.
+Da segunda execução em diante ele só abre o que já existe — o que você cadastrar testando continua
+lá amanhã. Para jogar fora e recomeçar limpo:
 
-Três travas, porque o script apaga dados: `--db` é obrigatório, `wizard.db` é recusado pelo nome, e
-a porta 8420 precisa estar livre (ele sobe o servidor sozinho para construir pelas rotas do app).
+```
+deno run -A main.ts --mock --novo
+```
 
 O **`modelo-dados-aluno.xlsx`** é esse mesmo banco exportado: uma aba por tabela, 42 no total, com
 um índice na frente agrupado por assunto. Serve para ler o modelo de dados inteiro sem abrir o
-SQLite — e para ver, tabela a tabela, tudo o que uma única matrícula toca. Quando o esquema mudar,
-refaça a planilha com `python exportar-modelo-xlsx.py wizard-ensaio.db modelo-dados-aluno.xlsx`
+SQLite — o `schema.sql` só descreve 18 dessas tabelas, as outras 24 nascem das migrações. Refaça-o
+quando o esquema mudar, com `python exportar-modelo-xlsx.py wizard-mock.db modelo-dados-aluno.xlsx`
 (ferramenta de desenvolvimento; o app em si continua sem dependência nenhuma).

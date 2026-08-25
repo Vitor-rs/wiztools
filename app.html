@@ -550,8 +550,18 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
 .matricula-card>.mat-corpo{display:block;flex:1 1 auto;min-height:0;overflow:auto;
   scrollbar-gutter:stable}
 .matricula-card>.mat-slot{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;overflow:hidden}
-.mat-slot>.al-hist{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
-.mat-slot>.al-hist>div{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
+/* ===== A CORRENTE FLEX SÓ ONDE ELA PRECISA EXISTIR (2026-08-24) =====
+   Esta regra era GERAL e mordeu: no Progresso ela transformava `#prog-corpo` em coluna flex, e aí
+   os seis blocos dele viraram itens que podem encolher. A moldura do canvas é a única com
+   `overflow:hidden`, então foi ela que cedeu TODO o espaço — o dashboard virou um palito de 4px.
+   Agora a corrente só é armada em Frequência e Planejamento, que são as duas abas onde a rolagem
+   mora num filho. No Progresso quem rola é o painel inteiro, e por isso lá dentro é fluxo normal. */
+.matricula-card[data-sub="freq"] .mat-slot>.al-hist,
+.matricula-card[data-sub="plan"] .mat-slot>.al-hist{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
+.matricula-card[data-sub="freq"] .mat-slot>.al-hist>div,
+.matricula-card[data-sub="plan"] .mat-slot>.al-hist>div{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
+/* e a moldura do canvas NUNCA encolhe: a altura dela é a proporção do `viewBox`, não uma sobra */
+.pg-moldura{flex:0 0 auto}
 /* ===== E CADA ABA ROLA NO LUGAR QUE ELE ESCOLHEU =====
    PLANEJAMENTO: *"prefiro que o scrolling fique só na tabela"*. FREQUÊNCIA: os cartõezinhos ficam
    parados e a lista rola. PROGRESSO: *"toda a região desse dashboard"*. INFO: tudo abaixo do

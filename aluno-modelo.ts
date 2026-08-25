@@ -12,13 +12,17 @@
         anteposições, aulas de tarefa e um dia de duas lições.
 
    Como usa:
-     deno run -A aluno-modelo.ts --db=wizard-ensaio.db
+     deno run -A aluno-modelo.ts --de=wizard.db --db=wizard-ensaio.db
+
+   `--de=` tira a cópia do banco de origem antes de limpar (VACUUM INTO, seguro mesmo com o
+   painel de verdade no ar). Sem ele, trabalha no `--db` que já existir.
 
    O `--db` é OBRIGATÓRIO e recusa `wizard.db`: este script apaga dados, e apagar o banco
    da recepção por um argumento esquecido não é um risco que valha correr. Para começar do
    zero:  deno run -A main.ts --init   (com WIZ_DB apontando para a cópia)
 
-   Ele sobe o servidor sozinho (a 8420 tem de estar livre) e o desliga no fim. A construção passa
+   Ele sobe o servidor sozinho na 8421 (a porta do ensaio) e o desliga no fim — o painel de
+   verdade pode ficar aberto na 8420 o tempo todo. A construção passa
    pelas ROTAS DO APP de propósito: SQL na mão produz dados que o app nunca produziria —
    sem diário de auditoria, sem as travas de domínio, sem o percurso aberto junto da
    matrícula. Só os dois ajustes que ainda não têm rota (aula de tarefa e o dia de duas
@@ -35,15 +39,32 @@ if (arg === "wizard.db") {
   console.error("Recusado: 'wizard.db' é o banco da recepção. Use uma CÓPIA.");
   Deno.exit(1);
 }
-/* A 8420 é a única porta do projeto (o `WIZ_PORT` saiu em 2026-08-23: *"esse projeto tem uma
-   porta só"*). Então este script exige que ela esteja LIVRE — subir por cima seriam dois
-   processos escrevendo bancos diferentes, e um deles morrendo no bind. Mesma guarda do
-   ensaio.cmd: quem está no ar precisa sair primeiro, e volta depois. */
-const PORTA = 8420;
+/* `--de=` tira a cópia aqui dentro, com VACUUM INTO — e não com `copy` do Windows.
+   A diferença passou a importar em 2026-08-25: com o ensaio numa porta própria, o painel de
+   verdade fica NO AR durante a cópia, e copiar arquivo de um SQLite aberto pega um estado
+   possivelmente torto (o `.db-journal` cobre parte dos casos, não todos). VACUUM INTO lê pelo
+   próprio SQLite e devolve um banco consistente mesmo com escrita acontecendo — é o mesmo
+   mecanismo que `copiaDeSeguranca()` usa no main.ts antes de cada migração. */
+const de = Deno.args.find((a) => a.startsWith("--de="))?.slice(5);
+if (de) {
+  try {
+    await Deno.remove(PASTA + arg); // VACUUM INTO recusa destino que já existe
+  } catch { /* não existia: é o caso normal */ }
+  const orig = new DatabaseSync(PASTA + de, { readOnly: true });
+  orig.exec(`VACUUM INTO '${(PASTA + arg).replace(/'/g, "''")}'`);
+  orig.close();
+  console.log(`cópia consistente de ${de} → ${arg} (VACUUM INTO, seguro com o banco aberto)`);
+}
+/* 8421 é a porta do ENSAIO (2026-08-25): este script sobe o servidor sobre a cópia e o painel de
+   verdade continua na 8420, sem ser incomodado. Antes disto o ensaio disputava a 8420 e montar o
+   aluno-modelo obrigava a fechar o Wizard que estava aberto.
+   A porta é FIXA de propósito. Se estiver ocupada, o script RECUSA e diz — nada de procurar a
+   próxima livre, que foi justamente o que produziu a escalada 8421 → 8422 → 8430. */
+const PORTA = Number(Deno.env.get("WIZ_PORT") || 8421);
 try {
   const t = await Deno.connect({ hostname: "127.0.0.1", port: PORTA });
   t.close();
-  console.error(`A porta ${PORTA} está ocupada — pare o servidor antes de montar o aluno-modelo.`);
+  console.error(`A porta ${PORTA} está ocupada — feche o ensaio que já está no ar e rode de novo.`);
   Deno.exit(1);
 } catch (e) {
   if (!(e instanceof Deno.errors.ConnectionRefused)) throw e; // livre: é o que se quer
@@ -88,7 +109,7 @@ console.log(`limpeza: ${apagadas} linha(s) de operação apagadas; catálogo pre
 /* ─────────────────────────── 2. sobe o servidor ──────────────────────────── */
 const proc = new Deno.Command(Deno.execPath(), {
   args: ["run", "-A", PASTA + "main.ts"],
-  env: { ...Deno.env.toObject(), WIZ_DB: arg },
+  env: { ...Deno.env.toObject(), WIZ_DB: arg, WIZ_PORT: String(PORTA) },
   stdout: "piped", stderr: "piped",
 }).spawn();
 const API = `http://127.0.0.1:${PORTA}/api/`;

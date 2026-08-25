@@ -1,23 +1,37 @@
 {
   "_comentario": [
-    "UMA PORTA SO: 8420. Havia aqui uma segunda configuracao, 'wizard-ensaio', com autoPort:true —",
-    "e era ela a fabrica de portas: o harness escolhia uma LIVRE a cada ensaio (8421, 8422, 8423...).",
-    "Saiu em 2026-08-23, por ordem dele. O ensaio agora usa .claude/ensaio.cmd, que sobe na propria",
-    "8420 depois de o servidor de verdade sair, e se anuncia com uma faixa na tela.",
+    "DUAS PORTAS, E SO DUAS: 8420 o painel de verdade, 8421 o ensaio.",
     "",
-    "2026-08-24: o botao de PLAY nao subia nada, e a causa estava aqui — a entrada tinha `port` e",
+    "Houve aqui uma entrada 'wizard-ensaio' com autoPort:true, e era ela a fabrica de portas: o",
+    "harness escolhia uma LIVRE a cada ensaio (8421, 8422, 8423...). Saiu em 2026-08-23 por ordem",
+    "dele, junto com a porta separada. Em 2026-08-25 a segunda porta voltou -- ele quer os dois no",
+    "ar ao mesmo tempo --, mas o autoPort NAO volta: e ele que produzia a escalada, nao a porta.",
+    "As duas entradas abaixo tem autoPort:false e porta fixa.",
+    "",
+    "2026-08-24: o botao de PLAY nao subia nada, e a causa estava aqui -- a entrada tinha `port` e",
     "`url` mas NENHUM comando, entao ela so sabia ANEXAR a um servidor que ja estivesse de pe. Com",
-    "`runtimeExecutable` o play passa a iniciar o Deno de verdade. Se a 8420 ja estiver ocupada (ele",
-    "roda pelo terminal), o preview reaproveita a que esta no ar em vez de subir uma segunda."
+    "`runtimeExecutable` o play passa a iniciar o Deno de verdade."
   ],
   "version": "0.0.1",
   "configurations": [
     {
       "name": "wizard-local",
       "runtimeExecutable": "deno",
-      "runtimeArgs": ["run", "-A", "main.ts"],
+      "runtimeArgs": [
+        "run",
+        "-A",
+        "main.ts"
+      ],
       "port": 8420,
       "url": "http://localhost:8420",
+      "autoPort": false
+    },
+    {
+      "name": "wizard-ensaio",
+      "runtimeExecutable": ".claude\\ensaio.cmd",
+      "runtimeArgs": [],
+      "port": 8421,
+      "url": "http://localhost:8421",
       "autoPort": false
     }
   ]

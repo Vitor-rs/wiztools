@@ -87,6 +87,17 @@ gravado naquela máquina.
 
 O Dell precisa estar **ligado e com o Wizard aberto** para os notebooks funcionarem.
 
+### As duas portas
+
+| Porta | O quê | Quem conhece |
+|---|---|---|
+| **8420** | o painel de verdade, sobre o `wizard.db` | `iniciar.bat`, `iniciar-app.vbs`, `iniciar-sala.vbs`, `servidor.vbs`, a regra do firewall e os notebooks |
+| **8421** | o ensaio, sobre uma cópia | `ensaiar-aluno-modelo.bat` e `.claude/ensaio.cmd` |
+
+A 8421 só existe quando há `WIZ_DB` — sem banco de ensaio a porta é 8420 e ponto, para que nenhuma
+variável esquecida no ambiente faça a recepção acordar num número que o firewall não liberou. As
+duas são FIXAS: ocupada, o ensaio recusa e diz, em vez de escorregar para a 8422.
+
 ### Tempo real
 
 As telas conversam por WebSocket: lançou na sala, a recepção vê na hora, e vice-versa. Se a
@@ -134,17 +145,22 @@ tocar nele existe o **aluno-modelo**: um banco com o catálogo inteiro (livros, 
 calendário) e **um único aluno inventado** — João da Silva, matrícula 9001, Kids 2 3rd Edition,
 terças e quintas às 13:00, matriculado em 13/04/2026.
 
-**Dois cliques em `ensaiar-aluno-modelo.bat`** — feche o Wizard antes, porque o ensaio usa a mesma
-8420. Ele copia o `wizard.db`, monta o João na cópia e sobe o app em cima dela. Fechar a janela
-preta encerra o ensaio e devolve a porta. O `wizard.db` não é tocado em momento nenhum.
+**Dois cliques em `ensaiar-aluno-modelo.bat`.** Ele copia o `wizard.db`, monta o João na cópia e
+sobe o app em cima dela — **na 8421**, sem encostar no painel de verdade, que continua na 8420. Os
+dois rodam ao mesmo tempo, em duas abas: `localhost:8420` é a escola, `localhost:8421` é o ensaio,
+com uma faixa listrada no topo dizendo qual banco está aberto. Fechar a janela preta encerra o
+ensaio. O `wizard.db` não é tocado em momento nenhum.
 
 À mão, se preferir:
 
 ```
-copy wizard.db wizard-ensaio.db          (ou: deno run -A main.ts --init, com WIZ_DB apontado)
-deno run -A aluno-modelo.ts --db=wizard-ensaio.db
-set WIZ_DB=wizard-ensaio.db  &&  deno run -A main.ts
+deno run -A aluno-modelo.ts --de=wizard.db --db=wizard-ensaio.db
+set WIZ_DB=wizard-ensaio.db  &&  deno run -A main.ts     → http://localhost:8421
 ```
+
+A cópia é feita por dentro, com `VACUUM INTO`, e não por `copy`: com o painel de verdade no ar,
+copiar o arquivo de um SQLite aberto pode pegar um estado torto. É o mesmo mecanismo que o backup
+automático do `main.ts` usa antes de cada migração.
 
 Ele apaga toda a operação, preserva o catálogo e reconstrói o João com frequência até hoje: faltas,
 reposições, anteposições, duas aulas de tarefa e um primeiro dia com duas lições na mesma hora — o

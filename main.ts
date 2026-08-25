@@ -1,21 +1,34 @@
 /* main.ts — Wizard local: Deno 2.2+ + SQLite (node:sqlite, zero dependências)
    Iniciar banco:  deno run -A main.ts --init
-   Rodar:          deno run -A main.ts   →  http://localhost:8420  */
+   Rodar:          deno run -A main.ts   →  http://localhost:8420
+   Ensaiar:        WIZ_DB=copia.db deno run -A main.ts   →  http://localhost:8421  */
 import { DatabaseSync } from "node:sqlite";
 
 const PASTA = new URL(".", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
-/* WIZ_DB: só para ENSAIO, e é a ÚNICA variável. Sem ela nada muda — é `wizard.db`, como sempre, e
-   os atalhos da recepção não sabem que ela existe. Serve para subir o servidor sobre uma CÓPIA do
-   banco, que é o que de fato protege os dados da escola.
-   ===== UMA PORTA SÓ (2026-08-23, ordem dele) =====
-   Existia também um `WIZ_PORT`, para o ensaio subir ao lado do painel dele. Saiu: *"esse projeto
-   originalmente só tinha a porta 8420, aí foi acrescentado 8421, agora 8422... daqui a pouco chega
-   na 8430. Isso é um absurdo."* Ele estava certo, e a causa era pior do que uma porta a mais — o
-   `launch.json` pedia `autoPort`, então o harness escolhia uma porta LIVRE a cada ensaio.
-   Agora o ensaio para o servidor de verdade e sobe **na mesma 8420**. O que a porta separada dava
-   era não confundir uma tela com a outra; isso passou a ser dito na TELA, pela faixa de ensaio
-   (`estacaoDoIP` devolve `ensaio` e o nome do banco) — que é mais difícil de ignorar do que um
-   número no fim da URL. */
+/* WIZ_DB: só para ENSAIO. Sem ela nada muda — é `wizard.db` na 8420, como sempre, e os atalhos da
+   recepção não sabem que ela existe. Serve para subir o servidor sobre uma CÓPIA do banco, que é o
+   que de fato protege os dados da escola.
+
+   ===== A PORTA DO ENSAIO, IDA E VOLTA =====
+   2026-08-23, ordem dele: *"esse projeto originalmente só tinha a porta 8420, aí foi acrescentado
+   8421, agora 8422... daqui a pouco chega na 8430. Isso é um absurdo."* Ele estava certo, e a causa
+   era pior do que uma porta a mais — o `launch.json` pedia `autoPort`, então o harness escolhia uma
+   porta LIVRE a cada ensaio. O `WIZ_PORT` saiu junto e o ensaio passou a exigir que o servidor de
+   verdade saísse antes.
+
+   2026-08-25, ordem dele de novo: *"você pode usar outra porta para ensaio com o banco de dados
+   mocado."* O que ele quer agora é rodar OS DOIS ao mesmo tempo — o painel de verdade e o ensaio
+   com o aluno fictício — e para isso não há saída sem uma segunda porta.
+
+   Não é desfazer a decisão anterior: a queixa dela era a FÁBRICA de portas, não a segunda porta.
+   Por isso a volta é disciplinada em dois pontos:
+     · a 8421 é FIXA. Nada de autoPort, nada de procurar porta livre — se ela estiver ocupada, o
+       ensaio recusa e diz, em vez de escorregar para a 8422.
+     · `WIZ_PORT` só vale COM `WIZ_DB`. Sem banco de ensaio, a porta é 8420 e ponto: é o que a regra
+       do firewall, o `iniciar-app.vbs`, o `servidor.vbs` e os notebooks conhecem, e nenhum deles
+       pode acordar num número diferente por causa de uma variável esquecida no ambiente.
+   A faixa de ensaio na tela continua — ela diz QUAL banco está aberto, que é o que a porta nunca
+   soube dizer. */
 const ENSAIO = !!Deno.env.get("WIZ_DB");
 const db = new DatabaseSync(PASTA + (Deno.env.get("WIZ_DB") || "wizard.db"));
 const A = (sql: string, ...p: any[]) => db.prepare(sql).all(...p) as any[];
@@ -7598,7 +7611,14 @@ try {
 /* 8420 e ponto. É a porta que `iniciar.bat`, `iniciar-app.vbs`, `iniciar-sala.vbs`, `servidor.vbs`
    e a regra do firewall conhecem — não há segunda porta em lugar nenhum do projeto, e não deve
    haver. Ensaio sobe aqui também, depois de parar este servidor. */
-const PORTA = 8420;
+/* 8420 é da recepção e não se negocia; a 8421 é do ensaio e só existe quando há banco de ensaio.
+   `WIZ_PORT` é a escotilha para quem precisar de um terceiro (dois ensaios lado a lado), e é
+   ignorada sem `WIZ_DB` — ver a nota da ida e volta lá em cima. */
+const PORTA = ENSAIO ? Number(Deno.env.get("WIZ_PORT") || 8421) : 8420;
+if (!Number.isInteger(PORTA) || PORTA < 1 || PORTA > 65535) {
+  console.error("WIZ_PORT inválida: " + Deno.env.get("WIZ_PORT"));
+  Deno.exit(1);
+}
 Deno.serve({ port: PORTA, hostname: "0.0.0.0" }, async (req, info) => {
   const url = new URL(req.url);
   const ip = (info?.remoteAddr as Deno.NetAddr | undefined)?.hostname ?? "127.0.0.1";

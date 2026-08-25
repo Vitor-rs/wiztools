@@ -6536,7 +6536,11 @@ const api: Record<string, (a: any) => unknown> = {
      história, então viraram a mesma linha: o dia que não é o do horário dele fica na lista normal,
      em ordem de data, apenas com um sinal de alerta. Separar por tipo obrigava a ler duas listas
      para reconstruir a sequência do aluno, que é justamente o que se quer olhar aqui. */
-  getFrequenciaAluno({ idMatricula }: any) {
+  /* `livro` opcional (2026-08-24): a frequência passou a morar DENTRO de cada contrato, e ali ela é
+     só daquele estágio. Sem o filtro, a aba do Little Kids mostraria também as aulas de espanhol —
+     que é exatamente a mistura que ele mandou desfazer. Vindo nulo, devolve o aluno inteiro, que é
+     como a tela da recepção ainda usa. */
+  getFrequenciaAluno({ idMatricula, livro }: any) {
     const dInfo: Record<string, any> = {}; A("SELECT * FROM dias").forEach(r => dInfo[r.nome] = r);
     /* dias regulares POR LIVRO: é contra eles que se decide se a data caiu fora do horário dele.
        Por livro e não por aluno — quem faz inglês na terça e espanhol no sábado tem dois conjuntos,
@@ -6562,7 +6566,10 @@ const api: Record<string, (a: any) => unknown> = {
         ...extra };
     };
 
-    const linhas = A("SELECT * FROM presenca WHERE id_matricula=? ORDER BY data DESC, livro", idMatricula)
+    /* numeração EXPLÍCITA: com `?` automático o id_matricula já ocupa o ?1, e o filtro de livro
+       acabaria comparando o livro com a matrícula */
+    const linhas = A("SELECT * FROM presenca WHERE id_matricula=?1 AND (?2 IS NULL OR livro=?2) ORDER BY data DESC, livro",
+      idMatricula, livro ?? null)
       .map(l => monta(l.data, l.livro, { status: l.status,
         entrada: l.entrada || null, saida: l.saida || null, minutos: l.minutos ?? null,
         auto: l.auto === 1 }));
@@ -6572,6 +6579,7 @@ const api: Record<string, (a: any) => unknown> = {
     for (const k of Object.keys(avuls)) {
       if (comPresenca.has(k)) continue;
       const e = avuls[k];
+      if (livro && e.livro !== livro) continue;
       linhas.push(monta(e.data, e.livro, { status: null, entrada: null, saida: null, minutos: null, auto: false }));
     }
     linhas.sort((a, b) => a.data < b.data ? 1 : a.data > b.data ? -1 : String(a.livro).localeCompare(String(b.livro), "pt"));

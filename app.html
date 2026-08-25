@@ -279,17 +279,46 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
 .al-busca-topo label{margin:0 0 3px}
 .al-busca-topo input{padding:9px 11px}
 
-.al-faixa{display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap}
+/* ===== A LINHA DO ALUNO (2026-08-24, dele) =====
+   Nome, ID, status, novo contrato e as três ações no MESMO eixo. `align-items:center` porque os
+   campos têm rótulo em cima e o nome não tem: alinhado pelo topo, o nome subiria 15px sozinho, e é
+   esse degrau que o olho acusa como "quebrado". */
+.al-faixa{display:flex;gap:14px;align-items:flex-end;flex-wrap:nowrap}
+/* NOWRAP e o nome encolhendo: com wrap, os três botões caíam para uma segunda linha assim que a
+   janela apertava — e aí o "tudo alinhado" que ele pediu ia por água abaixo. Quem cede espaço é o
+   nome, que é o único elástico aqui. Abaixo de 1100px a linha se parte em duas de propósito. */
+@media (max-width:1100px){.al-faixa{flex-wrap:wrap}}
+/* O NOME É O TÍTULO E O TÍTULO É O CAMPO: um só lugar para ler e escrever. A borda só aparece no
+   foco — parado, ele tem de parecer o cabeçalho que era. */
+.al-nome-tit{font-size:19px;font-weight:700;color:var(--marca);letter-spacing:-.2px;
+  border:1px solid transparent;background:transparent;padding:5px 8px;margin-left:-8px;
+  border-radius:8px;width:100%;height:auto;line-height:1.25}
+.al-nome-tit::placeholder{color:var(--tx3);font-weight:600}
+.al-nome-tit:hover{border-color:var(--borda);background:#fff}
+.al-nome-tit:focus{border-color:var(--azul);background:#fff;box-shadow:0 0 0 3px rgba(46,110,190,.12)}
+/* o fio que pulsa saiu do rótulo e virou a sublinha do campo: mesmo sinal de "há alguém aberto" */
+.al-campo-nome{position:relative}
+.al-campo-nome.tem::after{content:"";position:absolute;left:0;right:0;bottom:-3px;height:2px;
+  border-radius:2px;background:var(--azul);animation:alPulsa 2.4s ease-in-out infinite;pointer-events:none}
+@media (prefers-reduced-motion:reduce){.al-campo-nome.tem::after{animation:none;opacity:.8}}
+/* ===== DIVISOR COM RÓTULO NO MEIO DA LINHA =====
+   O fio atravessa a faixa inteira e o rótulo se senta em cima dele, com o fundo da página por trás.
+   É o que separa "o aluno" de "os contratos dele" sem gastar um cabeçalho inteiro. */
+.al-sec{position:relative;margin:18px 0 10px;text-align:left}
+.al-sec::before{content:"";position:absolute;left:0;right:0;top:50%;height:1px;background:var(--borda)}
+.al-sec span{position:relative;display:inline-block;background:var(--fundo,#F4F7FA);
+  border:1px solid var(--borda);border-radius:999px;padding:3px 12px;font-size:11px;font-weight:700;
+  letter-spacing:.06em;text-transform:uppercase;color:var(--tx2)}
 .al-campo{display:flex;flex-direction:column;min-width:0}
 .al-campo label{margin:0 0 3px}
-.al-campo-nome{flex:1 1 280px;min-width:220px}
+.al-campo-nome{flex:1 1 240px;min-width:180px}
 /* o ID é um número de 4 dígitos: largura de 4 dígitos, não a do nome completo */
 .al-campo-id{width:120px}
 .al-campo-id input{text-align:center;font-variant-numeric:tabular-nums;letter-spacing:.04em}
 /* o campo e o ⓘ numa fileira só — o rótulo subiu para cima, junto dos vizinhos */
 .nm-linha{display:flex;align-items:center;gap:10px;flex-wrap:nowrap;margin:0}
 .nm-linha .sug{width:300px}
-.al-campo-novo{flex:0 1 auto}
+.al-campo-novo{flex:0 1 auto;min-width:0}
 .nm-info{appearance:none;width:20px;height:20px;flex-shrink:0;border-radius:50%;cursor:pointer;
   border:1px solid var(--azul-borda);background:var(--azul-cl);color:var(--azul-esc);
   font:700 12px/1 Georgia,serif;font-style:italic;padding:0}
@@ -351,15 +380,12 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
 /* QUEM ESTÁ SENDO EDITADO: corpo grande, quase o do título da página, com um fio embaixo que
    pulsa devagar. Sem aluno escolhido a faixa não existe — nada de reservar espaço para um rótulo
    vazio. */
-.al-quem{display:none}
-.al-quem.tem{display:block;font-size:19px;font-weight:700;color:var(--marca);line-height:1.2;
-  margin:0 0 12px;padding-bottom:7px;position:relative;letter-spacing:-.2px}
-.al-quem.tem::after{content:"";position:absolute;left:0;bottom:0;width:100%;max-width:340px;
-  height:2px;border-radius:2px;background:var(--azul);animation:alPulsa 2.4s ease-in-out infinite}
 @keyframes alPulsa{0%,100%{opacity:.35}50%{opacity:1}}
-@media (prefers-reduced-motion:reduce){.al-quem.tem::after{animation:none;opacity:.8}}
 /* o campo de nova matrícula ocupa o lugar que era dos botões, no fim da fileira do cadastro */
+/* o campo de novo contrato encosta à direita; as ações vêm logo depois dele */
 .al-faixa .al-campo-novo{margin-left:auto}
+.al-faixa .al-acoes{display:flex;align-items:center;gap:6px;flex:0 0 auto}
+.al-faixa .al-acoes .acao{margin:0}
 
 /* O trilho de sub-abas da aba Informações: um nível abaixo do trilho da página, então o fio é mais
    leve e as abas são menores — quem olha precisa saber que está DENTRO de Informações. */
@@ -429,15 +455,75 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
    aba Professores. */
 .matriculas-col{flex:1;min-width:340px}
 .matriculas-vazio{color:var(--tx3);font-size:12px;padding:16px;text-align:center;border:1px dashed #ccc;border-radius:10px}
-.matricula-card{border:1px solid var(--borda);border-radius:12px;margin-bottom:12px;background:#fff;
-  box-shadow:0 1px 3px rgba(0,0,0,.05);overflow:hidden}
+/* ===== O CARTÃO DEIXOU DE SER UMA ILHA (2026-08-24, dele) =====
+   *"Eu não quero que fique tipo assim, como se fosse uma ilha... você sobe pra cima, não precisa de
+   bordas de pontas arredondadas superiores. É como se fosse aquelas tabs normal."*
+   O contrato encosta no trilho de estágios acima dele: topo reto, sem sombra em cima, e o conteúdo
+   passa a ser o corpo da aba escolhida — não um cartão flutuando dentro da página. */
+.matricula-card{border:1px solid var(--borda);border-top:0;border-radius:0 0 12px 12px;
+  margin:0 0 12px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.05);overflow:hidden}
+/* ===== AS QUATRO ABAS DO CONTRATO, no estilo compacto da referência que ele mandou =====
+   Trilho colado no topo do cartão, aba ativa em branco emendando com o corpo — é o que faz as duas
+   coisas parecerem uma pasta só, e não uma caixa dentro de outra. */
+.mat-tabs{margin:0;display:flex;gap:0;background:#EDF3FA;border:1px solid var(--borda);
+  border-radius:0;padding:5px 6px 0;overflow-x:auto}
+.mat-tabs .pg-aba{font-size:12.5px;padding:7px 15px 8px;border-radius:8px 8px 0 0;border:1px solid transparent;
+  border-bottom:0;color:var(--tx2);white-space:nowrap;background:transparent}
+.mat-tabs .pg-aba i{font-style:normal;opacity:.4;margin:0 3px}
+.mat-tabs .pg-aba:hover{background:rgba(255,255,255,.6);color:var(--marca)}
+.mat-tabs .pg-aba.on{background:#fff;border-color:var(--borda);color:var(--marca);font-weight:700;
+  position:relative;top:1px}
+.mat-tabs .pg-aba.on::after{display:none}
+/* ===== O CABEÇALHO COMUM ÀS QUATRO ABAS =====
+   `1fr auto 1fr` põe a situação no centro geométrico mesmo com a direita cheia de botões. */
+.mat-cab{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px;
+  padding:9px 13px;user-select:none;background:#FBFCFD}
+.mat-cab-esq{min-width:0}
+.mat-cab-meio{justify-self:center}
+.mat-cab-dir{display:flex;align-items:center;justify-content:flex-end;gap:10px;min-width:0}
+.mat-cab-frase{font-size:11.5px;color:var(--tx3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* arquivar: discreto até o mouse chegar, e aí cresce um pouco — o gesto tira o estágio da tela */
+.mat-arquivar{appearance:none;background:none;border:1px solid transparent;border-radius:8px;
+  width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;
+  color:var(--tx3);cursor:pointer;transition:transform .12s ease,color .12s ease,background .12s ease}
+.mat-arquivar:hover{color:#B23A48;background:#FDECEE;border-color:#F3C7CD;transform:scale(1.12)}
+/* ===== AS DUAS LISTAS LADO A LADO, no vão que estava vazio ===== */
+.mat-duplas{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px;align-items:start}
+@media (max-width:900px){.mat-duplas{grid-template-columns:1fr}}
+.mat-duplas .al-hist{margin:0}
+/* compactas: a lista é de linhas curtas, e o respiro de antes vinha das colunas que saíram */
+.mat-duplas .al-hist-corpo,.mat-duplas #hist-corpo,.mat-duplas #hhist-corpo{max-height:230px;overflow:auto}
+.mat-duplas .hist-linha{padding:5px 0}
+/* o painel das outras três abas ocupa o corpo inteiro do contrato */
+.mat-slot{padding:14px 15px 16px}
+.mat-slot .al-hist{border:0;padding:0;box-shadow:none}
+/* a contagem ao lado do título, no lugar do cartãozinho de antes */
+.al-hist-n{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:18px;
+  padding:0 6px;border-radius:999px;background:var(--azul);color:#fff;font-size:11px;font-weight:700;
+  margin-left:6px;font-variant-numeric:tabular-nums}
 /* ===== TRILHO DE ABAS das matrículas =====
    Uma aba por estágio, acumulando da esquerda para a direita na ordem em que o aluno os começou.
    O acordeão saiu: com dois ou três estágios empilhados a página virava um paredão de formulários,
    e achar o horário do segundo era rolagem. */
-.mat-abas{margin:0 0 12px;flex-wrap:wrap}
-.mat-abas .pg-aba{font-size:13px;padding:7px 14px 8px}
-.mat-abas .pg-aba .n{font-variant-numeric:tabular-nums;font-weight:600}
+/* ===== O TRILHO DE ESTÁGIOS, MAIS EVIDENTE (2026-08-24, dele) =====
+   *"Eu quero que elas fiquem mais evidentes: coloca um fundo mais leve, e mais forte pra que tá
+   selecionada."* Elas encostam no cartão do contrato — daí a margem zero embaixo e o canto reto
+   inferior na aba ativa: é ela que emenda com o conteúdo. */
+.mat-abas{margin:0;flex-wrap:wrap;gap:4px;border-bottom:0}
+.mat-abas::after{display:none}
+.mat-abas .pg-aba{font-size:13px;padding:8px 15px 9px;background:#EDF3FA;border:1px solid var(--borda);
+  border-bottom:0;border-radius:10px 10px 0 0;color:var(--tx2)}
+.mat-abas .pg-aba:hover{background:#E3EDF8;color:var(--marca)}
+.mat-abas .pg-aba.on{background:#fff;color:var(--marca);font-weight:700;position:relative;z-index:1}
+.mat-abas .pg-aba.on::after{display:none}
+.mat-abas .pg-aba .n{font-variant-numeric:tabular-nums;font-weight:600;background:rgba(46,110,190,.12);
+  color:var(--marca);border-radius:999px;padding:1px 7px;margin-left:6px;font-size:11px}
+.mat-abas .pg-aba.on .n{background:var(--azul);color:#fff}
+/* O TRILHO ENCOSTA NO CONTRATO. Eram 35px de vão — 16 da margem do trilho (que `.pg-topo .pg-abas`
+   vencia por especificidade) e 19 do respiro do miolo. Com eles no lugar, as abas pareciam soltas
+   acima de uma caixa qualquer em vez de serem a borda de cima dela. */
+#al-mat-abas .mat-abas{margin:0}
+#tab-alunos .pg-corpo{padding-top:0}
 /* o convite quando nenhuma aba está aberta — que é como o aluno abre, de propósito */
 .mat-escolha{margin:0}
 /* ===== cartão de matrícula =====
@@ -3773,30 +3859,24 @@ body.tem-ensaio{padding-top:29px}
 <!-- QUEM ESTÁ SENDO EDITADO, logo abaixo da busca e em corpo grande. Estava num canto do
      cabeçalho, discreto demais — trocar de aba escondia o nome e não se sabia mais de quem era a
      tela. O fio embaixo pulsa devagar: é o sinal de que há alguém aberto. -->
-<div id="al-quem" class="al-quem"></div>
-
-<div class="pg-abas al-abas">
-<button class="pg-aba on" data-p="cadastro" onclick="alAba('cadastro')">Cadastro</button>
-<button class="pg-aba" data-p="matriculas" onclick="alAba('matriculas')">Informações</button>
-<!-- A TERCEIRA ABA (2026-08-24, dele): *"cria uma terceira aba, como se fosse um dashboard de
-     progresso"*. É a única da página que NÃO é sobre o aluno aberto: mostra a escola inteira, uma
-     linha por contrato, ordenada por quem está mais perto de acabar o livro. O aluno aberto fica
-     realçado, para a página não deixar de ser dele. -->
-<button class="pg-aba" data-p="progresso" onclick="alAba('progresso')">Progresso</button>
-<!-- os três botões saíram de dentro das abas e subiram para o trilho delas: valem para o aluno,
-     não para a aba aberta, e escondidos lá dentro obrigavam a voltar para salvar -->
-<div class="al-acoes">
-<button class="acao" id="al-salvar" data-off="Salvar" data-on="Salvar alterações" onclick="alSalvar()"><span class="btn-ic"></span><span class="btn-txt">Salvar</span></button>
-<button class="acao perigo" id="al-excluir" style="display:none" onclick="alExcluir()">Excluir</button>
-<button class="acao sec" onclick="alNovo()">Limpar</button>
-</div>
-</div>
-
-<!-- fileira do cadastro: some quando a aba aberta é a de Informações -->
+<!-- ===== UMA LINHA SÓ: NOME, ID, STATUS, NOVO CONTRATO E AS AÇÕES (2026-08-24, dele) =====
+     *"Aquele campo de nome completo tá sendo redundante, você vai remover... eles vão ter o mesmo
+     alinhamento do nome do aluno."* Eram DOIS nomes na tela — o título grande e um campo abaixo
+     repetindo a mesma palavra. Ficou um: o TÍTULO é o campo, e é onde se digita.
+     Sem isso, cadastrar aluno novo perderia a única caixa em que o nome se escreve.
+     As três abas do topo saíram junto: Cadastro virou a página inteira, Informações deixou de
+     existir (o conteúdo dela mora em cada contrato agora) e Progresso mudou de endereço.
+     Alinhamento VERTICAL AO CENTRO, que foi o que ele pediu para tentar primeiro — com rótulos
+     acima dos campos, alinhar pelo topo deixaria o nome (que não tem rótulo) 15px acima de todo o
+     resto, e é justamente esse degrau que o olho acusa. -->
 <div id="al-faixa-cx">
 <div class="al-faixa">
 <div class="al-campo al-campo-nome">
-<label for="al-nome">Nome completo</label><input id="al-nome">
+<!-- rótulo vazio de propósito: os vizinhos têm um, e sem ele a coluna do nome fica 9px mais alta —
+     o que o olho lê como desalinhado é a linha dos CAMPOS, não a das colunas -->
+<label for="al-nome" aria-hidden="true">&nbsp;</label>
+<input id="al-nome" class="al-nome-tit" placeholder="Nome do aluno" autocomplete="off"
+ title="O nome do aluno — digite aqui para cadastrar ou renomear">
 </div>
 <div class="al-campo al-campo-id">
 <!-- O ID trava depois de salvo, de propósito: é a chave do aluno em dez tabelas. Trocá-lo fica
@@ -3831,6 +3911,12 @@ body.tem-ensaio{padding-top:29px}
 <button type="button" class="nm-info" onclick="dlgAviso({titulo:'Contrato em estágio',texto:'Cada estágio é um contrato próprio: modalidade, VIP, tipo de encontro e agenda ficam aqui, não na turma.\n\nO contrato é a matrícula do aluno mais a ordem do vínculo — 2068/1 é o primeiro estágio dele, 2068/2 o segundo, independente do idioma.'})" title="O que é um contrato em estágio">i</button>
 </div>
 </div>
+<!-- as ações fecham a linha, à direita, no mesmo eixo dos campos -->
+<div class="al-acoes">
+<button class="acao" id="al-salvar" data-off="Salvar" data-on="Salvar alterações" onclick="alSalvar()"><span class="btn-ic"></span><span class="btn-txt">Salvar</span></button>
+<button class="acao perigo" id="al-excluir" style="display:none" onclick="alExcluir()">Excluir</button>
+<button class="acao sec" onclick="alNovo()">Limpar</button>
+</div>
 </div>
 <div id="al-aviso"></div>
 <hr class="pg-fio">
@@ -3838,6 +3924,12 @@ body.tem-ensaio{padding-top:29px}
 <!-- O TRILHO DAS MATRÍCULAS mora no bloco FIXO, não no miolo: é a régua que diz em qual estágio se
      está mexendo, e ela some justamente quando se rola para ver o horário — que é a hora em que ela
      mais importa. `renderMatriculas` desenha as abas aqui e os cartões lá embaixo. -->
+<!-- ===== O DIVISOR QUE NOMEIA O TRILHO (2026-08-24, dele) =====
+     *"Você coloca um quadradinho com as pontas redondas, escrito contratos... e tem uma linha
+     cinza bem fininha que sai pelo meio."* Sem ele o trilho de estágios encostava na fileira do
+     cadastro e parecia continuação dela — são duas coisas: em cima o ALUNO, aqui embaixo os
+     CONTRATOS dele. -->
+<div class="al-sec" id="al-sec-contratos"><span>Estágios / contratos</span></div>
 <div id="al-mat-abas"></div>
 </div>
 
@@ -3865,13 +3957,13 @@ body.tem-ensaio{padding-top:29px}
      O histórico é o ponto de entrada; o percurso continua no banco e se mantém sozinho a partir
      daqui (data de início, encerramento, contrato). -->
 <section class="al-hist" id="al-s-situacao">
-<h3>Histórico de situação <small>a jornada do aluno, estágio por estágio</small>
+<h3>Histórico de situação<span class="al-hist-n" id="hist-n" style="display:none">0</span>
 <button type="button" class="al-hist-add" id="hist-add-bt" onclick="histAbrirAdd()"
  title="Registrar uma situação">+</button></h3>
 <div id="hist-corpo"><div class="al-hist-vazio">Escolha um aluno.</div></div>
 </section>
 <section class="al-hist" id="al-s-horario" style="display:none">
-<h3>Trocas de horário <small>desde quando cada agenda passou a valer</small></h3>
+<h3>Trocas de horário<span class="al-hist-n" id="hhist-n" style="display:none">0</span></h3>
 <div id="hhist-corpo"><div class="al-hist-vazio">Escolha um aluno.</div></div>
 </section>
 <section class="al-hist" id="al-s-freq" style="display:none">
@@ -3896,7 +3988,7 @@ body.tem-ensaio{padding-top:29px}
      mantém à mão desde 2021: DUAS porcentagens que correm uma contra a outra. O livro andou tanto; o
      contrato consumiu tanto. Quem ganha a corrida decide se o próximo livro precisa ser pedido. -->
 <div id="al-p-progresso" class="al-painel" style="display:none">
-<section class="al-hist">
+<section class="al-hist" id="al-s-progresso">
 <h3>Progresso do aluno <small>o livro contra o relógio do contrato</small>
 <button type="button" class="al-hist-add" id="prog-recarregar" onclick="progCarregar()"
  title="Recalcular">↻</button></h3>
@@ -4932,20 +5024,18 @@ i.placeholder=pode?'Digite o estágio...':'Salve o aluno primeiro';
 i.title=pode?'':'O estágio só pode ser vinculado depois que o aluno existir no sistema';
 }
 /* ---- abas da página de Alunos ---- */
+/* ===== AS ABAS DO TOPO SAÍRAM (2026-08-24, dele) =====
+   Eram três: Cadastro, Informações e Progresso. *"A aba de informações não vai ter mais... instead
+   de misturar informações de diferentes contratos ou estágios do aluno, é bom isolar isso."*
+   Cadastro virou a página inteira; o que era Informações mora dentro de CADA contrato agora, e o
+   painel de todos os contratos mudou de endereço.
+   A função continua existindo porque meia dúzia de lugares navega por ela (a Central, `alNovo`,
+   o painel de progresso): ela virou "garanta que a página do aluno está à mostra". */
 function alAba(p){
-/* `.al-abas` e não `#tab-alunos .pg-aba`: a página passou a ter MAIS trilhos dentro dela (as
-   sub-abas de Informações e o trilho de matrículas), e o seletor largo apagava o `on` de todos —
-   era por isso que "Histórico de situação" abria sem realce nenhum. */
-document.querySelectorAll('#tab-alunos .al-abas .pg-aba').forEach(function(b){b.classList.toggle('on',b.dataset.p===p)});
-['cadastro','matriculas','progresso'].forEach(function(x){$('al-p-'+x).style.display=(x===p?'block':'none')});
-/* a fileira do cadastro e o trilho de matrículas moram no bloco fixo (para ficarem parados junto
-   com ele), então é aqui que os dois somem quando a aba aberta é a de Informações */
-$('al-faixa-cx').style.display=(p==='cadastro'?'block':'none');
-var ma=$('al-mat-abas');if(ma)ma.style.display=(p==='cadastro'?'block':'none');
-/* reaplica a sub-aba corrente ao abrir Informações: o painel guarda a escolha, mas o realce
-   precisa ser repintado */
-if(p==='matriculas')alInfoAba(AL_INFO_ABA);
-if(p==='progresso')progCarregar();
+var c=$('al-p-cadastro');if(c)c.style.display='block';
+['matriculas','progresso'].forEach(function(x){var e=$('al-p-'+x);if(e)e.style.display='none'});
+var f=$('al-faixa-cx');if(f)f.style.display='block';
+var ma=$('al-mat-abas');if(ma)ma.style.display='block';
 }
 /* sub-abas da aba Informações. O conteúdo dos três carrega junto (são três consultas pequenas, já
    feitas ao escolher o aluno) — trocar de aba só troca o que está à vista. */
@@ -4963,11 +5053,10 @@ if(s==='planejamento')planCarregar();
 /* quem está aberto, no canto direito do cabeçalho: com o formulário em fileira o nome deixou de
    ser um título de coluna, e sem isto a tela não diz de quem são os históricos logo abaixo */
 function alQuem(){
-/* nome em corpo grande abaixo da busca: sem aluno escolhido a faixa some inteira, em vez de
-   reservar espaço para um "Novo aluno" que não diz nada */
-var q=$('al-quem');
-q.textContent=alSel?alSel.nome:'';
-q.classList.toggle('tem',!!alSel);
+/* o nome VIROU o campo (2026-08-24): aqui só se acende o fio que pulsa embaixo dele, que continua
+   sendo o sinal de "há alguém aberto". Sem aluno, fica o placeholder e nenhum fio. */
+var cx=document.querySelector('#al-faixa-cx .al-campo-nome');
+if(cx)cx.classList.toggle('tem',!!alSel);
 /* cadastro novo já tem o campo editável — o botão só faz sentido quando o ID está travado */
 var b=$('al-id-eng');if(b)b.style.display=alSel?'inline':'none'}
 /* Popover do ID, no estilo do menu do Kanban: some ao clicar fora e ao ESC. Trocar o ID move o
@@ -5643,7 +5732,21 @@ function(r){
  msg(livro+': '+nova+(r.resolvido?' — registrado; a situação corrente ficou '+r.resolvido:'')+'.');
  if(r.situacaoCorrente)alSitPor(r.situacaoCorrente);
  recarregarMatriculas()})}
+/* ===== AS SEÇÕES VOLTAM PARA CASA ANTES DE OS CARTÕES SEREM REFEITOS =====
+   `matSubAba` MOVE `al-s-freq` e companhia para dentro do contrato aberto. Se os cartões forem
+   reconstruídos com elas lá dentro, os nós vão junto para o lixo — e a próxima chamada a
+   `freqFechar` estoura em `null`. Foi exatamente o que aconteceu ao clicar em "Limpar".
+   O depósito é o painel escondido de onde elas saíram. */
+function matDevolverSecoes(){
+var casa={'al-s-situacao':'al-p-matriculas','al-s-horario':'al-p-matriculas',
+          'al-s-freq':'al-p-matriculas','al-s-planejamento':'al-p-matriculas',
+          'al-s-progresso':'al-p-progresso'};
+Object.keys(casa).forEach(function(id){
+ var el=$(id), pai=$(casa[id]);
+ if(el&&pai&&el.parentNode!==pai){el.style.display='none';pai.appendChild(el)}});
+}
 function renderMatriculas(){
+matDevolverSecoes();
 var box=$('mat-lista');box.innerHTML='';
 /* o trilho vive no bloco FIXO da página, fora do miolo rolável — daí os dois contêineres */
 var rail0=$('al-mat-abas');if(rail0)rail0.innerHTML='';
@@ -5696,6 +5799,11 @@ if(v)v.style.display=livro?'none':'block';
    `offsetParent` a bloqueava, justamente porque a tabela mediria largura errada fora da tela */
 document.querySelectorAll('#mat-lista .matricula-card').forEach(function(c){
   if(c.dataset.livro===livro&&c.atualizarPrevia)c.atualizarPrevia()});
+/* abrir o contrato abre a sub-aba dele: a que já estava, ou Info na primeira vez. É aqui que as
+   seções mudam de casa e recarregam filtradas por este livro. */
+var aberto=document.querySelector('#mat-lista .matricula-card[data-livro="'+(livro||'').replace(/"/g,'\\"')+'"]');
+if(aberto)matSubAba(aberto,aberto.dataset.sub||'info');
+else MAT_CTX=null;
 }
 /* grade dia×hora, no mesmo layout da aba Horários: dias nas colunas, horas alinhadas em linha —
    fica fácil comparar "quem tem 09h" batendo o olho na horizontal.
@@ -5753,6 +5861,20 @@ var card=document.createElement('div');card.className='matricula-card';
 /* ---- cabeçalho: é o que sobra quando o cartão está recolhido ---- */
 /* A SETA SAIU com a sanfona: quem escolhe a matrícula é o trilho de abas acima, e o cabeçalho
    deixou de ser gatilho para virar a barra de AÇÕES do estágio aberto (contrato, trocar, remover). */
+/* ===== AS QUATRO ABAS DO CONTRATO (2026-08-24, dele) =====
+   *"Todas essas informações vão estar vinculadas a apenas um contrato... assim a gente evita ficar
+   trocando qual livro a gente precisa."* Era o oposto: a aba Informações do topo misturava os
+   estágios todos do aluno e obrigava a escolher o livro de novo dentro de cada cartão.
+   Info | Configurações · Frequência · Planejamento de aulas · Progresso — e as quatro compartilham
+   o MESMO cabeçalho logo abaixo, que é o do contrato aberto. */
+var tabs=document.createElement('div');tabs.className='pg-abas mat-tabs';
+[['info','Info <i>|</i> Configurações'],['freq','Frequência'],
+ ['plan','Planejamento de aulas'],['prog','Progresso']].forEach(function(t,i){
+  var b=document.createElement('button');b.type='button';
+  b.className='pg-aba'+(i===0?' on':'');b.dataset.t=t[0];b.innerHTML=t[1];
+  b.onclick=function(ev){ev.stopPropagation();matSubAba(card,t[0])};
+  tabs.appendChild(b)});
+card.appendChild(tabs);
 var head=document.createElement('div');head.className='mat-cab';
 /* ===== O NOME E O CONTRATO SAÍRAM DAQUI (2026-08-23, dele) =====
    *"Como a aba já se chama o estágio dele com o número do contrato, não tem necessidade desse
@@ -5779,9 +5901,18 @@ ctrBt.onclick=function(ev){ev.stopPropagation();
    Não há campo novo no banco: a situação por estágio JÁ EXISTIA como `aluno_situacao_historico`
    com a coluna `livro`, e é dela que `sincronizarPercurso` deriva o estado. Este seletor só
    escreve na linha do tempo — o resto o servidor deduz. */
-/* o número do contrato se edita SEMPRE, aberto ou fechado: acertar a numeração histórica é
-   justamente o que se faz em contrato já encerrado */
-head.appendChild(ctrBt);
+/* ===== O HEADER COMUM ÀS QUATRO ABAS =====
+   Três colunas de larguras `1fr auto 1fr`, e é isso que põe a situação no centro GEOMÉTRICO da
+   barra mesmo com a direita cheia — com `space-between` ela escorregaria para a esquerda.
+   Esquerda: o número do contrato, que continua editável (acertar a numeração histórica é
+   justamente o que se faz em contrato já encerrado).
+   Centro: a SITUAÇÃO, que foi o que ele pediu — *"coloca bem no meio do header, centralizado"*.
+   Direita: a frase do contrato e as ações. */
+var hEsq=document.createElement('div');hEsq.className='mat-cab-esq';
+var hMeio=document.createElement('div');hMeio.className='mat-cab-meio';
+var hDir=document.createElement('div');hDir.className='mat-cab-dir';
+head.appendChild(hEsq);head.appendChild(hMeio);head.appendChild(hDir);
+hEsq.appendChild(ctrBt);
 var selSitM=document.createElement('select');selSitM.className='mat-sit';
 selSitM.title='Situação DESTE contrato — a do cadastro, lá em cima, só diz ativo ou desativado. Vira um registro no histórico, com a data de hoje.';
 (DOM.situacoes||[]).forEach(function(s){
@@ -5797,7 +5928,7 @@ if(m.fechado){
  selSitM.onchange=function(ev){ev.stopPropagation();matTrocarSituacao(m.livro,this)};
  selSitM.onclick=function(ev){ev.stopPropagation()};
 }
-head.appendChild(selSitM);
+hMeio.appendChild(selSitM);
 var acoesHead=document.createElement('div');acoesHead.className='mat-acoes';
 var trocarBtn=document.createElement('button');trocarBtn.type='button';trocarBtn.className='btn-link';trocarBtn.textContent='trocar estágio';
 /* ENCERRAR × TROCAR × REMOVER, e a diferença importa:
@@ -5810,11 +5941,33 @@ var encerrarBtn=document.createElement('button');encerrarBtn.type='button';encer
 encerrarBtn.textContent='encerrar estágio';
 encerrarBtn.title='O aluno terminou este livro: fecha o percurso e libera a vaga para o próximo';
 encerrarBtn.onclick=function(ev){ev.stopPropagation();matEncerrar(m.livro)};
-var rm=document.createElement('button');rm.type='button';rm.className='remover';rm.innerHTML='✕';rm.title='Remover matrícula';
+/* ===== O ✕ VIROU ARQUIVAR (2026-08-24, dele) =====
+   *"Esse X você coloca um ícone de lixeira... se bem que, na verdade, deixa para arquivar."* E ele
+   tem razão sobre o gesto: o que se faz com um estágio que não interessa mais ver não é destruir a
+   matrícula — é tirá-la da frente. O ícone realça no hover e a legenda diz o que vai acontecer. */
+var rm=document.createElement('button');rm.type='button';rm.className='mat-arquivar';
+rm.innerHTML='<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">'
+ +'<path d="M1.5 3.2h13v2.6h-13z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>'
+ +'<path d="M2.8 5.8v7.1h10.4V5.8" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>'
+ +'<path d="M6.2 8.4h3.6" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>';
+rm.title='Arquivar este estágio — ele sai da tela do aluno e a história dele fica guardada';
+rm.setAttribute('aria-label','Arquivar este estágio');
 rm.onclick=function(ev){ev.stopPropagation();matriculaExcluir(m.livro)};
-/* encerrar, trocar e remover só existem enquanto o contrato está de pé */
+/* a frase do contrato subiu para o header: era uma segunda linha de descrição embaixo dele */
+var frase=document.createElement('span');frase.className='mat-cab-frase';
+var fp=[];
+if(m.percurso&&m.percurso.estado!=='cursando'){
+ fp.push(m.percurso.estado+(m.percurso.dataFim?' em '+dataCurta(m.percurso.dataFim):''));
+}else if(m.percurso){
+ if(m.percurso.dataInicio)fp.push('em curso desde '+dataCurta(m.percurso.dataInicio));
+ else fp.push('sem data de entrada');
+ if(m.percurso.vence)fp.push('vencendo em '+dataCurta(m.percurso.vence));
+}
+if(fp.length)frase.innerHTML='contrato '+escBloco(fp.join(' · '));
+hDir.appendChild(frase);
+/* encerrar, trocar e arquivar só existem enquanto o contrato está de pé */
 if(!m.fechado){acoesHead.appendChild(encerrarBtn);acoesHead.appendChild(trocarBtn);acoesHead.appendChild(rm)}
-head.appendChild(acoesHead);card.appendChild(head);
+hDir.appendChild(acoesHead);card.appendChild(head);
 
 /* ---- corpo ----
    Não recolhe mais: o cartão só existe na tela quando a aba dele está escolhida, então esconder o
@@ -5824,10 +5977,9 @@ var corpoIn=document.createElement('div');corpoIn.className='mat-corpo-in';
 corpo.appendChild(corpoIn);card.appendChild(corpo);
 card.classList.add('aberto');
 
-/* Resumo do percurso: SÓ LEITURA aqui. A edição mora num lugar único, o cartão Percurso da aba
-   Informações — que é o único que também alcança livro já encerrado. Duas telas editando o mesmo
-   dado divergem na primeira melhoria (foi o que já aconteceu entre impressão e prévia). */
-if(m.percurso){
+/* O RESUMO DO PERCURSO SAIU DAQUI: virou a frase do cabeçalho comum, que é onde ele vale para as
+   quatro abas em vez de só para esta. */
+if(false){
 var resumo=document.createElement('button');resumo.type='button';resumo.className='mat-percurso';
 resumo.title='Ver e editar no Percurso, na aba Informações';
 var ps=[];
@@ -5986,7 +6138,47 @@ gravarAgenda(m.livro,lerItensEditor(editor),profsWidget.get(),false)})}
    fica pendurada no elemento — é o único caminho de fora para dentro do fecho. */
 card.atualizarPrevia=atualizarPreview;
 atualizarPreview();
+/* ===== O ESPAÇO VAZIO À DIREITA VIROU DUAS LISTAS (2026-08-24, dele) =====
+   *"Esse espaço você vai colocar duas coisas pela metade: à esquerda o histórico de situação, à
+   direita as trocas de horário."* Era um vão morto do tamanho de meia tela, e as duas listas viviam
+   numa aba separada onde se misturavam os estágios todos do aluno. Aqui elas são DESTE contrato. */
+var duplas=document.createElement('div');duplas.className='mat-duplas';
+corpoIn.appendChild(duplas);
+/* o painel das outras três abas: as seções que já existem na página são MOVIDAS para cá quando a
+   aba abre. Mover em vez de duplicar mantém uma implementação só de cada lista — e como só um
+   contrato fica visível por vez, não há dois donos disputando o mesmo nó. */
+var slot=document.createElement('div');slot.className='mat-slot';slot.style.display='none';
+card.appendChild(slot);
 return card;
+}
+/* ===== TROCA ENTRE AS QUATRO ABAS DO CONTRATO =====
+   As seções (`al-s-situacao`, `al-s-horario`, `al-s-freq`, `al-s-planejamento` e o painel de
+   progresso) nascem no HTML e vivem num depósito escondido. Aqui elas mudam de casa para dentro do
+   contrato aberto e recarregam JÁ FILTRADAS pelo livro dele — é isso que faz "tudo vinculado a um
+   contrato só" ser verdade e não só arrumação visual. */
+var MAT_CTX=null;
+function matSubAba(card,t){
+if(!card)return;
+MAT_CTX=card.dataset.livro||null;
+card.dataset.sub=t;
+card.querySelectorAll(':scope > .mat-tabs .pg-aba').forEach(function(b){b.classList.toggle('on',b.dataset.t===t)});
+var corpo=card.querySelector(':scope > .mat-corpo'), slot=card.querySelector(':scope > .mat-slot');
+var livro=card.dataset.livro;
+corpo.style.display=(t==='info'?'':'none');
+slot.style.display=(t==='info'?'none':'');
+if(t==='info'){
+ var d=card.querySelector('.mat-duplas');
+ var sit=$('al-s-situacao'), hor=$('al-s-horario');
+ if(d&&sit&&hor){d.appendChild(sit);d.appendChild(hor);sit.style.display='';hor.style.display=''}
+ alHistoricos(livro);
+ return;
+}
+var mapa={freq:'al-s-freq',plan:'al-s-planejamento',prog:'al-s-progresso'};
+var sec=$(mapa[t]);
+if(sec){slot.innerHTML='';slot.appendChild(sec);sec.style.display=''}
+if(t==='freq')freqCarregar(livro);
+if(t==='plan')planCarregar(livro);
+if(t==='prog')progCarregar(livro);
 }
 /* ---- gravar a agenda, perguntando antes quando é TROCA de horário ----
    O servidor é quem decide se é troca (compara a agenda que está no banco com a que veio da tela) e
@@ -6043,19 +6235,19 @@ gravarAgenda(t.livro,t.itens,t.profs,true);
 }
 
 /* ---- histórico de trocas de horário (recolhido por padrão, como os outros dois) ---- */
-function hhistFechar(){$('hhist-corpo').innerHTML='<div class="al-hist-vazio">Escolha um aluno.</div>'}
-function hhistCarregar(){run('getHorariosHistoricoAluno',[{idMatricula:alSel.id}],function(hs){hhistRender(hs)})}
+function hhistFechar(){var c=$('hhist-corpo');if(c)c.innerHTML='<div class="al-hist-vazio">Escolha um aluno.</div>'}
+function hhistCarregar(){run('getHorariosHistoricoAluno',[{idMatricula:alSel.id}],function(hs){
+ hhistRender(MAT_CTX?hs.filter(function(h){return h.livro===MAT_CTX}):hs)})}
 function hhistRender(hs){
 var box=$('hhist-corpo');box.innerHTML='';
+/* ===== A CONTAGEM VIROU TAG NO TÍTULO (2026-08-24, dele) =====
+   *"Tira esse cartãozinho e coloca uma tag com o número dentro."* O KPI por livro não faz mais
+   sentido desde que a lista é de UM contrato só — o número por livro era sempre o número total. */
+var tg=$('hhist-n');
+if(tg){tg.textContent=hs.length;tg.style.display=hs.length?'inline-flex':'none'}
 if(!hs.length){var v=document.createElement('div');v.style.cssText='color:var(--tx3);font-size:12px;padding:4px 0';
-v.textContent='Nenhuma troca registrada — o horário deste aluno não mudou desde que o registro existe.';
+v.textContent='Nenhuma troca registrada — o horário deste contrato não mudou.';
 box.appendChild(v);return}
-/* quantas vezes por livro: é a pergunta que ele faz ("esse aluno troca demais de horário?") */
-var porLivro={};hs.forEach(function(h){porLivro[h.livro]=(porLivro[h.livro]||0)+1});
-var res=document.createElement('div');res.className='freq-resumo';
-res.innerHTML=Object.keys(porLivro).map(function(l){
- return '<div class="freq-kpi"><b>'+porLivro[l]+'</b>'+escBloco(l)+'</div>'}).join('');
-box.appendChild(res);
 var lista=document.createElement('div');lista.className='freq-lista';
 hs.forEach(function(h){
 var row=document.createElement('div');row.className='hist-linha';
@@ -6104,8 +6296,13 @@ var HIST_ADD=false;
 function histAbrirAdd(){
 if(!alSel){msg('Escolha um aluno primeiro.',true);return}
 HIST_ADD=!HIST_ADD;histCarregar()}
-function histFechar(){HIST_EDIT=null;$('hist-corpo').innerHTML='<div class="al-hist-vazio">Escolha um aluno.</div>'}
-function histCarregar(){run('getHistoricoAluno',[alSel.id],function(hs){histRender(hs)})}
+function histFechar(){HIST_EDIT=null;var c=$('hist-corpo');if(c)c.innerHTML='<div class="al-hist-vazio">Escolha um aluno.</div>'}
+/* ===== TUDO AQUI É DO CONTRATO ABERTO (2026-08-24, dele) =====
+   *"O histórico de situação vai estar vinculado apenas ao contrato, ou seja, àquele livro."*
+   O filtro é do CLIENTE de propósito: a resposta do servidor é a mesma para as quatro abas e para o
+   aluno inteiro, então uma chamada serve a todos os contratos — trocar de aba não vai ao banco. */
+function histCarregar(){run('getHistoricoAluno',[alSel.id],function(hs){
+ histRender(MAT_CTX?hs.filter(function(h){return h.livro===MAT_CTX}):hs)})}
 /* "Rematriculado" -> "sit-rematriculado": sem acento e em minúsculas, para virar classe CSS */
 function classeSit(s){return 'sit-'+norm(s).replace(/[^a-z]/g,'')}
 function dataCurta(iso){var p=String(iso).split('-');return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:iso}
@@ -6119,20 +6316,19 @@ var selSit=document.createElement('select');(DOM.situacoes||[]).forEach(function
 /* livros oferecidos: os que o aluno tem HOJE primeiro (é o caso comum), depois os que aparecem no
    histórico dele mas já saíram das matrículas — quem encerrou o W2 e foi para o W4 precisa poder
    registrar "Encerrado · W2" mesmo já não tendo mais a matrícula do W2. */
-var selLiv=document.createElement('select');
-var o0=document.createElement('option');o0.value='';o0.textContent='(sem estágio)';selLiv.appendChild(o0);
+/* O DROPDOWN DE ESTÁGIO SAIU (2026-08-24, dele): *"não tem necessidade mais, porque é só vinculado
+   a esse contrato"*. A lista já vive dentro do contrato — oferecer a escolha de novo era o convite a
+   lançar a situação de um livro na aba de outro. `vistos` continua existindo porque a edição usa. */
 var vistos={};
-(MATRICULAS||[]).forEach(function(m){if(!vistos[m.livro]){vistos[m.livro]=1;
-  var o=document.createElement('option');o.value=m.livro;o.textContent=nomeLivro(m.livro);selLiv.appendChild(o)}});
-hs.forEach(function(h){if(h.livro&&!vistos[h.livro]){vistos[h.livro]=1;
-  var o=document.createElement('option');o.value=h.livro;o.textContent=nomeLivro(h.livro)+' (anterior)';selLiv.appendChild(o)}});
+(MATRICULAS||[]).forEach(function(m){vistos[m.livro]=1});
+hs.forEach(function(h){if(h.livro)vistos[h.livro]=1});
 var inpData=document.createElement('input');inpData.type='date';
 var addBtn=document.createElement('button');addBtn.type='button';addBtn.className='acao';addBtn.style.cssText='padding:6px 10px;margin:0';addBtn.textContent='+';
 addBtn.onclick=function(){if(!inpData.value){msg('Escolha uma data.',true);return}
-run('salvarHistoricoAluno',[{idMatricula:alSel.id,situacao:selSit.value,data:inpData.value,livro:selLiv.value||null}],function(r){
+run('salvarHistoricoAluno',[{idMatricula:alSel.id,situacao:selSit.value,data:inpData.value,livro:MAT_CTX||null}],function(r){
  inpData.value='';HIST_ADD=false;   /* lançou, fecha: o gesto acabou */
  histDepois(r)})};
-addRow.appendChild(selSit);addRow.appendChild(selLiv);addRow.appendChild(inpData);addRow.appendChild(addBtn);
+addRow.appendChild(selSit);addRow.appendChild(inpData);addRow.appendChild(addBtn);
 /* O FORMULÁRIO NASCE ESCONDIDO (2026-08-11): quatro campos sempre à mão num histórico é convite a
    lançamento acidental, e lançar situação mexe no status do aluno e no percurso dele. Quem quer
    lançar abre pelo "+" no canto do bloco. */
@@ -6141,6 +6337,8 @@ box.appendChild(addRow);
 box.appendChild(Object.assign(document.createElement('hr'),{className:'hist-fio'}));
 var bt=$('hist-add-bt');if(bt)bt.classList.toggle('on',!!HIST_ADD);
 if(!hs.length){var v=document.createElement('div');v.style.cssText='color:var(--tx3);font-size:12px;padding:4px 0';v.textContent='Nenhum registro ainda.';box.appendChild(v);return}
+var tgS=$('hist-n');
+if(tgS){tgS.textContent=hs.length;tgS.style.display=hs.length?'inline-flex':'none'}
 var lista=document.createElement('div');lista.className='freq-lista';
 hs.forEach(function(h){var row=document.createElement('div');row.className='hist-linha';
 /* ---- linha em EDIÇÃO: vira os mesmos três campos do formulário de lançar ----
@@ -6151,20 +6349,14 @@ if(HIST_EDIT===h.id){
  var eSit=document.createElement('select');
  (DOM.situacoes||[]).forEach(function(s){var o=document.createElement('option');o.textContent=s.situacao;
    if(s.situacao===h.situacao)o.selected=true;eSit.appendChild(o)});
- var eLiv=document.createElement('select');
- var z=document.createElement('option');z.value='';z.textContent='(sem estágio)';eLiv.appendChild(z);
- Object.keys(vistos).forEach(function(l){var o=document.createElement('option');o.value=l;o.textContent=l;
-   if(l===h.livro)o.selected=true;eLiv.appendChild(o)});
- /* o estágio da própria linha pode não estar entre os oferecidos (matrícula já removida):
-    acrescenta para a edição não trocar em silêncio o que estava gravado */
- if(h.livro&&!vistos[h.livro]){var ox=document.createElement('option');ox.value=h.livro;
-   ox.textContent=nomeLivro(h.livro)+' (anterior)';ox.selected=true;eLiv.appendChild(ox)}
+ /* sem dropdown de estágio na edição, pela mesma razão do formulário de lançar: a linha é deste
+    contrato e continua dele. O valor gravado viaja intacto em `h.livro`. */
  var eData=document.createElement('input');eData.type='date';eData.value=h.data;
  var ok=document.createElement('button');ok.type='button';ok.className='acao';
  ok.style.cssText='padding:5px 9px;margin:0';ok.textContent='✓';ok.title='Salvar';
  ok.onclick=function(){
   if(!eData.value){msg('A data é obrigatória.',true);return}
-  run('editarHistoricoAluno',[{id:h.id,situacao:eSit.value,data:eData.value,livro:eLiv.value||null}],
+  run('editarHistoricoAluno',[{id:h.id,situacao:eSit.value,data:eData.value,livro:h.livro||null}],
    function(r){HIST_EDIT=null;msg('Registro atualizado.');histDepois(r)})};
  var no=document.createElement('button');no.type='button';no.className='remover';no.textContent='✕';
  no.title='Cancelar';no.onclick=function(){HIST_EDIT=null;histRender(hs)};
@@ -6177,13 +6369,14 @@ var txt=document.createElement('span');
    mente: mostra "geral" tracejado, que é honesto sobre não se saber a qual matrícula pertence.
    O que era o cartão de Percurso virou este complemento da linha: "em curso", contrato e
    vencimento — sem estado nem lição, que ele tirou por serem repetição da própria situação. */
+/* ===== SÓ A SITUAÇÃO, "EM CURSO" E A DATA (2026-08-24, dele) =====
+   *"Você vai retirar os dois livros de cada um, não precisa... deixa só a tag de situação e a tag em
+   curso."* Saíram a pílula do estágio, o número do contrato e o vencimento: os três estão no
+   cabeçalho do contrato, três centímetros acima, e repetir em cada linha era o que fazia a lista
+   ocupar meia tela para dizer quatro coisas. */
 txt.innerHTML='<span class="sit '+classeSit(h.situacao)+'">'+escBloco(h.situacao)+'</span>'
-+(h.livro?'<span class="sit-livro">'+escBloco(nomeLivro(h.livro))+'</span>'
-        :'<span class="sit-livro geral" title="Registro sem estágio — feito antes de a situação passar a ser por curso">geral</span>')
 +(h.emCurso?'<span class="sit-curso" title="Este estágio está em curso">em curso</span>':'')
-+(h.contrato?'<span class="sit-contrato" title="Contrato: matrícula do aluno + ordem do vínculo">'+escBloco(h.contrato)+'</span>':'')
-+' <small style="color:var(--tx2)">'+escBloco(dataCurta(h.data))+'</small>'
-+(h.vence?'<small class="sit-vence" title="Contrato de um ano contado da entrada">vence '+escBloco(dataCurta(h.vence))+'</small>':'');
++' <small style="color:var(--tx2)">'+escBloco(dataCurta(h.data))+'</small>';
 var acoes=document.createElement('span');acoes.className='hist-acoes';
 /* editar em vez de apagar e refazer: errar a data ou a situação é comum, e refazer perderia a
    ordem da lista */
@@ -6213,11 +6406,11 @@ run('getAlunos',[],function(x){ALUNOS=x});
 }
 
 /* ---- frequência do aluno (só leitura + remover lançamento errado; lançar é na aba Presença) ---- */
-function freqFechar(){$('freq-corpo').innerHTML='<div class="al-hist-vazio">Escolha um aluno.</div>'}
+function freqFechar(){var c=$('freq-corpo');if(c)c.innerHTML='<div class="al-hist-vazio">Escolha um aluno.</div>'}
 /* frequência + encontros fora da agenda: as duas coisas contam a mesma história (quando o aluno
    veio), então são UMA lista só — o servidor já as funde e ordena por data (getFrequenciaAluno).
    Uma chamada só: a segunda existia para montar a seção separada, que deixou de existir. */
-function freqCarregar(){run('getFrequenciaAluno',[{idMatricula:alSel.id}],function(r){freqRender(r)})}
+function freqCarregar(){run('getFrequenciaAluno',[{idMatricula:alSel.id,livro:MAT_CTX||null}],function(r){freqRender(r)})}
 function freqRender(r){
 var box=$('freq-corpo');box.innerHTML='';
 var res=document.createElement('div');res.className='freq-resumo';
@@ -11672,7 +11865,7 @@ if(destino==='aluno'||destino==='aluno-historico'){
   esperar(function(){
    if(destino==='aluno-historico'){alAba('matriculas');alInfoAba('situacao');
     ctPiscar(function(){return $('hist-corpo')},2200)}
-   else ctPiscar(function(){return $('al-quem')||$('al-nome')},2200);
+   else ctPiscar(function(){return $('al-nome')},2200);
    msg(rotulo||a.nome);
   },700);
  });

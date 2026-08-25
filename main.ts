@@ -3692,7 +3692,7 @@ function projetarContrato({ idMatricula, livro, inicio, fechadosPre }: any) {
      começo do livro. Então a 1ª aula registrada ancora na primeira lição que o PLANO ainda não
      tinha dado por vencida naquele dia, e dali em diante cada aula avança uma. A defasagem passa a
      contar do dia em que existe dado — o único período sobre o qual dá para afirmar algo. */
-  let ancora = 0, venceu = false, afirmada: any = null;
+  let ancora = 0, venceu = false, afirmada: any = null, ancoraCurta = false;
   /* ===== A LIÇÃO AFIRMADA MANDA NA ÂNCORA (2026-08-24, dele) =====
      *"Na presença dele eu colocar a lição que ele tá fazendo... tipo a última lição da última
      data."* A dedução automática abaixo é palpite educado; isto aqui é a escola falando. A ÚLTIMA
@@ -3707,8 +3707,14 @@ function projetarContrato({ idMatricula, livro, inicio, fechadosPre }: any) {
     if (dadasFila[k].licao_ordem != null) afirmada = { k, ordem: dadasFila[k].licao_ordem };
   if (afirmada) {
     const alvo = licoes.findIndex((l: any) => l.ordem === afirmada.ordem);
-    if (alvo >= 0) ancora = Math.max(0, alvo - afirmada.k);
-    else afirmada = null;   // a lição afirmada saiu da estrutura desde então
+    if (alvo >= 0) {
+      ancora = alvo - afirmada.k;
+      /* NÃO CABE: há mais aulas lançadas até aquela data do que lições até a que ele afirmou. Ou o
+         aluno veio a aulas que não deram lição, ou a lição registrada está atrasada em relação ao
+         que a recepção lançou. Encaixar no zero é o menos pior — mas calar seria mentir sobre a
+         tabela estar de acordo com o que ele digitou. */
+      if (ancora < 0) { ancora = 0; ancoraCurta = true; }
+    } else afirmada = null;   // a lição afirmada saiu da estrutura desde então
   }
   if (!afirmada && dadasFila.length) {
     const d0 = dadasFila[0].data;
@@ -3839,7 +3845,7 @@ function projetarContrato({ idMatricula, livro, inicio, fechadosPre }: any) {
     contratoVencido: !!(excesso && excesso > 0),
     /* meses até o fim do contrato, como a linha "Tempo restante" do STATS dela */
     mesesAteFim: fimContrato ? Math.round(diasEntre(hojeISO, fimContrato) / 30 * 10) / 10 : null, ultima: linhas.length ? linhas[linhas.length - 1].dataPlan : null,
-    incompleto: i < licoes.length, trocas,
+    incompleto: i < licoes.length, trocas, ancoraCurta,
     dadas: dadasFila.length, faltas, naoAula, ancora, venceu,
     /* a posição é AFIRMADA quando alguém digitou a lição, DEDUZIDA quando saiu da contagem */
     posicao: atual ? { ordem: atual.ordem, licao: (atual.sigla || (atual.numero != null ? String(atual.numero) : "")) || null,
@@ -7139,6 +7145,108 @@ function corrigir270ParaW10() {
     + escolhidas[0] + " e " + escolhidas[escolhidas.length - 1] + "; âncora na lição 255");
 }
 try { corrigir270ParaW10(); } catch (e) { console.warn("acerto da 270 falhou (segue o baile):", e); }
+
+/* ===== O HISTÓRICO QUE ACONTECEU E NÃO FOI LANÇADO (2026-08-24, ordem dele) =====
+   *"Eu preciso de dados, eu quero que você injete dados... preencha todos os dados que ele fez a
+   lição, até bater com a última lição."* Feito primeiro só na 270; ele conferiu e mandou seguir.
+
+   O QUE É INVENTADO, E O QUE NÃO É. O lançamento de frequência existe desde **julho/2026**; os
+   contratos são de 2025 e do começo de 2026. Então há um bloco de aulas que ACONTECERAM e não têm
+   registro — a prova é a própria lição em que o aluno está, que ele confirmou na planilha. O que se
+   reconstrói aqui é a DATA de cada uma, não o fato de ter acontecido.
+
+   SÓ ONDE A POSIÇÃO É AFIRMADA. Nos contratos de posição `deduzida` a lição atual é palpite do
+   próprio plano; semear histórico para casar com ele seria circular — o quadro ganharia cara de fato
+   sem nunca ter virado um. Esses ficam curtos, e é o certo: a tabela mostra a posição e admite que
+   não sabe o caminho.
+
+   AS DATAS SAEM DA PROJEÇÃO, que já pula feriado, recesso e o que o calendário letivo fechar — foi a
+   condição que ele pôs. E ficam ANTES da primeira presença de verdade, senão a ordem em que as
+   lições foram consumidas mudaria de sentido.
+
+   ONDE NÃO CABE, ENTRA O QUE CABE. Em alguns contratos a data de início do sistema é recente demais
+   para comportar as lições já feitas — a projeção não tem dias suficientes antes do primeiro
+   lançamento. Nesses entram todos os dias disponíveis e o resto fica sem data: a âncora continua
+   mandando na POSIÇÃO, e as primeiras lições aparecem sem "data realizada", que é a verdade — não
+   sabemos quando foram. *É também o sintoma de uma `data_inicio` errada: a planilha dele tem outra,
+   mais antiga, em vários desses casos.*
+
+   Cada linha semeada deixa rastro em `diario` com tipo `seed`. É por ali que se acha e se desfaz. */
+function reconstruirHistoricoDasAulas() {
+  if (G("SELECT valor FROM config WHERE chave='seed_historico_v1'")) return;
+  const contratos = A("SELECT id_matricula, livro FROM aluno_livro ORDER BY id_matricula, livro");
+  let tocados = 0, inseridas = 0, curtos = 0;
+  db.exec("BEGIN");
+  try {
+    for (const c of contratos) {
+      let r: any;
+      try { r = projetarContrato({ idMatricula: c.id_matricula, livro: c.livro }); } catch { continue; }
+      if (!r || r.confianca !== "afirmada" || !r.posicao) continue;
+      const falta = r.posicao.ordem - (r.dadas || 0);
+      if (falta <= 0) continue;
+      const prim = r.primeiraDada;
+      const jaTem = new Set(A("SELECT data FROM presenca WHERE id_matricula=? AND livro=?",
+        c.id_matricula, c.livro).map((x: any) => x.data));
+      /* UM candidato por DATA, com quantas lições aquele dia consome: a presença é uma linha por
+         data, e quem faz duas aulas no mesmo dia anda duas lições nele. Sem esta contagem, semear
+         para quem tem 9h e 10h na terça geraria o dobro dos dias necessários. */
+      const porData = new Map<string, { hora: string; aulas: number }>();
+      for (const l of r.linhas) {
+        if (prim && l.dataPlan >= prim) break;
+        if (jaTem.has(l.dataPlan)) continue;
+        const e = porData.get(l.dataPlan);
+        if (e) e.aulas++;
+        else porData.set(l.dataPlan, { hora: l.hora || "00:00", aulas: 1 });
+      }
+      const livres = [...porData.entries()].map(([data, v]) => ({ data, ...v }));
+      if (!livres.length) { curtos++; continue; }
+      /* QUANTOS DIAS, SEM NUNCA PASSAR DA CONTA. Um dia de duas aulas anda duas lições, e quando o
+         que falta é ÍMPAR não existe combinação de dias que feche exato — então é melhor ficar uma
+         lição AQUÉM. Passar significa dar ao aluno uma aula que ele não teve, e aí a âncora não cabe
+         mais: ela pede uma posição anterior à que a contagem produz, o motor trava no zero e a tela
+         mostra a lição SEGUINTE à que ele digitou. Foi exatamente o que o ensaio pegou em duas
+         matrículas de duas aulas no mesmo dia. */
+      let precisa = 0, soma = 0;
+      for (const d of livres) { if (soma + d.aulas > falta) break; soma += d.aulas; precisa++; }
+      if (!precisa) { curtos++; continue; }
+      if (soma < falta) curtos++;
+      /* espalhadas pela janela inteira, não empilhadas no começo: quem está atrasado ficou atrasado
+         AO LONGO do contrato, e é a defasagem crescente que a tabela precisa mostrar */
+      const passo = livres.length / precisa;
+      const usadas = new Set<number>();
+      const escolhidas: typeof livres = [];
+      for (let k = 0; k < precisa; k++) {
+        let i = Math.min(livres.length - 1, Math.floor(k * passo));
+        while (usadas.has(i) && i < livres.length - 1) i++;
+        if (usadas.has(i)) continue;
+        usadas.add(i); escolhidas.push(livres[i]);
+      }
+      /* rede de segurança: os dias ESCOLHIDOS podem pesar diferente dos primeiros que a conta acima
+         somou (agenda com terça de duas aulas e quinta de uma). Corta do fim até caber. */
+      let peso = escolhidas.reduce((t, d) => t + d.aulas, 0);
+      while (escolhidas.length && peso > falta) peso -= escolhidas.pop()!.aulas;
+      for (let k = 0; k < escolhidas.length; k++) {
+        const alvo = escolhidas[k];
+        const hh = alvo.hora.slice(0, 2);
+        const n = R(`INSERT OR IGNORE INTO presenca (id_matricula,livro,data,status,entrada,saida,auto)
+                     VALUES (?,?,?,'P',?,?,0)`, c.id_matricula, c.livro, alvo.data,
+          hh + ":0" + (k % 9), hh + ":5" + ((k * 3) % 9)).changes;
+        if (!n) continue;
+        inseridas++;
+        R(`INSERT INTO diario (momento,id_matricula,livro,data,tipo,valor,detalhe)
+           VALUES (?,?,?,?,'seed','P',?)`, agora(), c.id_matricula, c.livro, alvo.data,
+          "aula reconstruída: a data é estimada pela projeção; a lição em que ele está é a prova de que ela aconteceu");
+      }
+      tocados++;
+    }
+    R("INSERT OR REPLACE INTO config (chave,valor) VALUES ('seed_historico_v1',?)", agora());
+    db.exec("COMMIT");
+  } catch (e) { db.exec("ROLLBACK"); console.warn("reconstrução do histórico falhou:", e); return; }
+  if (inseridas)
+    console.log("histórico reconstruído: " + inseridas + " aula(s) em " + tocados + " contrato(s)"
+      + (curtos ? " — " + curtos + " ficaram curtos (a data de início não comporta as lições feitas)" : ""));
+}
+try { reconstruirHistoricoDasAulas(); } catch (e) { console.warn("reconstrução do histórico falhou (segue o baile):", e); }
 
 /* 8420 e ponto. É a porta que `iniciar.bat`, `iniciar-app.vbs`, `iniciar-sala.vbs`, `servidor.vbs`
    e a regra do firewall conhecem — não há segunda porta em lugar nenhum do projeto, e não deve

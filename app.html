@@ -5137,6 +5137,10 @@ PLAN_ORD={};
 h+='<datalist id="plan-licoes">'+(r.linhas||[]).map(function(l){
  PLAN_ORD[(l.licao||'').toUpperCase()]=l.ordem;
  return '<option value="'+escBloco(l.licao||'')+'">'+escBloco(l.conteudo||'')+'</option>'}).join('')+'</datalist>';
+/* a lição registrada não coube: a recepção lançou mais aulas até aquela data do que lições até ela */
+if(r.ancoraCurta)h+=planAviso('A lição registrada não cabe na contagem: até essa data há mais aulas '
+ +'lançadas do que lições até ela. Ou vieram aulas que não deram lição, ou a lição registrada está '
+ +'atrás do que a recepção lançou — o quadro encaixou no começo do livro para não perder nenhuma data.');
 if(r.incompleto)h+=planAviso('A projeção parou antes do fim das lições — o contrato passaria de dois anos com esta agenda.');
 /* A ÂNCORA, dita em voz alta. O lançamento de frequência só existe desde o fim de julho/2026: num
    contrato mais velho que isso, a 1ª aula registrada não é a lição 1, e esconder essa escolha faria

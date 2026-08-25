@@ -6143,6 +6143,18 @@ if(!MATRICULAS.length){var v=document.createElement('div');v.className='matricul
 if(MAT_ABA_DE!==alSel.id){MAT_ABA=null;MAT_ABA_DE=alSel.id}
 var ordem=matOrdenadas();
 if(MAT_ABA&&!ordem.some(function(m){return m.livro===MAT_ABA}))MAT_ABA=null;
+/* ===== ABRIR O ALUNO JÁ ABRE O CONTRATO DELE (2026-08-24, dele) =====
+   Antes a tela pedia mais um clique para dizer o óbvio: quem tem um contrato só não tem escolha a
+   fazer. O "escolha um estágio acima" só sobrevive para quem não tem nenhum.
+   ESCOLHE O QUE ESTÁ EM CURSO, não o primeiro do trilho: o trilho é cronológico — é a TRILHA do
+   aluno — então quem terminou o Teens 6 e está no Teens 8 tem o encerrado na frente. Abrir o livro
+   que ele já fechou seria começar pela página errada. Só cai no primeiro quando todos estão
+   fechados, que é o caso de quem parou. */
+var autoAbriu=false;
+if(!MAT_ABA&&ordem.length){
+ var vivo=ordem.filter(function(m){return !m.fechado})[0];
+ MAT_ABA=(vivo||ordem[0]).livro;autoAbriu=true;
+}
 var rail=document.createElement('div');rail.className='pg-abas mat-abas';
 ordem.forEach(function(m){
   var b=document.createElement('button');b.type='button';
@@ -6165,6 +6177,9 @@ ordem.forEach(function(m){
   card.dataset.livro=m.livro;
   card.style.display=(m.livro===MAT_ABA?'':'none');
   box.appendChild(card)});
+/* depois de os cartões existirem: `matAba` é quem move as seções para dentro do contrato e arma o
+   contexto — sem esta chamada o cartão apareceria aberto mas vazio por dentro */
+if(autoAbriu)matAba(MAT_ABA);
 }
 function matAba(livro){
 MAT_ABA=livro;
@@ -6185,7 +6200,7 @@ document.querySelectorAll('#mat-lista .matricula-card').forEach(function(c){
 /* abrir o contrato abre a sub-aba dele: a que já estava, ou Info na primeira vez. É aqui que as
    seções mudam de casa e recarregam filtradas por este livro. */
 var aberto=document.querySelector('#mat-lista .matricula-card[data-livro="'+(livro||'').replace(/"/g,'\\"')+'"]');
-if(aberto){matSubAba(aberto,aberto.dataset.sub||'info');matPreCarregar(livro)}
+if(aberto){matSubAba(aberto,aberto.dataset.sub||'prog');matPreCarregar(livro)}
 else MAT_CTX=null;
 }
 /* grade dia×hora, no mesmo layout da aba Horários: dias nas colunas, horas alinhadas em linha —
@@ -6251,8 +6266,12 @@ var card=document.createElement('div');card.className='matricula-card';
    Info | Configurações · Frequência · Planejamento de aulas · Progresso — e as quatro compartilham
    o MESMO cabeçalho logo abaixo, que é o do contrato aberto. */
 var tabs=document.createElement('div');tabs.className='pg-abas mat-tabs';
-[['info','Info <i>|</i> Configurações'],['freq','Frequência'],
- ['plan','Planejamento de aulas'],['prog','Progresso']].forEach(function(t,i){
+/* ===== A ORDEM É A DO USO (2026-08-24, dele) =====
+   O PAINEL vem primeiro e é o que abre por padrão: quem abre um aluno quer saber onde ele está,
+   não configurar horário. Configurações — sem o "Info |", que dizia a mesma coisa duas vezes —
+   passa a ser o segundo, porque é para onde se vai quando algo precisa MUDAR. */
+[['prog','Painel'],['info','Configurações'],['freq','Frequência'],
+ ['plan','Planejamento de aulas']].forEach(function(t,i){
   var b=document.createElement('button');b.type='button';
   b.className='pg-aba'+(i===0?' on':'');b.dataset.t=t[0];b.innerHTML=t[1];
   b.onclick=function(ev){ev.stopPropagation();matSubAba(card,t[0])};

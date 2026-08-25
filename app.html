@@ -1378,7 +1378,22 @@ th.ev.ultima .es-ev-data{background:var(--marca);color:#fff}
 .plan-tab thead th{position:sticky;top:0;z-index:2;background:#FBFCFD;text-align:left;padding:7px 8px;
   font-size:10.5px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.4px;
   border-bottom:1px solid var(--borda);white-space:nowrap}
-.plan-tab td{padding:4px 8px;border-bottom:1px solid #F1F4F7;vertical-align:middle}
+/* ===== GRADE FECHADA E TUDO CENTRALIZADO (2026-08-25, dele) =====
+   *"A tabela inteira eu quero que você coloque as bordas verticais pra separar as colunas. E o nome
+   de cada header centralizado e o conteúdo também — tudo centralizado, exceto o nome da lição."*
+   Com as células fundidas de entrada/saída, a borda vertical deixou de ser enfeite: é ela que
+   mostra que um horário atravessa duas lições. O conteúdo é quase todo número e data curta, que
+   lê melhor centrado; só a lição é texto corrido, e texto corrido se lê da esquerda. */
+.plan-tab td{padding:4px 8px;border-bottom:1px solid #F1F4F7;vertical-align:middle;text-align:center;
+  border-right:1px solid #EEF2F6}
+/* `thead th` e nao `th`: a regra do cabecalho grudado, tres linhas acima, e mais especifica e
+   vencia -- o header continuava a esquerda enquanto o corpo ja estava centrado */
+.plan-tab thead th{text-align:center;border-right:1px solid var(--borda)}
+.plan-tab th:last-child,.plan-tab td:last-child{border-right:0}
+.plan-tab .c-lic,.plan-tab .c-obs{text-align:left}
+/* a célula fundida do lançamento: centrada nas duas linhas que ela atravessa */
+.plan-tab td.c-hr[rowspan],.plan-tab td.c-dur[rowspan]{vertical-align:middle;background:#FCFDFE}
+.plan-tab td.c-hr[rowspan="2"],.plan-tab td.c-dur[rowspan="2"]{border-bottom:1px solid var(--borda)}
 .plan-tab .c-mes,.plan-tab .c-ns,.plan-tab .c-ds,.plan-tab .c-dm,.plan-tab .c-dr,.plan-tab .c-aula,
 .plan-tab .c-hr,.plan-tab .c-dur{white-space:nowrap;font-variant-numeric:tabular-nums}
 .plan-tab .c-mes{font-weight:700;color:var(--marca);width:44px}
@@ -5493,16 +5508,25 @@ var mesAnt=null, ROT={P:'Presente',F:'Falta',N:'Não aula'};
   +'<td class="c-dr'+(fora?' desloc':'')+'">'+(l.dataReal
      ?'<span class="plan-ok" title="Aula dada"></span>'
       +escBloco(l.dmReal)+'<small>'+escBloco(l.dsReal||'')+'</small>'
-      +(l.extra?'<span class="plan-extra '+(l.extra==='Anteposição'?'ant':'rep')+'" title="'
-        +escBloco(l.extra)+' — aula fora do horário regular deste contrato">'
-        +(l.extra==='Anteposição'?'ant':'rep')+'</span>':'')
+     /* ===== O PLANEJADOR VOLTOU A SER SÓ O PLANEJADOR (2026-08-25, dele) =====
+        *"O propósito é a data esperada que ele faça aquela lição e a data que foi feita. Não importa
+        se é reposição, não importa se é falta — desvincula tudo isso, deixa mais puro."*
+        A marca de reposição saiu daqui: o registro atômico do que cada aula FOI é assunto da ficha de
+        frequência hierarquizada que ele já tem pronta. Fica a discrepância entre previsto e feito —
+        e o realce mostarda, que é justamente ela. */
      :'')+'</td>'
   +'<td class="c-aula">'+l.aula+'</td>'
 
   /* a 2ª lição do mesmo lançamento repete a data, não a hora: entrada, saída e duração são de UMA
      sentada só, e mostrá-las duas vezes somaria a mesma hora duas vezes no olho de quem lê */
-  +'<td class="c-hr">'+escBloco(l.entrada||'')+'</td>'
-  +'<td class="c-hr">'+escBloco(l.saida||'')+'</td>'
+  /* ===== UM LANÇAMENTO, UMA CÉLULA (2026-08-25, dele) =====
+     *"Ela conseguiu fazer as duas numa hora só, da 1:06 até às 2:02 — junta a célula de cima e a de
+     baixo e centraliza."* Entrada, saída e duração são do LANÇAMENTO, e o lançamento é um só por
+     data: repetir o horário na 2ª lição do mesmo dia sugeria duas aulas separadas, e deixar em
+     branco (como estava) parecia dado faltando. A célula agora atravessa as duas linhas. */
+  +(l.mesmoLancamento?''
+    :'<td class="c-hr" rowspan="'+(l.spanLanc||1)+'">'+escBloco(l.entrada||'')+'</td>'
+     +'<td class="c-hr" rowspan="'+(l.spanLanc||1)+'">'+escBloco(l.saida||'')+'</td>')
   /* A LIÇÃO DA LINHA REALIZADA É EDITÁVEL (2026-08-24, dele): *"na presença dele eu colocar a lição
      que ele tá fazendo"*. Só onde houve aula — afirmar a lição de um dia que não aconteceu não quer
      dizer nada — e só na 1ª lição do dia, porque a marca mora na presença, que é uma por data. */
@@ -5520,7 +5544,9 @@ var mesAnt=null, ROT={P:'Presente',F:'Falta',N:'Não aula'};
      :'<span class="plan-ro" title="'+(l.mesmoLancamento
         ?'a anotação é do lançamento do dia, e ele já tem uma caixa na linha de cima'
         :'a anotação nasce com o lançamento da frequência')+'">—</span>')+'</td>'
-  +'<td class="c-dur">'+(l.minutos!=null?l.minutos+' min':'')+'</td></tr>'});
+  +(l.mesmoLancamento?''
+    :'<td class="c-dur" rowspan="'+(l.spanLanc||1)+'">'+(l.minutos!=null?l.minutos+' min':'')+'</td>')
+  +'</tr>'});
 h+='</tbody></table></div>';
 /* UM datalist para as 71 linhas: 71 opções uma vez, e não 71 × 71. O mapa rótulo→ordem fica aqui
    porque é a tela que já conhece as duas coisas — mandar o texto para o servidor resolver obrigaria

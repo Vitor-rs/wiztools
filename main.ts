@@ -3789,6 +3789,13 @@ function projetarContrato({ idMatricula, livro, inicio, fechadosPre }: any) {
     alvo.extra = p.extra || null;
     /* a ÚLTIMA lição do lançamento é a que carrega a marca e o botão de editar */
     alvo.ultimoDoDia = !(dadasFila[k + 1] && dadasFila[k + 1].data === p.data);
+    /* quantas LINHAS este lançamento ocupa: a tela funde entrada, saída e duração ao longo delas,
+       porque as três são do lançamento e o lançamento é um só por data */
+    if (!p.ordem) {
+      let span = 1;
+      while (dadasFila[k + span] && dadasFila[k + span].data === p.data) span++;
+      alvo.spanLanc = span;
+    }
     alvo.afirmada = p.licao_ordem != null && alvo.ultimoDoDia;
     /* o evento passa a saber QUAL lição ele consumiu — é o que liga a barra de baixo às de cima */
     if (p.evento != null && eventos[p.evento]) {
@@ -7319,6 +7326,48 @@ function corrigir270ParaW10() {
     + escolhidas[0] + " e " + escolhidas[escolhidas.length - 1] + "; âncora na lição 255");
 }
 try { corrigir270ParaW10(); } catch (e) { console.warn("acerto da 270 falhou (segue o baile):", e); }
+
+/* ===== A 2316 FEZ DUAS LIÇÕES NO PRIMEIRO DIA (2026-08-25, dele) =====
+   *"Ela começou dia 4 do 8, só que fez o Useful Language, que é a lição especial, e a lição 1 no
+   mesmo dia. E hoje, dia 25, ela está na lição 4."*
+   Duas afirmações dele, e as duas viram dado:
+   - `aulas_feitas = 2` em 04/08. Explícito, e não deduzido do encontro avulso daquele dia: o avulso
+     é assunto da Frequência, e o planejamento não deve depender dele para saber quantas lições um
+     lançamento consumiu.
+   - a aula de HOJE, com a lição afirmada em L4 — a âncora sai da linha de 20/08, que tinha um
+     palpite antigo, e passa para a data que ele acabou de confirmar.
+
+   A CONTA NÃO FECHA, E A TELA VAI DIZER ISSO. Até hoje há 7 lições-slot lançadas (04/08 vale 2) e a
+   L4 é a 5ª da estrutura. Sobram duas — e a explicação é dele mesmo: *"nem sempre a aula que ela tem
+   é aula de lição, às vezes é aula de tarefa"*. Não invento quais foram: marcar dia errado como
+   tarefa é pior que admitir a diferença, e o aviso de "a lição registrada não cabe" existe
+   exatamente para este caso. */
+function acertar2316() {
+  if (G("SELECT valor FROM config WHERE chave='is2316_v1'")) return;
+  const ID = "2316", LV = "Teens 2";
+  if (!G("SELECT 1 FROM aluno_livro WHERE id_matricula=? AND livro=?", ID, LV)) return;
+  const est = G(`SELECT id FROM estagio WHERE livro=? ORDER BY (status='ativo') DESC, legado, id LIMIT 1`, LV);
+  if (!est) return;
+  const l4 = G("SELECT ordem FROM estagio_licao WHERE dono_id=? AND numero=4", est.id);
+  const hoje = dataISO(new Date());
+  db.exec("BEGIN");
+  try {
+    /* o primeiro dia consumiu duas lições */
+    R("UPDATE presenca SET aulas_feitas=2 WHERE id_matricula=? AND livro=? AND data='2026-08-04'", ID, LV);
+    /* a aula de hoje: se a recepção ainda não lançou, entra aqui com o horário da agenda */
+    if (!G("SELECT 1 FROM presenca WHERE id_matricula=? AND livro=? AND data=?", ID, LV, hoje))
+      R(`INSERT INTO presenca (id_matricula,livro,data,status,entrada,saida,auto)
+         VALUES (?,?,?,'P','13:03','14:00',0)`, ID, LV, hoje);
+    /* a âncora muda de casa: sai do palpite de 20/08 e vai para o que ele afirmou hoje */
+    R("UPDATE presenca SET licao_ordem=NULL WHERE id_matricula=? AND livro=?", ID, LV);
+    if (l4) R("UPDATE presenca SET licao_ordem=? WHERE id_matricula=? AND livro=? AND data=?",
+      l4.ordem, ID, LV, hoje);
+    R("INSERT OR REPLACE INTO config (chave,valor) VALUES ('is2316_v1',?)", agora());
+    db.exec("COMMIT");
+  } catch (e) { db.exec("ROLLBACK"); console.warn("acerto da 2316 falhou:", e); return; }
+  console.log("acerto: 2316 — 04/08 vale 2 lições (Useful Language + Lesson 1) e a lição de hoje é L4");
+}
+try { acertar2316(); } catch (e) { console.warn("acerto da 2316 falhou (segue o baile):", e); }
 
 /* ===== O CONTRATO COMEÇOU UM ANO ANTES (2026-08-25) =====
    Ele abriu a matrícula 1985 e viu: *"ela começou o curso dia 29 do 4 de 2025, não 2026. Tem vários

@@ -487,13 +487,29 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
   width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;
   color:var(--tx3);cursor:pointer;transition:transform .12s ease,color .12s ease,background .12s ease}
 .mat-arquivar:hover{color:#B23A48;background:#FDECEE;border-color:#F3C7CD;transform:scale(1.12)}
-/* ===== AS DUAS LISTAS LADO A LADO, no vão que estava vazio ===== */
-.mat-duplas{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px;align-items:start}
-@media (max-width:900px){.mat-duplas{grid-template-columns:1fr}}
-.mat-duplas .al-hist{margin:0}
-/* compactas: a lista é de linhas curtas, e o respiro de antes vinha das colunas que saíram */
-.mat-duplas .al-hist-corpo,.mat-duplas #hist-corpo,.mat-duplas #hhist-corpo{max-height:230px;overflow:auto}
-.mat-duplas .hist-linha{padding:5px 0}
+/* ===== AS DUAS LISTAS, LADO A LADO, DIVIDIDAS POR UM FIO =====
+   *"Coloca uma linha fina cinza no meio, um cinza claro bem no meio, pra dividir ali as duas."*
+   Sem moldura em volta: são duas listas curtas, e dois cartões dentro de um cartão dentro de uma
+   aba seriam três caixas para mostrar quatro linhas de texto. O fio basta para dizer que são duas. */
+.mat-duplas{display:grid;grid-template-columns:1fr 1fr;gap:0;margin:0;align-items:start;min-width:0}
+.mat-duplas .al-hist{margin:0;border:0;box-shadow:none;background:transparent;padding:0 12px;min-width:0}
+.mat-duplas .al-hist+.al-hist{border-left:1px solid #E6EAEF}
+@media (max-width:640px){.mat-duplas{grid-template-columns:1fr}
+  .mat-duplas .al-hist+.al-hist{border-left:0;border-top:1px solid #E6EAEF;padding-top:10px;margin-top:10px}}
+.mat-duplas .al-hist h3{font-size:12px;margin-bottom:6px}
+/* rolagem interna: a coluna tem a altura da matriz de horas ao lado, e é ela que manda */
+.mat-duplas #hist-corpo,.mat-duplas #hhist-corpo{max-height:330px;overflow:auto}
+/* ===== LINHAS ESTREITAS =====
+   *"Tem um espaço branco enorme entre o texto e o lapisinho... não precisa disso tudo."*
+   O texto para de esticar (`space-between` jogava as ações na outra ponta da coluna) e os botões
+   vêm logo depois dele, encolhidos. */
+.mat-duplas .hist-linha{padding:4px 0;justify-content:flex-start;gap:8px;font-size:11.5px}
+.mat-duplas .hist-linha>span:first-child{min-width:0;flex:0 1 auto}
+.mat-duplas .hist-acoes{margin-left:auto;flex:0 0 auto;opacity:.55;transition:opacity .12s ease}
+.mat-duplas .hist-linha:hover .hist-acoes{opacity:1}
+.mat-duplas .hist-acoes .remover{width:22px;height:22px}
+.mat-duplas .sit{font-size:10.5px;padding:1px 7px}
+.mat-duplas .sit-curso{font-size:10px}
 /* o painel das outras três abas ocupa o corpo inteiro do contrato */
 .mat-slot{padding:14px 15px 16px}
 .mat-slot .al-hist{border:0;padding:0;box-shadow:none}
@@ -538,8 +554,13 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
 .matricula-card.aberto .mat-corpo-in{padding:12px 14px 14px}
 @media (prefers-reduced-motion:reduce){.mat-corpo{transition:none}}
 /* corpo em duas colunas: formulário à esquerda, matriz de horários à direita */
-.mat-cols{display:grid;grid-template-columns:minmax(200px,260px) 1fr;gap:18px;align-items:start}
-@media (max-width:900px){.mat-cols{grid-template-columns:1fr}}
+/* TRÊS COLUNAS: os campos, a matriz de horas (que toma a largura que precisa) e — no vão que
+   sobrava à direita — as duas listas do contrato. */
+.mat-cols{display:grid;grid-template-columns:minmax(200px,260px) auto minmax(300px,1fr);gap:18px;align-items:start}
+@media (max-width:1280px){.mat-cols{grid-template-columns:minmax(200px,260px) 1fr}
+  .mat-cols .mat-duplas{grid-column:1/-1}}
+@media (max-width:900px){.mat-cols{grid-template-columns:1fr}
+  .mat-cols .mat-duplas{grid-column:auto}}
 .mat-esq{display:flex;flex-direction:column;min-width:0}
 .mat-esq label{margin:0 0 3px}
 .mat-esq>div{margin-bottom:9px}
@@ -6138,12 +6159,14 @@ gravarAgenda(m.livro,lerItensEditor(editor),profsWidget.get(),false)})}
    fica pendurada no elemento — é o único caminho de fora para dentro do fecho. */
 card.atualizarPrevia=atualizarPreview;
 atualizarPreview();
-/* ===== O ESPAÇO VAZIO À DIREITA VIROU DUAS LISTAS (2026-08-24, dele) =====
-   *"Esse espaço você vai colocar duas coisas pela metade: à esquerda o histórico de situação, à
-   direita as trocas de horário."* Era um vão morto do tamanho de meia tela, e as duas listas viviam
-   numa aba separada onde se misturavam os estágios todos do aluno. Aqui elas são DESTE contrato. */
+/* ===== O VÃO À DIREITA DA MATRIZ DE HORAS (2026-08-24, dele) =====
+   *"Naquela parte branca ali depois da matriz de configurações de horário... na esquerda o
+   histórico de situação, na direita as trocas de horário."* Da primeira vez eu as pendurei no fim
+   do corpo, embaixo da prévia de impressão — não era ali: o vão que ele apontou é a sobra da coluna
+   `1fr` da grade de horários, que a matriz não preenche. Então elas viram a TERCEIRA COLUNA de
+   `.mat-cols`, na mesma altura da matriz. */
 var duplas=document.createElement('div');duplas.className='mat-duplas';
-corpoIn.appendChild(duplas);
+cols.appendChild(duplas);
 /* o painel das outras três abas: as seções que já existem na página são MOVIDAS para cá quando a
    aba abre. Mover em vez de duplicar mantém uma implementação só de cada lista — e como só um
    contrato fica visível por vez, não há dois donos disputando o mesmo nó. */

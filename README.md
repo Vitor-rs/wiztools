@@ -122,6 +122,7 @@ segurança.
 | `criar-atalho.bat` / `.ps1` | roda uma vez no Dell pra criar o atalho "Wizard Recepção" |
 | `criar-atalho-sala.bat` / `.ps1` | roda uma vez em cada notebook pra criar o atalho "Wizard Sala" |
 | `liberar-firewall.bat` | roda uma vez no Dell, como admin: abre a porta 8420 para a rede |
+| `ensaiar-aluno-modelo.bat` | dois cliques: copia o banco, monta o aluno fictício e sobe o app na cópia |
 | `aluno-modelo.ts` | esvazia um banco de cópia e monta o aluno fictício de desenvolvimento |
 | `modelo-dados-aluno.xlsx` | o modelo de dados em planilha: uma aba por tabela do banco |
 
@@ -132,14 +133,24 @@ tocar nele existe o **aluno-modelo**: um banco com o catálogo inteiro (livros, 
 calendário) e **um único aluno inventado** — João da Silva, matrícula 9001, Kids 2 3rd Edition,
 terças e quintas às 13:00, matriculado em 13/04/2026.
 
+**Dois cliques em `ensaiar-aluno-modelo.bat`** — feche o Wizard antes, porque o ensaio usa a mesma
+8420. Ele copia o `wizard.db`, monta o João na cópia e sobe o app em cima dela. Fechar a janela
+preta encerra o ensaio e devolve a porta. O `wizard.db` não é tocado em momento nenhum.
+
+À mão, se preferir:
+
 ```
 copy wizard.db wizard-ensaio.db          (ou: deno run -A main.ts --init, com WIZ_DB apontado)
 deno run -A aluno-modelo.ts --db=wizard-ensaio.db
+set WIZ_DB=wizard-ensaio.db  &&  deno run -A main.ts
 ```
 
 Ele apaga toda a operação, preserva o catálogo e reconstrói o João com frequência até hoje: faltas,
 reposições, anteposições, duas aulas de tarefa e um primeiro dia com duas lições na mesma hora — o
 bastante para as telas de planejamento, progresso e encaminhamentos terem o que mostrar.
+
+O catálogo sobrevive inteiro, inclusive o **trabalho editorial**: se o estágio já tem lições
+digitadas, elas ficam como estão — a fórmula do modelo só entra quando não há nenhuma.
 
 Três travas, porque o script apaga dados: `--db` é obrigatório, `wizard.db` é recusado pelo nome, e
 a porta 8420 precisa estar livre (ele sobe o servidor sozinho para construir pelas rotas do app).

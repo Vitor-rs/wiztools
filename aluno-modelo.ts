@@ -158,18 +158,28 @@ try {
   const eg0 = await run("getEstagios");
   const eg = eg0.estagios.find((e: any) => e.livro === LIVRO);
   const mod = eg0.modelos.find((m: any) => m.id === eg.modeloId);
-  const linhas: any[] = [];
-  for (const x of eg.extras.filter((e: any) => e.posicao === "abertura"))
-    linhas.push({ numero: null, descricao: x.rotulo, bloco: null, tipo: "especial" });
-  for (let c = 1; c <= mod.capitulos; c++) {
-    for (let l = 1; l <= mod.licoesPorCapitulo; l++) {
-      const n = (eg.licaoInicial - 1) + (c - 1) * mod.licoesPorCapitulo + l;
-      linhas.push({ numero: n, descricao: `Lesson ${n}`, bloco: c,
-                    tipo: l % 2 ? "input" : "output" });
+  /* SE O ESTÁGIO JÁ TEM LIÇÕES, NÃO ENCOSTA. Rodando sobre uma cópia do banco da recepção, o
+     Kids 2 traz a estrutura que ele digitou à mão — `materializarEstrutura` começa com um
+     DELETE, e reescrever aquilo pela fórmula apagaria trabalho editorial de verdade só para
+     chegar a um resultado parecido. A fórmula só entra quando não há nada, que é o caso do
+     banco nascido de `--init`. */
+  if (eg.licoesProprias?.length) {
+    console.log(`estrutura do ${LIVRO}: ${eg.licoesProprias.length} lições já cadastradas — mantidas`);
+  } else {
+    const linhas: any[] = [];
+    for (const x of eg.extras.filter((e: any) => e.posicao === "abertura"))
+      linhas.push({ numero: null, descricao: x.rotulo, bloco: null, tipo: "especial" });
+    for (let c = 1; c <= mod.capitulos; c++) {
+      for (let l = 1; l <= mod.licoesPorCapitulo; l++) {
+        const n = (eg.licaoInicial - 1) + (c - 1) * mod.licoesPorCapitulo + l;
+        linhas.push({ numero: n, descricao: `Lesson ${n}`, bloco: c,
+                      tipo: l % 2 ? "input" : "output" });
+      }
+      linhas.push({ numero: null, descricao: `Review ${c}`, bloco: c, tipo: "review" });
     }
-    linhas.push({ numero: null, descricao: `Review ${c}`, bloco: c, tipo: "review" });
+    const m = await run("materializarEstrutura", { alvo: "estagio", alvoId: eg.id, linhas });
+    console.log(`estrutura do ${LIVRO}: ${m.linhas} lições geradas pela fórmula do modelo`);
   }
-  await run("materializarEstrutura", { alvo: "estagio", alvoId: eg.id, linhas });
 
   /* `salvarMatricula` JÁ abre o percurso, datando pela situação (13/04, a matrícula) — que é
      a régua do contrato, 12 meses a partir da assinatura. Fica como o app decidiu; o início

@@ -4264,13 +4264,22 @@ const api: Record<string, (a: any) => unknown> = {
      resposta é sempre a última linha. Livro desempata registros do mesmo dia. */
   /* Cada linha carrega o que o cartão de Percurso mostrava — contrato, "em curso", vencimento —
      porque os dois viraram um só. O percurso continua no banco, mas a tela é esta. */
-  getHistoricoAluno: (id) => {
+  /* ===== O FILTRO É DO SERVIDOR (2026-08-24, ordem dele) =====
+     *"Parece que tá pegando informação aqui de outro livro... isso resolvendo no front-end tem que
+     ser uma lógica de back-end melhor, mais robusta."* E ele estava certo pelo motivo certo: quem
+     filtrava era a tela, então a resposta chegava com o aluno INTEIRO e piscava o estágio errado por
+     um instante antes de o filtro passar. Agora a pergunta já é a certa.
+     Aceita `id` cru (a recepção ainda chama assim) ou `{idMatricula, livro}`. */
+  getHistoricoAluno: (a: any) => {
+    const id = (a && typeof a === "object") ? a.idMatricula : a;
+    const livro = (a && typeof a === "object") ? (a.livro ?? null) : null;
     /* "em curso" e o vencimento descrevem o ESTADO DE HOJE daquele estágio, não cada registro da
        linha do tempo. Como a lista vem do mais recente para o mais antigo, só a PRIMEIRA linha de
        cada estágio os recebe — sem isto a linha de "Trancado" também dizia "em curso", que é o
        contrário do que ela conta. O contrato, esse, vale para todas: é do vínculo, não do momento. */
     const jaVisto = new Set<string>();
-    return A("SELECT * FROM aluno_situacao_historico WHERE id_matricula=? ORDER BY data DESC, id DESC", id)
+    return A(`SELECT * FROM aluno_situacao_historico WHERE id_matricula=?1 AND (?2 IS NULL OR livro=?2)
+              ORDER BY data DESC, id DESC`, id, livro)
       .map(r => {
         const pc = r.livro ? G(`SELECT estado, data_inicio, contrato_seq,
                 date(data_inicio,'+1 year') AS vence
@@ -6144,8 +6153,9 @@ const api: Record<string, (a: any) => unknown> = {
   },
   excluirAlunoEstagio: ({ id }: any) => ({ ok: R("DELETE FROM aluno_estagio WHERE id=?", id).changes > 0 }),
 
-  getHorariosHistoricoAluno: ({ idMatricula }: any) =>
-    A("SELECT * FROM aluno_horario_historico WHERE id_matricula=? ORDER BY momento DESC", idMatricula)
+  getHorariosHistoricoAluno: ({ idMatricula, livro }: any) =>
+    A(`SELECT * FROM aluno_horario_historico WHERE id_matricula=?1 AND (?2 IS NULL OR livro=?2)
+       ORDER BY momento DESC`, idMatricula, livro ?? null)
       .map(r => ({ id: r.id, livro: r.livro, antes: r.antes, depois: r.depois, momento: r.momento })),
 
   salvarAgendaLivro(p) { // sincroniza a agenda do aluno NESTE livro (desmarcar = remover; mesmo slot = troca de livro)

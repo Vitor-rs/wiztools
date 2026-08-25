@@ -476,12 +476,32 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
 .mat-tabs .pg-aba.on::after{display:none}
 /* ===== O CABEÇALHO COMUM ÀS QUATRO ABAS =====
    `1fr auto 1fr` põe a situação no centro geométrico mesmo com a direita cheia de botões. */
-.mat-cab{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px;
+/* `minmax(0,1fr)` e não `1fr`: com `1fr` puro a coluna não encolhe abaixo do conteúdo, e a frase
+   do contrato (que é a mais longa) empurrava a coluna da esquerda — a situação saía do centro
+   geométrico exatamente quando a janela apertava, que é quando ela mais precisa estar no lugar. */
+.mat-cab{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:10px;
   padding:9px 13px;user-select:none;background:#FBFCFD}
-.mat-cab-esq{min-width:0}
+.mat-cab-esq{min-width:0;display:flex;align-items:center}
 .mat-cab-meio{justify-self:center}
 .mat-cab-dir{display:flex;align-items:center;justify-content:flex-end;gap:10px;min-width:0}
-.mat-cab-frase{font-size:11.5px;color:var(--tx3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* a frase é o gesto de editar o número do contrato, que saiu do rótulo que ele mandou tirar */
+.mat-cab-frase{appearance:none;background:none;border:0;padding:0;text-align:left;cursor:pointer;
+  font:inherit;font-size:11.5px;color:var(--tx3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mat-cab-frase:hover{color:var(--marca);text-decoration:underline}
+/* O VÃO BRANCO EM CIMA DO CABEÇALHO eram 16px de `margin-bottom` que `.pg-abas` dá a todo trilho —
+   o `.mat-tabs{margin:0}` perdia para ela por ordem de cascata. Ancorado no cartão, ganha. */
+.matricula-card>.mat-tabs{margin:0}
+.mat-tabs+.mat-cab{border-top:1px solid var(--borda);margin-top:-1px}
+/* as três abas de conteúdo não rolam por dentro: quem rola é a página */
+.mat-slot{padding:14px 15px 16px}
+.mat-slot .al-hist{border:0;padding:0;box-shadow:none}
+/* ===== SEM ROLAGEM DENTRO DA ABA (2026-08-24, dele) =====
+   *"Parece que eles estão com scrolling... aumenta um pouquinho a altura pra não aparecer, isso é
+   feio."* Frequência e Progresso perdem o teto: o conteúdo deles é curto e quem rola passa a ser a
+   página. O Planejamento mantém teto porque são 71 linhas — sem ele a página vira um quilômetro —
+   mas ele subiu de 60vh para 78vh, que é o "aumenta um pouquinho". */
+.mat-slot .al-hist-corpo,.mat-slot #freq-corpo,.mat-slot #prog-corpo{max-height:none;overflow:visible}
+.mat-slot .plan-moldura{max-height:78vh}
 /* arquivar: discreto até o mouse chegar, e aí cresce um pouco — o gesto tira o estágio da tela */
 .mat-arquivar{appearance:none;background:none;border:1px solid transparent;border-radius:8px;
   width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;
@@ -510,9 +530,7 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
 .mat-duplas .hist-acoes .remover{width:22px;height:22px}
 .mat-duplas .sit{font-size:10.5px;padding:1px 7px}
 .mat-duplas .sit-curso{font-size:10px}
-/* o painel das outras três abas ocupa o corpo inteiro do contrato */
-.mat-slot{padding:14px 15px 16px}
-.mat-slot .al-hist{border:0;padding:0;box-shadow:none}
+
 /* a contagem ao lado do título, no lugar do cartãozinho de antes */
 .al-hist-n{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:18px;
   padding:0 6px;border-radius:999px;background:var(--azul);color:#fff;font-size:11px;font-weight:700;
@@ -544,7 +562,8 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
 .mat-escolha{margin:0}
 /* ===== cartão de matrícula =====
    Deixou de ser gatilho de acordeão: o cabeçalho é a barra de AÇÕES do estágio aberto. */
-.mat-cab{display:flex;align-items:center;gap:9px;padding:10px 13px;user-select:none}
+/* a regra antiga do cabecalho saiu daqui: ela vinha DEPOIS da nova e vencia por ordem de
+   cascata, entao o header voltava a ser flex e a situacao nunca alcancava o centro. */
 .matricula-card.aberto .mat-cab{border-bottom:1px solid var(--borda)}
 .mat-acoes{margin-left:auto;display:flex;align-items:center;gap:4px}
 .mat-corpo{display:grid;grid-template-rows:0fr;transition:grid-template-rows .18s ease-out}
@@ -4010,9 +4029,7 @@ body.tem-ensaio{padding-top:29px}
      contrato consumiu tanto. Quem ganha a corrida decide se o próximo livro precisa ser pedido. -->
 <div id="al-p-progresso" class="al-painel" style="display:none">
 <section class="al-hist" id="al-s-progresso">
-<h3>Progresso do aluno <small>o livro contra o relógio do contrato</small>
-<button type="button" class="al-hist-add" id="prog-recarregar" onclick="progCarregar()"
- title="Recalcular">↻</button></h3>
+
 <div id="prog-corpo"><div class="al-hist-vazio">Escolha um aluno.</div></div>
 </section>
 </div>
@@ -4695,7 +4712,50 @@ CT_TIMER=setTimeout(function(){CT_TIMER=null;
    if(pg&&pg.classList.contains('on')&&typeof ctRender==='function')ctRender();
   }).catch(function(){/* silêncio: é atualização de fundo */})},900)}
 var SO_LEITURA=/^(get|listar|preview|info)/;
-function run(fn,args,ok){loadOn();fetch('/api/'+fn,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify((args&&args[0])!==undefined?args[0]:{})}).then(function(r){return r.json()}).then(function(r){loadOff();if(r&&r.erro){msg(r.erro,true);return}if(!SO_LEITURA.test(fn))propagarCentral();if(ok)ok(r)}).catch(function(e){loadOff();msg(String(e),true)})}
+/* ===== CACHE DAS ABAS DO CONTRATO (2026-08-24, dele) =====
+   *"Tem que ter pré-carregado... senão fica lento, dá lagging, parece um front-end quebrado."*
+   As quatro abas de um contrato fazem sempre as MESMAS quatro perguntas, e a mais cara delas
+   (`getPlanejamento`) varre 800 dias de calendário. Trocar de aba ia ao servidor de novo toda vez.
+
+   Só rotas de LEITURA entram, e o cache inteiro morre a cada gravação — é grosso de propósito:
+   invalidação fina é onde cache vira bug, e aqui o custo de recarregar é um pedido, não vinte.
+   `PRE_CARGA` guarda promessa em voo: pedir a mesma coisa duas vezes enquanto a primeira não
+   voltou (clicar rápido entre abas) não gera dois pedidos. */
+var API_CACHE={}, API_VOO={};
+var CACHEAVEL=/^(getHistoricoAluno|getHorariosHistoricoAluno|getFrequenciaAluno|getPlanejamento)$/;
+function cacheChave(fn,a){return fn+'|'+JSON.stringify(a===undefined?{}:a)}
+function cacheLimpar(){API_CACHE={};API_VOO={}}
+function run(fn,args,ok){
+var a=(args&&args[0])!==undefined?args[0]:{};
+var podeCachear=CACHEAVEL.test(fn), k=podeCachear?cacheChave(fn,a):null;
+if(podeCachear&&Object.prototype.hasOwnProperty.call(API_CACHE,k)){
+ /* assíncrono mesmo vindo do cache: quem chama espera resposta depois do retorno, e devolver
+    síncrono inverteria a ordem de quem pinta "calculando…" logo em seguida.
+    MICROTAREFA e não `setTimeout(0)`: o navegador estrangula timers de aba em segundo plano em
+    ~1s, e era isso que punha um piso de um segundo em toda troca de aba mesmo com o dado na mão. */
+ var v=API_CACHE[k];Promise.resolve().then(function(){if(ok)ok(v)});return;
+}
+if(podeCachear&&API_VOO[k]){API_VOO[k].push(ok);return}
+if(podeCachear)API_VOO[k]=[ok];
+loadOn();
+fetch('/api/'+fn,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(a)})
+ .then(function(r){return r.json()})
+ .then(function(r){loadOff();
+  if(r&&r.erro){if(k)delete API_VOO[k];msg(r.erro,true);return}
+  if(!SO_LEITURA.test(fn)){cacheLimpar();propagarCentral()}
+  if(podeCachear){API_CACHE[k]=r;var fila=API_VOO[k]||[];delete API_VOO[k];
+   fila.forEach(function(f){if(f)f(r)});return}
+  if(ok)ok(r)})
+ .catch(function(e){loadOff();if(k)delete API_VOO[k];msg(String(e),true)})}
+/* PRÉ-CARGA: ao abrir um contrato, as outras três abas já vão sendo buscadas em segundo plano.
+   Quando ele clicar, a resposta já está no cache e a troca é instantânea. */
+function matPreCarregar(livro){
+if(!alSel)return;
+run('getFrequenciaAluno',[{idMatricula:alSel.id,livro:livro||null}],null);
+run('getPlanejamento',[{idMatricula:alSel.id,livro:livro||null}],null);
+run('getHistoricoAluno',[{idMatricula:alSel.id,livro:livro||null}],null);
+run('getHorariosHistoricoAluno',[{idMatricula:alSel.id,livro:livro||null}],null);
+}
 var notyf=new Notyf({duration:4200,position:{x:'center',y:'bottom'},dismissible:true});
 function msg(t,erro){if(erro)notyf.error(t);else notyf.success(t)}
 
@@ -5476,16 +5536,18 @@ if(!alSel){progFechar();return}
 c.innerHTML='<div class="al-hist-vazio">calculando…</div>';
 run('getPlanejamento',[{idMatricula:alSel.id,livro:livro||null}],function(r){PROGR=r;progPintar()});
 }
+/* recalcular DE VERDADE: o cache das abas guarda a resposta, então limpar antes é o que faz o
+   botão significar alguma coisa */
+function progRecalcular(){cacheLimpar();progCarregar(MAT_CTX||undefined)}
 function progPct(x){return x==null?'—':(Math.round(x*1000)/10).toFixed(1)+'%'}
 function progPintar(){
 var c=$('prog-corpo'),r=PROGR;if(!c||!r)return;
 if(r.semContrato){c.innerHTML='<div class="al-hist-vazio">Este aluno não tem contrato aberto.</div>';return}
-var troca='';
-if((r.contratos||[]).length>1)
- troca='<select class="plan-troca" onchange="progCarregar(this.value)">'
-  +r.contratos.map(function(x){return '<option value="'+escBloco(x.livro)+'"'+(x.atual?' selected':'')+'>'
-    +escBloco(nomeLivro(x.livro))+' · '+escBloco(x.contrato)+'</option>'}).join('')+'</select>';
-var h='<div class="plan-cab"><b>'+escBloco(r.estagio)+'</b><span class="plan-ct">'+escBloco(r.contrato)+'</span>'+troca+'</div>';
+/* ===== SEM CABEÇALHO PRÓPRIO (2026-08-24, dele) =====
+   *"Você acha que faz sentido eu escolher o livro estando num contrato de um livro? Não tem
+   sentido."* Saíram o nome do estágio, a pílula do contrato e o seletor de livro: os três estão no
+   cabeçalho comum do contrato, e o seletor era a porta para sair dele sem perceber. */
+var h='';
 if(r.precisaInicio||r.semEstrutura||r.semAgenda){
  c.innerHTML=h+'<div class="al-hist-vazio">'+(r.precisaInicio
    ?'Ainda não há data de início — o progresso nasce da entrega do material ou da primeira presença.'
@@ -5497,6 +5559,7 @@ var ROTIND={'-1':'Atrasado','0':'No limite','1':'Em dia'}, CLSIND={'-1':'atras',
 h+='<div class="pr-corrida">'
  +'<div class="pr-tit">A corrida do contrato'
    +(ind!=null?'<span class="pr-sel '+CLSIND[String(ind)]+'">'+ROTIND[String(ind)]+'</span>':'')
+   +'<button type="button" class="pr-recalc" onclick="progRecalcular()" title="Recalcular este progresso">↻</button>' 
    +(r.confianca!=='afirmada'?'<span class="pr-fraco" title="Ninguém registrou a lição desta aula. Abra o Planejamento de aulas e diga qual foi — o quadro se reancora nela.">posição '+r.confianca+'</span>':'')
  +'</div>'
  +'<div class="pr-linha"><span class="pr-rot">Livro</span>'
@@ -5823,7 +5886,7 @@ document.querySelectorAll('#mat-lista .matricula-card').forEach(function(c){
 /* abrir o contrato abre a sub-aba dele: a que já estava, ou Info na primeira vez. É aqui que as
    seções mudam de casa e recarregam filtradas por este livro. */
 var aberto=document.querySelector('#mat-lista .matricula-card[data-livro="'+(livro||'').replace(/"/g,'\\"')+'"]');
-if(aberto)matSubAba(aberto,aberto.dataset.sub||'info');
+if(aberto){matSubAba(aberto,aberto.dataset.sub||'info');matPreCarregar(livro)}
 else MAT_CTX=null;
 }
 /* grade dia×hora, no mesmo layout da aba Horários: dias nas colunas, horas alinhadas em linha —
@@ -5933,7 +5996,9 @@ var hEsq=document.createElement('div');hEsq.className='mat-cab-esq';
 var hMeio=document.createElement('div');hMeio.className='mat-cab-meio';
 var hDir=document.createElement('div');hDir.className='mat-cab-dir';
 head.appendChild(hEsq);head.appendChild(hMeio);head.appendChild(hDir);
-hEsq.appendChild(ctrBt);
+/* O NÚMERO DO CONTRATO SAIU (2026-08-24, dele): *"tire esse número de contrato, pra mim não faz
+   sentido"*. A esquerda passa a ser a FRASE do contrato. Editar o número continua possível — o
+   gesto migrou para o clique na própria frase, que é onde as datas dele já aparecem. */
 var selSitM=document.createElement('select');selSitM.className='mat-sit';
 selSitM.title='Situação DESTE contrato — a do cadastro, lá em cima, só diz ativo ou desativado. Vira um registro no histórico, com a data de hoje.';
 (DOM.situacoes||[]).forEach(function(s){
@@ -5975,7 +6040,9 @@ rm.title='Arquivar este estágio — ele sai da tela do aluno e a história dele
 rm.setAttribute('aria-label','Arquivar este estágio');
 rm.onclick=function(ev){ev.stopPropagation();matriculaExcluir(m.livro)};
 /* a frase do contrato subiu para o header: era uma segunda linha de descrição embaixo dele */
-var frase=document.createElement('span');frase.className='mat-cab-frase';
+var frase=document.createElement('button');frase.type='button';frase.className='mat-cab-frase';
+frase.title='Editar o número deste contrato ('+(m.contrato||alSel.id+'/—')+')';
+frase.onclick=ctrBt.onclick;
 var fp=[];
 if(m.percurso&&m.percurso.estado!=='cursando'){
  fp.push(m.percurso.estado+(m.percurso.dataFim?' em '+dataCurta(m.percurso.dataFim):''));
@@ -5984,8 +6051,8 @@ if(m.percurso&&m.percurso.estado!=='cursando'){
  else fp.push('sem data de entrada');
  if(m.percurso.vence)fp.push('vencendo em '+dataCurta(m.percurso.vence));
 }
-if(fp.length)frase.innerHTML='contrato '+escBloco(fp.join(' · '));
-hDir.appendChild(frase);
+frase.textContent=fp.length?'Contrato '+fp.join(' · '):'Contrato';
+hEsq.appendChild(frase);
 /* encerrar, trocar e arquivar só existem enquanto o contrato está de pé */
 if(!m.fechado){acoesHead.appendChild(encerrarBtn);acoesHead.appendChild(trocarBtn);acoesHead.appendChild(rm)}
 hDir.appendChild(acoesHead);card.appendChild(head);
@@ -6180,25 +6247,40 @@ return card;
    contrato aberto e recarregam JÁ FILTRADAS pelo livro dele — é isso que faz "tudo vinculado a um
    contrato só" ser verdade e não só arrumação visual. */
 var MAT_CTX=null;
+var MAT_SEC={info:['al-s-situacao','al-s-horario'],freq:['al-s-freq'],
+             plan:['al-s-planejamento'],prog:['al-s-progresso']};
+/* ===== NUNCA `innerHTML=''` NUM CONTÊINER QUE GUARDA NÓ EMPRESTADO (2026-08-24) =====
+   Era o defeito que ele relatou: *"abro frequência, depois planejamento, depois progresso; aí
+   clico em planejamento de novo, depois frequência, e o erro começa a disparar."*
+   `slot.innerHTML=''` DESTRUÍA a seção que estava lá — `al-s-freq` sumia do documento para sempre, e
+   o próximo clique achava `freq-corpo` nulo e estourava em `Cannot set properties of null`.
+   Agora o inquilino anterior VOLTA para o depósito antes de o próximo entrar. */
+function matEsvaziarSlot(slot){
+if(!slot)return;
+var casa=$('al-p-matriculas'), casaP=$('al-p-progresso');
+[].slice.call(slot.children).forEach(function(el){
+ el.style.display='none';
+ (el.id==='al-s-progresso'?casaP:casa).appendChild(el)});
+}
 function matSubAba(card,t){
 if(!card)return;
-MAT_CTX=card.dataset.livro||null;
+var livro=card.dataset.livro||null;
+MAT_CTX=livro;
 card.dataset.sub=t;
 card.querySelectorAll(':scope > .mat-tabs .pg-aba').forEach(function(b){b.classList.toggle('on',b.dataset.t===t)});
 var corpo=card.querySelector(':scope > .mat-corpo'), slot=card.querySelector(':scope > .mat-slot');
-var livro=card.dataset.livro;
 corpo.style.display=(t==='info'?'':'none');
 slot.style.display=(t==='info'?'none':'');
+matEsvaziarSlot(slot);
 if(t==='info'){
  var d=card.querySelector('.mat-duplas');
  var sit=$('al-s-situacao'), hor=$('al-s-horario');
  if(d&&sit&&hor){d.appendChild(sit);d.appendChild(hor);sit.style.display='';hor.style.display=''}
- alHistoricos(livro);
+ histCarregar();hhistCarregar();
  return;
 }
-var mapa={freq:'al-s-freq',plan:'al-s-planejamento',prog:'al-s-progresso'};
-var sec=$(mapa[t]);
-if(sec){slot.innerHTML='';slot.appendChild(sec);sec.style.display=''}
+var sec=$(MAT_SEC[t][0]);
+if(sec){slot.appendChild(sec);sec.style.display=''}
 if(t==='freq')freqCarregar(livro);
 if(t==='plan')planCarregar(livro);
 if(t==='prog')progCarregar(livro);
@@ -6259,8 +6341,8 @@ gravarAgenda(t.livro,t.itens,t.profs,true);
 
 /* ---- histórico de trocas de horário (recolhido por padrão, como os outros dois) ---- */
 function hhistFechar(){var c=$('hhist-corpo');if(c)c.innerHTML='<div class="al-hist-vazio">Escolha um aluno.</div>'}
-function hhistCarregar(){run('getHorariosHistoricoAluno',[{idMatricula:alSel.id}],function(hs){
- hhistRender(MAT_CTX?hs.filter(function(h){return h.livro===MAT_CTX}):hs)})}
+function hhistCarregar(){run('getHorariosHistoricoAluno',[{idMatricula:alSel.id,livro:MAT_CTX||null}],function(hs){
+ hhistRender(hs)})}
 function hhistRender(hs){
 var box=$('hhist-corpo');box.innerHTML='';
 /* ===== A CONTAGEM VIROU TAG NO TÍTULO (2026-08-24, dele) =====
@@ -6324,8 +6406,8 @@ function histFechar(){HIST_EDIT=null;var c=$('hist-corpo');if(c)c.innerHTML='<di
    *"O histórico de situação vai estar vinculado apenas ao contrato, ou seja, àquele livro."*
    O filtro é do CLIENTE de propósito: a resposta do servidor é a mesma para as quatro abas e para o
    aluno inteiro, então uma chamada serve a todos os contratos — trocar de aba não vai ao banco. */
-function histCarregar(){run('getHistoricoAluno',[alSel.id],function(hs){
- histRender(MAT_CTX?hs.filter(function(h){return h.livro===MAT_CTX}):hs)})}
+function histCarregar(){run('getHistoricoAluno',[{idMatricula:alSel.id,livro:MAT_CTX||null}],function(hs){
+ histRender(hs)})}
 /* "Rematriculado" -> "sit-rematriculado": sem acento e em minúsculas, para virar classe CSS */
 function classeSit(s){return 'sit-'+norm(s).replace(/[^a-z]/g,'')}
 function dataCurta(iso){var p=String(iso).split('-');return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:iso}

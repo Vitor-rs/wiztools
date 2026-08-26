@@ -1412,7 +1412,30 @@ th.ev.ultima .es-ev-data{background:var(--marca);color:#fff}
 .plan-tr{background:#FFF8E1;color:#8a5a00;border-radius:8px;padding:1px 8px;font-weight:700;
   font-size:10.5px;cursor:help}
 .plan-tab .c-obs input{width:100%;padding:3px 6px;font-size:12px}
-.plan-tab .c-lic i{font-style:normal;font-weight:700;color:var(--tx2);margin-right:6px}
+/* ===== A SIGLA NUMA CAIXA DE LARGURA FIXA (2026-08-25) =====
+   Pedido dele: *"todos a forma curta da lição tem que estar alinhado horizontalmente... e o nome
+   longo, todos eles alinhados, o L à esquerda. O espaço do meio vai se adaptando."*
+
+   Eram DOIS desalinhamentos somados, e o segundo não se vê olhando:
+   1. A sigla tem 2 ou 3 caracteres (R5 × L30) e a fonte é proporcional, então o texto seguinte
+      começava num ponto diferente em cada linha.
+   2. A mesma sigla é desenhada de DUAS formas — `<button>` na linha com aula dada (editável) e
+      `<i>` nas outras. O botão tem padding e borda; o `<i>` não tinha. Mesmo entre siglas de
+      igual tamanho, as duas famílias de linha começavam em x diferentes.
+
+   A caixa `.pl-sig` resolve o primeiro: largura fixa, conteúdo à esquerda, e o traço logo depois
+   dela sempre no mesmo lugar. Igualar o padding e a borda do `<i>` ao do botão resolve o segundo.
+
+   A LARGURA NÃO É CHUTADA nem escrita aqui: `planAlinharSiglas` mede a maior sigla realmente
+   desenhada e grava o valor em `--pl-sw`. Um número fixo em `ch` erraria — `ch` é a largura do
+   zero, e "R10" com R maiúsculo é mais largo que "000". E a conta muda de estágio para estágio:
+   um livro com 120 lições tem sigla de 4 caracteres, e outro pode ter "Rm1" nas extras. */
+.plan-tab .c-lic i{font-style:normal;font-weight:700;color:var(--tx2);
+  padding:0 5px;border:1px dashed transparent;border-radius:6px} /* mesma caixa do botão: ver acima */
+.plan-tab .c-lic .pl-sig{display:inline-block;width:var(--pl-sw,auto);
+  text-align:left;white-space:nowrap;vertical-align:baseline}
+/* o traço é separador, não conteúdo: apagado, e é ele que marca onde a sigla acaba */
+.plan-tab .c-lic .pl-sep{color:var(--tx3);margin:0 6px 0 1px}
 /* o botão da lição é discreto até o mouse chegar: ele aparece em toda linha realizada, e um botão
    forte em cinquenta linhas viraria ruído. O ponto verde marca o que FOI DITO por ele. */
 .plan-lic-bt{font:inherit;font-weight:700;color:var(--tx2);background:none;border:1px dashed transparent;
@@ -5532,12 +5555,12 @@ var mesAnt=null, ROT={P:'Presente',F:'Falta',N:'Não aula'};
      que ele tá fazendo"*. Só onde houve aula — afirmar a lição de um dia que não aconteceu não quer
      dizer nada — e só na 1ª lição do dia, porque a marca mora na presença, que é uma por data. */
   +'<td class="c-lic">'+(l.dataReal&&l.ultimoDoDia
-     ?'<button type="button" class="plan-lic-bt'+(l.afirmada?' dita':'')+'" data-ord="'+l.ordem+'"'
+     ?'<span class="pl-sig"><button type="button" class="plan-lic-bt'+(l.afirmada?' dita':'')+'" data-ord="'+l.ordem+'"'
       +' title="'+(l.afirmada?'lição registrada por você — clique para trocar ou apagar'
                             :'clique para dizer qual lição foi dada nesta aula')+'"'
       +' onclick="planLicaoEditar(this,&quot;'+escBloco(l.dataReal)+'&quot;)">'
-      +escBloco(l.licao||'?')+'</button> '
-     :(l.licao?'<i>'+escBloco(l.licao)+'</i>':''))
+      +escBloco(l.licao||'?')+'</button></span><span class="pl-sep">–</span>'
+     :(l.licao?'<span class="pl-sig"><i>'+escBloco(l.licao)+'</i></span><span class="pl-sep">–</span>':''))
    +escBloco(l.conteudo||'')+'</td>'
   +'<td class="c-obs">'+(l.dataReal&&!l.mesmoLancamento
      ?'<input value="'+escBloco(l.observacao||'')+'" placeholder="—"'
@@ -5575,14 +5598,31 @@ if(r.venceu)h+=planAviso('O plano deste contrato já previa terminar em '+dataCu
  +(r.inicio?' ('+dataCurta(r.inicio)+')':'')+' — se ela não confere, é ela que precisa de acerto.');
 if(r.alem)h+=planAviso(r.alem+(r.alem>1?' aulas dadas passam':' aula dada passa')
  +' do fim do plano — o aluno andou mais que as lições que este estágio comporta.');
-c.innerHTML=h;
-c.innerHTML=h;
+c.innerHTML=h;   /* estava DUAS vezes: a tabela inteira era montada e jogada fora, e remontada */
+planAlinharSiglas(c);
+}
+/* Mede a maior sigla DESENHADA e dá essa largura a todas, para que o traço e o nome longo caiam
+   sempre na mesma coluna. Medir, e não calcular: a largura de "R10" depende da fonte que o Windows
+   escolheu, do peso 700 e do padding do botão — coisas que só o navegador sabe somar.
+   Roda com `--pl-sw` ainda vazio, então cada caixa está em `auto` e entrega a largura natural.
+   É idempotente: chamada de novo sobre a tabela já ajustada, mede as caixas iguais e chega no
+   mesmo número. Se a tabela estiver escondida toda medida dá zero — aí não mexe em nada e as
+   caixas seguem em `auto`, que é o desenho de antes e não quebra nada. */
+function planAlinharSiglas(raiz){
+ var t=raiz&&raiz.querySelector('.plan-tab'); if(!t)return;
+ var cx=t.querySelectorAll('.pl-sig'), maior=0;
+ for(var i=0;i<cx.length;i++){var w=cx[i].getBoundingClientRect().width; if(w>maior)maior=w}
+ if(maior)t.style.setProperty('--pl-sw',Math.ceil(maior)+'px');
 }
 var PLAN_ORD={};
 /* troca o botão por um campo com autocompletar. Enter/sair grava, Esc desiste — o mesmo par de
    gestos das outras edições em linha da casa. */
 function planLicaoEditar(bt,data){
-var td=bt.parentNode, antes=td.innerHTML, atual=bt.textContent.trim();
+/* `closest('td')` e não `parentNode`: desde que a sigla passou a morar dentro da caixa de largura
+   fixa (`.pl-sig`), o pai do botão é a caixa, não a célula. Com `parentNode` o campo de edição
+   nasceria DENTRO da caixa — que tem largura travada em ~3 caracteres — e o `input` de 96px
+   estouraria para fora dela. `closest` continua certo se a caixa mudar de lugar outra vez. */
+var td=bt.closest('td'), antes=td.innerHTML, atual=bt.textContent.trim();
 td.innerHTML='<input class="plan-lic-in" list="plan-licoes" value="'+escBloco(atual==='?'?'':atual)+'"'
  +' placeholder="lição" title="deixe vazio para apagar a marcação">';
 var i=td.querySelector('input'); i.focus(); i.select();

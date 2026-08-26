@@ -7,13 +7,15 @@ externas — roda offline, os dados ficam na máquina.
 ## Rodar (desenvolvimento)
 
 ```
-deno run -A main.ts --mock →  DESENVOLVER: banco próprio, aluno fictício, http://localhost:8420
-deno run -A main.ts        →  produção: abre o wizard.db de verdade
-deno run -A main.ts --init →  cria wizard.db do zero (SÓ na primeira vez — ver aviso abaixo)
+deno run -A main.ts             →  DESENVOLVER: banco de mock, aluno fictício, localhost:8420
+deno run -A main.ts --novo      →  joga fora o mock e remonta do zero
+deno run -A main.ts --producao  →  A ESCOLA: abre o wizard.db de verdade
+deno run -A main.ts --init      →  cria wizard.db do zero (SÓ na primeira vez — ver aviso abaixo)
 ```
 
-Para desenvolver é só a primeira linha: ela abre o `wizard-mock.db` — nunca o banco da escola —,
-monta o aluno fictício na primeira vez e sobe na 8420 de sempre.
+**O comando cru abre o MOCK.** Quem digita `deno run -A main.ts` está desenvolvendo — é o que se faz
+vinte vezes por dia. Abrir a operação de 163 pessoas é o ato raro e sério, e ato raro e sério se pede
+por escrito: `--producao`. Esquecer a flag leva ao banco de brinquedo, nunca ao da escola.
 
 ## Colocar em produção (desktop da recepção)
 
@@ -130,13 +132,13 @@ segurança.
 | `modelo-dados-aluno.xlsx` | o modelo de dados em planilha: uma aba por tabela do banco |
 | `exportar-modelo-xlsx.py` | refaz essa planilha quando o esquema mudar (dev; precisa de openpyxl) |
 
-## Desenvolver: `--mock`
+## Desenvolver
 
 ```
-deno run -A main.ts --mock
+deno run -A main.ts
 ```
 
-Um comando. Ele abre o **`wizard-mock.db`** — um banco só de desenvolvimento, que nasce do
+Um comando, sem flag nenhuma. Ele abre o **`wizard-mock.db`** — um banco só de desenvolvimento, que nasce do
 `schema.sql` + `seed.sql` na primeira vez — e monta dentro dele **um único aluno inventado**: João
 da Silva, matrícula 9001, Kids 2 3rd Edition, terças e quintas às 13:00, matriculado em 13/04/2026,
 com frequência até ontem: 6 faltas, 4 reposições, 2 anteposições, 2 aulas de tarefa e um primeiro
@@ -150,8 +152,11 @@ Da segunda execução em diante ele só abre o que já existe — o que você ca
 lá amanhã. Para jogar fora e recomeçar limpo:
 
 ```
-deno run -A main.ts --mock --novo
+deno run -A main.ts --novo
 ```
+
+O banco da escola só abre com `--producao`, escrito. É assim que `iniciar.bat`, `iniciar-app.vbs` e
+`servidor.vbs` — os três lugares por onde a recepção sobe — chamam o servidor.
 
 O **`modelo-dados-aluno.xlsx`** é esse mesmo banco exportado: uma aba por tabela, 42 no total, com
 um índice na frente agrupado por assunto. Serve para ler o modelo de dados inteiro sem abrir o

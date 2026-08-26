@@ -1,8 +1,9 @@
 /* main.ts — Wizard local: Deno 2.2+ + SQLite (node:sqlite, zero dependências)
    Iniciar banco:  deno run -A main.ts --init
    Rodar:          deno run -A main.ts   →  http://localhost:8420
-   Desenvolver:    deno run -A main.ts --mock          →  http://localhost:8420, com aluno fictício
-                   deno run -A main.ts --mock --novo   →  remonta o banco de mock do zero  */
+   Desenvolver:    deno run -A main.ts             →  http://localhost:8420, com o aluno fictício
+                   deno run -A main.ts --novo      →  remonta o banco de mock do zero
+   A ESCOLA:       deno run -A main.ts --producao  →  abre o wizard.db de verdade  */
 import { DatabaseSync } from "node:sqlite";
 
 const PASTA = new URL(".", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
@@ -53,7 +54,7 @@ const PASTA = new URL(".", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "
    atender, ou é a versão errada do arquivo. Nos dois casos, parar e dizer é melhor do que
    seguir fazendo silenciosamente outra coisa — ainda mais quando "outra coisa" é abrir os dados
    de 163 pessoas reais. */
-const CONHECIDOS = ["--init", "--mock", "--novo"];
+const CONHECIDOS = ["--init", "--producao", "--mock", "--novo"];
 const intruso = Deno.args.find((a) => !CONHECIDOS.includes(a));
 if (intruso) {
   console.error(`Argumento desconhecido: ${intruso}`);
@@ -62,8 +63,24 @@ if (intruso) {
   console.error("`git fetch origin` antes do merge, e confira com `git log --oneline -1`.");
   Deno.exit(2);
 }
-const MOCK = Deno.args.includes("--mock");
-const ARQUIVO_DB = MOCK ? "wizard-mock.db" : (Deno.env.get("WIZ_DB") || "wizard.db");
+/* ===== O MOCK É O PADRÃO; A ESCOLA PEDE POR ESCRITO (2026-08-26) =====
+   Estava ao contrário e ele disse por quê: *"eu tô tendo que fazer esse rodeio só pra rodar o
+   local... esse mockado é o padrão que eu quero agora"*. Ele rodou `deno run -A main.ts`, caiu no
+   banco da escola sem querer, e não viu a mudança que tinha acabado de puxar.
+
+   Quem digita o comando cru quer DESENVOLVER — é o que se faz vinte vezes por dia. Abrir a
+   operação de 163 pessoas é o ato raro e sério, e ato raro e sério se pede por escrito.
+
+   Vira, de quebra, a inversão certa do ponto de vista do risco: esquecer a flag agora leva ao
+   banco de brinquedo, não ao banco da escola. O pior caso deixou de ser "editei dado real sem
+   perceber" e passou a ser "abri o João da Silva sem querer".
+
+   O `iniciar.bat`, o `iniciar-app.vbs` e o `servidor.vbs` — que são como a recepção sobe, e os
+   três únicos lugares onde isso acontece — passaram a mandar `--producao` no mesmo commit. */
+const PRODUCAO = Deno.args.includes("--producao") || Deno.args.includes("--init");
+const VAR_DB = Deno.env.get("WIZ_DB");   // ensaio sobre uma cópia nomeada: continua valendo
+const MOCK = !PRODUCAO && !VAR_DB;
+const ARQUIVO_DB = PRODUCAO ? "wizard.db" : (VAR_DB || "wizard-mock.db");
 /* precisa ser decidido ANTES de abrir: `DatabaseSync` cria o arquivo, e depois disso não dá mais
    para saber se ele já existia */
 let mockNascendo = false;
@@ -73,7 +90,7 @@ if (MOCK) {
 }
 /* a faixa listrada no topo da tela vale para os dois: o que ela diz é "este não é o banco da
    recepção", e isso é verdade tanto no mock quanto numa cópia aberta com WIZ_DB */
-const ENSAIO = MOCK || !!Deno.env.get("WIZ_DB");
+const ENSAIO = !PRODUCAO;
 const db = new DatabaseSync(PASTA + ARQUIVO_DB);
 const A = (sql: string, ...p: any[]) => db.prepare(sql).all(...p) as any[];
 const G = (sql: string, ...p: any[]) => db.prepare(sql).get(...p) as any;

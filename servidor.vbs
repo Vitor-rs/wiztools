@@ -21,7 +21,9 @@ If PortaViva() Then WScript.Quit 0
 ' busca atualizacao, em silencio; sem internet ou sem Git, apenas segue
 sh.Run "cmd /c git pull --ff-only", 0, True
 ' 0 = sem janela nenhuma; False = nao espera terminar (o servidor fica rodando)
-sh.Run "cmd /c deno run -A main.ts", 0, False
+' --producao: o comando cru abre o banco de MOCK desde 2026-08-26. Este .vbs sobe o
+' servidor da recepcao na inicializacao do Windows, entao pede o banco da escola.
+sh.Run "cmd /c deno run -A main.ts --producao", 0, False
 
 ' espera a porta responder de verdade - ate 30s. O "sleep 1800" antigo era um chute:
 ' em maquina fria o Deno demora mais, e o navegador abria antes de existir servidor.

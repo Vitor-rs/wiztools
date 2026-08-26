@@ -13,7 +13,9 @@ sh.CurrentDirectory = pasta
 
 If Not PortaViva() Then
   sh.Run "cmd /c git pull --ff-only", 0, True
-  sh.Run "cmd /c deno run -A main.ts", 0, False
+  ' --producao: o comando cru abre o banco de MOCK desde 2026-08-26. Este e o atalho da
+' RECEPCAO, entao ele pede o banco da escola por escrito.
+sh.Run "cmd /c deno run -A main.ts --producao", 0, False
   For i = 1 To 60
     WScript.Sleep 500
     If PortaViva() Then Exit For

@@ -12,6 +12,8 @@ rem ============================================================
 cd /d "%~dp0"
 echo Buscando atualizacao...
 git pull --ff-only
-start "Wizard Servidor" /min cmd /c "deno run -A main.ts"
+rem --producao: desde 2026-08-26 o comando cru abre o banco de MOCK. Quem abre o banco
+rem da escola pede por escrito, e este .bat e um dos tres lugares que pedem.
+start "Wizard Servidor" /min cmd /c "deno run -A main.ts --producao"
 timeout /t 2 /nobreak >nul
 start "" msedge --app=http://localhost:8420

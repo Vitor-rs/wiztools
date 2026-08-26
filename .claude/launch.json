@@ -1,7 +1,7 @@
 {
   "_comentario": [
-    "UMA PORTA, A 8420. O botao de PLAY sobe o app em modo --mock: banco proprio (wizard-mock.db),",
-    "aluno ficticio, e o wizard.db da escola nunca aberto. E o modo de desenvolver desde 2026-08-25.",
+    "UMA PORTA, A 8420. O botao de PLAY sobe o app no padrao: banco de MOCK (wizard-mock.db),",
+    "aluno ficticio, e o wizard.db da escola so abre com --producao, escrito. Desde 2026-08-26.",
     "",
     "Houve aqui uma segunda entrada com autoPort:true, e era ela a fabrica de portas: o harness",
     "escolhia uma LIVRE a cada ensaio (8421, 8422, 8423...). Saiu, e nao volta -- com o mock em",
@@ -18,8 +18,7 @@
       "runtimeArgs": [
         "run",
         "-A",
-        "main.ts",
-        "--mock"
+        "main.ts"
       ],
       "port": 8420,
       "url": "http://localhost:8420",

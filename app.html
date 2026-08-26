@@ -5673,11 +5673,36 @@ return null;
 }
 function progSvg(r){
 var esc=escBloco;
-var N=(r.linhas||[]).length; if(!N)return '';
+/* ===== A RÉGUA DAS BARRAS É A LIÇÃO, NÃO A LINHA DO PLANEJADOR (2026-08-26) =====
+   `r.linhas` é a tabela do Planejamento, e ela tem DUAS naturezas: as lições do estágio e as
+   VAGAS — as aulas que sobram no contrato depois da última lição, que existem lá justamente para
+   mostrar a folga que absorve falta e reposição. No Kids 2 do João: 71 lições + 30 vagas = 101.
+
+   Contar as 101 fazia a célula ser dimensionada como 1/101 da barra, mas só 71 células eram
+   desenhadas: as três barras de lição terminavam a 71/101 = 71% da largura, enquanto a do tempo
+   ia até o fim. Era isso que ele estava vendo — *"essas três barras deviam estar no final, igual
+   o progresso do tempo"*.
+
+   O mesmo N alimenta mais quatro coisas, e todas estavam erradas junto: o rótulo "de N lições"
+   (dizia 101), a porcentagem do "faltam NL" (35/101 em vez de 35/71), o teto do localizador de
+   lição (aceitava procurar a lição 90, que não existe) e o corte do último grupo do histórico.
+   Uma linha só, seis sintomas.
+
+   Conto as linhas COM `ordem` em vez de usar `r.licoes` direto porque é a mesma lista que vai ser
+   desenhada — se um dia o servidor divergir do desenho, a barra continua fechando.
+
+   E a MESMA lista tem de ser a percorrida ao desenhar. Antes as três barras iteravam `r.linhas`
+   inteiro, e a vaga entrava com `ordem` nula: `xL(null)` vira `X0 - cw`, então as 30 vagas eram
+   desenhadas EMPILHADAS num ponto só, à esquerda de onde a barra começa. Trinta retângulos
+   invisíveis por cima uns dos outros — não apareciam, mas estavam lá, e o `title` deles dizia
+   "· undefined". */
+var LIC=(r.linhas||[]).filter(function(l){return l.ordem});
+var N=LIC.length || r.licoes || 0;
+if(!N)return '';
 var ev=r.eventos||[];
 /* a barra de baixo = os eventos que aconteceram + as lições que ainda faltam */
 var pos=r.posicao||{}, feitasAte=pos.ordem||0;
-var restantes=(r.linhas||[]).filter(function(l){return l.ordem>feitasAte});
+var restantes=LIC.filter(function(l){return l.ordem>feitasAte});
 var M=ev.length+restantes.length; if(!M)M=N;
 var W=1120,H=524, X0=186,X1=890, HX0=46,HX1=1074;
 var cw=(X1-X0)/N, hw=(HX1-HX0)/M;
@@ -5702,7 +5727,7 @@ s+='<text x="'+(X0+(X1-X0)*pt-8)+'" y="'+(Y.tempo+20)+'" class="pg-pct">'+Math.r
 /* ---------- 2..4. as três barras segmentadas ---------- */
 function seg(y,rotulo,sub,cor,corRev,ativa){
  var out=rot(y,rotulo,sub);
- (r.linhas||[]).forEach(function(l,i){
+ LIC.forEach(function(l,i){
   var x=xL(l.ordem), feita=ativa&&l.ordem<=feitasAte;
   var f=!ativa?'url(#pgVazio)':(feita?(l.tipo==='review'?corRev:cor):'#fff');
   out+='<rect x="'+x.toFixed(2)+'" y="'+y+'" width="'+(cw-1).toFixed(2)+'" height="'+Y.barH+'" fill="'+f+'"'
@@ -5794,7 +5819,13 @@ if(alvo){
 /* ---------- 8. as etiquetas ---------- */
 function nota(x,y,txt,cor,anchor){
  return '<text x="'+x+'" y="'+y+'" class="pg-nota" fill="'+(cor||'#5B6B7C')+'" text-anchor="'+(anchor||'start')+'">'+esc(txt)+'</text>'}
-if(r.inicio) s+=nota(X0,Y.tempo-16,'Iniciou o curso em '+dataCurta(r.inicio));
+/* A NOTA DE INÍCIO CEDE O LUGAR AO LOCALIZADOR. As duas dividem a linha de cima da barra
+   (`Y.tempo-16`), e para lição baixa o número roxo cai em cima do texto — com "11 - 21" no João
+   ficava "1<11>04/2026". A nota sai, e não o número: o localizador é o que se está procurando
+   AGORA, e a data de início continua dita por extenso no cabeçalho do contrato, logo acima.
+   ~150 unidades é a largura medida de "Iniciou o curso em 13/04/2026" a 9.5px. */
+if(r.inicio && !(alvo && xL(alvo.de) < X0+150))
+ s+=nota(X0,Y.tempo-16,'Iniciou o curso em '+dataCurta(r.inicio));
 if(r.fimContrato) s+=nota(X1+8,Y.tempo+12,'Término do contrato');
 if(r.fimContrato) s+=nota(X1+8,Y.tempo+26,dataCurta(r.fimContrato));
 if(r.aulasAtraso!=null&&r.aulasAtraso>0)

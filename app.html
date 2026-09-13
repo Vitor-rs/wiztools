@@ -150,6 +150,8 @@ button.sec{background:#eee;color:#333;box-shadow:none}button.perigo{background:v
    está tudo certo), verde = concluído. Contraste conferido: 7.3:1 e 6.9:1 (mínimo AA é 4.5:1). */
 .badge.b-emaula,.badge.b-feita{display:inline-flex;align-items:center;gap:5px}
 .b-emaula{background:#f5c04e;color:#4a3000}
+/* encontro marcado cuja data passou sem lançamento: deixou de ser previsto */
+.b-naoveio{background:#FBE3E4;color:#8E1418}
 .b-feita{background:#cdeed6;color:#155724}
 .badge-ic{display:inline-flex}
 .badge-ic svg{display:block;vertical-align:0}
@@ -368,6 +370,24 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
    que vem logo abaixo do trilho no mesmo bloco, ganha os mesmos 19. */
 .al-topo .al-abas{margin-bottom:0}
 #al-faixa-cx{margin-top:19px}
+/* ===== OS DADOS PESSOAIS DO ALUNO (2026-09-13) =====
+   Uma linha fina que abre: o topo da página é fixo, e o que se consulta todo dia é o contrato, não o
+   telefone. Fechada, ela já diz o que importa — a idade, e se o menor de idade está sem responsável. */
+.al-dados{margin-top:8px}
+.al-dados-bt{appearance:none;border:0;background:none;padding:2px 0;font:inherit;font-size:12px;color:var(--tx3);
+  cursor:pointer;display:inline-flex;align-items:center;gap:4px}
+.al-dados-bt b{color:var(--tx2);font-weight:600}
+.al-dados-bt:hover b{color:var(--marca)}
+.al-dados-seta{width:0;height:0;border-left:4px solid currentColor;border-top:4px solid transparent;
+  border-bottom:4px solid transparent;transition:transform .15s;margin-right:3px}
+.al-dados-bt.aberto .al-dados-seta{transform:rotate(90deg)}
+#al-dados-resumo.alerta{color:#8a5a00;font-weight:600}
+.al-dados-campos{display:none;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-top:6px}
+.al-dados-campos.aberto{display:flex}
+.al-dados-campos .al-campo{width:170px}
+.al-dados-campos .al-campo-email{width:240px}
+.al-dados-campos input{margin:0;width:100%;box-sizing:border-box}
+@media (prefers-reduced-motion:reduce){.al-dados-seta{transition:none}}
 /* o trilho de abas é a última coisa do bloco grudado: sem zerar a margem dele sobra um vão por onde
    o conteúdo aparece deslizando por baixo */
 /* os 10px que saíram do cabeçalho moram aqui: é a distância título → trilho, e ela só faz sentido
@@ -1499,6 +1519,18 @@ th.ev.ultima .es-ev-data{background:var(--marca);color:#fff}
 .enc-fila li.paga .enc-n{background:#DCEFE3;color:#1B7A3E}
 .enc-fila li.sobra{border-style:dashed}
 .enc-fila.ante li .enc-n{background:#E4F2FB;color:var(--azul-esc)}
+/* os encontros marcados (2026-09-13): uma linha por encontro, com o que aconteceu nele. O que não
+   aconteceu é o que ele quer achar de relance — a linha inteira fica rosada */
+.enc-marcados{margin-top:14px}
+.enc-mk li{gap:10px}
+.enc-h{flex:0 0 auto;font-variant-numeric:tabular-nums;color:var(--tx3);font-size:11.5px}
+.enc-mot{flex:0 0 auto;font-size:11.5px;color:var(--tx2);font-weight:600;min-width:86px}
+.enc-res{margin-left:auto;font-size:11px;font-weight:700;padding:1px 9px;border-radius:10px;white-space:nowrap}
+.enc-res.r-veio{background:#DCEFE3;color:#1B7A3E}
+.enc-res.r-falta{background:#FBE3E4;color:var(--perigo)}
+.enc-res.r-marcado{background:#E4F2FB;color:var(--azul-esc)}
+.enc-res.r-neutro{background:#F1F3F5;color:var(--tx3)}
+.enc-mk li.r-falta{background:#FFF7F7;border-color:#F3C9CB}
 /* A LINHA DA VAGA: o contrato rende ~98–102 aulas e o livro pede 70–72. O que sobra não é aula
    nenhuma — é a folga que absorve falta, e ela só existe na tela desde que o plano passou a ir até
    o fim do contrato. */
@@ -1620,6 +1652,16 @@ th.ev.ultima .es-ev-data{background:var(--marca);color:#fff}
 .pr-tr-rot{font-size:10px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.4px;
   flex:0 0 auto;white-space:nowrap}
 /* menor que antes, e é o pedido: o número gigante gastava a altura de um cartão inteiro */
+/* ===== O SINAL DA DEFASAGEM, NA LEITURA NATURAL (2026-09-01, dele) =====
+   `aulasAtraso` nasce POSITIVO quando o aluno está ATRASADO — é a conta do tempo menos o livro, e
+   faz sentido do lado de dentro. Do lado de fora não: ele viu "-8,6" no João e perguntou se aquilo
+   era atraso ou adiantamento. Um número negativo se lê como perda.
+   Então o azulejo mostra o SINAL INVERTIDO: `+8,6` verde para quem está à frente, `-5` âmbar para
+   quem está atrás. A conta do servidor não muda — muda só como ela se apresenta. As outras duas
+   telas já diziam certo por extenso ("8 aulas de folga", "Adiantado 8 aulas"); era só este número
+   cru que falava a língua da fórmula. */
+.pr-def.frente{color:var(--ok)}
+.pr-def.atras{color:#C77700}
 .pr-tr-val{font-size:13.5px;font-weight:700;color:var(--tx1);margin:0;line-height:1.2;
   white-space:nowrap;flex:0 0 auto}
 .pr-tr-val small{font-size:11px;font-weight:400;color:var(--tx3);margin-left:4px}
@@ -2562,6 +2604,13 @@ th.ev.ultima .es-ev-data{background:var(--marca);color:#fff}
 .pf-card-nome{font-size:11.5px;color:var(--tx2);line-height:1.35;margin-bottom:8px;
   overflow:hidden;text-overflow:ellipsis}
 .pf-card-pils{display:flex;gap:5px;flex-wrap:wrap}
+/* a equipe (2026-09-13): campos aos pares no formulário, e o papel numa linha do cartão. Quem foi
+   desligado continua no deck — as aulas que deu continuam dele —, só que esmaecido */
+.pf-par{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.pf-par>div{min-width:0}
+.pf-par input,.pf-par select{width:100%;box-sizing:border-box}
+.pf-card-papel{font-size:11px;color:var(--tx3);margin:-4px 0 8px}
+.pf-card.desligado{opacity:.6}
 /* o catálogo e o detalhe rolam CADA UM por si: com a página parada, é a coluna que precisa rolar */
 /* catálogo de 320 para 396px (+2cm, medida dele) — os nomes com edição ("Kids 4 · 3rd Edition")
    mais as pílulas de entrada/legado não cabiam sem apertar. `gap` maior empurra o detalhe. */
@@ -4045,6 +4094,583 @@ body.tem-ensaio{padding-top:29px}
      "Gerenciar impressão" saindo no alto da ficha é ruído no documento que vai para a parede */
   #tab-impressao .pg-topo, #tab-impressao .pg-cab { display:none !important; }
 }
+/* ==================================================================================
+   ===== FICHA DE FREQUÊNCIA HIERARQUIZADA (2026-08-31, dele) =====
+   A ficha que ele desenhou no projeto antigo (React + Tailwind, em `Wiz_Tools/hori-web`),
+   trazida para cá. NÃO é cópia: é a mesma tabela dita no vocabulário desta casa — Segoe UI,
+   a paleta do `:root`, e a pílula `.lc-pp` que a Frequência já usa para professor.
+
+   O QUE ELA É, e por que não é o Planejamento: o planejador compara a lição PLANEJADA com a
+   REALIZADA, e foi deliberadamente limpo disso em 2026-08-25 — *"desvincula tudo isso, deixa
+   mais puro"*. O comentário que ficou lá já anunciava esta tela: *"o registro atômico do que
+   cada aula FOI é assunto da ficha de frequência hierarquizada"*. Aqui só entra o que
+   ACONTECEU: uma linha por aula dada, por falta e por feriado. Nada de data planejada.
+
+   A HIERARQUIA EM TRÊS NÍVEIS é o ponto da tela, não enfeite:
+     MÊS    → régua grossa marinho atravessando a linha; o nome só aparece quando vira
+     SEMANA → fio azul no topo; o número só na primeira linha da semana, e embaixo dele
+              listras diagonais que dizem "ainda é a mesma semana" sem escrever nada
+     DIA    → duas aulas no mesmo dia ficam presas por um colchete roxo que desce pela
+              esquerda e fecha embaixo — cresce sozinho se forem três, quatro
+
+   E NADA DISSO É BORDA DE VERDADE: é `box-shadow: inset`, e a ORDEM importa, porque o primeiro
+   da lista pinta POR CIMA. Borda de verdade mudaria o tamanho da célula e a tabela sacudiria a
+   cada redesenho — é a mesma razão pela qual o crosshair do Estoque também é sombra.
+   ================================================================================== */
+.ff-tab{
+  /* pares cor-forte + cor-clara, que é o molde de família semântica desta casa (ver o :root
+     do estoque na 743 e o das lições na 2053) */
+  --ff-semana:#33AAE3;            /* o fio que abre a semana — é o --azul */
+  --ff-dia:#A855C7;               /* o colchete do dia com duas aulas: roxo que ele aprovou */
+  --ff-dia-bg:#F7EAFC;            /* e o rosa-claro do DS nesse dia */
+  --ff-mes-regua:#071D49;         /* a régua de virada de mês é o marinho institucional */
+  --ff-fio:#EEF2F6;               /* a divisória normal entre células */
+  --ff-fer:#C3CAD3;               /* a moldura da faixa de feriado */
+}
+/* ===== A ESCALA DE AVALIAÇÃO, NO :root =====
+   Quatro conceitos, quatro fundos. Vêm da escala dele (R < B < MB < Ó) e são traduzidos para as
+   cores que esta casa já usa: perigo, âmbar do estoque, azul da marca e o verde do --ok. Sempre
+   em fundo claro, porque o texto por cima é o conceito.
+   MORAM AQUI E NÃO NO `.ff-tab` porque agora são DUAS tabelas lendo a mesma escala: a Ficha, onde
+   as notas se lançam, e o Planejamento, onde elas se leem em pílula. Uma nota "MB" tem de ter o
+   mesmo azul nas duas telas, senão a cor deixa de significar. */
+:root{
+  --ff-R:#FBE3E4; --ff-R-tx:#8E1418;
+  --ff-B:#FDF2E0; --ff-B-tx:#7A4700;
+  --ff-MB:#E4F2FB; --ff-MB-tx:#12678F;
+  --ff-O:#E4F4E8; --ff-O-tx:#14602A;
+  --ff-e1:#E3E6EA; --ff-e1-tx:#5A626B;
+}
+/* A MOLDURA é a mesma caixa branca das outras tabelas da casa (.es-moldura / .plan-moldura).
+   Dentro do cartão de matrícula a regra lá embaixo troca a altura por `flex`, para a rolagem
+   nascer dentro do contrato — decisão dele de 2026-08-24. */
+.ff-moldura{background:#fff;border:1px solid var(--borda);border-radius:10px;
+  overflow:auto;scrollbar-gutter:stable;max-height:62vh}
+/* `fixed` E NÃO `auto`, e isto é uma ordem dele: *"a largura total dela é a largura fixa, não
+   quero que você comprima nada nem expanda nada"*. Com table-layout:fixed quem manda é o
+   <colgroup>: as colunas de valor têm px cravado e não se mexem nunca. Só Lição e Observações
+   ficam em `auto` — as duas que ele autorizou a crescer — e crescem dividindo a sobra. O
+   `min-width` é o piso: abaixo dele a moldura rola na horizontal em vez de espremer. */
+.ff-tab{table-layout:fixed;border-collapse:separate;border-spacing:0;width:100%;min-width:1160px;
+  font-size:12px;color:#202124;font-variant-numeric:tabular-nums}
+/* ===== CABEÇALHO DE DUAS LINHAS =====
+   Grupos em cima (DATAS, HORÁRIO, AVALIAÇÕES), colunas embaixo. Quem não tem grupo atravessa as
+   duas com rowspan. ALTURA DE 88px, e ela não é folga: as três legendas de pé — AULA, COMPAREC.
+   e DURAÇÃO — só cabem inteiras num vão de 80px. Estavam cortadas em "COMPAREC" e "DURAÇÃ". */
+/* ===== O CABEÇALHO GRUDA INTEIRO, COMO UM BLOCO SÓ =====
+   Antes cada `th` grudava por conta própria: os de `rowspan` em `top:0` e os do segundo andar num
+   `top` calculado. Bastava a altura medida cair em 28,4px e ser arredondada para 28 para os dois
+   pararem 0,4px fora de esquadro — e a linha da base do cabeçalho aparecia quebrada, com metade
+   das colunas um fio acima da outra metade. Era gambiarra, e ele viu.
+   `position:sticky` no `<thead>` resolve na raiz: os dois andares são UM elemento que gruda, e
+   duas metades do mesmo elemento não têm como sair de alinhamento. Nada mais a medir. */
+.ff-tab thead{position:sticky;top:0;z-index:3}
+.ff-tab thead th{background:#FBFCFD;font-weight:700;
+  color:var(--tx3);text-transform:uppercase;letter-spacing:.4px;
+  border-right:1px solid var(--borda);border-bottom:1px solid var(--borda);
+  padding:3px;text-align:center;vertical-align:middle}
+.ff-tab thead tr:first-child th{height:26px;font-size:10.5px}
+.ff-tab thead tr:nth-child(2) th{height:34px;font-size:10px;background:#FFFDF8}
+/* O FIO DA BASE DO CABEÇALHO é ligeiramente mais forte que os outros, e só ligeiramente: ele
+   separa o que é rótulo do que é registro, e essa é a única divisão da tabela que vale uma
+   linha mais firme. Pedido dele: *"não grossa demais, só ligeiramente mais evidente"*. */
+.ff-tab thead tr:nth-child(2) th,
+.ff-tab thead tr:first-child th[rowspan]{border-bottom:2px solid #C6CFD9}
+/* as três legendas que não cabem deitadas ficam em pé, num vão de 80px */
+/* O VÃO DAS LEGENDAS EM PÉ é medido pela MAIOR delas, que agora é "Duração": "Comparec." virou
+   "Freq." por ordem dele, e com isso o cabeçalho inteiro pôde encolher de 88px para 60. O vão
+   deixa dois pixels de folga de cada lado da palavra mais longa — justo, sem encostar no fio. */
+.ff-tab th .ff-vert{display:flex;align-items:center;justify-content:center;height:58px}
+.ff-tab th .ff-vert>span{transform:rotate(-90deg);white-space:nowrap}
+/* LIÇÃO / CONTEÚDO e OBSERVAÇÕES / ANOTAÇÕES em DUAS linhas: são os dois únicos rótulos
+   compostos da tabela, e quebrados na barra cabem numa fonte maior — que é o que ele pediu,
+   porque são também as duas únicas colunas de texto livre. */
+.ff-tab thead tr:first-child th.ff-duplo{font-size:12px;line-height:1.2;letter-spacing:.2px;
+  text-transform:none}
+/* ENTRADA e SAÍDA em duas alturas — a palavra em cima, o ícone embaixo — para a coluna poder
+   estreitar: uma hora ocupa cinco caracteres, e o rótulo deitado obrigava a coluna ao dobro
+   disso. O par log-in / log-out do Lucide já está vendorizado e já é usado no lançamento da
+   sala: a MESMA porta, a seta entrando num e saindo no outro. Só a primeira letra maiúscula, por
+   ordem dele, e a caixa cabe na altura de antes — o ícone entra no espaço que a palavra deixou. */
+.ff-tab thead th.ff-hr{text-transform:none;font-size:9px;letter-spacing:0;padding:2px 1px}
+.ff-hr-cx{display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:0;line-height:1.15}
+.ff-hr-cx svg{width:11px;height:11px;display:block}
+/* o pedaço da aula partida: 12ᴬ, 12ᴮ — pequeno o bastante para não competir com o número, e
+   grande o bastante para se ler */
+.ff-sfx{font-size:8px;font-weight:700;vertical-align:super;margin-left:.5px;letter-spacing:0}
+.ff-tab thead th.ff-ent{color:var(--azul-esc)}
+.ff-tab thead th.ff-sai{color:#B26A00}
+/* ===== A CÉLULA =====
+   Altura travada em 32px: é a densidade da ficha dele, e é ela que faz caber um mês inteiro na
+   tela. `position:relative` em TODAS porque as marcas são posicionadas por cima.
+   `background-clip:border-box` (o padrão) É OBRIGATÓRIO e foi um defeito meu: com `padding-box`
+   as listras paravam antes da borda e sobrava um fio BRANCO em volta de cada célula vazia —
+   *"dá um jeito dessas bordas brancas não aparecer"*. Pintando sob a borda, o bloco listrado
+   vira uma superfície só. */
+.ff-tab td{height:32px;padding:2px 4px;text-align:center;vertical-align:middle;
+  border-right:1px solid var(--ff-fio);border-bottom:1px solid var(--ff-fio);position:relative}
+/* ===== AS QUATRO COLUNAS DE DATA ===== */
+.ff-tab td.c-mes{background:var(--marca-cl);color:var(--marca);font-weight:700;font-size:10.5px;
+  letter-spacing:.3px;border-bottom:0}   /* sem fio horizontal: vira uma faixa vertical contínua */
+.ff-tab td.c-ns{font-weight:700;font-size:11px;color:var(--marca)}
+.ff-tab td.c-ns.ff-abre{background:var(--azul-cl)}
+.ff-tab td.c-ds{font-size:11px;color:var(--tx2)}
+.ff-tab td.c-dm{font-size:11px;color:#202124;font-weight:600}
+/* ===== LISTRAS =====
+   Três padrões, e cada um diz uma coisa diferente. Os ângulos são opostos de propósito: a
+   listra de "mesma semana" desce, a de falta sobe — nunca se confundem de relance.
+   4px de período nas duas: mais fino vira textura suja, mais grosso vira zebra. */
+.ff-vazio{background-image:linear-gradient(-45deg,
+   rgba(7,29,73,.075) 25%,transparent 25%,transparent 50%,
+   rgba(7,29,73,.075) 50%,rgba(7,29,73,.075) 75%,transparent 75%,transparent);
+  background-size:4px 4px}
+/* E O FIO SOME DENTRO DO BLOCO LISTRADO: a divisória entre duas células vazias desenharia uma
+   grade que não existe. Some a de dentro; a que fecha o bloco contra a coluna seguinte fica. */
+.ff-tab td.ff-vazio{border-right-color:transparent;border-bottom-color:transparent}
+.ff-tab td.ff-vazio.ff-fecha-d{border-right-color:var(--ff-fio)}
+.ff-tab td.ff-vazio.ff-fecha-b{border-bottom-color:var(--ff-fio)}
+/* ===== E A LINHA DE FALTA É UMA SUPERFÍCIE SÓ, DE VERDADE =====
+   Tirar as divisórias não bastou: a hachura era pintada CÉLULA A CÉLULA, e um degradê repetido
+   recomeça na origem de cada elemento. Coluna com largura múltipla de 4 casava a fase por sorte;
+   as outras — aula 34, frequência 38, entrada e saída 58, lição 110 — emendavam fora de compasso,
+   e o corte aparecia justamente nas bordas delas. Foi a lista exata que ele apontou.
+   Agora quem pinta é a LINHA: uma origem só, uma fase só, listra contínua de ponta a ponta. As
+   células ficam transparentes por cima dela — menos mês e número da semana, que recebem fundo
+   opaco para a hachura não invadir o calendário, que não faltou. */
+.ff-tab tr.ff-falta{background-image:linear-gradient(45deg,
+   rgba(200,29,35,.14) 25%,transparent 25%,transparent 50%,
+   rgba(200,29,35,.14) 50%,rgba(200,29,35,.14) 75%,transparent 75%,transparent);
+  background-size:4px 4px}
+.ff-tab tr.ff-falta td.ff-hachura{border-right-color:transparent}
+.ff-tab tr.ff-falta td.c-ns:not(.ff-abre){background-color:#fff}
+/* ===== A VIRADA DE MÊS ===== a régua grossa atravessa a linha inteira */
+/* ===== A RÉGUA DO MÊS É SOMBRA, NÃO BORDA =====
+   Ela era `border-top:3px`, e o navegador CHANFRA o canto onde uma borda de 3px encontra a de 1px
+   da lateral: um corte diagonal a cada divisa de coluna, que somados dão a linha picotada que ele
+   viu. Sombra é retângulo e não chanfra — a régua sai contínua de ponta a ponta. E como é
+   `inset`, também não empurra a altura da linha.
+   A ORDEM DAS SOMBRAS É A HIERARQUIA: mês por cima (3px), semana logo abaixo (1px) e o colchete
+   do dia embaixo dos dois — o empilhamento que ele aprovou olhando o 14/04. */
+/* E A RÉGUA EMPURRA A LINHA, em vez de comer o conteúdo. Como sombra ela não ocupa espaço, e os
+   3px caíam por cima do quadradinho de avaliação, que começa a 2px do topo — sobrava 1px de
+   sobreposição em TODA virada de mês, não só na primeira. O respiro de 5px devolve o que a borda
+   dava de graça: a linha da virada fica 3px mais alta que as outras, e nada se sobrepõe. */
+.ff-tab tr.ff-vira-mes td{box-shadow:inset 0 3px 0 0 var(--ff-mes-regua);
+  padding-top:5px;height:35px}
+.ff-tab tr.ff-vira-mes td.ff-semana-ini{box-shadow:inset 0 3px 0 0 var(--ff-mes-regua),
+  inset 0 4px 0 0 var(--ff-semana)}
+.ff-tab tr.ff-vira-mes td.ff-dg-topo{box-shadow:inset 0 3px 0 0 var(--ff-mes-regua),
+  inset 0 4px 0 0 var(--ff-dia)}
+.ff-tab tr.ff-vira-mes td.ff-dg-caixa{box-shadow:inset 0 3px 0 0 var(--ff-mes-regua),
+  inset 0 4px 0 0 var(--ff-dia),inset 0 -1px 0 0 var(--ff-dia)}
+.ff-tab tr.ff-vira-mes td.ff-semana-ini.ff-dg-topo{box-shadow:inset 0 3px 0 0 var(--ff-mes-regua),
+  inset 0 4px 0 0 var(--ff-semana),inset 0 5px 0 0 #fff,inset 0 6px 0 0 var(--ff-dia)}
+.ff-tab tr.ff-vira-mes td.ff-semana-ini.ff-dg-caixa{box-shadow:inset 0 3px 0 0 var(--ff-mes-regua),
+  inset 0 4px 0 0 var(--ff-semana),inset 0 5px 0 0 #fff,inset 0 6px 0 0 var(--ff-dia),
+  inset 0 -1px 0 0 var(--ff-dia)}
+/* ===== O FERIADO =====
+   Uma FAIXA, não uma linha inteira pintada: começa no DIA DA SEMANA e vai até a Duração. Mês e
+   número da semana ficam de FORA — eles são o calendário, e o calendário não teve feriado; a
+   coluna da semana continua com a listra diagonal dela, como em qualquer outra linha.
+   Ordem dele: *"a linha quando tem um dia que não é aula não pode pegar nada da coluna do mês
+   nem na coluna número da semana"*.
+   A persiana horizontal imita LINHAS DE TABELA VAZIA, e atravessa a faixa inteira — inclusive
+   por trás do texto: *"não tem nenhum fundo branco"*. */
+.ff-tab tr.ff-feriado td.ff-fer{background-image:repeating-linear-gradient(0deg,
+   transparent,transparent 1px,var(--ff-fio) 1px,var(--ff-fio) 2px);
+  border-top:1px solid var(--ff-fer);border-bottom:1px solid var(--ff-fer);
+  border-right-color:transparent}
+.ff-tab tr.ff-feriado td.ff-fer-ini{border-left:1px solid var(--ff-fer)}
+/* semana (ou mês) abrindo num feriado: a marca de calendário vence a moldura da faixa, porque é
+   a hierarquia maior. Sem isto, uma semana que estreia num feriado nasceria sem marca nenhuma. */
+/* No feriado o azul da semana entra pela BORDA (substituindo o cinza da faixa) — e então a
+   sombra tem de sair, senão as duas se somam e o fio fica com o dobro da espessura das outras
+   semanas. Foi o que ele viu no 21/04: a mesma linha, duas vezes mais grossa. */
+.ff-tab tr.ff-feriado td.ff-fer.ff-semana-ini{border-top-color:var(--ff-semana);box-shadow:none}
+.ff-tab tr.ff-feriado td.ff-fer-fim{border-right:1px solid var(--ff-fer)}
+.ff-tab tr.ff-feriado td.ff-fer-nome{font-size:10.5px;font-weight:700;color:var(--tx2);
+  text-transform:uppercase;letter-spacing:.6px}
+/* ===== COMPARECIMENTO ===== bolinhas: verde veio, vermelho faltou, e o par verde+âmbar é a
+   reposição — duas bolinhas porque são duas afirmações (veio E pagou). */
+.ff-pt{display:inline-block;width:9px;height:9px;border-radius:50%;margin:0 1px;vertical-align:middle}
+.ff-pt-p{background:#22A745}
+/* a FALTA deixou de ser bolinha: um X mais encorpado e centralizado, porque falta é ausência, e
+   ausência se marca riscando, não pintando um ponto. A ANTEPOSIÇÃO ganha bolinha própria, roxa
+   como a pílula dela — o âmbar ficou sendo só da reposição. */
+.ff-x{display:inline-block;font-size:16px;font-weight:700;line-height:1;color:var(--perigo)}
+.ff-pt-a{background:var(--ff-dia)}
+.ff-pt-r{background:#E8A93A}
+.ff-pt-x{background:#C9D0D8}
+/* ===== HORÁRIO E DURAÇÃO =====
+   Entrada, saída e duração são do LANÇAMENTO, e o lançamento é UM por data. Num dia de duas
+   aulas a célula atravessa as duas linhas com rowspan — ordem dele: *"você unifica, as duas
+   podem ser mescladas como se fosse um Excel, e a duração total fica no meio"*. */
+.ff-tab td.c-ent,.ff-tab td.c-sai{font-size:10.5px;color:var(--tx2)}
+.ff-tab td.c-dur{font-size:10px;color:var(--tx3);font-weight:600;letter-spacing:-.2px}
+.ff-tab td.ff-mesclada{background:#FCFDFE}
+/* ===== LIÇÃO ===== só a sigla, como PÍLULA — ordem dele: *"o nome curto já é o suficiente, que
+   vai ser uma pílula, como uma tag"*. O nome longo saiu: ele já está no Planejamento, e aqui
+   competia com a anotação pelo mesmo espaço. As cores por TIPO de lição já existem nesta casa
+   (o :root da 2053) — reaproveitadas, não reinventadas. */
+.ff-tab td.c-lic{text-align:left;padding-left:6px}
+.ff-sig{display:inline-block;padding:1px 8px;border-radius:10px;font-weight:700;font-size:10.5px;
+  line-height:16px;border:1px solid transparent}
+.ff-sig.t-input{background:var(--lc-input-bg);color:var(--lc-input);border-color:var(--lc-input-bg)}
+.ff-sig.t-output{background:var(--lc-output-bg);color:var(--lc-output);border-color:var(--lc-output-bg)}
+.ff-sig.t-review{background:var(--lc-review-bg);color:var(--lc-review);border-color:var(--lc-review-bg)}
+.ff-sig.t-especial{background:var(--lc-esp-bg);color:var(--lc-esp);border-color:var(--lc-esp-bg)}
+.ff-sig.t-none{background:var(--cz);color:var(--tx3)}
+/* ===== OBSERVAÇÕES ===== o único campo de texto livre por lançamento, e ele já existe
+   (`presenca.observacao`, criado em 2026-08-24 para a coluna do Planejamento). */
+.ff-tab td.c-obs{text-align:left;padding:0}
+.ff-tab td.c-obs input{width:100%;height:26px;border:0;background:transparent;font:inherit;
+  font-size:11.5px;color:#202124;padding:0 7px}
+.ff-tab td.c-obs input:focus{outline:0;background:var(--azul-cl)}
+.ff-tab td.c-obs .ff-ro{color:#C2C9D2;padding-left:7px;font-size:11.5px}
+/* ===== AVALIAÇÕES =====
+   MESMA fonte e MESMO estilo nas oito colunas, por ordem dele — a ficha tem de parecer uma
+   planilha, não oito controles diferentes lado a lado. O quadradinho preenche a célula menos o
+   vão de 2px: *"ele fica ligeiramente não tocando nas bordas"*. Menor e sem negrito, porque
+   "MB" em 10px/700 gritava mais alto que a nota ao lado. */
+.ff-tab td.c-av,.ff-tab td.c-av2,.ff-tab td.c-ck{padding:2px}
+.ff-av,.ff-av2,.ff-eng,.ff-ck-cx{display:flex;align-items:center;justify-content:center;
+  height:26px;border-radius:4px;font-size:9.5px;font-weight:600;letter-spacing:.2px;
+  color:var(--tx3)}
+.ff-av.v-R{background:var(--ff-R);color:var(--ff-R-tx)}
+.ff-av.v-B{background:var(--ff-B);color:var(--ff-B-tx)}
+.ff-av.v-MB{background:var(--ff-MB);color:var(--ff-MB-tx)}
+.ff-av.v-O{background:var(--ff-O);color:var(--ff-O-tx)}
+/* ESCRITA E TAREFA ANDAM JUNTAS: UM container só, com um degradê de verdade entre as duas notas
+   — dois pontos e o navegador mistura no meio. Ele foi específico: *"não fica duas cores
+   separadas, tem que ser um degradê"*. Antes eu tinha posto dois blocos de 50%, que é
+   exatamente o que ele não queria. As duas letras dividem a caixa em metades iguais e ficam na
+   MESMA linha de base — a da direita estava caindo. */
+.ff-av2{gap:0}
+.ff-av2>span{flex:1 1 0;display:flex;align-items:center;justify-content:center;height:100%;
+  position:relative}
+.ff-av2 .ff-bar{flex:0 0 auto;color:#AEB6C0;font-weight:400;padding:0 1px}
+/* engajamento: 1 é o degrau cinza (péssimo) e 5 é o verde de quem ajuda os outros. Ele foi
+   explícito sobre o zero: *"zero é a pessoa zero à esquerda absoluta, a gente tem que evitar"*. */
+/* ENGAJAMENTO 1–4 e APP 0–4 (2026-09-13): a mesma escala de cor dos conceitos, do fraco ao forte.
+   O APP zero ("não fez nada") fica no cinza — é ausência de trabalho, não um conceito ruim. */
+.ff-eng.n1,.ff-eng.a1{background:var(--ff-R);color:var(--ff-R-tx)}
+.ff-eng.n2,.ff-eng.a2{background:var(--ff-B);color:var(--ff-B-tx)}
+.ff-eng.n3,.ff-eng.a3{background:var(--ff-MB);color:var(--ff-MB-tx)}
+.ff-eng.n4,.ff-eng.a4{background:var(--ff-O);color:var(--ff-O-tx)}
+.ff-eng.a0{background:var(--ff-e1);color:var(--ff-e1-tx)}
+/* situação da tarefa e as duas checagens: mesma caixa das notas, para a linha não ondular */
+.ff-st{display:flex;align-items:center;justify-content:center;width:17px;height:17px;
+  border-radius:50%;font-size:9.5px;font-weight:600;border:1px solid transparent}
+.ff-st.em-dia{background:var(--azul-cl);border-color:var(--azul-borda);color:var(--azul-esc)}
+.ff-st.atrasado{background:#FBE3E4;border-color:#EFB9BC;color:var(--perigo)}
+/* a situação que a REGRA decidiu e ninguém marcou: a mesma letra, com a borda tracejada */
+.ff-st.auto{border-style:dashed;border-color:currentColor;background:transparent}
+.ff-ck{display:inline-block;width:6px;height:6px;border-radius:50%}
+.ff-ck.ok-cs{background:#22A745}
+.ff-ck.ok-app{background:var(--azul)}
+.ff-ck.alerta{width:auto;height:auto;border-radius:0;color:#B26A00;font-size:10px;line-height:1}
+/* ===== PROFESSOR ===== a pílula já existe nesta casa: `.lc-pp`, a azul-clara com borda que a
+   tabela de Frequência usa. Não fiz outra. */
+/* ===== PROFESSOR ===== duas pílulas têm de caber LADO A LADO em 124px, senão a segunda quebra
+   linha e a linha inteira sobe de 32px para 38 — foi o que aconteceu quando um segundo professor
+   entrou na agenda. A largura da coluna é dele e não se mexe, então quem cede é a pílula: dentro
+   da ficha ela usa uma fonte e um respiro menores que na tabela de Frequência, onde a coluna é
+   larga e a pílula pode se espalhar. */
+.ff-profs{display:flex;flex-wrap:nowrap;align-items:center;justify-content:center;gap:2px;
+  line-height:1;padding:1px 1px;overflow:hidden}
+.ff-profs .lc-pp{font-size:10px;padding:0 5px;margin:0;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;max-width:100%}
+/* ===== A PÍLULA DA DATA =====
+   Só onde o dia NÃO foi comum. Dia de duas aulas perdeu a pílula por ordem dele — o colchete
+   roxo já conta essa história, e duas marcas para o mesmo fato é ruído.
+   E as duas cores dizem coisas diferentes, que era o ponto dele: AMARELO é reposição (pagou uma
+   falta que já existia — a mesma família do âmbar da bolinha) e ROXO é anteposição (adiantou uma
+   falta que ainda vem). Fundo quase branco, borda firme, número em negrito escuro: a pílula tem
+   de se ler como marca, não como mancha.
+   Clicável, porque cada uma aponta para uma falta e o clique vai até ela. */
+.ff-dpil{display:inline-block;padding:0 5px;border-radius:9px;font-weight:700;font-size:10.5px;
+  line-height:16px;cursor:pointer;border:1px solid;background:#fff}
+.ff-dpil.ff-repo{border-color:#D9A227;color:#7A4700;background:#FFFCF0}
+.ff-dpil.ff-ante{border-color:var(--ff-dia);color:#7A3A92;background:var(--ff-dia-bg)}
+.ff-dpil:hover{filter:brightness(.96)}
+/* ===== O REALCE DE QUEM FOI APONTADO =====
+   Clicar na data de uma reposição leva à falta que ela pagou; clicar numa anteposição leva à
+   falta que ela adiantou. Chegando lá, três células piscam — dia da semana, aula e frequência —
+   por dois segundos e meio. Tempo suficiente para o olho achar, curto para não virar ruído. */
+@keyframes ffPisca{
+  0%,100%{box-shadow:inset 0 0 0 2px rgba(232,169,58,0)}
+  35%{box-shadow:inset 0 0 0 2px rgba(232,169,58,.95)}
+  70%{box-shadow:inset 0 0 0 2px rgba(232,169,58,.25)}
+}
+.ff-tab td.ff-realce{animation:ffPisca 1.25s ease-in-out 2}
+/* ===== O COLCHETE DO DIA COM DUAS (OU MAIS) AULAS =====
+   Sombras inset, e a forma é a que ele descreveu: a primeira linha fecha em cima e embaixo nas
+   duas células de data, o resto dela leva só o fio de cima, e a partir da segunda aula o fio
+   desce pela ESQUERDA da coluna Aula até fechar embaixo na última. *"É como se fosse expandindo
+   pra baixo"* — três aulas, e a terceira também ganha o fio lateral. */
+.ff-tab td.ff-dg-caixa{box-shadow:inset 0 1px 0 0 var(--ff-dia),inset 0 -1px 0 0 var(--ff-dia)}
+.ff-tab td.ff-dg-topo{box-shadow:inset 0 1px 0 0 var(--ff-dia)}
+.ff-tab td.ff-dg-esq{box-shadow:inset 1px 0 0 0 var(--ff-dia)}
+.ff-tab td.ff-dg-base{box-shadow:inset 0 -1px 0 0 var(--ff-dia)}
+.ff-tab td.ff-dg-esq.ff-dg-base{box-shadow:inset 1px 0 0 0 var(--ff-dia),inset 0 -1px 0 0 var(--ff-dia)}
+.ff-tab td.c-ds.ff-dia-marca{background:var(--ff-dia-bg);font-weight:700;color:#7A3A92}
+/* ===== O FIO DA SEMANA ===== atravessa do número da semana até a saída, que é onde termina o
+   bloco de calendário — depois dali a informação já é de conteúdo. */
+.ff-tab td.ff-semana-ini{box-shadow:inset 0 1px 0 0 var(--ff-semana)}
+/* quando semana e dia abrem na MESMA célula, os dois fios convivem separados por um vão branco:
+   1px azul, 1px branco, 1px roxo. Três sombras somadas, e a primeira pinta por cima. */
+.ff-tab td.ff-semana-ini.ff-dg-topo{box-shadow:inset 0 1px 0 0 var(--ff-semana),
+  inset 0 2px 0 0 #fff,inset 0 3px 0 0 var(--ff-dia)}
+.ff-tab td.ff-semana-ini.ff-dg-caixa{box-shadow:inset 0 1px 0 0 var(--ff-semana),
+  inset 0 2px 0 0 #fff,inset 0 3px 0 0 var(--ff-dia),inset 0 -1px 0 0 var(--ff-dia)}
+/* ===== A LEGENDA ===== curta, e só do que não se adivinha olhando */
+.ff-legenda{display:flex;flex-wrap:wrap;gap:14px;align-items:center;
+  margin:10px 2px 0;font-size:11px;color:var(--tx3)}
+.ff-legenda span{display:inline-flex;align-items:center;gap:5px}
+/* ===== A CÉLULA QUE SE EDITA SEM PARECER UM FORMULÁRIO =====
+   O <select> cobre a célula inteira com opacidade zero: o que se vê é o fundo colorido do
+   conceito, e o que se clica é o menu nativo. Desenhar um dropdown de verdade em cada uma das
+   ~300 células de avaliação encheria a ficha de setinhas e mataria a leitura — e ler é o que
+   esta tela faz noventa por cento do tempo. */
+.ff-cel{display:block;position:relative;cursor:pointer;height:26px}
+.ff-edit{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;
+  border:0;padding:0;margin:0;font:inherit}
+.ff-tab td.ff-clic{cursor:pointer}
+.ff-tab td.ff-clic:hover .ff-ck-cx{background:var(--azul-cl)}
+.ff-cel:focus-within .ff-av,.ff-cel:focus-within .ff-eng,.ff-cel:focus-within .ff-av2{
+  outline:2px solid var(--azul);outline-offset:-1px}
+/* ===== AS PÍLULAS DE AVALIAÇÃO NO PLANEJAMENTO =====
+   Elas moram na tabela vizinha (`.plan-tab`), não nesta — mas nascem do mesmo dado e da mesma
+   escala, então o CSS fica aqui, ao lado de quem as produz. Fonte pequena e sem negrito no valor:
+   o que se lê primeiro é a letra da habilidade, e o conceito vem logo atrás. */
+/* SEM `overflow:hidden` aqui, e a razão é de princípio: apertadas, as oito pílulas cabem numa
+   linha só (268px dos 279 disponíveis), mas a folga é de onze pixels — num monitor menor a série
+   estouraria, e esconder o fim dela seria perder avaliação sem avisar. Deixando quebrar, a linha
+   cresce e nada some. Melhor uma linha alta que uma nota invisível. */
+.plan-tab td.c-aval{text-align:left;padding:2px 5px;line-height:1.6}
+/* CADA PÍLULA VESTE A COR DA SUA NOTA, e é a MESMA cor da Ficha: um "MB" azul aqui e azul lá,
+   senão a cor vira enfeite em vez de informação. O rótulo da habilidade fica em negrito e o
+   conceito ao lado, sem negrito — quem varre a coluna procura primeiro a letra. */
+.plan-pav{display:inline-block;background:var(--cz);border-radius:8px;padding:0 6px;margin:0 2px 0 0;
+  font-size:11px;font-weight:700;color:var(--tx2);white-space:nowrap;letter-spacing:0;
+  line-height:16px;vertical-align:middle}
+/* O RÓTULO É O MENOR DOS DOIS, e isso é ordem dele: quem varre a coluna quer ler a NOTA, e a letra
+   da habilidade é só o endereço dela. Os dois em negrito, com um espaço depois dos dois pontos —
+   sem o espaço "F:MB" se lê como uma palavra só. */
+.plan-pav b{font-size:9px;font-weight:700;letter-spacing:.2px;opacity:.7}
+.plan-pav.v-R{background:var(--ff-R);color:var(--ff-R-tx)}
+.plan-pav.v-B{background:var(--ff-B);color:var(--ff-B-tx)}
+.plan-pav.v-MB{background:var(--ff-MB);color:var(--ff-MB-tx)}
+.plan-pav.v-O{background:var(--ff-O);color:var(--ff-O-tx)}
+.plan-pav.e1,.plan-pav.a1{background:var(--ff-R);color:var(--ff-R-tx)}
+.plan-pav.e2,.plan-pav.a2{background:var(--ff-B);color:var(--ff-B-tx)}
+.plan-pav.e3,.plan-pav.a3{background:var(--ff-MB);color:var(--ff-MB-tx)}
+.plan-pav.e4,.plan-pav.a4{background:var(--ff-O);color:var(--ff-O-tx)}
+.plan-pav.a0{background:var(--ff-e1);color:var(--ff-e1-tx)}
+/* situação da tarefa: as mesmas duas cores dos círculos E e A da Ficha */
+.plan-pav.st-dia{background:var(--azul-cl);color:var(--azul-esc)}
+.plan-pav.st-atraso{background:#FBE3E4;color:var(--perigo)}
+/* e o MESMO símbolo da Ficha para CS e APP: bolinha quando foi feito, triângulo âmbar quando
+   pede atenção. Antes eu tinha posto um "✓" aqui, que não existe na outra tela — ele viu. */
+.plan-pav .pt{display:inline-block;width:6px;height:6px;border-radius:50%;vertical-align:middle;
+  position:relative;top:-1px}
+.plan-pav .pt.cs{background:#22A745}
+.plan-pav .pt.app{background:var(--azul)}
+.plan-pav.alerta{background:#FDF2E0;color:#B26A00}
+/* a dupla Escrita/Tarefa é uma pílula só, com o degradê entre as duas notas — igual à célula
+   E/TRF da Ficha */
+.plan-pav.dupla{color:var(--tx2)}
+/* ===== O LIVRO DO CARTÃO VIRA A PORTA DO REGISTRO DE AULA (2026-09-13, dele) =====
+   *"Quando eu passar o mouse em cima, ele vai ser realçado, tipo assim, ligeiramente animado, e vai se
+   transformar numa mãozinha."* Em aula ele já folheia sozinho; na aula feita fica parado e só folheia
+   sob o mouse — o movimento contínuo é o sinal de "está acontecendo agora", e não pode mentir. */
+button.lc-cron{appearance:none;border:0;background:none;padding:0;margin:0;cursor:pointer;border-radius:7px;
+  position:relative;color:inherit;transition:transform .16s cubic-bezier(.22,1,.36,1),background .16s}
+button.lc-cron:hover{transform:scale(1.14);background:rgba(0,0,0,.05);background:color-mix(in srgb, currentColor 12%, transparent)}
+button.lc-cron:focus-visible{outline:2px solid currentColor;outline-offset:1px}
+button.lc-cron.parado .pg,button.lc-cron.parado .pm,button.lc-cron.parado .ph{animation-play-state:paused}
+button.lc-cron.parado:hover .pg,button.lc-cron.parado:hover .pm,button.lc-cron.parado:hover .ph{animation-play-state:running}
+/* quantas aulas do dia já foram registradas: número miúdo no pé do livro, verde quando fechou o dia */
+.lc-cron-n{position:absolute;right:-4px;bottom:-4px;min-width:13px;height:13px;padding:0 3px;border-radius:7px;
+  background:#fff;border:1px solid currentColor;font-size:8.5px;font-weight:800;line-height:11px;text-align:center;
+  font-variant-numeric:tabular-nums;box-sizing:border-box}
+.lc-cron-n.ok{background:#2d9147;border-color:#2d9147;color:#fff}
+
+/* ===== A JANELA DO REGISTRO DE AULA =====
+   Ele pediu enxuto: *"esse painel tá muito firula, deixa ele um pouco mais minimalista"*. Duas colunas
+   e nenhum cartão dentro de cartão: à esquerda o que a aula FOI, à direita como o aluno FOI. */
+.reg-fundo{z-index:390}   /* abaixo do .dlg-fundo (400): a confirmação de excluir abre por cima */
+.dlg.reg{width:min(880px,100%);display:flex;flex-direction:column;max-height:calc(100vh - 40px);overflow:hidden}
+.reg-cab{display:flex;align-items:center;gap:10px;padding:13px 14px 12px 16px;border-bottom:1px solid #EEF1F4}
+.reg-ic{width:32px;height:32px;flex:0 0 32px;display:flex;align-items:center;justify-content:center;
+  border-radius:8px;background:var(--azul-cl)}
+.reg-ic svg{width:22px;height:22px;overflow:visible}
+.reg-cab-tx{min-width:0}
+.dlg.reg h3{margin:0;font-size:15px;color:var(--marca)}
+.reg-quem{font-size:12px;color:var(--tx3);display:flex;gap:6px;flex-wrap:wrap;margin-top:1px}
+.reg-quem b{color:#202124;font-weight:600}
+.reg-quem span::before{content:'·';margin-right:6px;color:#C5CCD3}
+.reg-dia{margin-left:auto;display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}
+.reg-chip{appearance:none;border:1px solid var(--borda);background:#fff;border-radius:14px;padding:3px 10px;
+  font:inherit;font-size:11.5px;font-weight:600;color:var(--tx3);cursor:pointer;display:flex;gap:5px;align-items:baseline}
+.reg-chip small{font-size:10px;font-weight:600;opacity:.85}
+.reg-chip.feita{border-color:#B7DCC2;color:#2d9147}
+.reg-chip.on{background:var(--marca);border-color:var(--marca);color:#fff}
+.reg-chip-mais{padding:3px 9px;font-weight:800}
+.reg-x{appearance:none;border:0;background:none;color:var(--tx3);cursor:pointer;border-radius:6px;flex:0 0 28px;
+  width:28px;height:28px;display:flex;align-items:center;justify-content:center}
+.reg-dia:empty{margin-left:auto}
+.reg-x:hover{background:#F1F3F5;color:#202124}
+.reg-corpo{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.08fr);overflow:auto;min-height:140px}
+.reg-carrega{grid-column:1/-1;display:flex;justify-content:center;align-items:center;padding:48px;color:var(--tx3)}
+.reg-carrega svg{animation:reg-gira 1s linear infinite}
+@keyframes reg-gira{to{transform:rotate(360deg)}}
+.reg-esq{padding:14px 16px;display:flex;flex-direction:column;gap:12px;border-right:1px solid #EEF1F4;min-width:0}
+.reg-dir{padding:14px 16px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.reg-campo{display:flex;flex-direction:column;gap:4px;margin:0;min-width:0}
+.reg-campo>span{font-size:10.5px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.04em}
+.reg-par{display:grid;grid-template-columns:60px minmax(0,1fr);gap:10px}
+.reg-campo input,.reg-campo select,.reg-campo textarea{font:inherit;font-size:13px;border:1px solid var(--borda);
+  border-radius:7px;padding:6px 8px;background:#fff;color:#202124;width:100%;box-sizing:border-box;margin:0;height:auto}
+.reg-campo textarea{resize:vertical;min-height:64px;line-height:1.4}
+.reg-n input{text-align:center;font-variant-numeric:tabular-nums;font-weight:700}
+.reg-campo select:disabled,.reg-campo input:disabled{background:#F6F7F9;color:var(--tx3)}
+.reg-profs{display:flex;flex-wrap:wrap;gap:5px;align-items:center;min-height:28px}
+.reg-pp{display:inline-flex;align-items:center;gap:2px;padding-right:2px}
+.reg-pp button{appearance:none;border:0;background:none;color:inherit;opacity:.55;cursor:pointer;font-size:13px;
+  line-height:1;padding:0 3px;border-radius:4px}
+.reg-pp button:hover{opacity:1;background:rgba(0,0,0,.06)}
+.reg-campo select.reg-mais{width:auto;font-size:12px;padding:3px 6px;color:var(--azul-esc);border-style:dashed}
+/* os tipos: pilha de caixas. As duas que mexem na fila de faltas vêm em cima, separadas das outras por
+   um fio fino — ordem dele: *"elas vão ficar meio fixas pra cima, aí vai ter uma linha bem fina"* */
+.reg-tipos{display:flex;flex-direction:column;border:1px solid var(--borda);border-radius:8px;padding:3px 0}
+.reg-tipo{display:flex;align-items:center;gap:8px;padding:4px 10px;margin:0;cursor:pointer;font-size:13px;
+  color:#202124;font-weight:400;text-transform:none;letter-spacing:0}
+.reg-tipo:hover{background:#F6F9FC}
+.reg-tipo input{margin:0;width:15px;height:15px;accent-color:var(--azul);flex:0 0 15px}
+.reg-tipo em{margin-left:auto;font-style:normal;font-size:10.5px;color:var(--tx3)}
+.reg-tipos-fio{height:1px;background:#E1E6EB;margin:3px 10px}
+.reg-dica{font-size:11px;color:var(--tx3);line-height:1.35}
+.reg-vazio{font-size:12px;color:var(--tx3)}
+/* uma habilidade por linha: rótulo à esquerda, os botões à direita */
+.reg-linha{display:grid;grid-template-columns:132px minmax(0,1fr);align-items:center;gap:8px;min-height:30px}
+.reg-rot{font-size:12.5px;font-weight:600;color:var(--tx2);display:flex;align-items:center;gap:5px;min-width:0}
+.reg-seg{display:flex;gap:4px;flex-wrap:wrap}
+.reg-op{appearance:none;font:inherit;font-size:12px;font-weight:700;min-width:34px;height:28px;padding:0 8px;margin:0;
+  border:1px solid #DDE2E7;border-radius:7px;background:#fff;color:#8A929B;cursor:pointer;
+  transition:background .12s,color .12s,border-color .12s}
+.reg-op:hover{border-color:#B9C3CD;color:#3C4043}
+.reg-op:focus-visible{outline:2px solid var(--azul);outline-offset:1px}
+.reg-op-tx{font-weight:600;min-width:64px}
+/* marcado: veste a cor da escala da Ficha — o mesmo R/B/MB/Ó que o professor vai reencontrar lá */
+.reg-op.on{border-color:transparent}
+.reg-op.on.v-R,.reg-op.on.e1,.reg-op.on.a1{background:var(--ff-R);color:var(--ff-R-tx)}
+.reg-op.on.v-B,.reg-op.on.e2,.reg-op.on.a2{background:var(--ff-B);color:var(--ff-B-tx)}
+.reg-op.on.v-MB,.reg-op.on.e3,.reg-op.on.a3{background:var(--ff-MB);color:var(--ff-MB-tx)}
+.reg-op.on.v-O,.reg-op.on.e4,.reg-op.on.a4{background:var(--ff-O);color:var(--ff-O-tx)}
+.reg-op.on.a0{background:var(--ff-e1);color:var(--ff-e1-tx)}
+.reg-op.on.cs-ok{background:#E4F4E8;color:#14602A}
+.reg-op.on.cs-at{background:#FDF2E0;color:#7A4700}
+.reg-op.on.st-dia{background:var(--azul-cl);color:var(--azul-esc)}
+.reg-op.on.st-atraso{background:#FBE3E4;color:var(--perigo)}
+/* a situação que a REGRA escolheu fica tracejada: está marcada, mas ninguém a marcou */
+.reg-op.on.auto{border:1px dashed currentColor}
+.reg-fio{height:1px;background:#EEF1F4;margin:4px 0}
+.reg-tar .reg-rot{flex-wrap:wrap}
+.reg-tar-de{font:inherit;font-size:12px;border:1px solid var(--borda);border-radius:6px;padding:2px 4px;max-width:118px;
+  color:var(--azul-esc);background:#fff;margin:0}
+.reg-sit .reg-dica{grid-column:2;margin-top:-2px}
+.reg-link{appearance:none;border:0;background:none;padding:0;font:inherit;color:var(--azul-esc);text-decoration:underline;cursor:pointer}
+.reg-pe{display:flex;align-items:center;gap:8px;padding:11px 16px;border-top:1px solid #EEF1F4}
+.reg-pe .acao{margin:0}
+.reg-av{margin-left:auto;font-size:12px;color:var(--perigo)}
+button.acao.sec.reg-excluir{color:var(--perigo)}
+@media (max-width:760px){.reg-corpo{grid-template-columns:1fr}.reg-esq{border-right:0;border-bottom:1px solid #EEF1F4}}
+@media (prefers-reduced-motion:reduce){button.lc-cron{transition:none}.reg-carrega svg{animation:none}}
+/* ===== CADASTROS · tipos de aula (2026-09-13) =====
+   Uma pilha, não uma grade: são poucos itens, e a ordem da lista É a ordem em que aparecem no Registro
+   de aula. As duas fixas em cima, um fio, e as editáveis embaixo. */
+.cad-info{max-width:760px;line-height:1.5}
+.cad-pilha{max-width:760px;border:1px solid var(--borda);border-radius:10px;background:#fff;padding:3px 0}
+.cad-linha{display:flex;align-items:center;gap:10px;padding:6px 12px;min-height:38px}
+.cad-linha+.cad-linha{border-top:1px solid #F1F3F5}
+.cad-fio{height:1px;background:#D9E0E7;margin:3px 0}
+.cad-linha.especial{background:#FAFBFC}
+.cad-trava{color:var(--tx3);display:flex;width:16px;justify-content:center}
+.cad-nome-fixo{font-weight:700;color:var(--marca);min-width:118px;padding-left:6px}
+.cad-desc{font-size:12px;color:var(--tx3);flex:1}
+.cad-selo{font-size:11px;font-weight:600;color:#2d9147;background:#EDF7F0;border-radius:10px;padding:1px 8px;white-space:nowrap}
+.cad-usos{font-size:11px;color:var(--tx3);font-variant-numeric:tabular-nums;min-width:58px;text-align:right;white-space:nowrap}
+.cad-usos.zero{opacity:.6}
+.cad-mover{display:flex;flex-direction:column;width:16px;flex:0 0 16px}
+.cad-mover button{appearance:none;border:0;background:none;padding:0;height:13px;color:var(--tx3);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;border-radius:3px}
+.cad-mover button:hover:not(:disabled){color:var(--marca);background:#EEF3F8}
+.cad-mover button:first-child svg{transform:rotate(180deg)}
+.cad-mover button:disabled{opacity:.25;cursor:default}
+input.cad-nome{flex:1;min-width:0;font:inherit;font-size:13px;font-weight:600;color:#202124;border:1px solid transparent;
+  border-radius:6px;padding:4px 6px;background:none;margin:0;height:auto}
+input.cad-nome:hover:not(:disabled){border-color:var(--borda)}
+input.cad-nome:focus{border-color:var(--azul);background:#fff;outline:0}
+.cad-cont{margin:0;font-size:12px;white-space:nowrap;display:flex;align-items:center;gap:5px;color:var(--tx2)}
+button.acao.sec.cad-arq-bt{margin:0;padding:4px 10px;font-size:12px}
+.cad-novo{display:flex;align-items:center;gap:10px;padding:9px 12px;border-top:1px dashed #D9E0E7;margin-top:2px}
+.cad-novo input:not([type]){flex:1;margin:0}
+.cad-novo .acao{margin:0}
+.cad-arq{max-width:760px;margin-top:14px;font-size:13px;color:var(--tx3)}
+.cad-arq summary{cursor:pointer;font-weight:600;margin-bottom:8px}
+.cad-linha.arquivado{opacity:.72}
+/* a caixinha "é o dia da volta", no trecho por dia da semana do calendário */
+.cf-volta{font-size:11.5px;margin:0 0 0 6px;white-space:nowrap;color:var(--tx2);display:inline-flex;align-items:center;gap:4px}
+/* ===== CONFIGURAÇÕES (2026-09-13) =====
+   Uma linha por parâmetro, e não um cartão: o texto à esquerda (o nome, o que ele faz, de onde veio) e o
+   campo à direita. A linha alterada ganha um fundo âmbar que se apaga para a direita — é o que se
+   procura primeiro numa página dessas: o que alguém mudou. */
+.cg-info{max-width:900px;line-height:1.5}
+.cg-linha{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:18px;align-items:center;
+  padding:12px 8px;border-bottom:1px solid #EEF1F4;max-width:920px}
+.cg-linha.alterado{background:linear-gradient(90deg,#FFF9E6,rgba(255,249,230,0) 75%)}
+.cg-rot{font-size:13.5px;font-weight:600;color:#202124;margin:0;display:block}
+.cg-ajuda{font-size:12px;color:var(--tx3);line-height:1.45;margin-top:2px}
+.cg-selo{font-size:11px;color:var(--tx3);margin-top:5px}
+.cg-linha.alterado .cg-selo{color:#8a5a00;font-weight:600}
+.cg-campo{display:flex;align-items:center;gap:8px;justify-content:flex-end;min-width:0}
+input.cg-in{font:inherit;font-size:13px;border:1px solid var(--borda);border-radius:7px;padding:6px 8px;margin:0;
+  width:100%;box-sizing:border-box;height:auto}
+input.cg-in.cg-num{width:76px;text-align:right;font-variant-numeric:tabular-nums;font-weight:700;flex:0 0 76px}
+input.cg-in.cg-uf{width:58px;text-transform:uppercase;text-align:center;font-weight:700;flex:0 0 58px}
+input.cg-in.cg-hora{width:78px;text-align:center;font-variant-numeric:tabular-nums;flex:0 0 78px}
+.cg-un{font-size:12px;color:var(--tx3);line-height:1.3}
+.cg-chave{display:inline-flex;align-items:center;gap:8px;margin:0;font-size:12.5px;color:var(--tx2);cursor:pointer;font-weight:600}
+.cg-chave input{width:17px;height:17px;margin:0;accent-color:var(--azul)}
+.cg-ro{font-size:12.5px;color:var(--tx2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.cg-ro i{color:var(--tx3)}
+button.acao.sec.cg-ir{margin:0;padding:4px 10px;font-size:12px;white-space:nowrap;flex:0 0 auto}
+.cg-volta{appearance:none;border:1px solid var(--borda);background:#fff;border-radius:6px;width:28px;height:28px;
+  cursor:pointer;color:var(--tx3);font-size:15px;line-height:1;flex:0 0 28px;padding:0}
+.cg-volta:hover{color:var(--marca);border-color:var(--azul)}
+.cg-alt{font-size:12px;font-weight:700;background:#FFF3C4;color:#7A4700;border-radius:12px;padding:3px 11px;cursor:default}
+.cg-alt.zero{background:#EDF7F0;color:#1B7A3E}
+.cg-sec{margin:24px 0 8px;font-size:13px;color:var(--marca);display:flex;gap:8px;align-items:baseline;max-width:920px}
+.cg-sec small{font-weight:400;color:var(--tx3);font-size:11px}
+.cg-tab{border-collapse:collapse;font-size:12px;max-width:920px;width:100%}
+.cg-tab th{text-align:left;color:var(--tx3);font-weight:700;font-size:10.5px;text-transform:uppercase;letter-spacing:.03em;
+  padding:4px 8px;border-bottom:1px solid var(--borda)}
+.cg-tab td{padding:5px 8px;border-bottom:1px solid #F1F3F5;color:var(--tx2);vertical-align:top}
+.cg-tab td.cg-de{color:var(--tx3);text-decoration:line-through}
+.cg-marcas{margin-top:20px;max-width:920px;font-size:12px;color:var(--tx3)}
+.cg-marcas summary{cursor:pointer;font-weight:600}
+.cg-nota{margin:8px 0;line-height:1.5}
+@media (max-width:900px){.cg-linha{grid-template-columns:1fr}.cg-campo{justify-content:flex-start}}
+/* ===== A ROLAGEM NASCE DENTRO DO CONTRATO ===== mesma regra que o planejamento ganhou */
+.matricula-card[data-sub="ficha"] .mat-slot>.al-hist{flex:1 1 auto;min-height:0;
+  display:flex;flex-direction:column}
+.matricula-card[data-sub="ficha"] .mat-slot>.al-hist>div{flex:1 1 auto;min-height:0;
+  display:flex;flex-direction:column}
+.mat-slot .ff-moldura{flex:1 1 auto;min-height:0;max-height:none;overflow:auto;
+  scrollbar-gutter:stable}
+.mat-slot #ficha-corpo{max-height:none}
 </style>
 </head>
 <body>
@@ -4097,6 +4723,7 @@ body.tem-ensaio{padding-top:29px}
 <button onclick="aba('turmas',this)"><span class="ic"></span>Turmas</button>
 <button onclick="aba('horarios',this)"><span class="ic"></span>Horários</button>
 <button onclick="aba('professores',this)"><span class="ic"></span>Professores</button>
+<button onclick="aba('cadastros',this)"><span class="ic"></span>Cadastros</button>
 </div></div>
 </div>
 
@@ -4119,6 +4746,7 @@ body.tem-ensaio{padding-top:29px}
 <!-- AVULSOS: não pertencem a nenhum escopo — são ferramentas da casa -->
 <button onclick="aba('impressao',this)"><span class="ic"></span>Impressão</button>
 <button onclick="aba('backup',this)"><span class="ic"></span>Backup</button>
+<button onclick="aba('config',this)"><span class="ic"></span>Configurações</button>
 </nav>
 <div id="estacao-tag" class="estacao-tag"></div>
 </div>
@@ -4199,6 +4827,19 @@ body.tem-ensaio{padding-top:29px}
 <button class="acao sec" onclick="alNovo()">Limpar</button>
 </div>
 </div>
+<!-- ===== OS DADOS PESSOAIS (2026-09-13, dele: "gordurinha necessária") =====
+     Recolhidos numa linha fina embaixo da faixa. Fechada, ela diz a idade e avisa quando o menor de
+     idade está sem responsável; aberta, são cinco campos que o botão Salvar da faixa grava junto. -->
+<div class="al-dados" id="al-dados">
+<button type="button" class="al-dados-bt" id="al-dados-bt" onclick="alDadosAbrir()" aria-expanded="false"><span class="al-dados-seta"></span><b>Dados pessoais</b><span id="al-dados-resumo"></span></button>
+<div class="al-dados-campos" id="al-dados-campos">
+<div class="al-campo"><label for="al-nasc">Nascimento</label><input id="al-nasc" type="date"></div>
+<div class="al-campo"><label for="al-tel">Telefone</label><input id="al-tel" placeholder="(67) 9 0000-0000" autocomplete="off"></div>
+<div class="al-campo al-campo-email"><label for="al-email">E-mail</label><input id="al-email" type="email" autocomplete="off"></div>
+<div class="al-campo"><label for="al-resp">Responsável</label><input id="al-resp" placeholder="para menor de 18" autocomplete="off"></div>
+<div class="al-campo"><label for="al-resp-tel">Telefone do responsável</label><input id="al-resp-tel" autocomplete="off"></div>
+</div>
+</div>
 <div id="al-aviso"></div>
 <hr class="pg-fio">
 </div>
@@ -4256,6 +4897,16 @@ body.tem-ensaio{padding-top:29px}
      tem de refletir aqui sem ninguém regerar nada. -->
 <section class="al-hist" id="al-s-planejamento" style="display:none">
 <div id="plan-corpo"><div class="al-hist-vazio">Escolha um aluno.</div></div>
+</section>
+
+<!-- ===== FICHA DE FREQUÊNCIA HIERARQUIZADA (2026-08-31, dele) =====
+     O registro atômico do que cada aula FOI: uma linha por aula dada, por falta e por feriado,
+     agrupadas em mês > semana > dia. O planejamento ao lado responde outra pergunta (a lição caiu
+     no dia previsto?) e foi limpo de propósito para não responder as duas.
+     Vem do mesmo `getPlanejamento`: as duas telas leem a MESMA projeção, então não há como uma
+     dizer que a aula foi na terça e a outra na quinta. -->
+<section class="al-hist" id="al-s-ficha" style="display:none">
+<div id="ficha-corpo"><div class="al-hist-vazio">Escolha um aluno.</div></div>
 </section>
 <!-- ===== ENCAMINHAMENTOS (2026-08-25, dele) =====
      A fila de faltas em FIFO: a mais antiga é a primeira a ser paga. De um lado o que está em
@@ -4542,6 +5193,13 @@ Os horários da matriz costumam ser fixos e raramente mudam. Confirma que quer e
 <div style="font-size:12px;color:var(--tx2);margin-bottom:8px">O nome curto é o que aparece nas pílulas e nas fichas impressas; o completo fica no cadastro.</div>
 <label>Nome curto</label><input id="pf-nome" placeholder="Ex.: Maria Cl." maxlength="20">
 <label>Nome completo</label><input id="pf-completo" placeholder="Ex.: Maria Clara Feldkircher de Oliveira">
+<!-- ===== A EQUIPE (2026-09-13, dele: "gordurinha necessária") =====
+     O papel separa quem dá aula de quem coordena, e a rede cobra os dois de jeitos diferentes; a
+     proficiência é item do PEF. Tudo opcional: cadastro sem esses campos continua valendo. -->
+<label for="pf-papel">Papel</label><select id="pf-papel"><option value="">—</option><option>Professor</option><option>Coordenador pedagógico</option><option>Assistente pedagógico</option><option>Recepção</option><option>Franqueado</option><option>Outro</option></select>
+<div class="pf-par"><div><label for="pf-telefone">Telefone</label><input id="pf-telefone" placeholder="(67) 9 0000-0000" autocomplete="off"></div><div><label for="pf-email">E-mail</label><input id="pf-email" type="email" autocomplete="off"></div></div>
+<div class="pf-par"><div><label for="pf-admissao">Admissão</label><input id="pf-admissao" type="date"></div><div><label for="pf-desligamento">Desligamento</label><input id="pf-desligamento" type="date"></div></div>
+<div class="pf-par"><div><label for="pf-carga">Carga semanal (h)</label><input id="pf-carga" inputmode="numeric" maxlength="2"></div><div><label for="pf-cefr">Proficiência (CEFR)</label><select id="pf-cefr"><option value="">—</option><option>A1</option><option>A2</option><option>B1</option><option>B2</option><option>C1</option><option>C2</option></select></div></div>
 <button class="acao" id="pf-salvar" onclick="profSalvar()"><span class="btn-ic"></span><span class="btn-txt">Salvar</span></button>
 <button class="acao perigo" id="pf-excluir" style="display:none" onclick="profExcluir()">Excluir</button>
 <button class="acao sec" onclick="profNovo()">Limpar</button>
@@ -4550,6 +5208,49 @@ Os horários da matriz costumam ser fixos e raramente mudam. Confirma que quer e
 <h3>Professores cadastrados</h3>
 <div id="pf-lista" class="pf-deck"></div>
 </div>
+</div>
+</div>
+</div>
+
+<!-- ===== CONFIGURAÇÕES (2026-09-13, dele) =====
+     Os números que mudam o comportamento do sistema inteiro. Mesma casca das outras páginas: cabeçalho
+     com o contador do que foi alterado, trilho de abas, a explicação parada e as linhas rolando. -->
+<div id="tab-config" class="tab tab-fixa">
+<div class="pg-topo">
+<div class="pg-cab"><h2>Configurações</h2><span class="pg-sub">os números que mudam o comportamento do sistema inteiro</span>
+<div class="pg-dir" id="cg-dir"></div></div>
+</div>
+<div class="pg-abas" id="cg-abas">
+<button class="pg-aba on" type="button" data-a="escola" onclick="cgAba('escola')">A escola</button>
+<button class="pg-aba" type="button" data-a="aulas" onclick="cgAba('aulas')">Contrato e aulas</button>
+<button class="pg-aba" type="button" data-a="fecho" onclick="cgAba('fecho')">Faltas e fecho do dia</button>
+<button class="pg-aba" type="button" data-a="sistema" onclick="cgAba('sistema')">Sistema</button>
+</div>
+<div class="pg-corpo pg-corpo-abas">
+<div class="es-painel">
+<div class="pg-fixo"><div class="info cg-info" id="cg-info"></div></div>
+<div class="pg-rola"><div id="cg-corpo"></div></div>
+</div>
+</div>
+</div>
+
+<!-- ===== CADASTROS (2026-09-13, dele) =====
+     As listas que as outras telas usam para escolher. Nasce com os tipos de aula: *"a gente define o que
+     é uma aula normal e o que ocorreu"*. A casca é a das outras páginas: cabeçalho, trilho de abas, a
+     explicação parada e a lista rolando. -->
+<div id="tab-cadastros" class="tab tab-fixa">
+<div class="pg-topo">
+<div class="pg-cab"><h2>Cadastros</h2><span class="pg-sub">as listas que as outras telas usam para escolher</span></div>
+</div>
+<div class="pg-abas">
+<button class="pg-aba on" type="button">Tipos de aula<span class="n" id="cad-tipos-n">0</span></button>
+</div>
+<div class="pg-corpo pg-corpo-abas">
+<div class="es-painel">
+<div class="pg-fixo">
+<div class="info cad-info">São os tipos que aparecem no <b>Registro de aula</b> — o livro no cartão da Freq. Sala. <b>Tem lição</b> é aula dada: a lição anda. Sem lição é a aula que aconteceu sem conteúdo: conta presença e não avança o livro. Reposição e anteposição são fixas, porque são elas que movem a fila de faltas.</div>
+</div>
+<div class="pg-rola"><div id="cad-tipos"></div></div>
 </div>
 </div>
 </div>
@@ -4966,10 +5667,10 @@ var SO_LEITURA=/^(get|listar|preview|info)/;
    `PRE_CARGA` guarda promessa em voo: pedir a mesma coisa duas vezes enquanto a primeira não
    voltou (clicar rápido entre abas) não gera dois pedidos. */
 var API_CACHE={}, API_VOO={};
-var CACHEAVEL=/^(getHistoricoAluno|getHorariosHistoricoAluno|getFrequenciaAluno|getPlanejamento)$/;
+var CACHEAVEL=/^(getHistoricoAluno|getHorariosHistoricoAluno|getFrequenciaAluno|getPlanejamento|getFichaFrequencia)$/;
 function cacheChave(fn,a){return fn+'|'+JSON.stringify(a===undefined?{}:a)}
 function cacheLimpar(){API_CACHE={};API_VOO={}}
-function run(fn,args,ok){
+function run(fn,args,ok,falhou){
 var a=(args&&args[0])!==undefined?args[0]:{};
 var podeCachear=CACHEAVEL.test(fn), k=podeCachear?cacheChave(fn,a):null;
 if(podeCachear&&Object.prototype.hasOwnProperty.call(API_CACHE,k)){
@@ -4985,18 +5686,19 @@ loadOn();
 fetch('/api/'+fn,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(a)})
  .then(function(r){return r.json()})
  .then(function(r){loadOff();
-  if(r&&r.erro){if(k)delete API_VOO[k];msg(r.erro,true);return}
+  if(r&&r.erro){if(k)delete API_VOO[k];msg(r.erro,true);if(falhou)falhou(r.erro);return}
   if(!SO_LEITURA.test(fn)){cacheLimpar();propagarCentral()}
   if(podeCachear){API_CACHE[k]=r;var fila=API_VOO[k]||[];delete API_VOO[k];
    fila.forEach(function(f){if(f)f(r)});return}
   if(ok)ok(r)})
- .catch(function(e){loadOff();if(k)delete API_VOO[k];msg(String(e),true)})}
+ .catch(function(e){loadOff();if(k)delete API_VOO[k];msg(String(e),true);if(falhou)falhou(String(e))})}
 /* PRÉ-CARGA: ao abrir um contrato, as outras três abas já vão sendo buscadas em segundo plano.
    Quando ele clicar, a resposta já está no cache e a troca é instantânea. */
 function matPreCarregar(livro){
 if(!alSel)return;
 run('getFrequenciaAluno',[{idMatricula:alSel.id,livro:livro||null}],null);
 run('getPlanejamento',[{idMatricula:alSel.id,livro:livro||null}],null);
+run('getFichaFrequencia',[{idMatricula:alSel.id,livro:livro||null}],null);
 run('getHistoricoAluno',[{idMatricula:alSel.id,livro:livro||null}],null);
 run('getHorariosHistoricoAluno',[{idMatricula:alSel.id,livro:livro||null}],null);
 }
@@ -5128,6 +5830,9 @@ if(n==='estoque'){esZerar();
     if(dEs.filtroEnt!==undefined){ES_FILTRO_ENT=dEs.filtroEnt;ES_FILTRO_ENT_ESCOLHIDO=true}}
   esCarregar(function(){esAba(ES_ABA);if(dEs&&dEs.itemId)esAbrirDireto(dEs.itemId)})}
 if(n==='arquivados')arqCarregar();
+if(n==='cadastros')cadCarregar();
+/* a página volta à primeira aba a cada entrada, pela regra da casa */
+if(n==='config'){cgAba('escola');cgCarregar()}
 /* a central zera junto, pela mesma regra: volta com as faixas recolhidas e sem filtro de área */
 /* A CENTRAL LEMBRA ONDE ELE PAROU (2026-08-22). Relato dele: *"se eu sair dessa página e eu voltar,
    ela vai estar resetada, com o filtro todas e a aba alertas"*. Zerar a cada entrada obrigava a
@@ -5183,7 +5888,7 @@ var SB_ICONES={inicio:'house',dashboard:'layout-dashboard',central:'triangle-ale
  calendario:'calendar-days',recepcao:'list-checks',presenca:'clipboard-check',
  alunos:'users',turmas:'graduation-cap',horarios:'calendar-clock',professores:'presentation',
  estoque:'package',estagios:'clipboard-list',arquivados:'archive',
- impressao:'printer',backup:'hard-drive'};
+ impressao:'printer',backup:'hard-drive',cadastros:'tags',config:'settings'};
 function sbIcones(){
 document.querySelectorAll('#sidebar button .ic').forEach(function(el){
  var b=el.parentNode, m=String(b.getAttribute('onclick')||'').match(/aba\('([a-z]+)'/);
@@ -5492,7 +6197,7 @@ var h=cab+'<div class="plan-moldura"><table class="plan-tab"><thead><tr>'
  +'<th class="c-hr" title="check-in na recepção">Entrada</th>'
  +'<th class="c-hr" title="check-out">Saída</th>'
  +'<th class="c-lic">Lição / conteúdo</th>'
- +'<th class="c-obs">Observações e anotações</th>'
+ +'<th class="c-aval" title="as avaliações desta lição, lançadas na Ficha de frequência">Avaliações</th>'
  +'<th class="c-dur" title="derivada da entrada e da saída">Duração'
    +'<button type="button" class="plan-recalc" onclick="planRecalcular()" title="Recalcular com o calendário de agora'
    +(r.trocas?' — a projeção usa a agenda que valia em cada época, e este contrato tem '
@@ -5562,12 +6267,13 @@ var mesAnt=null, ROT={P:'Presente',F:'Falta',N:'Não aula'};
       +escBloco(l.licao||'?')+'</button></span><span class="pl-sep">–</span>'
      :(l.licao?'<span class="pl-sig"><i>'+escBloco(l.licao)+'</i></span><span class="pl-sep">–</span>':''))
    +escBloco(l.conteudo||'')+'</td>'
-  +'<td class="c-obs">'+(l.dataReal&&!l.mesmoLancamento
-     ?'<input value="'+escBloco(l.observacao||'')+'" placeholder="—"'
-      +' onchange="planObs(&quot;'+escBloco(l.dataReal)+'&quot;,this)">'
-     :'<span class="plan-ro" title="'+(l.mesmoLancamento
-        ?'a anotação é do lançamento do dia, e ele já tem uma caixa na linha de cima'
-        :'a anotação nasce com o lançamento da frequência')+'">—</span>')+'</td>'
+  /* ===== AS AVALIAÇÕES, EM PÍLULAS NUMA CÉLULA SÓ (2026-09-01, dele) =====
+     *"Em vez de fazer oito colunas, você pega todas elas e coloca uma pílula pra cada uma, que
+     nem um Notion: seleção múltipla, várias tags numa célula só."* Oito colunas aqui seriam a
+     Ficha de frequência de novo, e é lá que elas se editam — aqui só se lê.
+     A anotação saiu daqui e continua viva na Ficha, na coluna de Observações: o campo é o mesmo
+     (`presenca.observacao`) e o `planObs` que o grava também. */
+  +'<td class="c-aval">'+planAvaliacoes(l.av)+'</td>'
   +(l.mesmoLancamento?''
     :'<td class="c-dur" rowspan="'+(l.spanLanc||1)+'">'+(l.minutos!=null?l.minutos+' min':'')+'</td>')
   +'</tr>'});
@@ -5608,11 +6314,414 @@ planAlinharSiglas(c);
    É idempotente: chamada de novo sobre a tabela já ajustada, mede as caixas iguais e chega no
    mesmo número. Se a tabela estiver escondida toda medida dá zero — aí não mexe em nada e as
    caixas seguem em `auto`, que é o desenho de antes e não quebra nada. */
+/* uma pílula por avaliação preenchida — as vazias não entram, porque a ausência de nota não é
+   uma informação que mereça ocupar espaço. Rótulo em negrito, valor depois dos dois pontos. */
+/* NA ORDEM DAS COLUNAS DA FICHA, e não numa ordem qualquer: quem lê as duas telas lê a mesma
+   sequência de habilidades, e a dupla Escrita/Tarefa cai no lugar dela — entre a Leitura e a
+   Situação da tarefa, exatamente como na ficha. */
+var PLAN_AV=[['fala','F'],['audicao','A'],['leitura','L'],['#dupla',''],['situacao_tarefa','S.T'],
+             ['checking_sentences','CS'],['app','APP'],['engajamento','ENG']];
+function planAvaliacoes(av){
+ if(!av)return '<span class="plan-ro" title="ainda sem avaliação — lance na aba Ficha de frequência">—</span>';
+ var h='';
+ PLAN_AV.forEach(function(c){
+  /* escrita e tarefa dividem UMA pílula, com o degradê entre as duas notas — a mesma célula
+     E/TRF da Ficha, encolhida */
+  if(c[0]==='#dupla'){
+   if(av.escrita||av.tarefa)
+    h+='<span class="plan-pav dupla" style="background-image:'+ffGrad(av.escrita||'',av.tarefa||'')+'">'
+     +'<b>E:</b> '+escBloco(av.escrita||'–')+' <b>TRF:</b> '+escBloco(av.tarefa||'–')+'</span>';
+   return;
+  }
+  var v=av[c[0]]; if(v===null||v===undefined||v==='')return;
+  /* SITUAÇÃO DA TAREFA e as duas checagens usam a MESMA marca da Ficha: E/A nos círculos, e
+     bolinha para "feito" — verde no CS, azul no APP —, triângulo âmbar para "atenção". */
+  if(c[0]==='situacao_tarefa'){
+   h+='<span class="plan-pav '+(v==='Em dia'?'st-dia':'st-atraso')+'" title="tarefa '
+    +(v==='Em dia'?'em dia':'atrasada')+'"><b>S.T:</b> '+(v==='Em dia'?'E':'A')+'</span>';
+   return;
+  }
+  if(c[0]==='checking_sentences'){
+   var ok=(v==='Ok');
+   h+='<span class="plan-pav'+(ok?'':' alerta')+'" title="'+escBloco(c[1]+': '+v)+'"><b>'+c[1]+':</b> '
+    +(ok?'<span class="pt '+(c[0]==='app'?'app':'cs')+'"></span>':'▲')+'</span>';
+   return;
+  }
+  /* as três notas e o engajamento vestem a cor da própria escala */
+  var cls=(c[0]==='engajamento')?('e'+v):(c[0]==='app')?('a'+v):ffCls(String(v));
+  h+='<span class="plan-pav '+cls+'"><b>'+c[1]+':</b> '+escBloco(String(v))+'</span>';
+ });
+ return h||'<span class="plan-ro">—</span>';
+}
 function planAlinharSiglas(raiz){
  var t=raiz&&raiz.querySelector('.plan-tab'); if(!t)return;
  var cx=t.querySelectorAll('.pl-sig'), maior=0;
  for(var i=0;i<cx.length;i++){var w=cx[i].getBoundingClientRect().width; if(w>maior)maior=w}
  if(maior)t.style.setProperty('--pl-sw',Math.ceil(maior)+'px');
+}
+/* ===================================================================================
+   ===== A FICHA DE FREQUÊNCIA HIERARQUIZADA (2026-08-31, dele) =====
+   A migração da ficha do projeto antigo (React + Tailwind, `Wiz_Tools/hori-web`). Não foi cópia:
+   a estrutura é a mesma — vinte colunas, cabeçalho de dois andares, hierarquia mês > semana >
+   dia — mas dita no vocabulário desta casa, com o `:root` daqui e a pílula `.lc-pp` que a
+   Frequência já usava para professor.
+
+   O QUE SAIU, por ordem dele:
+   - o painel de controles inteiro (aluno, data, aula, Veio/Faltou/Saída e o bloco da direita):
+     o cabeçalho do contrato, três centímetros acima, já diz aluno, estágio e situação.
+   - o café do intervalo: *"remove ele totalmente"*. E o dado nem existe: `presenca` guarda UMA
+     entrada e UMA saída por dia — o intervalo era invenção do mock.
+   - o relógio do tempo total: a duração mesclada já diz isso sem enfeite.
+   - o NOME LONGO da lição: *"o nome curto já é o suficiente, que vai ser uma pílula"*.
+
+   O QUE MUDOU: a duração é MESCLADA DE VERDADE (rowspan), não uma ilusão de borda apagada.
+   O dado permitia — `presenca` é por DIA, então entrada, saída e minutos já são do dia inteiro.
+   =================================================================================== */
+var FICHA_LIVRO=null;
+function fichaFechar(){FICHA_LIVRO=null;var c=$('ficha-corpo');if(c)c.innerHTML='<div class="al-hist-vazio">Escolha um aluno.</div>'}
+function fichaCarregar(livro){
+var c=$('ficha-corpo');if(!c)return;
+if(!alSel){fichaFechar();return}
+c.innerHTML='<div class="al-hist-vazio">calculando…</div>';
+run('getFichaFrequencia',[{idMatricula:alSel.id,livro:livro||null}],function(r){fichaPintar(r)});
+}
+/* os quatro conceitos. 'Ó' é gravado com acento porque é assim que a escola escreve — e o CHECK
+   do banco exige exatamente esse caractere. */
+var FF_NOTAS=['','R','B','MB','Ó'];
+function ffCls(v){return v==='Ó'?'v-O':(v?'v-'+v:'')}
+function ffCorNota(v){return v==='R'?'var(--ff-R)':v==='B'?'var(--ff-B)':v==='MB'?'var(--ff-MB)':v==='Ó'?'var(--ff-O)':'transparent'}
+/* ===== A DURAÇÃO EM HORA E MINUTO =====
+   Ordem dele: *"se passou de 60 minutos, coloca 1 hora e os minutos; só se for menos de 1 hora
+   é 58 min"*. Sessenta e três minutos escritos como "63" obrigam quem lê a fazer a conta. */
+function ffDur(m){
+ if(m==null)return '';
+ if(m<60)return m+'min';
+ var h=Math.floor(m/60), r=m%60;
+ /* dois dígitos no minuto: numa coluna inteira de números, "1h03min" alinha e "1h3min" não */
+ return h+'h'+(r?String(r).padStart(2,'0')+'min':'');
+}
+function ffData(iso){return iso?iso.slice(8,10)+'/'+iso.slice(5,7):''}
+/* ===== IR ATÉ A FALTA QUE ESTE DIA COBRIU =====
+   Clicar na data de uma reposição leva à falta que ela pagou; numa anteposição, à falta que ela
+   adiantou. Chegando lá, três células piscam — dia da semana, aula e frequência —, que são
+   exatamente as que respondem "que dia foi esse e o que se perdeu nele".
+   O realce se apaga sozinho, e um clique novo apaga o anterior: duas linhas piscando ao mesmo
+   tempo não diriam qual é a resposta da pergunta que acabou de ser feita. */
+function ffIr(iso){
+ var t=document.querySelector('.ff-tab'); if(!t)return;
+ var alvo=t.querySelector('tr[data-data="'+iso+'"]'); if(!alvo)return;
+ t.querySelectorAll('td.ff-realce').forEach(function(c){c.classList.remove('ff-realce')});
+ alvo.scrollIntoView({block:'center',behavior:'smooth'});
+ var cels=alvo.querySelectorAll('.c-ds,.c-aula,.c-comp');
+ cels.forEach(function(c){c.classList.add('ff-realce')});
+ setTimeout(function(){cels.forEach(function(c){c.classList.remove('ff-realce')})},2600);
+}
+/* avaliável = aula que aconteceu. A nota é da AULA (data + seq) desde 2026-09-13, e a aula de tarefa
+   também se avalia: *"a avaliação não depende da lição em si, mas sim com o que o aluno fez na sala"* */
+function ffPode(l){return l.tipo!=='falta'&&l.tipo!=='feriado'&&l.seq!=null}
+
+function fichaPintar(r){
+var c=$('ficha-corpo');if(!c)return;
+FICHA_LIVRO=r.livro||null;
+/* os mesmos cinco desvios do planejamento, ditos com as mesmas palavras: são o mesmo estado do
+   mesmo contrato, e duas telas explicando diferente a mesma ausência confundiriam */
+if(r.semContrato){c.innerHTML=planAviso('Este aluno não tem contrato aberto — a ficha é do estágio que ele está cursando.');return}
+if(r.precisaInicio){c.innerHTML=planAviso('Ainda não há data de início: ela nasce da entrega do material ou da primeira presença.');return}
+if(r.semEstrutura){c.innerHTML=planAviso('Este estágio ainda não tem lições digitadas — monte a estrutura dele em Biblioteca · Estágios.');return}
+if(r.semAgenda){c.innerHTML=planAviso('Este contrato ainda não tem dias na agenda — marque os dias e horas na aba Horário e contrato.');return}
+var f=r.ficha||[];
+if(!f.length){c.innerHTML=planAviso('Nenhuma aula lançada ainda neste contrato: a ficha mostra o que aconteceu, e ainda não aconteceu nada.');return}
+
+var h='<div class="ff-moldura"><table class="ff-tab">'
+ /* O <colgroup> É A ORDEM DELE: *"a largura total dela é a largura fixa"*. Com table-layout:fixed
+    estas larguras são lei; Lição e Observações, sem largura, dividem entre si a sobra da tela. */
+ +'<colgroup>'
+ +'<col style="width:40px"><col style="width:40px"><col style="width:40px"><col style="width:52px">'
+ /* Aula e Frequência emagreceram: uma guarda dois dígitos e a outra duas bolinhas. */
+ +'<col style="width:34px"><col style="width:38px">'
+ /* ENTRADA, SAÍDA e DURAÇÃO com a MESMA largura, por ordem dele. As duas primeiras estavam com
+    80px para caber o rótulo deitado; com o rótulo em duas alturas, 58 bastam para "12:58" — e a
+    duração, que estava apertada em 46, ganha a mesma folga. */
+ +'<col style="width:58px"><col style="width:58px">'
+ /* A LIÇÃO VIROU LARGURA FIXA, e isto é consequência de ela ter virado só uma pílula: continuar
+    dividindo a sobra com Observações seria dar espaço a quem não tem o que fazer com ele. Toda a
+    folga liberada aqui vai para a anotação, que é a única coluna de texto corrido que restou. */
+ +'<col style="width:110px"><col>'
+ +'<col style="width:32px"><col style="width:32px"><col style="width:32px"><col style="width:56px">'
+ +'<col style="width:32px"><col style="width:32px"><col style="width:32px"><col style="width:32px">'
+ +'<col style="width:124px"><col style="width:58px">'
+ +'</colgroup>'
+ +'<thead><tr>'
+ +'<th colspan="4">Datas</th>'
+ +'<th rowspan="2"><div class="ff-vert"><span>Aula</span></div></th>'
+ +'<th rowspan="2" title="veio, faltou, ou veio repondo"><div class="ff-vert"><span>Freq.</span></div></th>'
+ +'<th colspan="2">Horário</th>'
+ +'<th rowspan="2" class="ff-duplo">Lição /<br>conteúdo</th>'
+ +'<th rowspan="2" class="ff-duplo">Observações /<br>anotações</th>'
+ +'<th colspan="8">Avaliações</th>'
+ +'<th rowspan="2" title="quem dá esta aula na agenda de hoje">Professor(a)</th>'
+ +'<th rowspan="2" title="derivada da entrada e da saída"><div class="ff-vert"><span>Duração</span></div></th>'
+ +'</tr><tr>'
+ +'<th title="mês">Mês</th>'
+ +'<th title="número da semana dentro do mês — a semana começa na segunda">NS</th>'
+ +'<th title="dia da semana">DS</th>'
+ +'<th title="dia/mês em que a aula aconteceu">D/M</th>'
+ +'<th class="ff-hr ff-ent" title="check-in na recepção">'
+   +'<span class="ff-hr-cx"><span>Entrada</span>'+icon('log-in',11)+'</span></th>'
+ +'<th class="ff-hr ff-sai" title="check-out">'
+   +'<span class="ff-hr-cx"><span>Saída</span>'+icon('log-out',11)+'</span></th>'
+ +'<th title="Fala">F</th><th title="Audição">A</th><th title="Leitura">L</th>'
+ +'<th title="Escrita e Tarefa — andam juntas: há lição sem escrita mas com escrita na tarefa">E / TRF</th>'
+ +'<th title="Situação da tarefa: em dia ou atrasada">S.T</th>'
+ +'<th title="Checking Sentences — a checagem que o professor faz do aluno">CS</th>'
+ +'<th title="Aplicativo: de 0 (não fez nada) a 4 (fez tudo)">APP</th>'
+ +'<th title="Engajamento: 1 desengajado · 2 pouco engajado · 3 engajado · 4 muito engajado">ENG</th>'
+ +'</tr></thead><tbody>';
+
+f.forEach(function(l,i){
+ var trc='ff-l'+(l.viraMes?' ff-vira-mes':'');
+ /* as duas primeiras colunas — mês e número da semana — são iguais em TODA linha, inclusive na
+    de feriado: elas são o calendário, e o calendário não faltou nem teve feriado */
+ var nsVazio=!l.abreSemana, diaVazio=!!l.segueDia;
+ var cNs='c-ns'+(l.abreSemana?' ff-abre':' ff-vazio'
+    +(diaVazio?'':' ff-fecha-d')+(l.ultimoDaSemana?' ff-fecha-b':''));
+ var semFio=l.abreSemana?' ff-semana-ini':'';
+ var colMes='<td class="c-mes">'+(l.viraMes?escBloco(l.mes):'')+'</td>';
+ /* O FIO AZUL DA SEMANA COMEÇA AQUI, na própria célula do número — eu o havia derrubado sem
+    querer ao reescrever a linha, e a semana ficou abrindo sem marca nenhuma. Ele vai do NS até a
+    Saída, que é onde termina o bloco de calendário. */
+ var colNs='<td class="'+cNs+semFio+'">'+(l.abreSemana?l.ns:'')+'</td>';
+
+ /* ===== O FERIADO É UMA FAIXA, NÃO UMA LINHA PINTADA =====
+    Começa no DIA DA SEMANA e vai até a Duração. Mês e número da semana ficam de FORA, por ordem
+    dele: *"não pode pegar nada da coluna do mês nem na coluna número da semana"*. A persiana
+    horizontal imita linhas de tabela vazia e atravessa a faixa inteira — inclusive por trás do
+    texto, porque *"não tem nenhum fundo branco"*. E o feriado NÃO é falta. */
+ if(l.tipo==='feriado'){
+  var nome=(String(l.feriado&&l.feriado.tipo||'').toLowerCase()==='feriado'?'Feriado: ':'Sem aula: ')
+    +(l.feriado?l.feriado.nome:'');
+  /* QUANDO O FERIADO ABRE A SEMANA, o azul vence o cinza: ordem dele — *"a borda mais importante
+     é a com a hierarquia maior"*. Semana e mês são calendário; o feriado é um fato dentro dele.
+     Sem isso, uma semana que estreia num feriado nasceria sem marca de semana. */
+  h+='<tr class="'+trc+' ff-feriado" data-data="'+escBloco(l.data)+'">'+colMes+colNs
+   +'<td class="c-ds ff-fer ff-fer-ini'+semFio+'">'+escBloco(l.ds)+'</td>'
+   +'<td class="c-dm ff-fer'+semFio+'">'+escBloco(l.dm)+'</td>'
+   +'<td class="ff-fer'+semFio+'"></td><td class="ff-fer'+semFio+'"></td>'
+   +'<td class="ff-fer'+semFio+'"></td><td class="ff-fer'+semFio+'"></td>'
+   +'<td class="ff-fer ff-fer-nome" colspan="2">'+escBloco(nome)+'</td>'
+   +'<td class="ff-fer"></td><td class="ff-fer"></td><td class="ff-fer"></td><td class="ff-fer"></td>'
+   +'<td class="ff-fer"></td><td class="ff-fer"></td><td class="ff-fer"></td><td class="ff-fer"></td>'
+   +'<td class="ff-fer"></td><td class="ff-fer ff-fer-fim"></td></tr>';
+  return;
+ }
+ var falta=(l.tipo==='falta');
+ if(falta)trc+=' ff-falta';
+ /* a hachura vermelha cobre da coluna do DIA DA SEMANA até a duração — mês e número da semana
+    ficam de fora, pela mesma razão do feriado */
+ var hx=falta?' ff-hachura':'';
+ /* ===== O COLCHETE DO DIA COM DUAS (OU MAIS) AULAS =====
+    A forma é a que ele descreveu: a primeira linha fecha em cima E embaixo nas duas células de
+    data; o resto dela leva só o fio de cima; e a partir da segunda aula o fio desce pela
+    ESQUERDA da coluna Aula até fechar embaixo na última. *"É como se fosse expandindo pra
+    baixo"* — três aulas no mesmo dia, e a terceira também ganha o fio lateral. */
+ var grupo=(l.spanDia>1||l.segueDia);
+ var dgData=grupo&&l.abreDia?' ff-dg-caixa':'';           /* DS e D/M da 1ª linha */
+ var dgTopo=grupo&&l.abreDia?' ff-dg-topo':'';            /* Aula e Comparec. da 1ª linha */
+ var dgLanc=grupo&&l.abreDia?' ff-dg-caixa':'';           /* entrada/saída, que são mescladas */
+ var dgAula=grupo&&l.segueDia?(' ff-dg-esq'+(l.ultimoDoDia?' ff-dg-base':'')):dgTopo;
+ var dgComp=grupo&&l.segueDia?(l.ultimoDoDia?' ff-dg-base':''):dgTopo;
+ var sem=l.abreSemana?' ff-semana-ini':'';
+ /* as bordas SOMEM dentro do bloco listrado: divisória entre duas células vazias desenharia uma
+    grade que não existe. Voltam só na aresta que fecha o bloco contra a coluna seguinte. */
+ var cDs='c-ds'+(diaVazio?' ff-vazio'+(l.ultimoDoDia?' ff-fecha-b':''):'')
+   +(l.abreDia&&grupo?' ff-dia-marca':'');
+ var cDm='c-dm'+(diaVazio?' ff-vazio ff-fecha-d'+(l.ultimoDoDia?' ff-fecha-b':''):'');
+ h+='<tr class="'+trc+'" data-data="'+escBloco(l.data)+'">'+colMes+colNs
+  +'<td class="'+cDs+hx+sem+dgData+'">'+(diaVazio?'':escBloco(l.ds))+'</td>'
+  /* ===== A PÍLULA DA DATA =====
+     SÓ na reposição e na anteposição — dia de duas aulas perdeu a pílula por ordem dele: *"se
+     não é reposição nem nada, não precisa"*. O colchete roxo já conta essa história, e duas
+     marcas para o mesmo fato é ruído. Na reposição ela diz de que falta veio: a fila FIFO já
+     resolveu isso no servidor. */
+  +'<td class="'+cDm+hx+sem+dgData+'">'+(diaVazio?'':
+     (l.extra
+      ?'<span class="ff-dpil '+(l.extra==='Reposição'?'ff-repo':'ff-ante')+'"'
+        +(l.cobre?' onclick="ffIr(&quot;'+escBloco(l.cobre)+'&quot;)"':'')
+        +' title="'+escBloco(
+          l.extra==='Reposição'
+            ?('Reposição'+(l.cobre?' da falta de '+ffData(l.cobre)+' — clique para ir até ela':''))
+            :('Anteposição'+(l.cobre?': adianta a falta de '+ffData(l.cobre)+' — clique para ir até ela'
+                                    :': aula feita antes da falta, e por isso nunca fica em débito')))
+        +'">'+escBloco(l.dm)+'</span>'
+      :escBloco(l.dm)))+'</td>'
+  /* a FALTA agora mostra o número da aula que se perdeu, herdado da fila: é a mesma aula que a
+     reposição entregou depois. Ordem dele: *"você pode vincular a fila de faltas"*. Falta ainda
+     em aberto fica sem número, porque a aula que ela custou ainda não aconteceu. */
+  +'<td class="c-aula'+hx+sem+dgAula+'"'
+    +(falta&&l.reposta?' title="aula reposta em '+escBloco(ffData(l.reposta.data))+'"':'')+'>'
+    +(l.aula!=null?l.aula+(l.sufixo?'<i class="ff-sfx">'+escBloco(l.sufixo)+'</i>':''):'')+'</td>'
+  +'<td class="c-comp'+hx+sem+dgComp+'">'
+   /* a marca extra vem ANTES da verde, por ordem dele: primeiro o que aquele dia foi (pagou uma
+      falta / adiantou uma), depois o fato de o aluno ter vindo. E a falta é um X, não um ponto. */
+   +(falta?'<span class="ff-x" title="Faltou'+(l.auto?' (lançada pelo fecho do dia)':'')
+       +(l.reposta?(l.reposta.adiantada?' — adiantada em ':' — reposta em ')+ffData(l.reposta.data):'')+'">×</span>'
+     :(l.extra?'<span class="ff-pt '+(l.extra==='Reposição'?'ff-pt-r':'ff-pt-a')+'" title="'+escBloco(l.extra)+'"></span>':'')
+      +'<span class="ff-pt ff-pt-p" title="Veio"></span>')
+   +'</td>'
+  /* ===== UM LANÇAMENTO, UMA CÉLULA ===== entrada, saída e duração são do DIA, não da lição:
+     quem faz duas aulas seguidas entrou uma vez e saiu uma vez. */
+  /* na falta as duas ficam VAZIAS: o X da coluna de frequência já disse que não houve ponto, e
+     repetir um × em cada célula era três vezes a mesma notícia */
+  +(l.segueDia?'':'<td class="c-ent'+hx+sem+dgLanc+'" rowspan="'+l.spanDia+'">'
+     +(falta?'':escBloco(l.entrada||''))+'</td>'
+    +'<td class="c-sai'+hx+sem+dgLanc+'" rowspan="'+l.spanDia+'">'
+     +(falta?'':escBloco(l.saida||''))+'</td>')
+  /* ===== LIÇÃO ===== só a sigla, como pílula. O nome longo saiu por ordem dele — ele já está no
+     Planejamento, e aqui competia com a anotação pelo mesmo espaço. */
+  +'<td class="c-lic'+hx+'">'+(l.licao
+     ?'<span class="ff-sig t-'+(l.tipoLicao||'none')+'"'
+       +(l.tipo==='tarefa'?' title="pedaço desta lição: ela continuou em outra aula"'
+         :(l.afirmada?' title="lição registrada à mão nesta data"':''))+'>'+escBloco(l.licao)+'</span>'
+     /* aula sem conteúdo: o nome do tipo que o professor marcou (reforço, extra activity…), ou "tarefa" */
+     :(l.tipo==='tarefa'?'<span class="ff-sig t-none" title="aula que aconteceu sem conteúdo: não consome lição">'
+        +escBloco((l.tipos&&l.tipos.length?l.tipos.join(' · '):'tarefa').toLowerCase())+'</span>':''))
+   +'</td>'
+  /* a anotação é do LANÇAMENTO, e o lançamento é um por dia: a 2ª lição do mesmo dia não ganha
+     caixa própria, senão haveria duas caixas gravando no mesmo campo */
+  +'<td class="c-obs'+hx+'">'+(falta?''
+     /* dia com registro de aula: a anotação é de CADA aula. Sem registro, continua sendo do dia, na 1ª */
+     :l.diaComRegistro
+      ?'<input value="'+escBloco(l.observacao||'')+'" placeholder="—" onchange="ffGravar(this,&quot;'+escBloco(l.data)+'&quot;,'+l.seq+',&quot;observacao&quot;)">'
+     :!l.segueDia
+      ?'<input value="'+escBloco(l.observacao||'')+'" placeholder="—" onchange="planObs(&quot;'+escBloco(l.data)+'&quot;,this)">'
+      :'<span class="ff-ro">—</span>')+'</td>'
+  /* ===== AVALIAÇÕES ===== onde houve aula — com lição ou sem: avaliar uma falta não quer dizer nada,
+     mas a aula de tarefa se avalia (a chave é a AULA, data + seq). */
+  +ffAval(l,'fala',hx)+ffAval(l,'audicao',hx)+ffAval(l,'leitura',hx)
+  +ffAvalDupla(l,hx)
+  +ffCiclo(l,'situacao_tarefa',hx)+ffCiclo(l,'checking_sentences',hx)+ffNivel(l,'app',hx)
+  +ffNivel(l,'engajamento',hx)
+  /* ===== PROFESSOR ===== a pílula da casa. Na falta não entra ninguém: não houve aula. Vazio
+     numa aula dada não é "não teve professor", é "o banco não sabe" — `aula_professor` está
+     preso ao horário semanal, e na reposição o aluno cai num horário que não é o dele. */
+  +'<td class="c-prof'+hx+'">'+(!falta&&l.professores&&l.professores.length
+     ?'<div class="ff-profs">'+l.professores.map(function(p){return '<span class="lc-pp">'+escBloco(p)+'</span>'}).join('')+'</div>'
+     :(falta?'':'<span class="ff-ro" title="não há registro de quem dava este horário nesta data — o diário de vínculos começou em 13/09/2026">—</span>'))+'</td>'
+  /* a duração fica FORA do colchete: ele abraça calendário e horário, e para na saída */
+  +(l.segueDia?'':'<td class="c-dur'+hx+(l.spanDia>1?' ff-mesclada':'')+'" rowspan="'+l.spanDia+'"'
+     +(l.minutos!=null?' title="'+l.minutos+' minutos"':'')+'>'+ffDur(l.minutos)+'</td>')
+  +'</tr>';
+});
+h+='</tbody></table></div>';
+h+='<div class="ff-legenda">'
+ +'<span><span class="ff-pt ff-pt-p"></span> veio</span>'
+ +'<span><span class="ff-x">×</span> faltou</span>'
+ +'<span><span class="ff-pt ff-pt-r"></span><span class="ff-pt ff-pt-p"></span> reposição</span>'
+ +'<span><span class="ff-pt ff-pt-a"></span><span class="ff-pt ff-pt-p"></span> anteposição</span>'
+ +'<span>conceitos: R · B · MB · Ó</span>'
+ +'<span>engajamento: 1 a 4</span><span>app: 0 a 4</span>'
+ +'<span>'+(r.debito?r.debito+(r.debito>1?' faltas em aberto':' falta em aberto'):'nenhuma falta em aberto')+'</span>'
+ +'</div>';
+c.innerHTML=h;
+}
+/* o <select> invisível por cima do quadradinho colorido: o que se vê é o conceito, o que se
+   clica é o menu nativo do sistema */
+function ffSel(l,campo,valor,opcoes){
+ return '<select class="ff-edit" onchange="ffGravar(this,&quot;'+escBloco(l.data)+'&quot;,'+l.seq+',&quot;'+campo+'&quot;)">'
+  +opcoes.map(function(o){return '<option value="'+escBloco(o)+'"'+(String(valor||'')===o?' selected':'')+'>'
+    +escBloco(o||'—')+'</option>'}).join('')+'</select>';
+}
+function ffAval(l,campo,hx){
+ var v=(l.av&&l.av[campo])||'';
+ return '<td class="c-av'+hx+'">'+(ffPode(l)
+  ?'<label class="ff-cel"><span class="ff-av '+ffCls(v)+'">'+escBloco(v)+'</span>'
+    +ffSel(l,campo,v,FF_NOTAS)+'</label>'
+  :'')+'</td>';
+}
+/* ESCRITA E TAREFA ANDAM JUNTAS, num container SÓ, com um degradê de verdade entre as duas notas
+   — dois pontos e o navegador mistura no meio. Ele foi específico: *"não fica duas cores
+   separadas, tem que ser um degradê"*. As duas letras dividem a caixa em metades iguais e ficam
+   na mesma linha de base. */
+function ffAvalDupla(l,hx){
+ var e=(l.av&&l.av.escrita)||'', t=(l.av&&l.av.tarefa)||'';
+ if(!ffPode(l))return '<td class="c-av2'+hx+'"></td>';
+ return '<td class="c-av2'+hx+'"><div class="ff-av2" style="background-image:'+ffGrad(e,t)+'">'
+  +'<span><b>'+escBloco(e)+'</b>'+ffSel(l,'escrita',e,FF_NOTAS)+'</span>'
+  +'<i class="ff-bar">/</i>'
+  +'<span><b>'+escBloco(t)+'</b>'+ffSel(l,'tarefa',t,FF_NOTAS)+'</span>'
+  +'</div></td>';
+}
+function ffGrad(e,t){
+ if(!e&&!t)return 'none';
+ return 'linear-gradient(to right,'+ffCorNota(e)+','+ffCorNota(t)+')';
+}
+/* S.T e CS são de três estados e ciclam no clique — dropdown de três itens para uma marca que é
+   sim/atenção/nada seria três cliques onde cabe um. O APP saiu daqui em 2026-09-13: virou nível de 0 a
+   4, por ordem dele — *"você coloca o tanto que ele fez"*. */
+var FF_CICLO={situacao_tarefa:['','Em dia','Atrasado'],checking_sentences:['','Ok','Atenção']};
+/* `auto` = a situação da tarefa que a REGRA decidiu e ninguém marcou: mesma letra, borda tracejada */
+function ffMarca(campo,v,auto){
+ if(campo==='situacao_tarefa')
+  return v==='Em dia'?'<span class="ff-st em-dia'+(auto?' auto':'')+'" title="tarefa em dia'+(auto?' — pela regra':'')+'">E</span>'
+      :v==='Atrasado'?'<span class="ff-st atrasado'+(auto?' auto':'')+'" title="tarefa atrasada'
+        +(auto?' — pela regra: o encontro-limite passou sem ela (ver Configurações)':'')+'">A</span>':'';
+ return v==='Ok'?'<span class="ff-ck ok-cs" title="feito"></span>'
+      :v==='Atenção'?'<span class="ff-ck alerta" title="atenção">▲</span>':'';
+}
+function ffCiclo(l,campo,hx){
+ var v=(l.av&&l.av[campo])||'';
+ /* na situação da tarefa o clique anda sobre o que o PROFESSOR fixou; o que a regra decidiu só aparece */
+ var fixo=campo==='situacao_tarefa'?((l.av&&l.av.situacaoFixa)||''):v;
+ var auto=campo==='situacao_tarefa'&&!fixo&&!!v;
+ var cx='<span class="ff-ck-cx">'+ffMarca(campo,v,auto)+'</span>';
+ if(!ffPode(l))return '<td class="c-ck'+hx+'">'+cx+'</td>';
+ return '<td class="c-ck'+hx+' ff-clic" data-campo="'+campo+'" data-v="'+escBloco(fixo)+'" data-regra="'+escBloco(auto?v:'')+'"'
+  +' onclick="ffCiclar(this,&quot;'+escBloco(l.data)+'&quot;,'+l.seq+')">'+cx+'</td>';
+}
+/* ENGAJAMENTO (1 a 4) e APP (0 a 4): o número na cor da escala, com o menu nativo por cima.
+   Engajamento: 1 desengajado · 2 pouco engajado · 3 engajado · 4 muito engajado (Booklet Adm. p.14).
+   APP: 0 não fez nada · 1 muito pouco · 2 mais ou menos · 3 satisfatório · 4 fez tudo (dele). */
+var FF_NIVEL={engajamento:{p:'n',ops:['','1','2','3','4']},app:{p:'a',ops:['','0','1','2','3','4']}};
+function ffNivel(l,campo,hx){
+ var n=FF_NIVEL[campo], v=(l.av&&l.av[campo]!=null)?String(l.av[campo]):'';
+ return '<td class="c-av'+hx+'">'+(ffPode(l)
+  ?'<label class="ff-cel"><span class="ff-eng'+(v!==''?' '+n.p+v:'')+'" data-p="'+n.p+'">'+escBloco(v)+'</span>'
+    +ffSel(l,campo,v,n.ops)+'</label>'
+  :'')+'</td>';
+}
+/* ===== GRAVAR SEM REPINTAR A FICHA INTEIRA =====
+   Antes eu recarregava tudo a cada clique, e ele viu: *"a ficha inteira pisca e renderiza de
+   novo, isso tá incômodo"*. Estava errado mesmo — a resposta do servidor não traz nada que a
+   tela não saiba: o valor é o que ele acabou de escolher. Então a célula se pinta sozinha e o
+   servidor só confirma.
+   A CHAVE É A AULA — data e seq — desde 2026-09-13: a nota é do que o aluno fez naquela aula. */
+function ffGravar(el,data,seq,campo){
+ var v=el.value;
+ var cel=el.closest('label.ff-cel'), meia=el.closest('.ff-av2>span');
+ if(cel){
+  var cx=cel.querySelector('.ff-av,.ff-eng');
+  if(cx){
+   cx.textContent=v;
+   if(cx.classList.contains('ff-eng')) cx.className='ff-eng'+(v!==''?' '+(cx.dataset.p||'n')+v:'');
+   else cx.className='ff-av '+ffCls(v);
+  }
+ }else if(meia){
+  var b=meia.querySelector('b'); if(b)b.textContent=v;
+  var cont=meia.parentNode, dois=cont.querySelectorAll(':scope > span > b');
+  cont.style.backgroundImage=ffGrad(dois[0]?dois[0].textContent:'',dois[1]?dois[1].textContent:'');
+ }
+ run('salvarAvaliacaoFicha',[{idMatricula:alSel.id,livro:FICHA_LIVRO,data:data,seq:seq,campo:campo,valor:v}],
+  function(){/* gravou: a tela já está certa */});
+}
+function ffCiclar(td,data,seq){
+ var campo=td.dataset.campo, ciclo=FF_CICLO[campo];
+ var i=ciclo.indexOf(td.dataset.v||''), prox=ciclo[(i<0?0:i+1)%ciclo.length];
+ td.dataset.v=prox;
+ /* voltar ao vazio devolve a palavra à regra, quando ela tem o que dizer */
+ var mostra=prox||td.dataset.regra||'';
+ var cx=td.querySelector('.ff-ck-cx'); if(cx)cx.innerHTML=ffMarca(campo,mostra,!prox&&!!mostra);
+ run('salvarAvaliacaoFicha',[{idMatricula:alSel.id,livro:FICHA_LIVRO,data:data,seq:seq,campo:campo,valor:prox}],
+  function(){});
 }
 var PLAN_ORD={};
 /* troca o botão por um campo com autocompletar. Enter/sair grava, Esc desiste — o mesmo par de
@@ -5871,6 +6980,9 @@ if(!alSel){c.innerHTML='<div class="al-hist-vazio">Escolha um aluno.</div>';retu
 c.innerHTML='<div class="al-hist-vazio">calculando…</div>';
 run('getPlanejamento',[{idMatricula:alSel.id,livro:livro||null}],function(r){encPintar(r)});
 }
+/* o que aconteceu num encontro marcado, em palavra e cor (ver encontrosMarcados no servidor) */
+var ENC_RESULTADO={veio:{t:'veio',c:'r-veio'},faltou:{t:'faltou',c:'r-falta'},nao_veio:{t:'não veio',c:'r-falta'},
+ nao_aula:{t:'não houve aula',c:'r-neutro'},marcado:{t:'marcado',c:'r-marcado'},desmarcado:{t:'desmarcado',c:'r-neutro'}};
 function encPintar(r){
 var c=$('enc-corpo');if(!c)return;
 var e=r.encaminhamentos;
@@ -5919,6 +7031,33 @@ else{
  h+='</ul>';
 }
 h+='</div></div>';
+/* ---- os encontros marcados (2026-09-13, dele): *"ele marcou tal dia, só que ele não veio"* ----
+   Os que seguem na grade e os que a recepção desmarcou, com o que aconteceu em cada um. Desmarcar
+   deixou de apagar a história: a linha sai do bloco daquela hora e continua aqui. */
+var mk=r.marcados||[];
+var semVir=mk.filter(function(x){return x.resultado==='nao_veio'||x.resultado==='faltou'}).length;
+h+='<div class="enc-bloco enc-marcados"><h4>Encontros marcados<small>'
+ +(mk.length?(semVir?semVir+(semVir>1?' sem comparecimento':' sem comparecimento')+' · ':'')+'o mais recente primeiro'
+   :'reposição, anteposição e reforço fora da agenda')+'</small></h4>';
+if(!mk.length)h+='<div class="al-hist-vazio">Nenhum encontro fora da agenda neste contrato.</div>';
+else{
+ h+='<ul class="enc-fila enc-mk">';
+ mk.forEach(function(x){
+  var res=ENC_RESULTADO[x.resultado]||{t:x.resultado,c:'r-neutro'};
+  var dica=(x.marcadoEm?'marcado em '+dataCurta(x.marcadoEm.slice(0,10)):'')
+   +(x.desmarcadoEm?' · desmarcado em '+dataCurta(x.desmarcadoEm.slice(0,10)):'')
+   +(x.observacao?' — '+x.observacao:'');
+  h+='<li class="'+res.c+'"'+(dica?' title="'+escBloco(dica)+'"':'')+'>'
+   +'<span class="enc-d">'+dataCurta(x.data)+'</span>'
+   +'<span class="enc-h">'+escBloco(x.hora)+'</span>'
+   +'<span class="enc-mot">'+escBloco(x.motivo)+'</span>'
+   +'<span class="enc-res '+res.c+'">'+res.t
+    +(x.resultado==='desmarcado'&&x.desmarcadoEm?' em '+dataCurta(x.desmarcadoEm.slice(0,10)):'')
+    +(x.limpo?' · tirado da grade depois':'')+'</span>'
+   +'</li>'});
+ h+='</ul>';
+}
+h+='</div>';
 if(e.semFalta)h+='<div class="al-hist-vazio">'+e.semFalta+' reposição(ões) lançada(s) sem falta correspondente. '
  +'Não é erro: costuma ser reforço ou aula a mais — mas fica dito, porque a conta não fecha sozinha.</div>';
 c.innerHTML=h;
@@ -6153,7 +7292,13 @@ h+='<div class="pr-tiles">'
     r.faltamBlocos!=null?(1-r.faltamBlocos/r.totalBlocos)*100:null,
     (r.faltamBlocos!=null&&r.faltamBlocos<=2&&r.faltamLicoes>0)?'alerta':'')
  +progTile('Última aula',(pos.data?dataCurta(pos.data):'—'),r.dadas+' dadas · '+r.faltas+' faltas',null)
- +progTile('Defasagem',(r.aulasAtraso!=null?(r.aulasAtraso>0?'+':'')+r.aulasAtraso:'—')+'<small>aulas</small>',
+ +progTile('Defasagem',(r.aulasAtraso!=null
+     ?'<span class="pr-def '+(r.aulasAtraso>0?'atras':(r.aulasAtraso<0?'frente':''))+'"'
+      +' title="'+(r.aulasAtraso>0?'atrasado '+r.aulasAtraso+' aula(s) em relação ao relógio do contrato'
+                 :r.aulasAtraso<0?'adiantado '+Math.abs(r.aulasAtraso)+' aula(s) em relação ao relógio do contrato'
+                 :'exatamente onde o contrato espera')+'">'
+      +(r.aulasAtraso>0?'-':(r.aulasAtraso<0?'+':''))+Math.abs(r.aulasAtraso)+'</span>'
+     :'—')+'<small>aulas</small>',
     ind!=null?ROTIND[String(ind)]:'',null,ind===-1?'alerta':(ind===1?'bom':''))
  +progTile('Término previsto',(r.termino?dataCurta(r.termino):'—'),
     r.fimContrato?'contrato até '+dataCurta(r.fimContrato):'',null,
@@ -6269,12 +7414,39 @@ run('salvarObservacaoAula',[{idMatricula:alSel.id,livro:PLAN_LIVRO,data:data,tex
  msg('Anotação salva.')})}
 /* os históricos só depois das matrículas: o dropdown de livro da situação depende delas (ver o
    comentário em recarregarMatriculas) */
-function alCarregar(a){dirty('al',false);AL_NOVO=false;alSel=a;$('al-nome').value=a.nome;$('al-id').value=a.id;$('al-id').disabled=true;alSitPor(a.situacao);$('al-excluir').style.display='inline-block';$('al-busca').value='';alQuem();alStatus();alTravarVinculo();$('al-aviso').innerHTML='';recarregarMatriculas(alHistoricos)}
-function alNovo(){dirty('al',false);alSel=null;AL_NOVO=false;$('al-nome').value='';$('al-id').value='';$('al-id').disabled=false;alSitPor('');$('al-excluir').style.display='none';$('al-aviso').innerHTML='';alTravarVinculo();alQuem();alHistoricos();alStatus();MATRICULAS=[];MATRIC_AULAS={};renderMatriculas();alAba('cadastro')}
+/* ===== OS DADOS PESSOAIS DO ALUNO (2026-09-13, dele) =====
+   Cinco campos que o Salvar da faixa grava junto com o nome. A idade é calculada, nunca digitada: é ela
+   que a rede usa para a série e para não misturar 8 e 11 anos na mesma turma. */
+var AL_DADOS_CAMPOS=[['al-nasc','nascimento'],['al-tel','telefone'],['al-email','email'],['al-resp','responsavel'],
+ ['al-resp-tel','responsavelTelefone']];
+function alIdade(iso){
+if(!iso)return null;var n=new Date(iso+'T12:00:00'),h=new Date(),a=h.getFullYear()-n.getFullYear();
+if(h.getMonth()<n.getMonth()||(h.getMonth()===n.getMonth()&&h.getDate()<n.getDate()))a--;
+return a>=0?a:null}
+function alDadosPor(d){d=d||{};AL_DADOS_CAMPOS.forEach(function(c){var el=$(c[0]);if(el)el.value=d[c[1]]||''});alDadosResumo()}
+function alDadosLer(){var d={};AL_DADOS_CAMPOS.forEach(function(c){var el=$(c[0]);d[c[1]]=el?el.value.trim():''});return d}
+function alDadosResumo(){
+var d=alDadosLer(),idade=alIdade(d.nascimento),p=[];
+if(idade!=null)p.push(idade+(idade===1?' ano':' anos'));
+var semResp=idade!=null&&idade<18&&!d.responsavel;
+if(idade!=null&&idade<18)p.push(d.responsavel?'responsável: '+d.responsavel:'menor de idade sem responsável');
+if(d.telefone)p.push(d.telefone);
+var r=$('al-dados-resumo');if(!r)return;
+r.textContent=p.length?' · '+p.join(' · '):' · nada preenchido';
+r.classList.toggle('alerta',semResp)}
+function alDadosAbrir(forcar){
+var cx=$('al-dados-campos'),bt=$('al-dados-bt');if(!cx||!bt)return;
+var abrir=forcar!=null?!!forcar:!cx.classList.contains('aberto');
+cx.classList.toggle('aberto',abrir);bt.classList.toggle('aberto',abrir);bt.setAttribute('aria-expanded',abrir);
+/* aberto ou fechado é conveniência de quem olha, não da escola: fica no navegador */
+try{localStorage.setItem('al-dados-aberto',abrir?'1':'0')}catch(e){}}
+
+function alCarregar(a){dirty('al',false);AL_NOVO=false;alSel=a;$('al-nome').value=a.nome;$('al-id').value=a.id;$('al-id').disabled=true;alSitPor(a.situacao);$('al-excluir').style.display='inline-block';$('al-busca').value='';alQuem();alStatus();alTravarVinculo();$('al-aviso').innerHTML='';alDadosPor(a.dados);recarregarMatriculas(alHistoricos)}
+function alNovo(){dirty('al',false);alSel=null;AL_NOVO=false;$('al-nome').value='';$('al-id').value='';$('al-id').disabled=false;alSitPor('');$('al-excluir').style.display='none';$('al-aviso').innerHTML='';alDadosPor(null);alTravarVinculo();alQuem();alHistoricos();alStatus();MATRICULAS=[];MATRIC_AULAS={};renderMatriculas();alAba('cadastro')}
 function alSalvar(){
 /* aluno NOVO nasce Matriculado; o de sempre não manda situação nenhuma — quem decide é o
    histórico, e o servidor ignora este campo para quem já existe. */
-var a={id:$('al-id').value.trim(),nome:$('al-nome').value.trim()};
+var a={id:$('al-id').value.trim(),nome:$('al-nome').value.trim(),dados:alDadosLer()};
 if(!alSel)a.situacao='Matriculado';
 if(!a.id||!a.nome){msg('Preencha nome e ID.',true);return}
 if(!alSel){
@@ -6292,7 +7464,7 @@ alGravar(a,false);
 function alGravar(a,novo){
 run('salvarAluno',[a],function(r){
  msg(r.criado?'Aluno cadastrado — agora dá para vincular o estágio.':'Aluno atualizado.');
- alSel={id:a.id,nome:a.nome,situacao:a.situacao,status:r.status};
+ alSel={id:a.id,nome:a.nome,situacao:a.situacao,status:r.status,dados:a.dados};
  AL_NOVO=false;
  alQuem();alStatus();
  $('al-id').disabled=true;$('al-excluir').style.display='inline-block';
@@ -6390,8 +7562,12 @@ function(r){
    `freqFechar` estoura em `null`. Foi exatamente o que aconteceu ao clicar em "Limpar".
    O depósito é o painel escondido de onde elas saíram. */
 function matDevolverSecoes(){
+/* `al-s-encaminha` ESTAVA FALTANDO NESTE MAPA e a ficha nova entraria com o mesmo defeito: quem
+   não está aqui não volta para o depósito, e o próximo `renderMatriculas` leva o nó junto para o
+   lixo com o cartão. O sintoma é o de sempre — o clique seguinte acha o corpo `null`. */
 var casa={'al-s-situacao':'al-p-matriculas','al-s-horario':'al-p-matriculas',
           'al-s-freq':'al-p-matriculas','al-s-planejamento':'al-p-matriculas',
+          'al-s-ficha':'al-p-matriculas','al-s-encaminha':'al-p-matriculas',
           'al-s-progresso':'al-p-progresso'};
 Object.keys(casa).forEach(function(id){
  var el=$(id), pai=$(casa[id]);
@@ -6539,8 +7715,9 @@ var tabs=document.createElement('div');tabs.className='pg-abas mat-tabs';
    O PAINEL vem primeiro e é o que abre por padrão: quem abre um aluno quer saber onde ele está,
    não configurar horário. Configurações — sem o "Info |", que dizia a mesma coisa duas vezes —
    passa a ser o segundo, porque é para onde se vai quando algo precisa MUDAR. */
-[['prog','Painel'],['info','Configurações'],['freq','Frequência'],
- ['plan','Planejamento de aulas'],['enc','Encaminhamentos']].forEach(function(t,i){
+[['prog','Painel'],['info','Horário e contrato'],['freq','Frequência'],
+ ['plan','Planejamento de aulas'],['ficha','Ficha de frequência'],
+ ['enc','Encaminhamentos']].forEach(function(t,i){
   var b=document.createElement('button');b.type='button';
   b.className='pg-aba'+(i===0?' on':'');b.dataset.t=t[0];b.innerHTML=t[1];
   b.onclick=function(ev){ev.stopPropagation();matSubAba(card,t[0])};
@@ -6876,7 +8053,8 @@ return card;
    contrato só" ser verdade e não só arrumação visual. */
 var MAT_CTX=null;
 var MAT_SEC={info:['al-s-situacao','al-s-horario'],freq:['al-s-freq'],
-             plan:['al-s-planejamento'],prog:['al-s-progresso'],enc:['al-s-encaminha']};
+             plan:['al-s-planejamento'],ficha:['al-s-ficha'],
+             prog:['al-s-progresso'],enc:['al-s-encaminha']};
 /* ===== NUNCA `innerHTML=''` NUM CONTÊINER QUE GUARDA NÓ EMPRESTADO (2026-08-24) =====
    Era o defeito que ele relatou: *"abro frequência, depois planejamento, depois progresso; aí
    clico em planejamento de novo, depois frequência, e o erro começa a disparar."*
@@ -6918,6 +8096,7 @@ var sec=$(MAT_SEC[t][0]);
 if(sec){slot.appendChild(sec);sec.style.display=''}
 if(t==='freq')freqCarregar(livro);
 if(t==='plan')planCarregar(livro);
+if(t==='ficha')fichaCarregar(livro);
 if(t==='prog')progCarregar(livro);
 if(t==='enc')encCarregar(livro);
 }
@@ -7178,8 +8357,11 @@ var alerta=l.foraDoHorario
      ? l.avulso.motivo+' às '+l.avulso.hora+(l.avulso.observacao?' — '+l.avulso.observacao:'')
      : 'Este dia não é o do horário fixo do aluno neste estágio.')+'">'+icon('triangle-alert',13)+'</span> '
  : '';
+/* encontro marcado cuja data já passou sem lançamento nenhum: não é mais "previsto", é "não veio" */
+var passou=l.status===null&&l.data<isoLocal(new Date());
 var marca=l.status===null
- ? '<span class="badge b-emaula" title="Encontro previsto que ainda não virou presença">previsto</span> '
+ ? (passou?'<span class="badge b-naoveio" title="Encontro marcado: a data passou e ninguém lançou presença">não veio</span> '
+   :'<span class="badge b-emaula" title="Encontro previsto que ainda não virou presença">previsto</span> ')
  : '<span class="st '+l.status+'">'+(l.status==='P'?'P':l.status==='F'?'F':'—')+'</span> ';
 tx.innerHTML=marca+alerta
 +'<b>'+l.numero+'</b> '+escBloco(l.diaCurto)+' · '+escBloco(l.mes.slice(0,3))+' <small style="color:var(--tx3)">'+escBloco(nomeLivro(l.livro))+'</small>'
@@ -7187,14 +8369,14 @@ tx.innerHTML=marca+alerta
 +(l.minutos!=null?' <span class="lc-dur'+(l.minutos<20?' curta':'')+'">'+escBloco(fmtDur(l.minutos))+'</span>':'')
 +(l.auto?' <span class="badge b-off" title="Falta lançada pelo fecho do dia, não por alguém">auto</span>':'');
 var del=document.createElement('button');del.type='button';del.className='remover';del.textContent='✕';
-del.title=l.status===null?'Remover este encontro':'Remover este lançamento';
+del.title=l.status===null?'Desmarcar este encontro (fica no histórico)':'Remover este lançamento';
 del.onclick=function(){
 /* linha sem status é só o encontro previsto: remover ali apaga o encontro, não a presença */
 if(l.status===null){
-  dlgConfirmar({titulo:'Remover encontro',perigo:true,ok:'Remover',
-   texto:'Remover o encontro de '+l.numero+'/'+l.data.slice(5,7)+' às '+l.avulso.hora+' ('+l.avulso.motivo+')?'},
+  dlgConfirmar({titulo:'Desmarcar encontro',ok:'Desmarcar',
+   texto:'Desmarcar o encontro de '+l.numero+'/'+l.data.slice(5,7)+' às '+l.avulso.hora+' ('+l.avulso.motivo+')?\n\nEle sai da grade e fica no histórico do aluno, em Encaminhamentos, como desmarcado.'},
   function(sim){if(!sim)return;
-   run('removerAvulso',[{id:l.avulso.id}],function(){msg('Encontro removido.');freqCarregar()})});return}
+   run('removerAvulso',[{id:l.avulso.id}],function(){msg('Encontro desmarcado — fica no histórico do aluno.');freqCarregar()})});return}
 dlgConfirmar({titulo:'Remover lançamento',perigo:true,ok:'Remover',
  texto:'Remover o lançamento de '+l.numero+'/'+l.data.slice(5,7)+' ('+nomeLivro(l.livro)+')?'},function(sim){
 if(!sim)return;
@@ -7404,24 +8586,33 @@ if(!PROFS.length){box.innerHTML='<div class="matriculas-vazio">Nenhum professor 
    mostrar três pílulas, e reusava `.matricula-card` — que perdeu o padding próprio quando aquele
    cartão virou aba, e era daí que vinha o conteúdo colado na borda. */
 PROFS.forEach(function(f){
-var card=document.createElement('div');card.className='pf-card'+(pfSel&&pfSel.id===f.id?' sel':'');
+var card=document.createElement('div');card.className='pf-card'+(pfSel&&pfSel.id===f.id?' sel':'')+(f.ativo===false?' desligado':'');
 card.onclick=function(){profEditar(f)};
 card.innerHTML='<div class="pf-card-cab"><h4>'+escBloco(f.nome)+'</h4>'
-+(pfSel&&pfSel.id===f.id?'<span class="badge b-on">editando</span>':'')+'</div>'
++(pfSel&&pfSel.id===f.id?'<span class="badge b-on">editando</span>':'')
++(f.ativo===false?'<span class="badge b-off" title="desligado em '+escBloco(dataCurta(f.desligamento))+'">desligado</span>':'')+'</div>'
 +'<div class="pf-card-nome">'+escBloco(f.nomeCompleto)+'</div>'
++([f.papel,f.cefr?'CEFR '+f.cefr:null,f.cargaSemanal!=null?f.cargaSemanal+' h/semana':null].filter(Boolean).length
+ ?'<div class="pf-card-papel">'+escBloco([f.papel,f.cefr?'CEFR '+f.cefr:null,f.cargaSemanal!=null?f.cargaSemanal+' h/semana':null].filter(Boolean).join(' · '))+'</div>':'')
 +'<div class="pf-card-pils">'
 +'<span class="lc-pp">'+f.alunos+' aluno(s)</span>'
 +'<span class="lc-pd">'+f.aulas+' aula(s)</span>'
 +(f.turmas?'<span class="lc-pd">'+f.turmas+' turma(s)</span>':'')+'</div>';
 box.appendChild(card)});
 }
-function profEditar(f){pfSel=f;$('pf-titulo').textContent='Editar: '+f.nome;
+/* os campos da equipe, preenchidos com o funcionário (ou limpos, com nulo) */
+var PF_CAMPOS=[['pf-papel','papel'],['pf-telefone','telefone'],['pf-email','email'],['pf-admissao','admissao'],
+ ['pf-desligamento','desligamento'],['pf-carga','cargaSemanal'],['pf-cefr','cefr']];
+function profCamposPor(f){PF_CAMPOS.forEach(function(c){var el=$(c[0]);if(el)el.value=f&&f[c[1]]!=null?f[c[1]]:''})}
+function profEditar(f){pfSel=f;$('pf-titulo').textContent='Editar: '+f.nome;profCamposPor(f);
 $('pf-nome').value=f.nome;$('pf-completo').value=f.nomeCompleto;
 $('pf-excluir').style.display='inline-block';profRender()}
-function profNovo(){pfSel=null;$('pf-titulo').textContent='Novo professor';
+function profNovo(){pfSel=null;$('pf-titulo').textContent='Novo professor';profCamposPor(null);
 $('pf-nome').value='';$('pf-completo').value='';$('pf-excluir').style.display='none';profRender()}
 function profSalvar(){
 var d={id:pfSel?pfSel.id:null,nome:$('pf-nome').value,nomeCompleto:$('pf-completo').value};
+/* o `papel` vai SEMPRE, mesmo vazio: é a presença dele que diz ao servidor que a equipe veio junto */
+PF_CAMPOS.forEach(function(c){d[c[1]]=$(c[0]).value});
 if(!d.nome.trim()||!d.nomeCompleto.trim()){msg('Preencha o nome curto e o completo.',true);return}
 run('salvarFuncionario',[d],function(r){msg(r.criado?'Professor cadastrado.':'Professor atualizado.');
 profNovo();profCarregar();
@@ -10504,10 +11695,12 @@ var PAGINAS=[
 {aba:'alunos',ic:'users',titulo:'Alunos',desc:'Cadastro, matrículas em estágio e agenda'},
 {aba:'turmas',ic:'graduation-cap',titulo:'Turmas',desc:'Salas: estágio, dias, horário e professoras'},
 {aba:'horarios',ic:'calendar-clock',titulo:'Horários',desc:'Matriz de horários disponíveis'},
+{aba:'cadastros',ic:'tags',titulo:'Cadastros',desc:'Tipos de aula e as outras listas de escolha'},
 {aba:'impressao',ic:'printer',titulo:'Impressão',desc:'Fichas de frequência em A4 para imprimir'},
 {aba:'estoque',ic:'package',titulo:'Estoque',desc:'Contagem de material, entregas aos alunos e pedidos'},
 {aba:'estagios',ic:'clipboard-list',titulo:'Estágios',desc:'Estrutura dos estágios: capítulos, lições e trilha'},
-{aba:'backup',ic:'hard-drive',titulo:'Backup',desc:'Cópias do banco no HD e no OneDrive'}
+{aba:'backup',ic:'hard-drive',titulo:'Backup',desc:'Cópias do banco no HD e no OneDrive'},
+{aba:'config',ic:'settings',titulo:'Configurações',desc:'Os números que mudam o comportamento do sistema inteiro'}
 ];
 function dataExtenso(iso){var d=iso?new Date(iso+'T12:00:00'):new Date();
 return d.toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}
@@ -10543,6 +11736,7 @@ else forcado=localStorage.getItem('wiz_papel');
 }catch(e){/* navegador sem localStorage: segue no automático */}
 run('getEstacao',[],function(e){
 ESTACAO=e;if(forcado)ESTACAO.papel=forcado;ESTACAO.forcado=!!forcado;
+sbEscola(e.escola);
 /* As DUAS abas ficam sempre na barra lateral: o mesmo professor precisa das duas (ele lança na
    sala e confere o que a recepção marcou), e a recepção pode precisar espiar o quadro da sala
    numa manhã sem professor. A estação só decide qual delas ABRE por padrão — e é marcada com um
@@ -11054,6 +12248,527 @@ var LC_IC_LIVRO='<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" '
 +'<path class="ph" d="M18.2 17.4v-2.4" stroke="#0B2A72" stroke-width="1.6"/>'
 +'<path class="pm" d="M18.2 17.4h3.1" stroke="#0B2A72" stroke-width="1.5"/></svg>';
 
+/* ===== O REGISTRO DE AULA (2026-09-13, dele) =====
+   *"A gente marca a presença, o aluno entrou em sala, todo mundo fez check-in, entrou, tá fazendo a
+   aula. Só que aí sim, depois o professor vai anotar o que o aluno fez nessa sala de aula: qual lição,
+   as avaliações dele, observações, se fez a tarefa ou não."* O lançamento diz QUE houve aula; esta
+   janela diz O QUE ela foi. Abre pelo livro do cartão da Freq. Sala.
+
+   ENXUTA, por ordem dele: *"esse painel tá muito firula, deixa ele um pouco mais minimalista, e uma
+   forma fácil de preencher as avaliações de forma rápida"*. À esquerda o que a aula FOI (lição, quem
+   deu, tipo, anotação); à direita como o aluno FOI, em botões de conceito que ele aprovou do desenho
+   dele. Sem o cartão de presença (*"só vai ser necessário se o aluno veio"*) e sem escolher qual
+   aplicativo (virou um nível de 0 a 4).
+
+   FEITA À MÃO sobre `.dlg-fundo`, como as confirmações da casa, e não com `sl-dialog`: é tela de uso
+   diário do professor, e o autoloader do Shoelace já falhou calado uma vez. Uma instância só,
+   reaproveitada. Fica ABAIXO do `.dlg` de confirmação (z-index), para "excluir" poder perguntar. */
+var REG=null;       // os elementos da janela, montados uma vez
+var REG_EST=null;   // o que está aberto: {o, dados, sel}
+var REG_NOTAS=[['R','Regular'],['B','Bom'],['MB','Muito bom'],['Ó','Ótimo']];
+var REG_ENG=[['1','Desengajado'],['2','Pouco engajado'],['3','Engajado'],['4','Muito engajado']];
+var REG_APP=[['0','Não fez nada'],['1','Fez muito pouco'],['2','Fez mais ou menos'],['3','Fez de forma satisfatória'],['4','Fez tudo']];
+var REG_CS=[['Ok','Ok'],['Atenção','Atenção']];
+
+function regMontar(){
+if(REG)return REG;
+var f=document.createElement('div');f.className='dlg-fundo reg-fundo';
+f.innerHTML='<div class="dlg reg" role="dialog" aria-modal="true" aria-labelledby="reg-tit">'
+ +'<div class="reg-cab"><span class="reg-ic" aria-hidden="true">'+LC_IC_LIVRO+'</span>'
+ +'<div class="reg-cab-tx"><h3 id="reg-tit">Registro de aula</h3><div class="reg-quem"></div></div>'
+ +'<div class="reg-dia"></div>'
+ +'<button type="button" class="reg-x" aria-label="Fechar">'+icon('x',16)+'</button></div>'
+ +'<div class="reg-corpo"></div>'
+ +'<div class="reg-pe"><button type="button" class="acao sec reg-excluir">Excluir registro</button>'
+ +'<span class="reg-av" role="status"></span>'
+ +'<button type="button" class="acao sec reg-cancelar">Cancelar</button>'
+ +'<button type="button" class="acao reg-salvar">Salvar registro</button></div></div>';
+document.body.appendChild(f);
+/* clique no fundo fecha, como toda janela da casa; clique dentro não */
+f.addEventListener('mousedown',function(e){if(e.target===f)regFechar()});
+f.querySelector('.reg-x').onclick=regFechar;
+f.querySelector('.reg-cancelar').onclick=regFechar;
+f.querySelector('.reg-salvar').onclick=regSalvar;
+f.querySelector('.reg-excluir').onclick=regExcluir;
+var corpo=f.querySelector('.reg-corpo');
+/* UM ouvinte para a janela inteira, pelos data-atributos: o miolo é repintado por partes, e ouvinte
+   preso a botão morreria na primeira repintura */
+corpo.addEventListener('click',function(e){
+ if(!REG_EST||!REG_EST.sel)return;
+ var b=e.target.closest('.reg-op');
+ if(b){regMarca(b.dataset.campo,b.dataset.v,b);return}
+ var x=e.target.closest('[data-tira]');
+ if(x){var s=REG_EST.sel,id=x.dataset.tira;s.profs=s.profs.filter(function(p){return p!==id});regProfsPintar();return}
+ if(e.target.closest('[data-f="sitRegra"]')){REG_EST.sel.tarefa.situacao='';regTarefaPintar()}
+});
+corpo.addEventListener('change',function(e){
+ var el=e.target,s=REG_EST&&REG_EST.sel;if(!s)return;
+ var fld=el.dataset.f;
+ if(fld==='licao'){s.licaoOrdem=Number(el.value);regAulaAtualiza();return}
+ if(fld==='prof'){if(el.value&&s.profs.indexOf(el.value)<0)s.profs.push(el.value);regProfsPintar();return}
+ if(fld==='tipo'){regTipo(el);return}
+ if(fld==='tarefaDe'){var c=REG_EST.dados.tarefas[Number(el.value)];
+  s.tarefa={i:Number(el.value),nota:c.nota||'',situacao:c.situacaoFixa||''};regTarefaPintar()}
+});
+corpo.addEventListener('input',function(e){
+ var el=e.target,s=REG_EST&&REG_EST.sel;if(!s)return;
+ if(el.dataset.f==='obs'){s.observacao=el.value;return}
+ if(el.dataset.f==='aula'){
+  /* só dígitos; o número digitado igual ao sugerido volta a ser "o da ficha" */
+  el.value=el.value.replace(/\D/g,'').slice(0,3);
+  s.aulaN=el.value;s.aulaEditada=!!el.value&&el.value!==regAulaSugerida();
+ }
+});
+f.querySelector('.reg-dia').addEventListener('click',function(e){
+ var c=e.target.closest('.reg-chip');
+ if(c&&REG_EST&&REG_EST.dados&&Number(c.dataset.seq)!==REG_EST.dados.seq)regBuscar(Number(c.dataset.seq));
+});
+document.addEventListener('keydown',function(e){
+ if(!f.classList.contains('on'))return;
+ /* com uma confirmação aberta por cima, é ela que responde ao teclado */
+ if(typeof DLG!=='undefined'&&DLG&&DLG.fundo.classList.contains('on'))return;
+ if(e.key==='Escape'){e.preventDefault();regFechar()}
+ else if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();regSalvar()}
+});
+REG={fundo:f,quem:f.querySelector('.reg-quem'),dia:f.querySelector('.reg-dia'),corpo:corpo,
+ av:f.querySelector('.reg-av'),excluir:f.querySelector('.reg-excluir'),salvar:f.querySelector('.reg-salvar'),foco:null};
+return REG;
+}
+
+/* o = {idMatricula, livro, data, hora, seq?, ok?} — `ok(res)` avisa quem abriu que algo mudou */
+function regAbrir(o){
+var r=regMontar();
+REG_EST={o:o,dados:null,sel:null};
+r.foco=document.activeElement;
+r.fundo.classList.add('on');
+regBuscar(o.seq||null);
+}
+function regBuscar(seq){
+var r=REG,o=REG_EST.o;
+REG_EST.dados=null;REG_EST.sel=null;
+r.quem.textContent='carregando…';r.av.textContent='';
+r.corpo.innerHTML='<div class="reg-carrega">'+icon('loader-circle',18)+'</div>';
+r.excluir.style.display='none';r.salvar.disabled=true;
+run('getRegistroAula',[{idMatricula:o.idMatricula,livro:o.livro,data:o.data,hora:o.hora||null,seq:seq}],function(d){
+ if(!REG_EST||REG_EST.o!==o)return;   // fechou, ou abriu outro aluno, enquanto buscava
+ REG_EST.dados=d;
+ var g=d.registro||{};
+ var lic=(g.licaoOrdem!=null?g.licaoOrdem:d.sugestao.licaoOrdem);
+ REG_EST.sel={seq:d.seq,licaoOrdem:lic,aulaN:'',aulaEditada:g.aulaN!=null,
+  profs:d.profs.slice(),tipos:d.tiposSel.slice(),
+  observacao:(g.observacao!=null?g.observacao:(d.observacaoDia||'')),
+  fala:g.fala||'',audicao:g.audicao||'',leitura:g.leitura||'',escrita:g.escrita||'',
+  cs:g.checking_sentences||'',app:(g.app!=null?String(g.app):''),eng:(g.engajamento!=null?String(g.engajamento):''),
+  tarefa:d.tarefas.length?{i:0,nota:d.tarefas[0].nota||'',situacao:d.tarefas[0].situacaoFixa||''}:null};
+ REG_EST.sel.aulaN=g.aulaN!=null?String(g.aulaN):regAulaSugerida();
+ regPintar();
+});
+}
+function regFechar(){
+if(!REG||!REG.fundo.classList.contains('on'))return;
+REG.fundo.classList.remove('on');REG_EST=null;
+if(REG.foco&&REG.foco.focus)try{REG.foco.focus()}catch(e){}
+}
+
+function regDataCurta(iso){
+var d=new Date(iso+'T12:00:00');
+return ['dom','seg','ter','qua','qui','sex','sáb'][d.getDay()]+' '+iso.slice(8,10)+'/'+iso.slice(5,7)}
+function regSemConteudo(){
+var d=REG_EST.dados,s=REG_EST.sel;
+return d.tipos.some(function(t){return !t.conteudo&&s.tipos.indexOf(t.id)>=0})}
+function regAulaSugerida(){
+var d=REG_EST.dados,s=REG_EST.sel;
+if(!d||!s||regSemConteudo())return '';
+var l=d.licoes.filter(function(x){return x.ordem===s.licaoOrdem})[0];
+return l&&l.aula!=null?String(l.aula):''}
+
+function regPintar(){
+var r=REG,d=REG_EST.dados;
+r.quem.innerHTML='<b>'+escBloco(d.aluno.nome)+'</b><span>'+escBloco(d.livroNome||d.livro)+'</span>'
+ +'<span>'+escBloco(regDataCurta(d.data))+(d.hora?' · '+escBloco(d.hora):'')+'</span>';
+r.dia.innerHTML=regDiaHtml();
+r.corpo.innerHTML='<div class="reg-esq">'
+ +'<div class="reg-par">'
+ +'<label class="reg-campo reg-n"><span>Aula</span><input data-f="aula" inputmode="numeric" maxlength="3" value="'
+  +escBloco(REG_EST.sel.aulaN)+'" title="por padrão, o número que a ficha dá a esta lição"></label>'
+ +'<label class="reg-campo reg-lic"><span>Lição</span>'+regSelectLicao()+'</label>'
+ +'</div>'
+ +'<div class="reg-campo"><span>Professores</span><div class="reg-profs">'+regProfsHtml()+'</div></div>'
+ +'<div class="reg-campo"><span>Tipo de aula</span><div class="reg-tipos">'+regTiposHtml()+'</div>'
+ +'<small class="reg-dica reg-tipos-dica">'+regTiposDica()+'</small></div>'
+ +'<label class="reg-campo reg-obs"><span>Observações e anotações</span><textarea data-f="obs" rows="3">'
+  +escBloco(REG_EST.sel.observacao)+'</textarea></label>'
+ +'</div>'
+ +'<div class="reg-dir">'
+ +regEscala('fala','Fala',REG_NOTAS)+regEscala('audicao','Audição',REG_NOTAS)
+ +regEscala('leitura','Leitura',REG_NOTAS)+regEscala('escrita','Escrita',REG_NOTAS)
+ +'<div class="reg-fio"></div><div class="reg-tarefa">'+regTarefaHtml()+'</div><div class="reg-fio"></div>'
+ +regEscala('cs','Checking sentences',REG_CS)
+ +regEscala('eng','Engajamento',REG_ENG)
+ +regEscala('app','Aplicativo',REG_APP)
+ +'</div>';
+r.excluir.style.display=(d.registro&&d.registro.definido)?'':'none';
+r.salvar.disabled=false;
+r.salvar.textContent=(d.registro&&d.registro.definido)?'Salvar alterações':'Salvar registro';
+var foco=r.corpo.querySelector('.reg-lic select:not([disabled])')||r.corpo.querySelector('.reg-op');
+if(foco)setTimeout(function(){try{foco.focus()}catch(e){}},30);
+}
+
+/* as aulas do dia, quando há mais de uma: trocar de aula recarrega a outra (o que não foi salvo nesta
+   se perde, e o chip diz qual já tem registro) */
+function regDiaHtml(){
+var d=REG_EST.dados;
+var feitas=d.dia.map(function(x){return x.seq});
+var maior=Math.max(d.previstas,d.seq,feitas.length?Math.max.apply(null,feitas):0);
+var todas=feitas.length>=d.previstas;
+if(maior<2&&!todas)return '';
+var h='';
+for(var k=1;k<=maior;k++){
+ var g=d.dia.filter(function(x){return x.seq===k})[0];
+ h+='<button type="button" class="reg-chip'+(k===d.seq?' on':'')+(g?' feita':'')+'" data-seq="'+k+'" title="'
+  +(g?'já registrada'+(g.rotulo?': '+escBloco(g.rotulo):''):'ainda sem registro')+'">'+k+'ª aula'
+  +(g&&g.rotulo?'<small>'+escBloco(g.rotulo)+'</small>':'')+'</button>';
+}
+/* uma aula ALÉM da agenda (duas seguidas numa reposição, por exemplo) só se cria de propósito: o "+"
+   aparece com o dia já fechado, e reabrir o livro nunca inventa aula nenhuma */
+if(todas)h+='<button type="button" class="reg-chip reg-chip-mais" data-seq="'+(maior+1)+'" title="registrar outra aula neste mesmo dia">+</button>';
+return h}
+
+function regSelectLicao(){
+var d=REG_EST.dados,s=REG_EST.sel;
+if(d.semEstrutura)return '<select disabled><option>estágio sem estrutura de lições</option></select>';
+if(regSemConteudo())return '<select disabled><option>— sem lição —</option></select>';
+return '<select data-f="licao">'+d.licoes.map(function(l){
+ var marca=l.ordem===d.sugestao.licaoOrdem?'  · próxima':(l.ordem===d.sugestao.ultima?'  · a última feita':'');
+ return '<option value="'+l.ordem+'"'+(l.ordem===s.licaoOrdem?' selected':'')+'>'
+  +escBloco(l.licao+(l.conteudo&&l.conteudo!==l.licao?' — '+l.conteudo:'')+marca)+'</option>'}).join('')+'</select>'}
+function regAulaAtualiza(){
+var s=REG_EST.sel,i=REG.corpo.querySelector('[data-f="aula"]');
+if(!s.aulaEditada){s.aulaN=regAulaSugerida();if(i)i.value=s.aulaN}
+if(i)i.disabled=regSemConteudo()}
+
+function regProfsHtml(){
+var d=REG_EST.dados,s=REG_EST.sel;
+var nome=function(id){var f=d.funcionarios.filter(function(x){return x.id===id})[0];return f?f.nome:id};
+var h=s.profs.map(function(id){
+ return '<span class="lc-pp reg-pp">'+escBloco(nome(id))
+  +'<button type="button" data-tira="'+escBloco(id)+'" aria-label="Tirar '+escBloco(nome(id))+'">×</button></span>'}).join('');
+var resto=d.funcionarios.filter(function(f){return s.profs.indexOf(f.id)<0});
+if(resto.length)h+='<select class="reg-mais" data-f="prof" aria-label="Acrescentar professor"><option value="">+ professor</option>'
+ +resto.map(function(f){return '<option value="'+escBloco(f.id)+'">'+escBloco(f.nome)+'</option>'}).join('')+'</select>';
+if(!h)h='<span class="reg-vazio">nenhum professor cadastrado</span>';
+return h}
+function regProfsPintar(){var b=REG.corpo.querySelector('.reg-profs');if(b)b.innerHTML=regProfsHtml()}
+
+/* A PILHA DOS TIPOS, na ordem dele: reposição e anteposição fixas em cima, um fio fino, e o resto.
+   Nada marcado é a aula normal, com lição. */
+function regTiposHtml(){
+var d=REG_EST.dados,s=REG_EST.sel,h='',fio=false;
+d.tipos.forEach(function(t){
+ if(!t.especial&&!fio){fio=true;if(h)h+='<div class="reg-tipos-fio"></div>'}
+ var on=s.tipos.indexOf(t.id)>=0;
+ h+='<label class="reg-tipo'+(t.especial?' especial':'')+'"><input type="checkbox" data-f="tipo" value="'+t.id+'"'+(on?' checked':'')+'>'
+  +'<span>'+escBloco(t.nome)+'</span>'+(t.conteudo?'':'<em>sem conteúdo</em>')+'</label>';
+});
+return h||'<span class="reg-vazio">nenhum tipo cadastrado — veja Gerenciar · Cadastros</span>'}
+function regTiposDica(){
+return regSemConteudo()?'aula que aconteceu sem conteúdo: conta presença e não avança a lição'
+ :'nada marcado = aula normal, com lição'}
+function regTipo(el){
+var s=REG_EST.sel,d=REG_EST.dados,id=Number(el.value);
+var t=d.tipos.filter(function(x){return x.id===id})[0];
+if(el.checked){
+ /* reposição OU anteposição: marcar uma desmarca a outra */
+ if(t&&t.especial)s.tipos=s.tipos.filter(function(x){var o=d.tipos.filter(function(y){return y.id===x})[0];return !(o&&o.especial)});
+ if(s.tipos.indexOf(id)<0)s.tipos.push(id);
+}else s.tipos=s.tipos.filter(function(x){return x!==id});
+var box=REG.corpo.querySelector('.reg-tipos');if(box)box.innerHTML=regTiposHtml();
+var lic=REG.corpo.querySelector('.reg-lic');if(lic)lic.innerHTML='<span>Lição</span>'+regSelectLicao();
+var dica=REG.corpo.querySelector('.reg-tipos-dica');if(dica)dica.textContent=regTiposDica();
+regAulaAtualiza();
+}
+
+/* uma linha de botões por habilidade. Clicar no marcado desmarca — desfazer é tão fácil quanto marcar */
+function regEscala(campo,rot,ops){
+var v=REG_EST.sel[campo];
+return '<div class="reg-linha"><span class="reg-rot">'+escBloco(rot)+'</span>'
+ +'<div class="reg-seg" role="radiogroup" aria-label="'+escBloco(rot)+'">'
+ +ops.map(function(o){var on=String(v)===String(o[0]);
+  return '<button type="button" role="radio" aria-checked="'+on+'" class="reg-op '+regCls(campo,o[0])+(on?' on':'')
+   +'" data-campo="'+campo+'" data-v="'+escBloco(String(o[0]))+'" title="'+escBloco(o[1])+'">'+escBloco(String(o[0]))+'</button>'}).join('')
+ +'</div></div>'}
+function regCls(campo,v){
+if(campo==='eng')return 'e'+v;
+if(campo==='app')return 'a'+v;
+if(campo==='cs')return v==='Ok'?'cs-ok':'cs-at';
+return ffCls(v)}
+function regMarca(campo,v,bt){
+var s=REG_EST.sel;
+if(campo==='tarefa'){s.tarefa.nota=(s.tarefa.nota===v?'':v);regTarefaPintar();return}
+if(campo==='situacao'){s.tarefa.situacao=(s.tarefa.situacao===v?'':v);regTarefaPintar();return}
+s[campo]=(String(s[campo])===String(v))?'':v;
+bt.closest('.reg-seg').querySelectorAll('.reg-op').forEach(function(o){
+ var on=String(o.dataset.v)===String(s[campo]);o.classList.toggle('on',on);o.setAttribute('aria-checked',on)});
+}
+
+/* ===== A TAREFA QUE CHEGA HOJE =====
+   É de uma aula de ANTES, e é nela que a nota fica — como na ficha, onde a TRF mora na linha da lição
+   dela. A situação segue a regra dele (em dia até o encontro-limite de Configurações) e o professor pode discordar. */
+function regTarefaHtml(){
+var d=REG_EST.dados,t=REG_EST.sel.tarefa;
+if(!t)return '<div class="reg-linha"><span class="reg-rot">Tarefa</span><span class="reg-vazio">nenhuma aula com lição antes desta</span></div>';
+var c=d.tarefas[t.i];
+var de='<select class="reg-tar-de" data-f="tarefaDe" aria-label="De qual aula é a tarefa">'+d.tarefas.map(function(x,i){
+ return '<option value="'+i+'"'+(i===t.i?' selected':'')+'>'+escBloco(x.licao)+' · '+escBloco(regDataCurta(x.data))
+  +(x.nota?' ('+escBloco(x.nota)+')':'')+'</option>'}).join('')+'</select>';
+var regra=regSituacaoRegra(c,t), efetiva=t.situacao||regra;
+var nA=REG_EST.dados.encontrosAtraso||2;
+var dica=t.situacao?'corrigida por você · <button type="button" class="reg-link" data-f="sitRegra">voltar à regra</button>'
+ :regra?(t.nota?'pela regra: '+(regra==='Em dia'?'chegou antes do '+nA+'º encontro seguinte':'chegou no '+nA+'º encontro seguinte ou depois')
+          :'pela regra: o '+nA+'º encontro seguinte já passou sem ela')
+ :'a regra decide quando a tarefa chegar';
+return '<div class="reg-linha reg-tar"><span class="reg-rot">Tarefa da '+de+'</span>'
+ +'<div class="reg-seg" role="radiogroup" aria-label="Nota da tarefa">'
+ +REG_NOTAS.map(function(o){var on=t.nota===o[0];
+  return '<button type="button" role="radio" aria-checked="'+on+'" class="reg-op '+ffCls(o[0])+(on?' on':'')
+   +'" data-campo="tarefa" data-v="'+o[0]+'" title="'+o[1]+'">'+o[0]+'</button>'}).join('')+'</div></div>'
+ +'<div class="reg-linha reg-sit"><span class="reg-rot">Situação</span>'
+ +'<div class="reg-seg" role="radiogroup" aria-label="Situação da tarefa">'
+ +[['Em dia','em dia','st-dia'],['Atrasado','atrasada','st-atraso']].map(function(o){
+  var on=efetiva===o[0];
+  return '<button type="button" role="radio" aria-checked="'+on+'" class="reg-op reg-op-tx '+o[2]+(on?' on':'')+(on&&!t.situacao?' auto':'')
+   +'" data-campo="situacao" data-v="'+o[0]+'">'+o[1]+'</button>'}).join('')+'</div>'
+ +'<small class="reg-dica">'+dica+'</small></div>'}
+function regSituacaoRegra(c,t){
+/* com nota dada agora, a tarefa chegou HOJE (ou no dia em que já tinha chegado) */
+if(t.nota){var em=c.tarefaEm||REG_EST.dados.data;return (c.cLimite&&em>=c.cLimite)?'Atrasado':'Em dia'}
+return c.situacaoRegra||null}
+function regTarefaPintar(){var b=REG.corpo.querySelector('.reg-tarefa');if(b)b.innerHTML=regTarefaHtml()}
+
+function regSalvar(){
+var r=REG;if(!REG_EST||!REG_EST.dados||r.salvar.disabled)return;
+var d=REG_EST.dados,s=REG_EST.sel,o=REG_EST.o;
+var sem=regSemConteudo();
+if(!sem&&!d.semEstrutura&&s.licaoOrdem==null){r.av.textContent='Escolha a lição da aula.';return}
+var t=s.tarefa,c=t?d.tarefas[t.i]:null,tarefa=null;
+/* a tarefa só vai quando mudou: reabrir um registro e salvar não pode reescrever a data de chegada */
+if(c&&(t.nota!==(c.nota||'')||t.situacao!==(c.situacaoFixa||'')))
+ tarefa={data:c.data,seq:c.seq,nota:t.nota,situacao:t.situacao};
+r.salvar.disabled=true;r.av.textContent='salvando…';
+run('salvarRegistroAula',[{idMatricula:o.idMatricula,livro:o.livro,data:o.data,seq:s.seq,
+ licaoOrdem:sem?null:s.licaoOrdem,aulaN:(s.aulaEditada?s.aulaN:''),tipos:s.tipos,professores:s.profs,
+ observacao:s.observacao,fala:s.fala,audicao:s.audicao,leitura:s.leitura,escrita:s.escrita,
+ checking_sentences:s.cs,app:s.app,engajamento:s.eng,tarefa:tarefa}],function(res){
+ var cb=o.ok;regFechar();
+ msg(res.seq+'ª aula de '+d.aluno.nome.split(' ')[0]+' registrada.');
+ if(cb)cb(res);
+},function(){if(REG_EST&&REG_EST.o===o){r.salvar.disabled=false;r.av.textContent=''}});
+}
+function regExcluir(){
+if(!REG_EST||!REG_EST.dados||!REG_EST.dados.registro)return;
+var d=REG_EST.dados,o=REG_EST.o;
+dlgConfirmar({titulo:'Excluir o registro desta aula?',perigo:true,ok:'Excluir registro',
+ texto:'Somem a lição, o tipo, as notas e a anotação da '+d.seq+'ª aula de '+d.aluno.nome+' neste dia.\n'
+  +'A presença continua lançada, e o dia volta a ser calculado como antes do registro.'},
+ function(sim){if(!sim)return;
+  run('excluirRegistroAula',[{id:d.registro.id}],function(res){
+   var cb=o.ok;regFechar();msg('Registro excluído.');if(cb)cb(res)})});
+}
+
+/* ===== CADASTROS (2026-09-13, dele) =====
+   *"A gente pode fazer um cadastrador de tipo de aulas, lá nas páginas, tipo assim, cadastros, e a gente
+   cadastrar várias coisas: tipo de aula, tipos de evasão, essas coisas."* Nasce com uma aba só — as
+   listas de evasão entram quando a tela de evasão existir, e aba vazia é promessa, não cadastro.
+
+   A PILHA, na ordem dele: reposição e anteposição fixas em cima (são elas que movem a fila de faltas),
+   um fio fino, e o resto — que ele cria, renomeia, sobe, desce e arquiva. A única escolha que pesa é
+   "tem lição": é ela que diz se a aula anda o livro. */
+var CAD_TIPOS=[];
+function cadCarregar(){run('getTiposAula',[{}],function(l){CAD_TIPOS=l||[];cadPintar()})}
+function cadTipo(id){return CAD_TIPOS.filter(function(t){return t.id===id})[0]}
+function cadPintar(){
+var box=$('cad-tipos');if(!box)return;
+var ativos=CAD_TIPOS.filter(function(t){return !t.arquivado}),arq=CAD_TIPOS.filter(function(t){return t.arquivado});
+var livres=ativos.filter(function(t){return !t.especial});
+var n=$('cad-tipos-n');if(n)n.textContent=ativos.length;
+var h='<div class="cad-pilha">',fio=false;
+ativos.forEach(function(t){
+ if(!t.especial&&!fio){fio=true;h+='<div class="cad-fio"></div>'}
+ h+=cadLinha(t,livres.indexOf(t),livres.length);
+});
+if(!fio)h+='<div class="cad-fio"></div>';
+h+='<div class="cad-novo"><input id="cad-novo-nome" placeholder="Novo tipo de aula — ex.: Study Hall" maxlength="40"'
+ +' onkeydown="if(event.key===\'Enter\')cadCriar()">'
+ +'<label class="chk cad-cont"><input type="checkbox" id="cad-novo-cont"> tem lição</label>'
+ +'<button type="button" class="acao" onclick="cadCriar()">'+icon('plus',14)+' Adicionar</button></div></div>';
+if(arq.length)h+='<details class="cad-arq"><summary>Arquivados ('+arq.length+')</summary><div class="cad-pilha">'
+ +arq.map(function(t){return cadLinha(t,-1,0)}).join('')+'</div></details>';
+box.innerHTML=h;
+}
+function cadUsos(t){
+return t.usos?'<span class="cad-usos" title="aulas já registradas com este tipo">'+t.usos+(t.usos>1?' aulas':' aula')+'</span>'
+ :'<span class="cad-usos zero">sem uso</span>'}
+function cadLinha(t,i,n){
+if(t.especial)
+ return '<div class="cad-linha especial"><span class="cad-trava" title="fixa: é ela que move a fila de faltas">'+icon('lock',13)+'</span>'
+  +'<span class="cad-nome-fixo">'+escBloco(t.nome)+'</span>'
+  +'<span class="cad-desc">'+(t.especial==='Reposição'?'paga a falta mais antiga em aberto':'adianta uma falta que ainda vai acontecer')+'</span>'
+  +'<span class="cad-selo">tem lição</span>'+cadUsos(t)+'</div>';
+return '<div class="cad-linha'+(t.arquivado?' arquivado':'')+'">'
+ +(t.arquivado?'<span class="cad-mover"></span>':'<span class="cad-mover">'
+  +'<button type="button" title="subir"'+(i<=0?' disabled':'')+' onclick="cadMover('+t.id+',-1)">'+icon('chevron-down',13)+'</button>'
+  +'<button type="button" title="descer"'+(i>=n-1?' disabled':'')+' onclick="cadMover('+t.id+',1)">'+icon('chevron-down',13)+'</button></span>')
+ +'<input class="cad-nome" value="'+escBloco(t.nome)+'" maxlength="40" aria-label="Nome do tipo"'+(t.arquivado?' disabled':'')
+ +' onchange="cadRenomear('+t.id+',this)">'
+ +'<label class="chk cad-cont" title="Marcado: aula DADA, a lição anda. Desmarcado: a aula aconteceu sem conteúdo — conta presença e não avança o livro.">'
+ +'<input type="checkbox"'+(t.conteudo?' checked':'')+(t.arquivado?' disabled':'')+' onchange="cadConteudo('+t.id+',this)"> tem lição</label>'
+ +cadUsos(t)
+ +'<button type="button" class="acao sec cad-arq-bt" onclick="cadArquivar('+t.id+','+(t.arquivado?'false':'true')+')">'
+ +(t.arquivado?'Reativar':'Arquivar')+'</button></div>'}
+function cadCriar(){
+var i=$('cad-novo-nome'),nome=i?i.value.trim():'';
+if(!nome){msg('Dê um nome ao tipo de aula.',true);if(i)i.focus();return}
+run('salvarTipoAula',[{nome:nome,conteudo:$('cad-novo-cont').checked}],function(){msg('Tipo de aula "'+nome+'" criado.');cadCarregar()})}
+function cadRenomear(id,el){
+var t=cadTipo(id);if(!t)return;
+var nome=el.value.trim();if(!nome||nome===t.nome){el.value=t.nome;return}
+run('salvarTipoAula',[{id:id,nome:nome,conteudo:t.conteudo}],function(){msg('Renomeado para "'+nome+'".');cadCarregar()})}
+/* MUDAR "TEM LIÇÃO" DE UM TIPO JÁ USADO RECALCULA O PASSADO de quem o usou — pergunta antes, e diz quanto */
+function cadConteudo(id,el){
+var t=cadTipo(id);if(!t)return;
+var quer=el.checked;
+var gravar=function(){run('salvarTipoAula',[{id:id,nome:t.nome,conteudo:quer}],function(){
+ msg(quer?'"'+t.nome+'" passa a contar lição.':'"'+t.nome+'" passa a ser aula sem conteúdo.');cadCarregar()})};
+if(!t.usos){gravar();return}
+dlgConfirmar({titulo:'Mudar o que "'+t.nome+'" significa?',ok:'Mudar',
+ texto:t.usos+(t.usos>1?' aulas já foram registradas':' aula já foi registrada')+' como '+t.nome+'. '
+  +(quer?'Com lição, cada uma delas passa a avançar o livro.':'Sem conteúdo, nenhuma delas avança mais o livro.')
+  +'\nO planejamento e a ficha desses alunos são recalculados na hora — nada é apagado.'},
+ function(sim){if(sim)gravar();else el.checked=!quer})}
+function cadMover(id,passo){run('moverTipoAula',[{id:id,passo:passo}],function(){cadCarregar()})}
+function cadArquivar(id,arq){run('arquivarTipoAula',[{id:id,arquivar:arq}],function(){
+ msg(arq?'Arquivado: sai da lista do registro de aula. As aulas que já o usaram não mudam.':'Reativado.');cadCarregar()})}
+
+/* ===== CONFIGURAÇÕES (2026-09-13, dele) =====
+   *"Dá pra criar uma página de configurações genérica pra afetar o sistema inteiro."* O desenho é o da
+   Parte III do guia técnico: o padrão mora no código, a exceção no banco, e cada linha diz de onde o
+   valor veio e quando foi mudado. Três comportamentos, pela CONSEQUÊNCIA do parâmetro:
+     leitura — grava direto;
+     cálculo — mede o efeito na escola inteira e só grava depois do "sim";
+     escrita — faz o sistema lançar dado sozinho, então pergunta com o aviso vermelho.
+   O que se edita em outra tela (Backup, Calendário) continua lá; aqui aparece com o atalho. */
+var CG=null, CG_ABA='escola';
+var CG_TELA={'Calendário':'calendario','Backup':'backup'};
+function cgCarregar(){run('getConfiguracoes',[{}],function(r){CG=r;cgPintar()})}
+function cgAba(a){CG_ABA=a;
+document.querySelectorAll('#cg-abas .pg-aba').forEach(function(b){b.classList.toggle('on',b.dataset.a===a)});cgPintar()}
+function cgMostra(p,v){
+if(p.tipo==='bool')return v==='1'?'ligado':'desligado';
+if(v===''||v==null)return 'vazio';
+return v+(p.unidade?' '+p.unidade:'')}
+function cgInfo(){
+if(CG_ABA==='escola')return 'Como a escola aparece no sistema, e de qual estado vêm os feriados estaduais.';
+if(CG_ABA==='aulas')return 'Números que mexem no <b>planejamento</b> e no <b>Progresso</b>. Os que mudam cálculo mostram o efeito na escola inteira antes de gravar — e nada é apagado: término, defasagem e adendos são calculados na hora, e voltar ao padrão desfaz tudo.';
+if(CG_ABA==='fecho')return 'O fecho do dia é a única coisa que o sistema <b>lança sozinho</b>. Por isso cada mudança aqui pede confirmação.';
+return 'Esta máquina é <b>'+escBloco(CG.estacao||'—')+'</b>. As configurações moram no banco dela: se a recepção e o laptop discordarem de um número, o diário abaixo diz qual foi mudado, quando e de qual tela.'}
+function cgPintar(){
+if(!CG)return;
+var alt=CG.params.filter(function(p){return p.alterado});
+$('cg-dir').innerHTML=alt.length
+ ?'<span class="cg-alt" title="'+escBloco(alt.map(function(p){return p.rotulo}).join(' · '))+'">'+alt.length+(alt.length>1?' alterados':' alterado')+'</span>'
+ :'<span class="cg-alt zero">tudo no padrão</span>';
+$('cg-info').innerHTML=cgInfo();
+var h=CG.params.filter(function(p){return p.aba===CG_ABA}).map(cgLinha).join('');
+if(CG_ABA==='sistema')h+=cgPaineis(alt);
+$('cg-corpo').innerHTML=h;
+}
+function cgLinha(p){
+var id='cg-'+p.chave, campo;
+if(!p.editavel)
+ campo='<span class="cg-ro">'+(p.valor?escBloco(p.valor):'<i>vazio</i>')+'</span>'
+  +'<button type="button" class="acao sec cg-ir" onclick="abaPor(\''+(CG_TELA[p.tela]||'inicio')+'\')">editar em '+escBloco(p.tela)+'</button>';
+else if(p.tipo==='bool')
+ campo='<label class="cg-chave"><input type="checkbox" id="'+id+'"'+(p.valor==='1'?' checked':'')
+  +' onchange="cgMudar(\''+p.chave+'\',this.checked?\'1\':\'0\')"><span>'+(p.valor==='1'?'ligado':'desligado')+'</span></label>';
+else
+ campo='<input id="'+id+'" class="cg-in cg-'+p.tipo+'" value="'+escBloco(p.valor)+'"'
+  +(p.tipo==='num'?' inputmode="numeric"':'')+(p.tipo==='uf'?' maxlength="2"':'')+(p.tipo==='hora'?' maxlength="5"':'')
+  +' onchange="cgMudar(\''+p.chave+'\',this.value)">'+(p.unidade?'<span class="cg-un">'+escBloco(p.unidade)+'</span>':'');
+var selo=p.alterado
+ ?'alterado'+(p.quando?' em '+dataCurta(p.quando.slice(0,10))+(p.onde?' · pela tela '+escBloco(p.onde):''):'')
+   +' · padrão: '+escBloco(cgMostra(p,p.padrao))
+ :'padrão '+(p.fonte&&p.fonte!=='casa'?'('+escBloco(p.fonte)+')':'da casa');
+return '<div class="cg-linha'+(p.alterado?' alterado':'')+'">'
+ +'<div><label class="cg-rot" for="'+id+'">'+escBloco(p.rotulo)+'</label>'
+ +'<div class="cg-ajuda">'+escBloco(p.ajuda)+'</div>'
+ +'<div class="cg-selo">'+selo+(p.tela&&p.editavel?' · também se muda em '+escBloco(p.tela):'')+'</div></div>'
+ +'<div class="cg-campo">'+campo
+ +(p.alterado&&p.editavel?'<button type="button" class="cg-volta" title="voltar ao padrão ('+escBloco(cgMostra(p,p.padrao))+')"'
+   +' onclick="cgMudar(\''+p.chave+'\',CG_PADRAO(\''+p.chave+'\'))">↺</button>':'')
+ +'</div></div>'}
+function CG_PADRAO(chave){var p=CG.params.filter(function(x){return x.chave===chave})[0];return p?p.padrao:''}
+/* O RODAPÉ DA ABA SISTEMA: o que esta escola mudou, o diário, e o que mora em `config` sem ser
+   configuração. Tudo só leitura. */
+function cgPaineis(alt){
+var h='<h4 class="cg-sec">O que esta escola mudou<small>tudo o que difere do padrão, em todas as abas</small></h4>';
+h+=alt.length?'<table class="cg-tab"><thead><tr><th>Parâmetro</th><th>Valor</th><th>Padrão</th><th>Quando</th></tr></thead><tbody>'
+ +alt.map(function(p){return '<tr><td>'+escBloco(p.rotulo)+'</td><td><b>'+escBloco(cgMostra(p,p.valor))+'</b></td><td>'
+  +escBloco(cgMostra(p,p.padrao))+'</td><td>'+(p.quando?escBloco(dataCurta(p.quando.slice(0,10))+' '+p.quando.slice(11,16))+(p.onde?' · '+escBloco(p.onde):''):'—')+'</td></tr>'}).join('')
+ +'</tbody></table>':'<div class="al-hist-vazio">Nada: tudo está no padrão.</div>';
+h+='<h4 class="cg-sec">Diário de configuração<small>as últimas 50 mudanças, com a tela e a máquina</small></h4>';
+h+=CG.diario.length?'<table class="cg-tab"><thead><tr><th>Quando</th><th>Parâmetro</th><th>De</th><th>Para</th><th>Tela</th><th>Máquina</th></tr></thead><tbody>'
+ +CG.diario.map(function(d){return '<tr><td>'+escBloco(dataCurta(d.momento.slice(0,10))+' '+d.momento.slice(11,16))+'</td><td>'+escBloco(d.rotulo)
+  +'</td><td class="cg-de">'+escBloco(d.de||'vazio')+'</td><td><b>'+escBloco(d.para||'vazio')+'</b></td><td>'+escBloco(d.onde||'')
+  +'</td><td>'+escBloco(d.estacao||'')+'</td></tr>'}).join('')+'</tbody></table>'
+ :'<div class="al-hist-vazio">Nenhuma mudança registrada ainda — o diário começou em 13/09/2026.</div>';
+h+='<h4 class="cg-sec">Estado interno<small>o sistema escreve para si mesmo — não se edita</small></h4>';
+h+=CG.estado.length?'<table class="cg-tab"><tbody>'+CG.estado.map(function(e){return '<tr><td>'+escBloco(e.rotulo)+'</td><td><b>'
+ +escBloco(e.valor)+'</b></td></tr>'}).join('')+'</tbody></table>':'<div class="al-hist-vazio">—</div>';
+h+='<details class="cg-marcas"><summary>Marcas de migração ('+CG.marcas.length+')</summary>'
+ +'<div class="cg-nota">Estas não são configurações: são registros de que uma correção já rodou, com a data. Apagar uma delas faz a correção rodar de novo no próximo boot — por isso nenhuma tem campo.</div>'
+ +'<table class="cg-tab"><tbody>'+CG.marcas.map(function(m){return '<tr><td>'+escBloco(m.chave)+'</td><td>'+escBloco(m.valor)+'</td></tr>'}).join('')
+ +'</tbody></table></details>';
+return h}
+/* Mudar um parâmetro, pelo que ele CAUSA. Qualquer desistência — ou recusa do servidor — recarrega a
+   página, e o campo volta a mostrar o valor que está de fato gravado. */
+function cgMudar(chave,valor){
+var p=CG.params.filter(function(x){return x.chave===chave})[0];if(!p)return;
+if(String(valor).trim()===String(p.valor)){cgPintar();return}
+var desfaz=function(){cgCarregar()};
+var gravar=function(){run('salvarParametro',[{chave:chave,valor:valor}],function(r){
+ msg(r.mudou?p.rotulo+': '+cgMostra(p,r.valor)+'.':'Nada mudou.');
+ if(chave==='escola_nome'||chave==='escola_unidade')sbEscola(null);
+ cgCarregar()},desfaz)};
+if(p.classe==='calculo'){
+ run('previewParametro',[{chave:chave,valor:valor}],function(v){
+  dlgConfirmar({titulo:'Mudar "'+p.rotulo+'"?',ok:'Mudar',texto:cgImpacto(p,v)},function(sim){if(sim)gravar();else desfaz()})
+ },desfaz);
+ return;
+}
+if(p.classe==='escrita'){
+ dlgConfirmar({titulo:'Mudar "'+p.rotulo+'"?',perigo:true,ok:'Mudar mesmo assim',
+  texto:'Este ajuste mexe no que o sistema LANÇA sozinho: a falta automática do fecho do dia.\n\nDe '
+   +cgMostra(p,p.valor)+' para '+cgMostra(p,String(valor).trim())+'.\n\n'+p.ajuda},function(sim){if(sim)gravar();else desfaz()});
+ return;
+}
+gravar();
+}
+function cgImpacto(p,v){
+var a=v.antes,d=v.depois;
+var lin=function(rot,x,y){return '• '+rot+': '+x+(x!==y?' → '+y:' (não muda)')};
+return 'De '+cgMostra(p,v.atual)+' para '+cgMostra(p,v.proposto)+'. Medido agora, nos '+a.contratos+' contratos abertos:\n\n'
+ +lin('contratos vencidos',a.vencidos,d.vencidos)+'\n'
+ +lin('perto do fim do livro',a.pertoDoFim,d.pertoDoFim)+'\n'
+ +lin('atrasados no ritmo',a.atrasados,d.atrasados)+'\n'
+ +lin('terminam dentro do contrato',a.terminamNoContrato,d.terminamNoContrato)+'\n\n'
+ +'Nada é apagado: término, defasagem e adendos são calculados na hora, e voltar ao padrão desfaz tudo.'}
+/* o nome da escola no alto da barra lateral vem da configuração. `es` nulo = pergunta de novo */
+function sbEscola(es){
+var pinta=function(e){if(!e)return;var box=document.querySelector('.sb-escola');if(!box)return;
+ var bb=box.querySelector('b'),sm=box.querySelector('small');if(bb)bb.textContent=e.nome;if(sm)sm.textContent=e.unidade};
+if(es){pinta(es);return}
+run('getEstacao',[],function(e){pinta(e&&e.escola)})}
+
 /* Correção da hora, no popover da pílula. Existe porque acontece de lançar a entrada muito depois
    do aluno ter chegado — aula das 7h lançada às 8h42. A janela diz quantas aulas o bloco espera,
    deixa reescrever a hora e grava no OK. Mesma máscara do resto do app: não se digita 99:99. */
@@ -11159,10 +12874,20 @@ if(baixo!==null){var s=cl.querySelector('small');if(s)s.remove()}   // o texto p
 cl.className+=' com-pil';   // manda a hora para o topo e a pílula para o pé do cartão
 cl.appendChild(pil);
 }
-/* livro aberto com a página virando: diz "a aula está correndo" sem gastar uma linha de texto */
-if(est==='aula'){
-var cr=document.createElement('span');cr.className='lc-cron';cr.innerHTML=LC_IC_LIVRO;
-cr.setAttribute('aria-hidden','true');m.appendChild(cr);
+/* O LIVRO É A PORTA DO REGISTRO DE AULA (2026-09-13, dele). Em aula ele folheia sozinho — diz "a aula
+   está correndo" sem gastar texto —; na aula feita fica parado e só folheia sob o mouse. O número no pé
+   diz quantas aulas do dia já foram registradas, verde quando fechou. */
+if(est==='aula'||est==='feita'){
+var cr=document.createElement('button');cr.type='button';cr.className='lc-cron'+(est==='feita'?' parado':'');
+var nReg=(p&&p.registradas)||0, nPrev=(p&&p.previstas)||1;
+cr.innerHTML=LC_IC_LIVRO+(nReg?'<span class="lc-cron-n'+(nReg>=nPrev?' ok':'')+'">'+nReg+'</span>':'');
+cr.title='Registrar a aula de '+al.nome+' — lição, notas e anotações'
+ +(nReg?' ('+nReg+' de '+nPrev+(nPrev>1?' registradas':' registrada')+')':'');
+cr.setAttribute('aria-label',cr.title);
+cr.onclick=function(ev){ev.stopPropagation();
+ regAbrir({idMatricula:al.id,livro:al.livro,data:c.data,hora:b.hora,
+  ok:function(res){if(p&&res&&res.registradas!=null){p.registradas=res.registradas;ok(p)}}})};
+m.appendChild(cr);
 }
 /* falta que veio do fecho do dia: um "!" no canto de baixo, dizendo que ninguém respondeu por ela.
    Some sozinho assim que alguém tocar no lançamento — `gravarPresenca` zera o `auto`. */
@@ -11671,7 +13396,7 @@ var h='<div class="av-cx"><div class="av-tit">Veio (ou vem) fora do horário del
 if(m.avulsos&&m.avulsos.length){
 h+='<div class="av-lista">'+m.avulsos.map(function(a){
 return '<span class="av-tag" title="'+escBloco(a.motivo+(a.observacao?' — '+a.observacao:''))+'">'+escBloco(a.hora+' · '+a.motivo)
-+'<button onclick="lcAvulsoRemover('+a.id+')" title="Remover este encontro">✕</button></span>'}).join('')+'</div>';
++'<button onclick="lcAvulsoRemover('+a.id+')" title="Desmarcar este encontro (fica no histórico)">✕</button></span>'}).join('')+'</div>';
 }
 return h+'</div>';
 }
@@ -11687,10 +13412,10 @@ lcAbrirDialog(LC_INFO.id); // redesenha a janelinha com o encontro já listado
 lcCarregar();              // e faz o aluno brotar na grade das duas telas
 })}
 function lcAvulsoRemover(id){
-dlgConfirmar({titulo:'Remover encontro',perigo:true,ok:'Remover',
- texto:'Remover este encontro fora do horário?\n\nA linha do aluno some do bloco daquela hora. Presença já lançada não é apagada.'},
+dlgConfirmar({titulo:'Desmarcar encontro',ok:'Desmarcar',
+ texto:'Desmarcar este encontro fora do horário?\n\nA linha do aluno some do bloco daquela hora e o encontro fica no histórico dele, em Encaminhamentos, como desmarcado. Presença já lançada não é apagada.'},
 function(sim){if(!sim)return;
-run('removerAvulso',[{id:id}],function(){msg('Encontro removido.');lcAbrirDialog(LC_INFO.id);lcCarregar()})})}
+run('removerAvulso',[{id:id}],function(){msg('Encontro desmarcado — fica no histórico do aluno.');lcAbrirDialog(LC_INFO.id);lcCarregar()})})}
 
 /* busca rápida: qualquer aluno, mesmo fora do horário — a presença é do DIA, então cai no
    horário próprio dele (regra da recepção) */
@@ -12355,7 +14080,8 @@ if(t.modo==='anual'){
  if(!ini)return[];
  if(t.mesFim&&t.semDowFim!==''&&t.semDowFim!=null){
   fim=cfNEsimoDow(ancora,Number(t.mesFim),Number(t.semDowFim),Number(t.semNFim)||1);
-  if(fim&&fim<ini)fim=cfNEsimoDow(ancora+1,Number(t.mesFim),Number(t.semDowFim),Number(t.semNFim)||1)}
+  if(fim&&fim<ini)fim=cfNEsimoDow(ancora+1,Number(t.mesFim),Number(t.semDowFim),Number(t.semNFim)||1);
+  if(fim&&Number(t.semOffFim))fim=cfMais(fim,Number(t.semOffFim))}
 }else if(t.modo==='pascoa'){
  if(t.offIni===''||t.offIni==null)return[];
  var p=cfPascoa(ancora);ini=cfMais(p,Number(t.offIni)||0);
@@ -12391,7 +14117,10 @@ else if(t.modo==='semana')
   +'<em>de</em>'+cfSel(CF_MES,t.mes,i,'mes','—')
   +'<em>até</em>'
   +cfSel(CF_ORD,t.semNFim||1,i,'semNFim')+cfSel(CF_DOW,t.semDowFim,i,'semDowFim','—')
-  +'<em>de</em>'+cfSel(CF_MES,t.mesFim,i,'mesFim','—');
+  +'<em>de</em>'+cfSel(CF_MES,t.mesFim,i,'mesFim','—')
+  /* "voltamos na 3ª segunda de janeiro": o dia escolhido é o da VOLTA, e o período fecha na véspera */
+  +'<label class="chk cf-volta" title="marcado: o dia escolhido é o dia em que as aulas VOLTAM — o período termina na véspera">'
+  +'<input type="checkbox"'+(Number(t.semOffFim)===-1?' checked':'')+' onchange="cfSet('+i+',\'semOffFim\',this.checked?-1:\'\')"> é o dia da volta</label>';
 else if(t.modo==='pascoa')
  campos='<input class="cf-off" inputmode="numeric" value="'+(t.offIni==null?'':t.offIni)+'" placeholder="-48" onchange="cfSet('+i+',\'offIni\',this.value)">'
   +'<em>até</em>'
@@ -12425,7 +14154,7 @@ t[campo]=valor;
 /* trocar o modo limpa os campos do modo anterior: guardar "dia 25" de um trecho que virou intervalo
    de datas só produziria confusão na hora de salvar */
 if(campo==='modo'){['dataIni','dataFim','dia','mes','diaFim','mesFim','offIni','offFim',
-  'semN','semDow','semNFim','semDowFim'].forEach(function(k){t[k]=''})}
+  'semN','semDow','semNFim','semDowFim','semOffFim'].forEach(function(k){t[k]=''})}
 cfPintar()}
 function cfAdd(){CF_TRECHOS.push({modo:'data',dataIni:'',dataFim:''});cfPintar()}
 /* id da marcação aberta no formulário — nulo quando é uma nova */
@@ -12465,7 +14194,8 @@ CF_TRECHOS=(m&&m.trechos&&m.trechos.length)
       dia:t.dia||'',mes:t.mes||'',diaFim:t.diaFim||'',mesFim:t.mesFim||'',
       offIni:(t.offIni==null?'':t.offIni),offFim:(t.offFim==null?'':t.offFim),
       semN:(t.semN==null?'':t.semN),semDow:(t.semDow==null?'':t.semDow),
-      semNFim:(t.semNFim==null?'':t.semNFim),semDowFim:(t.semDowFim==null?'':t.semDowFim)}})
+      semNFim:(t.semNFim==null?'':t.semNFim),semDowFim:(t.semDowFim==null?'':t.semDowFim),
+      semOffFim:(t.semOffFim==null?'':t.semOffFim)}})
   : [{modo:'data',dataIni:'',dataFim:''}];
 CF_TRECHOS.cor=e.cor||'#B3261E';
 CF_ID=(m&&m.id)||null;
@@ -12534,7 +14264,7 @@ if(!tipos.length){msg('Marque ao menos um tipo.',true);return}
 run('salvarMarcacao',[{id:id||undefined,nome:v('cf-nome'),tipos:tipos,ambito:v('cf-amb'),
  trechos:CF_TRECHOS.map(function(t){return {modo:t.modo,dataIni:t.dataIni,dataFim:t.dataFim,
    dia:t.dia,mes:t.mes,diaFim:t.diaFim,mesFim:t.mesFim,offIni:t.offIni,offFim:t.offFim,
-   semN:t.semN,semDow:t.semDow,semNFim:t.semNFim,semDowFim:t.semDowFim}}),
+   semN:t.semN,semDow:t.semDow,semNFim:t.semNFim,semDowFim:t.semDowFim,semOffFim:t.semOffFim}}),
  cor:CF_TRECHOS.cor,fecha:!$('cf-abre').checked}],
 function(r){dlgFechar();
  /* SÓ AQUI a cor entra na lista de atalhos: guardar durante o arrasto era o que a multiplicava */
@@ -12998,11 +14728,15 @@ init();
    Agora escuta os CAMPOS do cadastro, um a um — se um id sumir, o erro aparece na hora em vez de
    sumir num `return`. */
 /* `al-sit` saiu: virou leitura, e um `<span>` não dispara `input`/`change` para marcar sujo */
-['al-nome','al-id'].forEach(function(id){
+['al-nome','al-id','al-nasc','al-tel','al-email','al-resp','al-resp-tel'].forEach(function(id){
  var el=document.getElementById(id);
  if(!el){console.warn('campo do cadastro não encontrado:',id);return}
  ['input','change'].forEach(function(ev){el.addEventListener(ev,function(){dirty('al',true)})});
 });
+/* o resumo da linha fechada acompanha o que se digita, e ela reabre como estava da última vez */
+AL_DADOS_CAMPOS.forEach(function(c){var el=$(c[0]);if(el)el.addEventListener('input',alDadosResumo)});
+try{if(localStorage.getItem('al-dados-aberto')==='1')alDadosAbrir(true)}catch(e){}
+alDadosResumo();
 /* o ID também dispara a consulta ao banco, que é o que acende a pílula NOVO */
 (function(){var el=document.getElementById('al-id');
  if(el)el.addEventListener('input',function(){alConferirId()})})();

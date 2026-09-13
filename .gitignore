@@ -29,3 +29,10 @@ Ficha_Recepcao_prototipo/resources/schema.sql
 Ficha_Recepcao_prototipo/resources/seed.sql
 
 resources/*.pdf
+
+# --- 2026-09-13 ---
+# docs_wizard/: os manuais OFICIAIS da rede Wizard (PDFs internos da franquia) e os relatórios e o
+# guia técnico feitos sobre eles. O repositório é público: isto não pode ser publicado.
+# Wiz_Tools/: o projeto React antigo, só usado como referência visual da ficha de frequência.
+docs_wizard/
+Wiz_Tools/

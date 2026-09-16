@@ -348,6 +348,26 @@ function avaliacaoDoRegistro(r: any, regra: string | null | undefined): any {
     av.checking_sentences, av.app, av.engajamento].every((v: any) => v == null);
   return vazio ? null : av;
 }
+
+/* ===== REPOSIÇÃO E AULA NORMAL NO MESMO DIA: A REPOSIÇÃO VEM PRIMEIRO (2026-09-14, dele) =====
+   *"Se ele faz da uma às duas da tarde, a aula que era pra ser uma às duas vai virar a reposição. E a aula
+   das duas às três é a aula normal, ela foi empurrada."* A regra de 24/08 — a primeira hora dele é a aula
+   normal — continua valendo para todo o resto: duas aulas no dia sem reposição (anteposição, aula a mais)
+   começam pela normal, porque *"a gente evita ao máximo"* gastar a primeira hora com outra coisa.
+   A reposição só passa à frente quando as DUAS aconteceram: com menos aulas do que o dia previa, quem
+   ficou foi a hora dele, e chamar essa hora de reposição apagaria a aula normal que de fato houve.
+   Devolve o rótulo de cada posição do dia: 'Reposição' | 'Anteposição' | null (aula normal). Além do
+   previsto (`aulas_feitas` digitado maior), repete o rótulo do primeiro avulso, como sempre fez. */
+function rotulosDoDia(regulares: number, extras: any[], quantas: number): (string | null)[] {
+  const motivo = (e: any) => (e && e.motivo) || "Reposição";
+  const repos = extras.filter((e: any) => motivo(e) === "Reposição");
+  const reposPrimeiro = repos.length > 0 && regulares > 0 && quantas >= regulares + repos.length;
+  const ordem: (string | null)[] = reposPrimeiro
+    ? [...repos.map(motivo), ...Array(regulares).fill(null), ...extras.filter((e: any) => motivo(e) !== "Reposição").map(motivo)]
+    : [...Array(Math.max(0, regulares)).fill(null), ...extras.map(motivo)];
+  const alem = extras.length ? motivo(extras[0]) : null;
+  return Array.from({ length: Math.max(0, quantas) }, (_, k) => k < ordem.length ? ordem[k] : alem);
+}
 /* diário: trilha de auditoria append-only. Cada lançamento vira uma linha com id próprio, para
    responder "quem marcou o quê e quando" mesmo depois de o registro atual ser alterado. */
 db.exec(`CREATE TABLE IF NOT EXISTS diario (
@@ -4260,11 +4280,33 @@ function projetarContrato({ idMatricula, livro, inicio, fechadosPre }: any) {
       const deduzidas = digitou ? Math.max(0, Number(p.aulas_feitas)) : Math.max(1, (regulares + extras.length) || 1);
       const porSeq = new Map<number, any>(regsDia.map((r: any) => [r.seq, r]));
       const total = Math.max(deduzidas, ...regsDia.map((r: any) => r.seq));
+      /* ===== O QUE O REGISTRO JÁ DISSE VALE PRIMEIRO; A DEDUÇÃO SÓ REPARTE O QUE SOBROU (2026-09-14) =====
+         O rótulo de cada aula registrada (`origem` 'aula') é do professor. As posições que ninguém registrou
+         dividem entre si o RESTO: os avulsos que nenhum registro já reivindicou e as horas da agenda que
+         nenhum registro já usou como aula normal — na ordem de `rotulosDoDia` (reposição na frente quando
+         houve as duas). Sem isto a posição livre repetia uma reposição que outra aula já tinha, ou a perdia:
+         com a reposição passando para a 1ª hora, um registro de reposição na 2ª contava a mesma reposição
+         duas vezes (e quitava duas faltas), e um registro de aula normal na 1ª apagava a do dia. */
+      const definidos = new Map<number, string | null>();
+      for (const r of regsDia) if (r.origem === "aula") definidos.set(r.seq, r.especial || null);
+      const sobra = [...extras];
+      let normaisDefinidas = 0;
+      for (const esp of definidos.values()) {
+        if (!esp) { normaisDefinidas++; continue; }
+        const i = sobra.findIndex((e: any) => ((e && e.motivo) || "Reposição") === esp);
+        if (i >= 0) sobra.splice(i, 1);
+      }
+      const livres: number[] = [];
+      for (let s = 1; s <= Math.min(deduzidas, total); s++) if (!definidos.has(s)) livres.push(s);
+      const rotLivres = rotulosDoDia(Math.max(0, regulares - normaisDefinidas), sobra, livres.length);
+      const dedPorSeq = new Map<number, string | null>(livres.map((s, i) => [s, rotLivres[i]]));
+      /* quantas aulas o dia PREVIA (agenda + encontros marcados): a que passa disso é a hora a mais, e é
+         ela que decide se a lição continuada repete o número da aula na Ficha (31ᴬ, 31ᴮ) */
+      const previstas = regulares + extras.length;
       const doDia: any[] = [];
       for (let s = 1; s <= total; s++) {
         const r = porSeq.get(s) || null;
-        const dedExtra = s <= deduzidas && s - 1 >= regulares
-          ? ((extras[s - 1 - regulares] || extras[0] || {}).motivo || "Reposição") : null;
+        const dedExtra = dedPorSeq.get(s) ?? null;
         const definiu = !!r && r.origem === "aula";
         doDia.push({ s, r,
           semConteudo: definiu ? !!r.semConteudo : (!!(r && r.semConteudo) || (digitou && deduzidas === 0)),
@@ -4275,7 +4317,9 @@ function projetarContrato({ idMatricula, livro, inicio, fechadosPre }: any) {
       let k = 0;
       for (const x of doDia) {
         if (x.semConteudo || x.parte) {
-          eventos.push({ data: p.data, tipo: "tarefa", ordem: null, licao: null, seq: x.s,
+          /* leva o `extra` junto (2026-09-14): a reposição que virou pedaço de lição, ou que foi só tarefa,
+             aconteceu — e sem o rótulo aqui ela não pagava falta nenhuma na fila */
+          eventos.push({ data: p.data, tipo: "tarefa", ordem: null, licao: null, seq: x.s, previstas, extra: x.extra,
             registro: x.r ? x.r.id : null, parteDe: x.parte ? x.r.licao_ordem : null, semConteudo: x.semConteudo });
           continue;
         }
@@ -4285,7 +4329,7 @@ function projetarContrato({ idMatricula, livro, inicio, fechadosPre }: any) {
         dadasFila.push({ ...p, licao_ordem: lic, ordem: k, evento: eventos.length, extra: x.extra,
           registro: x.r ? x.r.id : null, seq: x.s });
         eventos.push({ data: p.data, tipo: "aula", ordem: null, licao: null, extra: x.extra,
-          fila: dadasFila.length - 1, registro: x.r ? x.r.id : null, seq: x.s });
+          fila: dadasFila.length - 1, registro: x.r ? x.r.id : null, seq: x.s, previstas });
         k++;
       }
       continue;
@@ -4297,7 +4341,9 @@ function projetarContrato({ idMatricula, livro, inicio, fechadosPre }: any) {
        Então a conta do dia é: as HORAS REGULARES daquele dia da semana (pela fase vigente) somadas
        aos ENCONTROS AVULSOS marcados naquela data. O avulso já existia no banco desde sempre, com
        data, hora e motivo — 126 reposições lançadas — e é ele que distingue as duas coisas.
-       Num dia com uma hora regular e um avulso, a PRIMEIRA é a aula normal e a segunda é a extra. */
+       Num dia com uma hora regular e um avulso, a PRIMEIRA é a aula normal e a segunda é a extra —
+       MENOS quando o avulso é reposição e as duas aconteceram: aí a reposição fica com a hora dele e a
+       normal é empurrada para a seguinte (2026-09-14, dele; ver `rotulosDoDia`). */
     const regulares = horasDoDia(p.data).length;
     const extras = avulsosPorData[p.data] || [];
     /* ===== A AULA DE TAREFA NÃO CONSOME LIÇÃO (2026-08-25, dele) =====
@@ -4309,18 +4355,19 @@ function projetarContrato({ idMatricula, livro, inicio, fechadosPre }: any) {
     const digitou = p.aulas_feitas != null && p.aulas_feitas !== "";
     const quantas = digitou ? Math.max(0, Number(p.aulas_feitas))
                             : Math.max(1, (regulares + extras.length) || 1);
+    const previstas = regulares + extras.length;
     if (!quantas) {
       /* fica na linha do tempo como aula dada que não avançou lição — some do planejamento, não da
          história */
-      eventos.push({ data: p.data, tipo: "tarefa", ordem: null, licao: null, seq: 1 });
+      eventos.push({ data: p.data, tipo: "tarefa", ordem: null, licao: null, seq: 1, previstas });
       continue;
     }
+    const rotulos = rotulosDoDia(regulares, extras, quantas);
     for (let k = 0; k < quantas; k++) {
-      const extra = k >= regulares ? (extras[k - regulares] || extras[0] || null) : null;
-      dadasFila.push({ ...p, ordem: k, evento: eventos.length, seq: k + 1,
-        extra: extra ? (extra.motivo || "Reposição") : null });
-      eventos.push({ data: p.data, tipo: "aula", ordem: null, licao: null, seq: k + 1,
-        extra: extra ? (extra.motivo || "Reposição") : null, fila: dadasFila.length - 1 });
+      const extra = rotulos[k];
+      dadasFila.push({ ...p, ordem: k, evento: eventos.length, seq: k + 1, extra });
+      eventos.push({ data: p.data, tipo: "aula", ordem: null, licao: null, seq: k + 1, previstas,
+        extra, fila: dadasFila.length - 1 });
     }
   }
   /* A ÂNCORA — e é ela que impede o disparate no contrato antigo. `presenca` só existe desde que o
@@ -4556,9 +4603,11 @@ function projetarContrato({ idMatricula, livro, inicio, fechadosPre }: any) {
      *"é tipo fatura de cartão, você adianta"*.
      A FOLGA DO CONTRATO é a outra metade da resposta: o ano rende ~98–102 aulas e o livro pede
      70–72, então o que sobra é quanta falta ainda cabe sem estourar o prazo. */
-  const reposicoes = dadasFila.filter((x: any) => x.extra === "Reposição").length;
-  const anteposicoes = dadasFila.filter((x: any) => x.extra === "Anteposição").length;
-  const debito = Math.max(0, faltas - reposicoes);
+  /* contadas nos EVENTOS, como a fila: a reposição que virou pedaço de lição ou aula de tarefa também
+     aconteceu (2026-09-14) — em `dadasFila` só entra a aula que consumiu lição */
+  const aconteceu = (e: any) => e.tipo === "aula" || e.tipo === "tarefa";
+  const reposicoes = eventos.filter((e: any) => aconteceu(e) && e.extra === "Reposição").length;
+  const anteposicoes = eventos.filter((e: any) => aconteceu(e) && e.extra === "Anteposição").length;
   /* ===== O ENCAMINHAMENTO DE CADA FALTA (2026-08-25, dele) =====
      *"A falta mais antiga é a que vai sendo paga, tipo first in first out."* A fila é literal: as
      faltas entram na ordem em que aconteceram e cada aula EXTRA quita a primeira que estiver em
@@ -4566,20 +4615,43 @@ function projetarContrato({ idMatricula, livro, inicio, fechadosPre }: any) {
      de a falta existir, *"é tipo fatura de cartão, você adianta"*, e por isso aparece à parte.
      Nada disso é gravado: sai da mesma leitura de `presenca` + `encontro_avulso` que o resto da
      projeção usa. Lançou a reposição, a fila anda sozinha. */
+  /* ===== A ANTEPOSIÇÃO COBRE A PRÓXIMA FALTA — E A CONTA PASSA A SABER (2026-09-14) =====
+     A Ficha já pareava as duas ("adiantada em DD/MM"), mas só ela: a falta coberta continuava "em
+     aberto" na legenda, no KPI e na fila de Encaminhamentos, e podia acender "caso de adendo" para quem
+     não deve nada. Regra dele: *"anteposição acaba nem entrando, porque ela já autopaga"*.
+     O par mora AQUI, uma vez só, e a Ficha lê daqui. Cada anteposição cobre a PRÓXIMA falta que
+     acontecer depois dela; a reposição continua pagando a falta em aberto mais antiga — e a falta
+     coberta não está em aberto. */
   const fila: any[] = [];
+  const antepostas: any[] = [];
+  const semPar: any[] = [];   /* anteposições feitas que ainda não encontraram a falta que cobrem */
   for (const e of eventos) {
-    if (e.tipo === "falta") { fila.push({ data: e.data, paga: null, licao: null }); continue; }
-    if (e.tipo === "aula" && e.extra === "Reposição") {
-      const aberta = fila.find((f: any) => !f.paga);
+    if (e.tipo === "falta") {
+      const ant = semPar.shift();
+      if (ant) { ant.cobre = e.data; fila.push({ data: e.data, paga: null, licao: ant.licao, adiantada: ant.data }); }
+      else fila.push({ data: e.data, paga: null, licao: null });
+      continue;
+    }
+    /* aula com lição OU aula que virou pedaço/tarefa: as duas aconteceram, e a reposição marcada nelas paga */
+    if (e.tipo !== "aula" && e.tipo !== "tarefa") continue;
+    if (e.extra === "Anteposição") {
+      const a = { data: e.data, licao: e.licao || null, cobre: null };
+      antepostas.push(a); semPar.push(a);
+    } else if (e.extra === "Reposição") {
+      const aberta = fila.find((f: any) => f.data && !f.paga && !f.adiantada);
       if (aberta) { aberta.paga = e.data; aberta.licao = e.licao || null; }
       else fila.push({ data: null, paga: e.data, licao: e.licao || null, sobra: true });
     }
   }
-  const antepostas = eventos.filter((e: any) => e.tipo === "aula" && e.extra === "Anteposição")
-    .map((e: any) => ({ data: e.data, licao: e.licao || null }));
-  const encaminhamentos = { fila, antepostas,
-    emAberto: fila.filter((f: any) => f.data && !f.paga).length,
+  const emAberto = fila.filter((f: any) => f.data && !f.paga && !f.adiantada).length;
+  /* O DÉBITO É A FILA, e não mais `faltas − reposições`: a conta por subtração dava crédito à reposição
+     sem falta correspondente e ignorava a anteposição — e a legenda da Ficha (que lia o débito) e o KPI
+     de Encaminhamentos (que lia a fila) podiam dar números diferentes para a mesma pergunta. */
+  const debito = emAberto;
+  const encaminhamentos = { fila, antepostas, emAberto,
     quitadas: fila.filter((f: any) => f.data && f.paga).length,
+    /* faltas que uma anteposição tinha pago antes de acontecerem */
+    cobertas: fila.filter((f: any) => f.data && f.adiantada).length,
     adiantadas: antepostas.length,
     /* reposição lançada sem falta correspondente: não é erro, é reforço ou aula a mais — e contar
        calada seria esconder que a conta não fecha */
@@ -5208,14 +5280,13 @@ const api: Record<string, (a: any) => unknown> = {
        para frente em vez de para trás, e é a mesma disciplina de uma coisa por vez.
        Sem falta à frente, a anteposição fica sem par — e isso não é erro: é aula adiantada que
        ainda não foi usada. */
+    /* O PAR VEM PRONTO DA PROJEÇÃO desde 2026-09-14 (`encaminhamentos.fila[].adiantada`): é a mesma conta
+       que diz quantas faltas estão em aberto. Antes a Ficha pareava por conta própria e a projeção não
+       sabia — a legenda chamava de "em aberto" a falta que a linha dizia "adiantada". */
     const antecipa = new Map<string, string>();       /* dia da anteposição -> falta que ela cobre */
     const antecipadaPor = new Map<string, string>();  /* falta -> dia que a adiantou */
-    const abertas = (p.encaminhamentos?.fila || []).filter((f: any) => f.data && !f.paga)
-      .map((f: any) => f.data).sort();
-    for (const ant of (p.encaminhamentos?.antepostas || [])) {
-      const alvo = abertas.find((d: string) => d > ant.data && !antecipadaPor.has(d));
-      if (alvo) { antecipa.set(ant.data, alvo); antecipadaPor.set(alvo, ant.data); }
-    }
+    for (const f of (p.encaminhamentos?.fila || []))
+      if (f.data && f.adiantada) { antecipa.set(f.adiantada, f.data); antecipadaPor.set(f.data, f.adiantada); }
 
     /* ===== O PROFESSOR =====
        `aula_professor` está preso a `aulas.id`, que é o SLOT SEMANAL (aluno × dia × hora), nunca a
@@ -5301,6 +5372,8 @@ const api: Record<string, (a: any) => unknown> = {
         licao: e.licao || (lParte ? lParte.licao : null), conteudo: l ? l.conteudo : lParte ? lParte.conteudo : null,
         /* a chave com que a tela grava nesta aula, e o que o registro dela diz que ela foi */
         seq: e.seq ?? null, registro: reg ? reg.id : null, diaComRegistro: regs.has(e.data),
+        /* para a numeração: de que lição esta aula é pedaço, e quantas aulas o dia previa */
+        parteDe: e.parteDe ?? null, previstas: e.previstas ?? null,
         tipos: reg && reg.origem === "aula" ? reg.tipos.filter((t: any) => !t.especial).map((t: any) => t.nome) : [],
         semConteudo: !!e.semConteudo,
         /* a falta aponta para o dia que a cobriu — atrás (reposição) ou à frente (anteposição) */
@@ -5345,7 +5418,11 @@ const api: Record<string, (a: any) => unknown> = {
             seq: null, registro: null, diaComRegistro: false, tipos: [], semConteudo: false });
     }
     /* ordem cronológica; empatando a data, quem tem lição vem antes (o feriado nunca empata) */
-    linhas.sort((x: any, y: any) => x.data < y.data ? -1 : x.data > y.data ? 1 : (x.ordem ?? 0) - (y.ordem ?? 0));
+    /* ...e no mesmo dia, pela POSIÇÃO DA AULA (`seq`) antes da lição (2026-09-14). Pela lição sozinha, a
+       linha de tarefa ou de pedaço — que não tem `ordem` — subia para antes das aulas do dia, qualquer
+       que fosse a hora dela. Com o número da aula virando contador, a troca de linhas trocava os números. */
+    linhas.sort((x: any, y: any) => x.data < y.data ? -1 : x.data > y.data ? 1
+      : ((x.seq ?? 0) - (y.seq ?? 0)) || ((x.ordem ?? 0) - (y.ordem ?? 0)));
 
     /* ===== UM LANÇAMENTO, UMA CÉLULA =====
        Entrada, saída e duração são do LANÇAMENTO, e o lançamento é um só por data. Num dia de duas
@@ -5359,31 +5436,54 @@ const api: Record<string, (a: any) => unknown> = {
       if (!l.segueDia) { let j = i + 1; while (j < linhas.length && linhas[j].data === l.data) { l.spanDia++; j++; } }
       l.abreDia = !l.segueDia && l.spanDia > 1;
     }
-    /* ===== AS PARTES DE UMA MESMA AULA: 12ᴬ, 12ᴮ, 12ᶜ =====
-       Regra dele, e é da escola: *"toda presença que o aluno vem aqui é considerado uma aula"*.
-       Quando ele falta a aula 12 e depois VEM sem cumprir a lição que ficou devendo — veio e fez
-       só tarefa atrasada, por exemplo —, esse dia não é a aula 13: ainda é a 12, porque a lição
-       10 continua devendo. Então a aula 12 se parte em pedaços, e cada pedaço leva uma letra em
-       cima do número, até que alguém entregue a lição perdida.
-       *"Você coloca um sobrescrito A, B, C, até repor a lição que ele perdeu."*
-       A falta em si fica com o número limpo: ela é o buraco, não um pedaço da aula. */
+    /* ===== O NÚMERO DA AULA (2026-09-01 e 2026-09-14, dele) =====
+       É um CONTADOR de aulas dadas, e não a posição da lição no livro — os dois coincidem até a primeira
+       lição que leva mais de uma aula. *"Toda presença que o aluno vem aqui é considerado uma aula."*
+       Três regras, as três dele:
+       1. DIAS DIFERENTES, NÚMEROS DIFERENTES, mesmo repetindo a lição: *"começou a lição 25 na segunda e
+          finalizou na quarta, são duas aulas"* — 31 e 32. As duas horas da própria agenda no mesmo dia
+          também são duas aulas, mesmo gastas numa lição só: *"ainda assim continua duas aulas diferentes"*.
+       2. A HORA A MAIS no mesmo dia, continuando a mesma lição, repete o número com letra: *"esse dia não
+          vai ser a aula 31 e 32. Vai ser 31A e 31B"*. Hora a mais é a que passa do que o dia PREVIA
+          (agenda + encontros marcados) — `previstas`, da projeção.
+       3. AULA SEM CONTEÚDO não fecha número: é pedaço da próxima aula com lição — *"dia 26 pode ser
+          considerado aula 12A, e a reposição seria aula 12B"*; *"você coloca um sobrescrito A, B, C, até
+          repor a lição que ele perdeu"*. Enquanto essa aula não vem, o pedaço já mostra a letra do número
+          que vem — antes ele ficava sem número nenhum, que era o sintoma da reclamação de 01/09.
+       LETRA SÓ QUANDO HÁ MAIS DE UM PEDAÇO: a reposição que quita a falta na primeira tentativa não partiu
+       aula nenhuma (foi o 08/05, antes desta guarda). O número corrigido à mão no Registro de aula vence, e
+       o contador segue dali. A falta fica com o número LIMPO de quem a pagou: ela é o buraco, não um pedaço. */
     const LETRAS = "ABCDEFGHIJ";
-    let partes: any[] = [];
+    const letrar = (g: any[]) => { if (g.length > 1) g.forEach((x: any, i: number) => { x.sufixo = LETRAS[i] || null; }); };
+    let n: number | null = null, grupo: any[] = [], pedacos: any[] = [], anterior: any = null;
     for (const l of linhas) {
-      if (l.tipo === "feriado" || l.tipo === "falta") continue;   /* a falta é o buraco, não um pedaço */
-      /* veio e NÃO entregou lição nenhuma (fez só tarefa atrasada, reforço): fica na fila de
-         pedaços, esperando a aula que vai entregar a lição */
-      if (l.tipo === "tarefa") { partes.push(l); continue; }
-      /* esta entrega a lição — e se havia pedaços esperando, todos eles são a MESMA aula que ela */
-      if (partes.length) {
-        partes.push(l);
-        partes.forEach((x: any, i: number) => { x.aula = l.aula; x.sufixo = LETRAS[i] || null; });
+      if (l.tipo === "feriado" || l.tipo === "falta") continue;
+      /* sem conteúdo (tarefa atrasada, reforço): espera a próxima aula com lição */
+      if (l.tipo !== "aula" && l.parteDe == null) { pedacos.push(l); continue; }
+      const licao = l.parteDe ?? l.ordem;
+      const continua = !!anterior && !pedacos.length && anterior.data === l.data && anterior.parteDe != null
+        && licao != null && anterior.parteDe === licao && (l.seq ?? 1) > (l.previstas ?? 1);
+      const manual = l.registro != null ? (regsPorId.get(l.registro)?.aula_n ?? null) : null;
+      if (continua) { grupo.push(l); if (manual != null) n = manual; l.aula = n; }
+      else {
+        letrar(grupo);
+        n = manual != null ? manual : n == null ? (l.aula ?? null) : n + 1;
+        grupo = [...pedacos, l]; pedacos = [];
+        for (const x of grupo) x.aula = n;
       }
-      partes = [];
+      anterior = l;
     }
-    /* LETRA SÓ QUANDO HÁ MAIS DE UM PEDAÇO: uma reposição que quita a falta na primeira tentativa
-       não partiu aula nenhuma, e marcá-la com um "A" solitário anunciaria uma divisão que não
-       houve. Foi o que aconteceu no 08/05 antes desta guarda. */
+    letrar(grupo);
+    if (pedacos.length) {
+      const vem = n == null ? null : n + 1;
+      pedacos.forEach((x: any, i: number) => { x.aula = vem; x.sufixo = LETRAS[i] || null; });
+    }
+    for (const l of linhas) {
+      if (l.tipo !== "falta") continue;
+      const quem = l.reposta ? linhas.find((x: any) => x.data === l.reposta.data
+        && x.extra === (l.reposta.adiantada ? "Anteposição" : "Reposição")) : null;
+      l.aula = quem ? quem.aula : null;
+    }
 
     for (let i = 0; i < linhas.length; i++) {
       const l = linhas[i], prox = linhas[i + 1];
@@ -5575,9 +5675,18 @@ const api: Record<string, (a: any) => unknown> = {
     const rotulo = (r: any) => r.semConteudo ? (r.tipos.find((t: any) => t.conteudo === 0) || {}).nome || "sem conteúdo"
       : (r.licao_ordem != null && porOrdem.has(r.licao_ordem)) ? porOrdem.get(r.licao_ordem).licao : null;
 
+    /* O NÚMERO QUE A FICHA VAI DAR (2026-09-14): é contador de aulas dadas, então a tela precisa da aula
+       com lição ANTERIOR a esta e do número dela — soma um, ou repete na hora a mais do mesmo dia que
+       continua a mesma lição (31ᴬ, 31ᴮ). A regra mora em `getFichaFrequencia`; aqui só se lê o resultado. */
+    const ficha: any[] = ((api.getFichaFrequencia({ idMatricula, livro }) as any)?.ficha) || [];
+    const comLicaoAntes = ficha.filter((l: any) => (l.tipo === "aula" || l.parteDe != null) && l.aula != null
+      && (l.data < data || (l.data === data && (l.seq ?? 0) < s)));
+    const antF = comLicaoAntes.length ? comLicaoAntes[comLicaoAntes.length - 1] : null;
+
     return {
       aluno: { id: aluno.id_matricula, nome: aluno.nome }, livro, livroNome: nomeDoLivro(livro),
       data, hora: hora || null, seq: s, previstas,
+      anterior: antF ? { aula: antF.aula, data: antF.data, seq: antF.seq, ordem: antF.parteDe ?? antF.ordem } : null,
       presenca: pres ? { status: pres.status, entrada: pres.entrada, saida: pres.saida } : null,
       dia: doDia.filter((r: any) => r.origem === "aula").map((r: any) => ({ seq: r.seq, id: r.id, rotulo: rotulo(r) })),
       registro: reg ? { id: reg.id, definido: definiu, licaoOrdem: ordemDoRegistro, aulaN: reg.aula_n,

@@ -274,10 +274,16 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
    Agora são duas abas: "Aluno" (cadastro + os três registros) e "Matrículas" (os blocos por
    livro). O cadastro virou uma FILEIRA horizontal, que é a forma natural de um formulário curto
    ocupando a largura da página, e os históricos ganharam a largura toda. */
-/* a busca mora acima das abas, sozinha: é o gesto que vem antes de escolher aba nenhuma.
-   ~18px de respiro até o trilho das abas — perto o bastante para se ler como a mesma tela, longe
-   o bastante para não parecer parte da aba selecionada. */
-.al-busca-topo{margin:0 0 18px;max-width:360px}
+/* ===== A BUSCA NO CABEÇALHO, NO MEIO DA TELA (2026-09-14, dele) =====
+   Antes ela tinha fileira própria entre o fio e a faixa do aluno; ele a pediu "lá em cima, no meio", e
+   a faixa do aluno subiu para o lugar que ela deixou.
+   GRADE DE TRÊS COLUNAS, e não flex: com o título à esquerda ocupando largura própria, `margin:auto`
+   centraria a busca no espaço que SOBRA — ela ficaria deslocada para a direita do meio da tela. Com
+   duas colunas iguais dos lados, o meio é o meio. O cabeçalho cresce até a altura da busca, e a base
+   dela assenta perto do fio, na mesma linha do título. */
+#tab-alunos .pg-cab{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:end}
+#tab-alunos .pg-cab h2{justify-self:start}
+.al-busca-topo{margin:0 0 9px;width:420px}
 .al-busca-topo label{margin:0 0 3px}
 .al-busca-topo input{padding:9px 11px}
 
@@ -308,9 +314,13 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
    É o que separa "o aluno" de "os contratos dele" sem gastar um cabeçalho inteiro. */
 .al-sec{position:relative;margin:18px 0 10px;text-align:left}
 .al-sec::before{content:"";position:absolute;left:0;right:0;top:50%;height:1px;background:var(--borda)}
-.al-sec span{position:relative;display:inline-block;background:var(--fundo,#F4F7FA);
-  border:1px solid var(--borda);border-radius:999px;padding:3px 12px;font-size:11px;font-weight:700;
-  letter-spacing:.06em;text-transform:uppercase;color:var(--tx2)}
+/* RETÂNGULO DE CANTOS REDONDOS, E MAIOR (2026-09-14, dele): *"em vez de ser um formato de pílula, eu
+   quero que ele fique um retângulo com as pontas redondas... maior ainda. Porque se eu abrir esse
+   programa no laptop fica difícil ver"*. Era uma pílula de 11px; virou etiqueta de 14px no marinho da
+   casa, com fundo branco para se ler por cima do fio. */
+.al-sec span{position:relative;display:inline-block;background:#fff;
+  border:1px solid var(--azul-borda);border-radius:8px;padding:7px 18px;font-size:14px;font-weight:700;
+  letter-spacing:.06em;text-transform:uppercase;color:var(--marca);line-height:1.2}
 .al-campo{display:flex;flex-direction:column;min-width:0}
 .al-campo label{margin:0 0 3px}
 .al-campo-nome{flex:1 1 240px;min-width:180px}
@@ -4221,9 +4231,12 @@ body.tem-ensaio{padding-top:29px}
    Três padrões, e cada um diz uma coisa diferente. Os ângulos são opostos de propósito: a
    listra de "mesma semana" desce, a de falta sobe — nunca se confundem de relance.
    4px de período nas duas: mais fino vira textura suja, mais grosso vira zebra. */
+/* A COR É A DA FICHA DELE (hori-web, `lightHatchedBg`): azul a 10%, e não o marinho a 7,5% que eu tinha
+   posto — de perto os dois parecem iguais, mas o marinho sobre branco dá um cinza neutro e o dele dá o
+   azulado que ele aprovou (2026-09-14). */
 .ff-vazio{background-image:linear-gradient(-45deg,
-   rgba(7,29,73,.075) 25%,transparent 25%,transparent 50%,
-   rgba(7,29,73,.075) 50%,rgba(7,29,73,.075) 75%,transparent 75%,transparent);
+   rgba(56,103,214,.1) 25%,transparent 25%,transparent 50%,
+   rgba(56,103,214,.1) 50%,rgba(56,103,214,.1) 75%,transparent 75%,transparent);
   background-size:4px 4px}
 /* E O FIO SOME DENTRO DO BLOCO LISTRADO: a divisória entre duas células vazias desenharia uma
    grade que não existe. Some a de dentro; a que fecha o bloco contra a coluna seguinte fica. */
@@ -4288,6 +4301,14 @@ body.tem-ensaio{padding-top:29px}
    sombra tem de sair, senão as duas se somam e o fio fica com o dobro da espessura das outras
    semanas. Foi o que ele viu no 21/04: a mesma linha, duas vezes mais grossa. */
 .ff-tab tr.ff-feriado td.ff-fer.ff-semana-ini{border-top-color:var(--ff-semana);box-shadow:none}
+/* ...MAS NA VIRADA DE MÊS QUEM VENCE É A RÉGUA DO MÊS (2026-09-14). A regra de cima tirava a sombra da
+   faixa inteira, e com ela a régua marinho: todo mês que abria num feriado — todo janeiro, por causa das
+   férias — ficava só com o fio azul da semana, a hierarquia ao contrário da dele. E a borda cinza da
+   faixa empurrava a régua 1px para baixo nas outras células. Aqui a borda de cima sai (a régua ocupa o
+   lugar dela) e a sombra volta na mesma ordem das linhas de aula: mês por cima, semana logo abaixo. */
+.ff-tab tr.ff-vira-mes.ff-feriado td.ff-fer{border-top-width:0;box-shadow:inset 0 3px 0 0 var(--ff-mes-regua)}
+.ff-tab tr.ff-vira-mes.ff-feriado td.ff-fer.ff-semana-ini{border-top-width:0;
+  box-shadow:inset 0 3px 0 0 var(--ff-mes-regua),inset 0 4px 0 0 var(--ff-semana)}
 .ff-tab tr.ff-feriado td.ff-fer-fim{border-right:1px solid var(--ff-fer)}
 .ff-tab tr.ff-feriado td.ff-fer-nome{font-size:10.5px;font-weight:700;color:var(--tx2);
   text-transform:uppercase;letter-spacing:.6px}
@@ -4335,8 +4356,12 @@ body.tem-ensaio{padding-top:29px}
    "MB" em 10px/700 gritava mais alto que a nota ao lado. */
 .ff-tab td.c-av,.ff-tab td.c-av2,.ff-tab td.c-ck{padding:2px}
 .ff-av,.ff-av2,.ff-eng,.ff-ck-cx{display:flex;align-items:center;justify-content:center;
-  height:26px;border-radius:4px;font-size:9.5px;font-weight:600;letter-spacing:.2px;
+  height:26px;border-radius:4px;font-size:9.5px;font-weight:400;letter-spacing:.2px;
   color:var(--tx3)}
+/* E o <b> de dentro da E/TRF herda o peso, em vez de voltar ao negrito do navegador: era por ele que a
+   dupla saía mais grossa que as outras sete colunas (achado em 2026-09-14 — o comentário acima já dizia
+   "sem negrito" e o CSS estava em 600) */
+.ff-av2 b{font-weight:inherit}
 .ff-av.v-R{background:var(--ff-R);color:var(--ff-R-tx)}
 .ff-av.v-B{background:var(--ff-B);color:var(--ff-B-tx)}
 .ff-av.v-MB{background:var(--ff-MB);color:var(--ff-MB-tx)}
@@ -4361,7 +4386,7 @@ body.tem-ensaio{padding-top:29px}
 .ff-eng.a0{background:var(--ff-e1);color:var(--ff-e1-tx)}
 /* situação da tarefa e as duas checagens: mesma caixa das notas, para a linha não ondular */
 .ff-st{display:flex;align-items:center;justify-content:center;width:17px;height:17px;
-  border-radius:50%;font-size:9.5px;font-weight:600;border:1px solid transparent}
+  border-radius:50%;font-size:9.5px;font-weight:400;border:1px solid transparent}
 .ff-st.em-dia{background:var(--azul-cl);border-color:var(--azul-borda);color:var(--azul-esc)}
 .ff-st.atrasado{background:#FBE3E4;border-color:#EFB9BC;color:var(--perigo)}
 /* a situação que a REGRA decidiu e ninguém marcou: a mesma letra, com a borda tracejada */
@@ -4442,8 +4467,9 @@ body.tem-ensaio{padding-top:29px}
   outline:2px solid var(--azul);outline-offset:-1px}
 /* ===== AS PÍLULAS DE AVALIAÇÃO NO PLANEJAMENTO =====
    Elas moram na tabela vizinha (`.plan-tab`), não nesta — mas nascem do mesmo dado e da mesma
-   escala, então o CSS fica aqui, ao lado de quem as produz. Fonte pequena e sem negrito no valor:
-   o que se lê primeiro é a letra da habilidade, e o conceito vem logo atrás. */
+   escala, então o CSS fica aqui, ao lado de quem as produz. A sigla vem MENOR e o conceito maior,
+   os dois em negrito — ordem dele de 01/09: quem varre a coluna quer ler a nota, e a letra da
+   habilidade é só o endereço dela. */
 /* SEM `overflow:hidden` aqui, e a razão é de princípio: apertadas, as oito pílulas cabem numa
    linha só (268px dos 279 disponíveis), mas a folga é de onze pixels — num monitor menor a série
    estouraria, e esconder o fim dela seria perder avaliação sem avisar. Deixando quebrar, a linha
@@ -4471,6 +4497,9 @@ body.tem-ensaio{padding-top:29px}
 /* situação da tarefa: as mesmas duas cores dos círculos E e A da Ficha */
 .plan-pav.st-dia{background:var(--azul-cl);color:var(--azul-esc)}
 .plan-pav.st-atraso{background:#FBE3E4;color:var(--perigo)}
+/* a situação que a REGRA decidiu e ninguém marcou: tracejada e sem fundo, igual ao círculo `.ff-st.auto`
+   da Ficha — *"tem que ser padrão"* (2026-09-14: antes as duas saíam iguais aqui) */
+.plan-pav.auto{background:transparent;outline:1px dashed currentColor;outline-offset:-1px}
 /* e o MESMO símbolo da Ficha para CS e APP: bolinha quando foi feito, triângulo âmbar quando
    pede atenção. Antes eu tinha posto um "✓" aqui, que não existe na outra tela — ele viu. */
 .plan-pav .pt{display:inline-block;width:6px;height:6px;border-radius:50%;vertical-align:middle;
@@ -4758,12 +4787,15 @@ button.acao.sec.cg-ir{margin:0;padding:4px 10px;font-size:12px;white-space:nowra
      A fileira do cadastro vive AQUI e não dentro do painel justamente para poder grudar junto: o
      que gruda tem de ser um bloco só, senão cada pedaço para num lugar diferente. -->
 <div class="al-topo">
-<div class="pg-cab"><h2>Gerenciar alunos</h2></div>
-<!-- A busca vem antes de tudo: é por onde se ENTRA na tela. Primeiro se acha (ou cadastra) o
-     aluno; só então faz sentido escolher entre o cadastro dele e o histórico. -->
+<!-- ===== A BUSCA MORA NO CABEÇALHO, NO MEIO DA TELA (2026-09-14, dele) =====
+     *"O campo de buscar ou cadastrar o aluno, eu quero que ele fique lá em cima, no topo, no meio da
+     tela."* Continua sendo o gesto por onde se ENTRA na tela — só deixou de gastar uma fileira própria,
+     e a fileira do aluno subiu para o lugar dela. É a exceção à regra de o cabeçalho levar só o nome. -->
+<div class="pg-cab"><h2>Gerenciar alunos</h2>
 <div class="al-busca-topo">
 <label for="al-busca">Buscar / cadastrar aluno</label>
 <div class="sug"><input id="al-busca" placeholder="Digite nome ou ID..." autocomplete="off"><div class="lista" id="al-sug"></div></div>
+</div>
 </div>
 <!-- QUEM ESTÁ SENDO EDITADO, logo abaixo da busca e em corpo grande. Estava num canto do
      cabeçalho, discreto demais — trocar de aba escondia o nome e não se sabia mais de quem era a
@@ -6329,16 +6361,19 @@ function planAvaliacoes(av){
      E/TRF da Ficha, encolhida */
   if(c[0]==='#dupla'){
    if(av.escrita||av.tarefa)
+    /* com a BARRA entre as duas, como ele ditou: E, dois-pontos, a nota, a barra, TRF, dois-pontos, a nota */
     h+='<span class="plan-pav dupla" style="background-image:'+ffGrad(av.escrita||'',av.tarefa||'')+'">'
-     +'<b>E:</b> '+escBloco(av.escrita||'–')+' <b>TRF:</b> '+escBloco(av.tarefa||'–')+'</span>';
+     +'<b>E:</b> '+escBloco(av.escrita||'–')+' / <b>TRF:</b> '+escBloco(av.tarefa||'–')+'</span>';
    return;
   }
   var v=av[c[0]]; if(v===null||v===undefined||v==='')return;
   /* SITUAÇÃO DA TAREFA e as duas checagens usam a MESMA marca da Ficha: E/A nos círculos, e
      bolinha para "feito" — verde no CS, azul no APP —, triângulo âmbar para "atenção". */
   if(c[0]==='situacao_tarefa'){
-   h+='<span class="plan-pav '+(v==='Em dia'?'st-dia':'st-atraso')+'" title="tarefa '
-    +(v==='Em dia'?'em dia':'atrasada')+'"><b>S.T:</b> '+(v==='Em dia'?'E':'A')+'</span>';
+   /* decidida pela REGRA, sem marca do professor: tracejada, como o círculo da Ficha */
+   var auto=!av.situacaoFixa&&!!av.situacaoRegra;
+   h+='<span class="plan-pav '+(v==='Em dia'?'st-dia':'st-atraso')+(auto?' auto':'')+'" title="tarefa '
+    +(v==='Em dia'?'em dia':'atrasada')+(auto?' — pela regra':'')+'"><b>S.T:</b> '+(v==='Em dia'?'E':'A')+'</span>';
    return;
   }
   if(c[0]==='checking_sentences'){
@@ -6443,10 +6478,11 @@ var h='<div class="ff-moldura"><table class="ff-tab">'
     80px para caber o rótulo deitado; com o rótulo em duas alturas, 58 bastam para "12:58" — e a
     duração, que estava apertada em 46, ganha a mesma folga. */
  +'<col style="width:58px"><col style="width:58px">'
- /* A LIÇÃO VIROU LARGURA FIXA, e isto é consequência de ela ter virado só uma pílula: continuar
-    dividindo a sobra com Observações seria dar espaço a quem não tem o que fazer com ele. Toda a
-    folga liberada aqui vai para a anotação, que é a única coluna de texto corrido que restou. */
- +'<col style="width:110px"><col>'
+ /* LIÇÃO E OBSERVAÇÕES VOLTARAM A DIVIDIR A SOBRA (2026-09-14). Eu tinha cravado a Lição em 110px por
+    conta própria quando ela virou só uma pílula, e a ordem dele era outra: *"pode crescer conforme a
+    tela, mas nunca abaixo do tamanho do original"* (150px). Sem largura, as duas crescem juntas; o piso
+    vem do `min-width:1160px` da tabela, que tira 822px das colunas fixas e deixa 169px para cada uma. */
+ +'<col><col>'
  +'<col style="width:32px"><col style="width:32px"><col style="width:32px"><col style="width:56px">'
  +'<col style="width:32px"><col style="width:32px"><col style="width:32px"><col style="width:32px">'
  +'<col style="width:124px"><col style="width:58px">'
@@ -6536,6 +6572,11 @@ f.forEach(function(l,i){
  var cDs='c-ds'+(diaVazio?' ff-vazio'+(l.ultimoDoDia?' ff-fecha-b':''):'')
    +(l.abreDia&&grupo?' ff-dia-marca':'');
  var cDm='c-dm'+(diaVazio?' ff-vazio ff-fecha-d'+(l.ultimoDoDia?' ff-fecha-b':''):'');
+ /* A AULA EXTRA DO DIA, esteja em que linha estiver (2026-09-14). A pílula mora na D/M, que só a 1ª linha
+    do dia desenha; quando a reposição era a 2ª aula, nenhuma linha ganhava pílula, tooltip nem o clique
+    que leva à falta. A reposição passou a vir primeiro, mas o registro de aula ainda pode pô-la na 2ª. */
+ var ehPar=function(x){return x.extra==='Reposição'||x.extra==='Anteposição'};   /* Reforço/Preparação/Outro não têm pílula */
+ var ex=ehPar(l)?l:(!diaVazio&&l.spanDia>1?(f.slice(i+1,i+l.spanDia).filter(ehPar)[0]||null):null);
  h+='<tr class="'+trc+'" data-data="'+escBloco(l.data)+'">'+colMes+colNs
   +'<td class="'+cDs+hx+sem+dgData+'">'+(diaVazio?'':escBloco(l.ds))+'</td>'
   /* ===== A PÍLULA DA DATA =====
@@ -6544,13 +6585,13 @@ f.forEach(function(l,i){
      marcas para o mesmo fato é ruído. Na reposição ela diz de que falta veio: a fila FIFO já
      resolveu isso no servidor. */
   +'<td class="'+cDm+hx+sem+dgData+'">'+(diaVazio?'':
-     (l.extra
-      ?'<span class="ff-dpil '+(l.extra==='Reposição'?'ff-repo':'ff-ante')+'"'
-        +(l.cobre?' onclick="ffIr(&quot;'+escBloco(l.cobre)+'&quot;)"':'')
+     (ex
+      ?'<span class="ff-dpil '+(ex.extra==='Reposição'?'ff-repo':'ff-ante')+'"'
+        +(ex.cobre?' onclick="ffIr(&quot;'+escBloco(ex.cobre)+'&quot;)"':'')
         +' title="'+escBloco(
-          l.extra==='Reposição'
-            ?('Reposição'+(l.cobre?' da falta de '+ffData(l.cobre)+' — clique para ir até ela':''))
-            :('Anteposição'+(l.cobre?': adianta a falta de '+ffData(l.cobre)+' — clique para ir até ela'
+          ex.extra==='Reposição'
+            ?('Reposição'+(ex.cobre?' da falta de '+ffData(ex.cobre)+' — clique para ir até ela':''))
+            :('Anteposição'+(ex.cobre?': adianta a falta de '+ffData(ex.cobre)+' — clique para ir até ela'
                                     :': aula feita antes da falta, e por isso nunca fica em débito')))
         +'">'+escBloco(l.dm)+'</span>'
       :escBloco(l.dm)))+'</td>'
@@ -6565,7 +6606,7 @@ f.forEach(function(l,i){
       falta / adiantou uma), depois o fato de o aluno ter vindo. E a falta é um X, não um ponto. */
    +(falta?'<span class="ff-x" title="Faltou'+(l.auto?' (lançada pelo fecho do dia)':'')
        +(l.reposta?(l.reposta.adiantada?' — adiantada em ':' — reposta em ')+ffData(l.reposta.data):'')+'">×</span>'
-     :(l.extra?'<span class="ff-pt '+(l.extra==='Reposição'?'ff-pt-r':'ff-pt-a')+'" title="'+escBloco(l.extra)+'"></span>':'')
+     :(ehPar(l)?'<span class="ff-pt '+(l.extra==='Reposição'?'ff-pt-r':'ff-pt-a')+'" title="'+escBloco(l.extra)+'"></span>':'')
       +'<span class="ff-pt ff-pt-p" title="Veio"></span>')
    +'</td>'
   /* ===== UM LANÇAMENTO, UMA CÉLULA ===== entrada, saída e duração são do DIA, não da lição:
@@ -7008,13 +7049,17 @@ if(!e.fila.length)h+='<div class="al-hist-vazio">Nenhuma falta registrada neste 
 else{
  h+='<ol class="enc-fila">';
  e.fila.forEach(function(f,i){
-  h+='<li class="'+(f.sobra?'sobra':(f.paga?'paga':'aberta'))+'">'
+  /* a falta que uma anteposição já tinha pago não está em aberto (2026-09-14): antes ela aparecia aqui
+     como "em aberto" enquanto a Ficha, na mesma linha, dizia "adiantada" */
+  h+='<li class="'+(f.sobra?'sobra':((f.paga||f.adiantada)?'paga':'aberta'))+'">'
    +'<span class="enc-n">'+(f.sobra?'+':(i+1))+'</span>'
    +'<span class="enc-d">'+(f.data?dataCurta(f.data):'—')+'</span>'
    +(f.sobra
      ?'<span class="enc-st">reposição sem falta correspondente — reforço ou aula a mais, em '+dataCurta(f.paga)+'</span>'
      :(f.paga
        ?'<span class="enc-st ok">reposta em '+dataCurta(f.paga)+(f.licao?' · '+escBloco(f.licao):'')+'</span>'
+       :f.adiantada
+       ?'<span class="enc-st ok">coberta pela anteposição de '+dataCurta(f.adiantada)+(f.licao?' · '+escBloco(f.licao):'')+'</span>'
        :'<span class="enc-st ab">em aberto</span>'))
    +'</li>'});
  h+='</ol>';
@@ -7027,7 +7072,8 @@ else{
  h+='<ul class="enc-fila ante">';
  e.antepostas.forEach(function(a){
   h+='<li class="paga"><span class="enc-n">↑</span><span class="enc-d">'+dataCurta(a.data)+'</span>'
-   +'<span class="enc-st ok">adiantada'+(a.licao?' · '+escBloco(a.licao):'')+'</span></li>'});
+   +'<span class="enc-st ok">adiantada'+(a.licao?' · '+escBloco(a.licao):'')
+   +(a.cobre?' · cobriu a falta de '+dataCurta(a.cobre):' · ainda sem falta para cobrir')+'</span></li>'});
  h+='</ul>';
 }
 h+='</div></div>';
@@ -7285,7 +7331,7 @@ h+='<div class="pr-tiles">'
     escBloco(pos.conteudo||'')+(pos.bloco!=null?' · bloco '+pos.bloco:''),
     feitas!=null?feitas/r.licoes*100:null)
  +progTile('Faltam',(r.faltamLicoes!=null?r.faltamLicoes:'?')+'<small>lições</small>',
-    feitas!=null?feitas+' de '+r.licoes+' feitas':'posição a confirmar',
+    feitas!=null?feitas+' feitas de '+r.licoes:'posição a confirmar',
     r.faltamLicoes!=null?(1-r.faltamLicoes/r.licoes)*100:null)
  +progTile('Blocos',(r.faltamBlocos!=null?r.faltamBlocos:'?')+'<small>/'+r.totalBlocos+'</small>',
     r.faltamBlocos!=null?'até o fim do livro':'',
@@ -7393,8 +7439,12 @@ r.linhas.forEach(function(l){
      :'<span class="plan-ro">?</span>')+'</td>'
   +'<td class="c-hr">'+(l.ultimaDada?dataCurta(l.ultimaDada):'<span class="plan-ro">—</span>')+'</td>'
   +'<td class="c-def">'+(l.defasagem==null?'<span class="plan-ro">—</span>'
-     :'<span class="prog-def '+(l.defasagem>0?'atras':(l.defasagem<0?'frente':''))+'">'
-      +(l.defasagem>0?'+':'')+l.defasagem+' d</span>')+'</td>'
+     /* O SINAL É O DO PAINEL DO ALUNO (2026-09-14): + adiantado, − atrasado. O servidor manda os dias
+        entre a data planejada e a realizada, positivo quando atrasou — por isso aqui se inverte. Antes a
+        coluna dizia "+5 d" para quem estava 5 dias atrasado, o contrário do azulejo Defasagem. */
+     :'<span class="prog-def '+(l.defasagem>0?'atras':(l.defasagem<0?'frente':''))+'" title="'
+      +(l.defasagem>0?'atrasado '+l.defasagem+' dia(s)':l.defasagem<0?'adiantado '+Math.abs(l.defasagem)+' dia(s)':'no dia planejado')+'">'
+      +(l.defasagem>0?'-':(l.defasagem<0?'+':''))+Math.abs(l.defasagem)+' d</span>')+'</td>'
   +'<td class="c-dr">'+(l.termino?dataCurta(l.termino):'<span class="plan-ro">—</span>')+'</td></tr>'});
 h+='</tbody></table></div>';
 if(r.incertos)h+='<div class="al-hist-vazio">'+r.incertos+' contrato(s) estão com a posição a confirmar: '
@@ -12376,9 +12426,16 @@ return ['dom','seg','ter','qua','qui','sex','sáb'][d.getDay()]+' '+iso.slice(8,
 function regSemConteudo(){
 var d=REG_EST.dados,s=REG_EST.sel;
 return d.tipos.some(function(t){return !t.conteudo&&s.tipos.indexOf(t.id)>=0})}
+/* O NÚMERO QUE A FICHA VAI DAR (2026-09-14, dele): o da aula com lição anterior MAIS UM — ou o MESMO, quando
+   esta é a hora a mais do mesmo dia continuando a mesma lição (*"vai ser 31A e 31B"*). Dias diferentes são
+   sempre números diferentes, mesmo repetindo a lição. Sem aula anterior, a posição da lição no livro.
+   Aula sem conteúdo não tem número próprio: ela é pedaço da próxima. */
 function regAulaSugerida(){
 var d=REG_EST.dados,s=REG_EST.sel;
 if(!d||!s||regSemConteudo())return '';
+var a=d.anterior;
+if(a&&a.aula!=null)
+ return String(a.data===d.data&&a.ordem===s.licaoOrdem&&d.seq>d.previstas?a.aula:a.aula+1);
 var l=d.licoes.filter(function(x){return x.ordem===s.licaoOrdem})[0];
 return l&&l.aula!=null?String(l.aula):''}
 

@@ -357,7 +357,9 @@ function avaliacaoDoRegistro(r: any, regra: string | null | undefined): any {
    A reposição só passa à frente quando as DUAS aconteceram: com menos aulas do que o dia previa, quem
    ficou foi a hora dele, e chamar essa hora de reposição apagaria a aula normal que de fato houve.
    Devolve o rótulo de cada posição do dia: 'Reposição' | 'Anteposição' | null (aula normal). Além do
-   previsto (`aulas_feitas` digitado maior), repete o rótulo do primeiro avulso, como sempre fez. */
+   previsto (`aulas_feitas` digitado maior) é AULA NORMAL: hora a mais não é encontro marcado. Até
+   14/09 ela herdava o motivo do 1º avulso, e com a anteposição passando a cobrir falta essa fantasma
+   escondia falta real (e a reposição fantasma quitava uma a mais). */
 function rotulosDoDia(regulares: number, extras: any[], quantas: number): (string | null)[] {
   const motivo = (e: any) => (e && e.motivo) || "Reposição";
   const repos = extras.filter((e: any) => motivo(e) === "Reposição");
@@ -365,8 +367,7 @@ function rotulosDoDia(regulares: number, extras: any[], quantas: number): (strin
   const ordem: (string | null)[] = reposPrimeiro
     ? [...repos.map(motivo), ...Array(regulares).fill(null), ...extras.filter((e: any) => motivo(e) !== "Reposição").map(motivo)]
     : [...Array(Math.max(0, regulares)).fill(null), ...extras.map(motivo)];
-  const alem = extras.length ? motivo(extras[0]) : null;
-  return Array.from({ length: Math.max(0, quantas) }, (_, k) => k < ordem.length ? ordem[k] : alem);
+  return Array.from({ length: Math.max(0, quantas) }, (_, k) => k < ordem.length ? ordem[k] : null);
 }
 /* diário: trilha de auditoria append-only. Cada lançamento vira uma linha com id próprio, para
    responder "quem marcou o quê e quando" mesmo depois de o registro atual ser alterado. */
@@ -1763,6 +1764,27 @@ const CHECAGENS: Checagem[] = [
            + (l.termino ? ", término previsto " + l.termino.slice(8, 10) + "/" + l.termino.slice(5, 7) + "/" + l.termino.slice(0, 4) : "")
            + (l.afirmada ? "" : " (posição deduzida — nenhuma lição foi registrada)"),
         a: l.id })); } },
+  /* ===== LANÇAMENTO EM DIA SEM AULA (2026-09-19, dele) =====
+     *"Essas faltas lançadas em dia fechado não contam, não pode acontecer."* As travas impedem daqui para
+     frente; esta lista é o que JÁ estava lá — ou o que ficou quando alguém fechou um dia depois de lançar.
+     Falta e não-aula nesse dia já não contam em lugar nenhum; a presença conta até alguém decidir. */
+  { id: "lancamento_em_dia_sem_aula", destino: "aluno", area: "Alunos", gravidade: "media", aba: "alunos",
+    titulo: "Lançamento em dia sem aula no calendário",
+    porque: "O calendário letivo fechou esse dia (feriado, férias, recesso) e há presença, falta ou não-aula lançada nele. Falta e não-aula ali já não contam na fila nem no atraso; a presença continua contando até alguém decidir quem está errado — o calendário ou o lançamento.",
+    acao: "Se houve aula nesse dia, reabra-o no Calendário. Se não houve, apague o lançamento na aba Frequência do contrato.",
+    itens: () => {
+      const faixa = G("SELECT MIN(data) de, MAX(data) ate FROM presenca");
+      if (!faixa?.de) return [];
+      const fech = feriadosNomeados(faixa.de, faixa.ate);
+      if (!fech.size) return [];
+      const ROT: Record<string, string> = { P: "presença", F: "falta", N: "não aula" };
+      return A(`SELECT p.id_matricula, p.livro, p.data, p.status, a.nome FROM presenca p
+                JOIN alunos a ON a.id_matricula=p.id_matricula ORDER BY p.data, a.nome`)
+        .filter((x: any) => fech.has(x.data))
+        .map((x: any) => ({ k: x.id_matricula + "|" + x.livro + "|" + x.data, r: x.nome,
+          d: nomeDoLivro(x.livro) + " · " + x.data.slice(8, 10) + "/" + x.data.slice(5, 7) + "/" + x.data.slice(0, 4)
+             + " · " + (ROT[x.status] || x.status) + " em " + fech.get(x.data)!.nome, a: x.id_matricula }));
+    } },
   { id: "entrega_sem_data", destino: "entrega", area: "Alunos", gravidade: "baixa", aba: "estoque",
     titulo: "Entrega registrada sem data",
     porque: "Sabe-se que o aluno recebeu, não quando. É o caso das entregas deduzidas das matrículas antigas.",
@@ -3654,6 +3676,8 @@ function gravarPresenca({ idMatricula, livro, data, status }: any) {
   if (!status) { R("DELETE FROM presenca WHERE id_matricula=? AND livro=? AND data=?", idMatricula, livro, data);
     anotar(idMatricula, livro, data, "limpeza", null, "status removido"); return { ok: true, status: null }; }
   if (!["P", "F", "N"].includes(status)) throw new Error("Status inválido: use P (presente), F (falta) ou N (não aula).");
+  /* apagar continua livre (acima): é assim que se limpa o que ficou num dia depois fechado */
+  recusarDiaSemAula(data);
   /* colunas explícitas: a tabela ganhou entrada/saida e o VALUES posicional passou a quebrar
      ("table presenca has 6 columns but 4 values were supplied") — marcar falta/não aula parou
      de funcionar em silêncio. Falta e não-aula também zeram o ponto: quem não veio não tem
@@ -3734,10 +3758,15 @@ function aplicarFaltasAutomaticas() {
   let d = new Date(marca + "T12:00:00"); d.setDate(d.getDate() + 1);
   const ontem = new Date(); ontem.setDate(ontem.getDate() - 1);
   let total = 0;
+  /* QUINTA TRAVA, a mais óbvia e a que faltava (2026-09-19): dia fechado no calendário letivo. A terceira
+     ("o dia teve algum lançamento") deixava passar o feriado em que alguém lançou uma coisa só — e aí o
+     fecho dava falta em todo mundo que tinha aula num dia em que a escola não abriu. */
+  const semAula = diasFechados(marca, dataISO(ontem));
   for (; dataISO(d) <= dataISO(ontem); d.setDate(d.getDate() + 1)) {
     const dia = dataISO(d);
     if (d < limite) continue;                                     // fora da janela: pula sem lançar
     if (NOMES_DIA[d.getDay()] === "Domingo") continue;
+    if (semAula.has(dia)) continue;                               // dia sem aula no calendário
     if (!G("SELECT 1 FROM presenca WHERE data=? LIMIT 1", dia)) continue;   // dia sem movimento nenhum
     const nomeDia = NOMES_DIA[d.getDay()];
     const faltantes = A(`SELECT DISTINCT a.id_matricula, a.livro FROM aulas a
@@ -4011,6 +4040,19 @@ function diasFechados(de: string, ate: string): Set<string> {
       for (const d of datasDaMarcacao(m, y)) if (d >= de && d <= ate) fora.add(d);
   return fora;
 }
+/* ===== DIA SEM AULA NO CALENDÁRIO NÃO TEM NADA DE AULA (2026-09-19, dele) =====
+   *"Qualquer data lá no calendário letivo que não considera aula não pode ter nenhum tipo de coisa de aula,
+   nem falta, nem presença, nem nada."* O calendário é a fonte: `fecha=1` fecha o dia para a escola inteira,
+   e as travas daqui para frente perguntam a ele. É DINÂMICO: reabrir o dia no calendário devolve tudo. */
+function diaSemAula(data: string): { nome: string; tipo: string } | null {
+  if (!data || !/^\d{4}-\d{2}-\d{2}$/.test(String(data))) return null;
+  return feriadosNomeados(data, data).get(data) || null;
+}
+function recusarDiaSemAula(data: string) {
+  const f = diaSemAula(data);
+  if (f) throw new Error(`${data.slice(8, 10)}/${data.slice(5, 7)} não tem aula no calendário letivo (${f.nome}): `
+    + "ali não entra presença, falta nem não-aula. Se houve aula nesse dia, reabra-o no Calendário.");
+}
 /* ===== A AGENDA MUDA COM O TEMPO, E O CURRÍCULO TEM DE SABER DISSO (2026-08-24, dele) =====
    *"E se o aluno trocar de horário? Esse cálculo tem que ser feito de novo, mas não a tabela
    inteira — só a partir de quando ele trocou."* Projetar tudo com a agenda de HOJE reescreveria o
@@ -4261,6 +4303,11 @@ function projetarContrato({ idMatricula, livro, inicio, fechadosPre }: any) {
   const registros = registrosDoContrato(idMatricula, c.livro);
   for (const p of A(`SELECT data, status, entrada, saida, minutos, observacao, aulas_feitas, licao_ordem
                      FROM presenca WHERE id_matricula=? AND livro=? ORDER BY data`, idMatricula, c.livro)) {
+    /* DIA SEM AULA NO CALENDÁRIO (2026-09-19, dele): falta e não-aula ali não existem — *"não pode ter
+       nenhum tipo de coisa de aula"*. Somem da fila de reposição, do débito e do atraso, e voltam sozinhas
+       se o dia for reaberto no calendário. A PRESENÇA fica: aula que aconteceu é fato, e o conflito
+       (calendário ou lançamento errado?) vai para a Central decidir — `lancamento_em_dia_sem_aula`. */
+    if (p.status !== "P" && fechados.has(p.data)) continue;
     if (p.status !== "P") {
       if (p.status === "F") faltas++; else naoAula++;
       eventos.push({ data: p.data, tipo: p.status === "F" ? "falta" : "naoaula", ordem: null, licao: null });
@@ -4291,8 +4338,11 @@ function projetarContrato({ idMatricula, livro, inicio, fechadosPre }: any) {
       for (const r of regsDia) if (r.origem === "aula") definidos.set(r.seq, r.especial || null);
       const sobra = [...extras];
       let normaisDefinidas = 0;
-      for (const esp of definidos.values()) {
-        if (!esp) { normaisDefinidas++; continue; }
+      for (const [s, esp] of definidos) {
+        /* a aula normal registrada ALÉM do previsto é hora a mais: não gastou hora nenhuma da agenda.
+           Contá-la aqui tirava a hora regular do dia e a entregava ao avulso — era a reposição fantasma
+           que quitava duas faltas com um avulso só (revisão de 14/09). */
+        if (!esp) { if (s <= deduzidas) normaisDefinidas++; continue; }
         const i = sobra.findIndex((e: any) => ((e && e.motivo) || "Reposição") === esp);
         if (i >= 0) sobra.splice(i, 1);
       }
@@ -4628,19 +4678,20 @@ function projetarContrato({ idMatricula, livro, inicio, fechadosPre }: any) {
   for (const e of eventos) {
     if (e.tipo === "falta") {
       const ant = semPar.shift();
-      if (ant) { ant.cobre = e.data; fila.push({ data: e.data, paga: null, licao: ant.licao, adiantada: ant.data }); }
+      if (ant) { ant.cobre = e.data; fila.push({ data: e.data, paga: null, licao: ant.licao, adiantada: ant.data, adiantadaSeq: ant.seq }); }
       else fila.push({ data: e.data, paga: null, licao: null });
       continue;
     }
     /* aula com lição OU aula que virou pedaço/tarefa: as duas aconteceram, e a reposição marcada nelas paga */
     if (e.tipo !== "aula" && e.tipo !== "tarefa") continue;
     if (e.extra === "Anteposição") {
-      const a = { data: e.data, licao: e.licao || null, cobre: null };
+      /* `seq` junto da data: QUAL aula do dia pagou — duas no mesmo dia pagam faltas diferentes */
+      const a = { data: e.data, seq: e.seq ?? null, licao: e.licao || null, cobre: null };
       antepostas.push(a); semPar.push(a);
     } else if (e.extra === "Reposição") {
       const aberta = fila.find((f: any) => f.data && !f.paga && !f.adiantada);
-      if (aberta) { aberta.paga = e.data; aberta.licao = e.licao || null; }
-      else fila.push({ data: null, paga: e.data, licao: e.licao || null, sobra: true });
+      if (aberta) { aberta.paga = e.data; aberta.pagaSeq = e.seq ?? null; aberta.licao = e.licao || null; }
+      else fila.push({ data: null, paga: e.data, pagaSeq: e.seq ?? null, licao: e.licao || null, sobra: true });
     }
   }
   const emAberto = fila.filter((f: any) => f.data && !f.paga && !f.adiantada).length;
@@ -4665,7 +4716,60 @@ function projetarContrato({ idMatricula, livro, inicio, fechadosPre }: any) {
      As linhas de vaga vêm com `vaga:true`, `ordem:null` e `licao:null` — quem lê `linhas` precisa
      filtrar antes de contar lição (foi o defeito que o commit 9f0258f consertou no dashboard). */
   const vagas = linhas.filter((l: any) => l.vaga).length;
-  return { ...cab, linhas, eventos, licaoEsperada, termino: certo ? termino : null, confianca,
+  /* ===== O ATRASO, AULA POR AULA (2026-09-19; pedido dele de 14/09) =====
+     *"O que atrasa o aluno no curso? Faltas não repostas, muitas aulas que não é lição, e quando ele demora
+     muito tempo pra fazer uma lição."* E a pergunta do aluno: *"quantas faltas eu tenho?"*.
+     A Defasagem do Painel (`aulasAtraso`) mede o LIVRO contra uma linha reta de um ano e engole a folga do
+     contrato — por isso nenhuma falta a explica. Esta é a outra régua: os HORÁRIOS da agenda que já passaram
+     contra as LIÇÕES feitas. Cada horário que não virou lição tem um motivo, e a conta é contábil: fecha por
+     construção. O que não cabe em motivo nenhum vai para `outros` — a tela só o mostra quando não é zero,
+     e aí ele é o sinal de lançamento esquisito, não um número a explicar.
+     A janela começa no 1º LANÇAMENTO: antes dele não há como saber por que um horário não virou lição, e a
+     diferença daquele período (horários × lições da âncora) fica numa linha própria.
+     O horário de HOJE só entra depois de lançado — antes disso ele ainda não aconteceu.
+     Medido no mock em 14/09, antes de existir no código: Maria 26 = 26 faltas + 3 sem lição + 2 sem
+     lançamento − 5 a mais; João 3 = 2 + 3 − 2; resíduo 0 nos três. */
+  const atraso = (() => {
+    const primeiro = eventos.length ? eventos.reduce((m: string, e: any) => e.data < m ? e.data : m, eventos[0].data) : null;
+    const gradeDo = (d: string) => {
+      const dw = diaDaSemana(d);
+      const fds = (dw === 5 && !sabUtil) || (dw === 6 && !domUtil);
+      return fds || fechados.has(d) ? 0 : horasDoDia(d).length;
+    };
+    const porData = new Map<string, any[]>();
+    for (const e of eventos) (porData.get(e.data) || porData.set(e.data, []).get(e.data)!).push(e);
+    let antes = 0, depois = 0, semLancamento = 0, naoAulaH = 0, curtas = 0, alemDaGrade = 0, faltasSemHorario = 0;
+    for (let d = ini; d <= hojeISO; d = maisDias(d, 1)) {
+      const g = gradeDo(d), evs = porData.get(d) || [];
+      if (d === hojeISO && !evs.length) continue;
+      if (!primeiro || d < primeiro) { antes += g; continue; }
+    /* dia fechado no calendário tem g = 0; a falta dele nem chega aqui (a projeção a ignora), e a que sobra
+       em `faltasSemHorario` é a lançada num dia aberto que não era da agenda do aluno */
+      depois += g;
+      if (!evs.length) { semLancamento += g; continue; }
+      if (evs.some((e: any) => e.tipo === "falta")) { if (!g) faltasSemHorario++; continue; }
+      if (evs.some((e: any) => e.tipo === "naoaula")) { naoAulaH += g; continue; }
+      const c = evs.filter((e: any) => e.tipo === "aula" || e.tipo === "tarefa").length;
+      if (c > g) alemDaGrade += c - g; else curtas += g - c;
+    }
+    const semLicao = eventos.filter((e: any) => e.tipo === "tarefa" && e.parteDe == null).length;
+    const pedacos = eventos.filter((e: any) => e.tipo === "tarefa" && e.parteDe != null).length;
+    /* as aulas além da agenda que NÃO pagaram falta: reposição sem falta, anteposição que ainda não achou
+       falta, hora a mais, aula fora da agenda sem rótulo. É o crédito do aluno — adiantaram o livro */
+    const pagantes = fila.filter((f: any) => f.data && (f.paga || f.adiantada)).length;
+    const aMais = Math.max(0, alemDaGrade - pagantes);
+    const antesDoSistema = antes - ancora;
+    const noPlano = (antes + depois) - (ancora + dadasFila.length);
+    const somados = emAberto + semLicao + pedacos + naoAulaH + semLancamento + curtas - aMais - faltasSemHorario + antesDoSistema;
+    return {
+      horarios: antes + depois, licoes: ancora + dadasFila.length, noPlano, desde: primeiro,
+      termos: { faltasAbertas: emAberto, semLicao, pedacos, naoAula: naoAulaH, semLancamento, curtas, aMais,
+        faltasSemHorario, antesDoSistema, outros: noPlano - somados },
+      /* quanto da diferença entre as duas réguas é a folga do contrato já gasta (a corrida do Painel) */
+      folgaConsumida: aulasAtraso == null ? null : Math.round((noPlano - aulasAtraso) * 10) / 10,
+    };
+  })();
+  return { ...cab, linhas, eventos, licaoEsperada, termino: certo ? termino : null, confianca, atraso,
     reposicoes, anteposicoes, debito, vagas, encaminhamentos,
     fimContrato, progressoTempo, progressoLivro, indicador, aulasAtraso, excesso,
     /* O SINAL DO PEDIDO DE LIVROS: a previsão cabe dentro do contrato? É o `ExcessoPrevisao` dela
@@ -5269,9 +5373,14 @@ const api: Record<string, (a: any) => unknown> = {
        vincular a fila de faltas"* — a falta deixa de ser uma linha muda e passa a dizer qual aula
        se perdeu ali, que é a mesma que a reposição entregou depois. Falta ainda em aberto fica sem
        número, porque a aula que ela custou ainda não aconteceu. */
-    const repostaEm = new Map<string, { data: string; licao: string | null }>();
+    const repostaEm = new Map<string, { data: string; seq: number | null; licao: string | null }>();
+    /* A CHAVE É A AULA QUE PAGOU (data + seq), não o dia: duas reposições no mesmo dia pagam faltas
+       diferentes, e chaveadas pela data as duas pílulas apontavam para a mesma falta e as duas faltas
+       herdavam o número da 1ª (revisão de 14/09) */
+    const aulaDe = (d: string, s: any) => d + "|" + (s ?? 1);
     for (const f of (p.encaminhamentos?.fila || [])) {
-      if (f.data && f.paga) { quitou.set(f.paga, f.data); repostaEm.set(f.data, { data: f.paga, licao: f.licao || null }); }
+      if (f.data && f.paga) { quitou.set(aulaDe(f.paga, f.pagaSeq), f.data);
+        repostaEm.set(f.data, { data: f.paga, seq: f.pagaSeq ?? null, licao: f.licao || null }); }
     }
     /* ===== A ANTEPOSIÇÃO TAMBÉM APONTA PARA UMA FALTA — SÓ QUE PARA A FRENTE =====
        A reposição paga uma dívida que já existe; a anteposição *"é tipo fatura de cartão, você
@@ -5283,10 +5392,11 @@ const api: Record<string, (a: any) => unknown> = {
     /* O PAR VEM PRONTO DA PROJEÇÃO desde 2026-09-14 (`encaminhamentos.fila[].adiantada`): é a mesma conta
        que diz quantas faltas estão em aberto. Antes a Ficha pareava por conta própria e a projeção não
        sabia — a legenda chamava de "em aberto" a falta que a linha dizia "adiantada". */
-    const antecipa = new Map<string, string>();       /* dia da anteposição -> falta que ela cobre */
-    const antecipadaPor = new Map<string, string>();  /* falta -> dia que a adiantou */
+    const antecipa = new Map<string, string>();   /* aula (data|seq) da anteposição -> falta que ela cobre */
+    const antecipadaPor = new Map<string, { data: string; seq: number | null; licao: string | null }>();  /* falta -> aula que a adiantou */
     for (const f of (p.encaminhamentos?.fila || []))
-      if (f.data && f.adiantada) { antecipa.set(f.adiantada, f.data); antecipadaPor.set(f.data, f.adiantada); }
+      if (f.data && f.adiantada) { antecipa.set(aulaDe(f.adiantada, f.adiantadaSeq), f.data);
+        antecipadaPor.set(f.data, { data: f.adiantada, seq: f.adiantadaSeq ?? null, licao: f.licao || null }); }
 
     /* ===== O PROFESSOR =====
        `aula_professor` está preso a `aulas.id`, que é o SLOT SEMANAL (aluno × dia × hora), nunca a
@@ -5354,10 +5464,8 @@ const api: Record<string, (a: any) => unknown> = {
       const rep = e.tipo === "falta" ? repostaEm.get(e.data) : null;
       /* a falta coberta por ANTEPOSIÇÃO herda a lição pelo mesmo caminho: a aula existe, só
          aconteceu antes */
-      const antDe = e.tipo === "falta" ? antecipadaPor.get(e.data) : null;
-      const licAnt = antDe
-        ? ((p.encaminhamentos?.antepostas || []).find((x: any) => x.data === antDe)?.licao || null)
-        : null;
+      const antDe = e.tipo === "falta" ? (antecipadaPor.get(e.data) || null) : null;
+      const licAnt = antDe ? antDe.licao : null;
       const lRep = (rep && rep.licao ? porLicao.get(String(rep.licao)) : null)
         || (licAnt ? porLicao.get(String(licAnt)) : null);
       const reg = e.registro != null ? (regsPorId.get(e.registro) || null) : null;
@@ -5377,11 +5485,11 @@ const api: Record<string, (a: any) => unknown> = {
         tipos: reg && reg.origem === "aula" ? reg.tipos.filter((t: any) => !t.especial).map((t: any) => t.nome) : [],
         semConteudo: !!e.semConteudo,
         /* a falta aponta para o dia que a cobriu — atrás (reposição) ou à frente (anteposição) */
-        reposta: rep ? { data: rep.data, licao: rep.licao }
-               : (antDe ? { data: antDe, licao: licAnt, adiantada: true } : null),
+        reposta: rep ? { data: rep.data, seq: rep.seq, licao: rep.licao }
+               : (antDe ? { data: antDe.data, seq: antDe.seq, licao: licAnt, adiantada: true } : null),
         /* e a aula extra aponta para a falta que ela cobre, para o clique poder navegar */
-        cobre: e.extra === "Reposição" ? (quitou.get(e.data) || null)
-             : e.extra === "Anteposição" ? (antecipa.get(e.data) || null) : null,
+        cobre: e.extra === "Reposição" ? (quitou.get(aulaDe(e.data, e.seq)) || null)
+             : e.extra === "Anteposição" ? (antecipa.get(aulaDe(e.data, e.seq)) || null) : null,
         tipoLicao: e.tipoLicao || (l ? l.tipo : lParte ? lParte.tipo : null),
         afirmada: l ? !!l.afirmada : false,
         extra: e.extra || null,
@@ -5391,7 +5499,7 @@ const api: Record<string, (a: any) => unknown> = {
         /* a anotação passa a ser da AULA quando há registro; a do dia continua aparecendo na 1ª */
         observacao: reg ? (reg.observacao ?? ((e.seq ?? 1) === 1 && pr ? pr.observacao : null))
                   : (pr && !(regs.has(e.data) && (e.seq ?? 1) > 1) ? pr.observacao : null),
-        quitou: quitou.get(e.data) || null,
+        quitou: quitou.get(aulaDe(e.data, e.seq)) || null,
         /* quem deu ESTA aula, quando foi registrado; senão o palpite pelo horário, como antes */
         professores: reg && profReg.has(reg.id) ? profReg.get(reg.id) : profsDe(e.data, hora),
         av: reg ? avaliacaoDoRegistro(reg, regra.get(reg.id)) : null,
@@ -5461,9 +5569,11 @@ const api: Record<string, (a: any) => unknown> = {
       /* sem conteúdo (tarefa atrasada, reforço): espera a próxima aula com lição */
       if (l.tipo !== "aula" && l.parteDe == null) { pedacos.push(l); continue; }
       const licao = l.parteDe ?? l.ordem;
-      const continua = !!anterior && !pedacos.length && anterior.data === l.data && anterior.parteDe != null
-        && licao != null && anterior.parteDe === licao && (l.seq ?? 1) > (l.previstas ?? 1);
       const manual = l.registro != null ? (regsPorId.get(l.registro)?.aula_n ?? null) : null;
+      /* número digitado à mão que DIFERE do grupo separa as aulas (31 e 32), em vez de sair "31ᴬ/32ᴮ" */
+      const continua = !!anterior && !pedacos.length && anterior.data === l.data && anterior.parteDe != null
+        && licao != null && anterior.parteDe === licao && (l.seq ?? 1) > (l.previstas ?? 1)
+        && (manual == null || manual === n);
       if (continua) { grupo.push(l); if (manual != null) n = manual; l.aula = n; }
       else {
         letrar(grupo);
@@ -5481,6 +5591,7 @@ const api: Record<string, (a: any) => unknown> = {
     for (const l of linhas) {
       if (l.tipo !== "falta") continue;
       const quem = l.reposta ? linhas.find((x: any) => x.data === l.reposta.data
+        && (l.reposta.seq == null || (x.seq ?? 1) === l.reposta.seq)
         && x.extra === (l.reposta.adiantada ? "Anteposição" : "Reposição")) : null;
       l.aula = quem ? quem.aula : null;
     }
@@ -5600,7 +5711,11 @@ const api: Record<string, (a: any) => unknown> = {
        registradas, a ÚLTIMA — abrir o livro de novo é para rever o que se registrou, não para inventar
        uma aula a mais. A aula além da agenda nasce pelo "+" da própria janela, de propósito. */
     const diaDaAula = NOMES_DIA[new Date(data + "T12:00:00").getDay()];
-    const previstas = Math.max(1,
+    /* O QUE O DIA PREVIA NAQUELA DATA, pela projeção — que sabe a agenda que valia então (troca de horário).
+       Pela agenda de HOJE, a janela e a Ficha discordavam sobre o que é "hora a mais" nas datas antigas
+       (revisão de 14/09). A agenda de hoje fica de reserva, para o dia sem presença lançada. */
+    const evPrev = eventos.find((e: any) => e.data === data && e.previstas != null);
+    const previstas = Math.max(1, evPrev ? Number(evPrev.previstas) :
       (G("SELECT COUNT(*) n FROM aulas WHERE id_matricula=? AND livro=? AND dia=?", idMatricula, livro, diaDaAula)?.n || 0)
       + (G("SELECT COUNT(*) n FROM encontro_avulso WHERE id_matricula=? AND livro=? AND data=?", idMatricula, livro, data)?.n || 0));
     const seqsRegistradas: number[] = doDia.filter((r: any) => r.origem === "aula").map((r: any) => r.seq);
@@ -5686,7 +5801,9 @@ const api: Record<string, (a: any) => unknown> = {
     return {
       aluno: { id: aluno.id_matricula, nome: aluno.nome }, livro, livroNome: nomeDoLivro(livro),
       data, hora: hora || null, seq: s, previstas,
-      anterior: antF ? { aula: antF.aula, data: antF.data, seq: antF.seq, ordem: antF.parteDe ?? antF.ordem } : null,
+      /* `dita`: a lição dela foi REGISTRADA — só entre lições ditas a Ficha agrupa a hora a mais (31ᴬ/31ᴮ) */
+      anterior: antF ? { aula: antF.aula, data: antF.data, seq: antF.seq, ordem: antF.parteDe ?? antF.ordem,
+        dita: antF.registro != null && regsPorId.get(antF.registro)?.licao_ordem != null } : null,
       presenca: pres ? { status: pres.status, entrada: pres.entrada, saida: pres.saida } : null,
       dia: doDia.filter((r: any) => r.origem === "aula").map((r: any) => ({ seq: r.seq, id: r.id, rotulo: rotulo(r) })),
       registro: reg ? { id: reg.id, definido: definiu, licaoOrdem: ordemDoRegistro, aulaN: reg.aula_n,
@@ -7842,11 +7959,16 @@ const api: Record<string, (a: any) => unknown> = {
     // semana da data de referência: segunda → sábado (domingo não é dia letivo)
     const seg = new Date(ref); seg.setDate(seg.getDate() - ((seg.getDay() + 6) % 7));
     const hojeISO = dataISO(agora);
+    /* o dia que o calendário letivo fechou vem com o motivo: as duas telas o desenham como "sem aula" e
+       não oferecem lançamento nenhum nele (2026-09-19, dele) */
+    const sabado = new Date(seg); sabado.setDate(seg.getDate() + 5);
+    const semAulaSemana = feriadosNomeados(dataISO(seg), dataISO(sabado));
     const semana = Array.from({ length: 6 }, (_, i) => {
       const d = new Date(seg); d.setDate(seg.getDate() + i);
       const nome = NOMES_DIA[d.getDay()];
       return { data: dataISO(d), dia: nome, codigo: dInfo[nome]?.codigo || nome,
-        curto: dInfo[nome]?.curto || nome, numero: d.getDate(), hoje: dataISO(d) === hojeISO };
+        curto: dInfo[nome]?.curto || nome, numero: d.getDate(), hoje: dataISO(d) === hojeISO,
+        semAula: semAulaSemana.get(dataISO(d)) || null };
     });
 
     // dias regulares do aluno (com nº de aulas) — alimenta as pílulas de "Dias"
@@ -7925,6 +8047,7 @@ const api: Record<string, (a: any) => unknown> = {
        porque isso é lancarPresenca, não passa por aqui. Limpar também escapa: desfazer é sempre
        permitido, senão um ponto errado ficaria preso. */
     if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(hhmm)) throw new Error("Horário inválido: use HH:MM, entre 00:00 e 23:59.");
+    recusarDiaSemAula(data);   /* desfazer (acima) continua livre; carimbar ponto em dia fechado, não */
     const hojeISO = dataISO(agora);
     if (data > hojeISO) throw new Error("Não dá para registrar ponto em " + data + ": esse dia ainda não chegou.");
     if (data === hojeISO && hhmm > relogio) throw new Error("São " + relogio + " agora — não dá para registrar " + hhmm + ", que ainda não chegou.");
@@ -8045,8 +8168,12 @@ const api: Record<string, (a: any) => unknown> = {
     }
     linhas.sort((a, b) => a.data < b.data ? 1 : a.data > b.data ? -1 : String(a.livro).localeCompare(String(b.livro), "pt"));
 
+    /* dia sem aula no calendário (2026-09-19): a linha continua na lista — é um lançamento que existe e
+       precisa poder ser apagado daqui —, marcada com o motivo; falta e não-aula ali não entram na conta */
+    const semAula = linhas.length ? feriadosNomeados(linhas[linhas.length - 1].data, linhas[0].data) : new Map();
+    for (const l of linhas as any[]) l.semAula = semAula.get(l.data)?.nome || null;
     const r = { P: 0, F: 0, N: 0 };
-    linhas.forEach(l => { if (l.status && l.status in r) (r as any)[l.status]++; });
+    linhas.forEach((l: any) => { if (l.status && l.status in r && !(l.semAula && l.status !== "P")) (r as any)[l.status]++; });
     const base = r.P + r.F; // não aula não entra na conta
     const minutos = linhas.reduce((t, l) => t + (l.minutos || 0), 0);   // tempo de aula efetivamente cumprido
     return { linhas, resumo: { ...r, total: linhas.length, aproveitamento: base ? Math.round(r.P * 100 / base) : null,
@@ -8093,6 +8220,7 @@ const api: Record<string, (a: any) => unknown> = {
     if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(String(hora))) throw new Error("Hora inválida: use HH:MM.");
     const MOTIVOS = ["Reposição", "Anteposição", "Reforço", "Preparação", "Outro"];
     if (!MOTIVOS.includes(motivo)) throw new Error("Escolha o motivo do encontro.");
+    recusarDiaSemAula(String(data));   /* reposição marcada num feriado seria aula num dia sem aula */
     if (!G("SELECT 1 FROM aluno_livro WHERE id_matricula=? AND livro=?", idMatricula, livro))
       throw new Error("O aluno não tem matrícula em " + livro + ".");
     const obs = (observacao || "").trim() || null;

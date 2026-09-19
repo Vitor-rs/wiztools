@@ -1510,6 +1510,23 @@ th.ev.ultima .es-ev-data{background:var(--marca);color:#fff}
 .enc-aviso{border-radius:10px;padding:9px 12px;font-size:12.5px;line-height:1.45;margin:0 0 12px}
 .enc-aviso.ok{background:var(--vc,#E6F4EA);color:#155724}
 .enc-aviso.aperto{background:#FFF8E1;color:#8a5a00}
+/* ===== O ATRASO, AULA POR AULA (2026-09-19) =====
+   Um cartão só, logo abaixo dos números: o título diz quanto, as pílulas dizem por quê, e somadas dão o
+   título. Pílula e não tabela porque são quatro ou cinco motivos numa linha — tabela gastaria uma altura
+   inteira para dizer a mesma coisa. Âmbar é o que atrasou, verde é o que adiantou. */
+.enc-atraso{background:#fff;border:1px solid var(--borda);border-radius:10px;padding:10px 14px 11px;margin:0 0 12px}
+.enc-atr-cab{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin:0 0 8px}
+.enc-atr-cab b{font-size:14px}
+.enc-atr-cab b.atr{color:#8a5a00}
+.enc-atr-cab b.adi{color:#1B7A3E}
+.enc-atr-cab span{font-size:11.5px;color:var(--tx3)}
+.enc-atr-l{display:flex;flex-wrap:wrap;gap:6px}
+.enc-atr-i{display:inline-flex;align-items:baseline;gap:6px;border:1px solid var(--borda);border-radius:8px;
+  padding:4px 10px;background:#FBFCFD;font-size:12px;color:var(--tx2);cursor:help}
+.enc-atr-i b{font-variant-numeric:tabular-nums;font-size:13px;color:var(--tx1)}
+.enc-atr-i.deb b{color:#8a5a00}
+.enc-atr-i.cred b{color:#1B7A3E}
+.enc-atr-pe{margin-top:8px;font-size:11.5px;color:var(--tx3);line-height:1.45}
 .enc-cols{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}
 @media (max-width:820px){.enc-cols{grid-template-columns:1fr}.enc-topo{grid-template-columns:repeat(2,1fr)}}
 .enc-bloco h4{margin:0 0 8px;font-size:12px;color:var(--marca);display:flex;align-items:baseline;gap:7px}
@@ -3497,6 +3514,12 @@ th.lc-dia-aba.on .lc-dia-bolha{background:#1B3D85;color:#fff;font-weight:700}
    largo (a hora de entrada e saída) alargava a coluna dele e as cinco ficavam desiguais */
 .lc-est-grade,.lc-est-linha{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));min-height:32px}
 .lc-est-grade{position:relative}
+/* dia fechado no calendário: o quadro de estados dá lugar a uma tarja com o motivo. Contar "A vir" num
+   dia em que a escola não abriu contradiz a própria célula de baixo, que diz "Sem aula" (2026-09-19). */
+.lc-est-sem{display:flex;align-items:center;justify-content:center;gap:8px;min-height:32px;padding:5px 6px;
+  background:repeating-linear-gradient(-45deg,#F7F8FA 0 4px,#ECEFF3 4px 5px);color:var(--tx3);font-size:11px;cursor:help}
+.lc-est-sem b{font-size:11px;letter-spacing:.4px;text-transform:uppercase;color:var(--tx2)}
+.lc-est-sem span{background:#fff;border:1px solid var(--borda);border-radius:8px;padding:1px 8px;color:var(--tx2)}
 /* os headers das 5 colunas herdam o azul da pasta em vez de pintar por cima dele */
 /* TETO da faixa de colunas: um tracejado de 1px, bem apagado, só para dizer que a faixa começa
    ali. Tracejado e não sólido de propósito — sólido fecharia a "abertura" da pasta, que é o que
@@ -3537,6 +3560,21 @@ th.lc-dia-aba.on .lc-dia-bolha{background:#1B3D85;color:#fff;font-weight:700}
 .lc-feriado:hover{border-color:var(--azul);color:#1f7fb0;background:#eaf6fd}
 .lc-feriado:focus-visible{outline:2px solid var(--azul);outline-offset:1px}
 .lc-feriado .ic{display:flex}
+/* ===== DIA SEM AULA NO CALENDÁRIO (2026-09-19, dele) =====
+   O calendário letivo fechou o dia: as duas telas o mostram hachurado e com o MOTIVO, e não oferecem
+   lançamento nenhum nele. A persiana é a do "não aula", o fato é o mesmo. */
+.lc-tabela thead th.lc-dia-aba.sem-aula,.lc-tabela thead th.lc-dia.sem-aula,.lc-tabela thead th.lc-num.sem-aula{
+  background-image:repeating-linear-gradient(-45deg,transparent 0 4px,rgba(120,130,145,.14) 4px 5px)}
+.lc-tabela td.lc-sem-aula{background:repeating-linear-gradient(-45deg,#F7F8FA 0 4px,#ECEFF3 4px 5px);
+  text-align:center;vertical-align:middle;color:var(--tx3);padding:6px 4px}
+.lc-sa{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;line-height:1.25;cursor:help}
+.lc-sa b{font-size:11px;letter-spacing:.4px;text-transform:uppercase;color:var(--tx2)}
+.lc-sa span{font-size:11px;background:#fff;border:1px solid var(--borda);border-radius:8px;padding:1px 8px;color:var(--tx2)}
+.lc-pop-dias .dia.fech{opacity:.7;cursor:not-allowed}
+.lc-pop-dias .escola{display:flex;align-items:center;gap:6px;margin:9px 0 4px;font-size:12px;
+  text-transform:none;letter-spacing:0;font-weight:600;color:var(--tx2)}
+.lc-pop-dias .motivo{width:100%;box-sizing:border-box;margin:0 0 4px;font-size:12px}
+.freq-sem-aula{font-size:10.5px;color:var(--tx3);border:1px dashed var(--borda);border-radius:8px;padding:0 6px;cursor:help}
 /* o gap separa a ação da estatística: são coisas de naturezas diferentes coladas no mesmo canto */
 .lc-head-dir{display:flex;align-items:center;gap:24px;flex-wrap:wrap}
 /* a janelinha dos dias — mesma casca do menu de reversão, só o corpo muda */
@@ -7028,6 +7066,48 @@ run('getPlanejamento',[{idMatricula:alSel.id,livro:livro||null}],function(r){enc
 /* o que aconteceu num encontro marcado, em palavra e cor (ver encontrosMarcados no servidor) */
 var ENC_RESULTADO={veio:{t:'veio',c:'r-veio'},faltou:{t:'faltou',c:'r-falta'},nao_veio:{t:'não veio',c:'r-falta'},
  nao_aula:{t:'não houve aula',c:'r-neutro'},marcado:{t:'marcado',c:'r-marcado'},desmarcado:{t:'desmarcado',c:'r-neutro'}};
+/* ===== O ATRASO, AULA POR AULA (2026-09-19; pedido dele de 14/09) =====
+   *"Quando o aluno pergunta 'quantas faltas eu tenho?', muitas vezes eu não consigo responder."* Os horários
+   da agenda que já passaram contra as lições feitas, e o MOTIVO de cada horário que não virou lição. A conta
+   vem pronta do servidor (`atraso`) e fecha: as pílulas somam o número do título. Os três motivos que ele
+   nomeou — faltas não repostas, aulas sem lição, lição que levou mais de uma aula — aparecem sempre, mesmo
+   zerados, porque zero também responde; os outros só quando existem. O rodapé liga esta régua à corrida
+   do Painel, que é outra: lá a folga do contrato é repartida pelo ano, e é por isso que os dois divergem. */
+function encAtraso(r){
+ var a=r.atraso; if(!a||a.horarios==null)return '';
+ var T=a.termos, n=a.noPlano;
+ var nb=function(v){return (Math.round(v*10)/10).toLocaleString('pt-BR')};
+ var cab=n>0?'<b class="atr">'+nb(n)+' aula'+(n===1?'':'s')+' atrás da agenda</b>'
+  :n<0?'<b class="adi">'+nb(-n)+' aula'+(n===-1?'':'s')+' à frente da agenda</b>'
+  :'<b class="adi">em dia com a agenda</b>';
+ var L=[
+  ['faltas não repostas',T.faltasAbertas,'reposições pendentes: a fila está logo abaixo',1],
+  ['aulas sem lição',T.semLicao,'veio, mas não andou no livro: tarefa, reforço, aplicativo',1],
+  ['lições que levaram mais de uma aula',T.pedacos,'as aulas gastas numa lição que continuou em outra aula',1],
+  ['aulas a menos no dia',T.curtas,'fez menos aulas do que a agenda daquele dia (saiu antes)',0],
+  ['dias sem aula (N)',T.naoAula,'a aula não aconteceu e foi lançada como “não aula”',0],
+  ['horários sem lançamento',T.semLancamento,'a agenda previa aula e não há presença nem falta lançada',0],
+  ['antes do primeiro lançamento',T.antesDoSistema,'horários da agenda antes do primeiro lançamento, menos as lições que ele já tinha feito até ali',0],
+  ['aulas a mais que adiantaram',-T.aMais,'reposição sem falta, anteposição que ainda não cobriu falta, hora a mais, aula fora da agenda',0],
+  ['faltas em dia fora da agenda',-T.faltasSemHorario,'lançadas num dia que não é da agenda dele: não custaram horário nenhum (a de dia fechado no calendário nem entra na conta)',0],
+  ['outros acertos de lançamento',T.outros,'o que não se encaixa em motivo nenhum — vale conferir os lançamentos',0]];
+ var h='<div class="enc-atraso"><div class="enc-atr-cab">'+cab
+  +'<span>'+a.horarios+' horários da agenda até hoje │ '+a.licoes+' lições feitas'
+  +(a.desde?' · lançamentos desde '+dataCurta(a.desde):'')+'</span></div><div class="enc-atr-l">';
+ L.forEach(function(x){
+  if(!x[3]&&!x[1])return;
+  h+='<div class="enc-atr-i'+(x[1]<0?' cred':(x[1]>0?' deb':''))+'" title="'+escBloco(x[2])+'"><b>'
+   +(x[1]>0?'+':x[1]<0?'−':'')+nb(Math.abs(x[1]))+'</b><span>'+x[0]+'</span></div>'});
+ h+='</div>';
+ if(r.aulasAtraso!=null&&a.folgaConsumida!=null&&a.folgaConsumida>0){
+  var c=r.aulasAtraso;
+  h+='<div class="enc-atr-pe">No Painel, a Defasagem diz '
+   +(c>0?'<b>'+nb(c)+' atrás</b>':c<0?'<b>'+nb(-c)+' à frente</b>':'<b>em dia</b>')
+   +' porque reparte a folga do contrato (as vagas) pelo ano inteiro — e essa folga já cobriu '
+   +nb(a.folgaConsumida)+' aula'+(a.folgaConsumida===1?'':'s')+' deste atraso.</div>';
+ }
+ return h+'</div>';
+}
 function encPintar(r){
 var c=$('enc-corpo');if(!c)return;
 var e=r.encaminhamentos;
@@ -7038,7 +7118,8 @@ var h='<div class="enc-topo">'
  +kpi('faltas repostas',e.quitadas,'bom')
  +kpi('anteposições',e.adiantadas,'')
  +kpi('vagas no contrato',r.vagas!=null?r.vagas:'—','')
- +'</div>';
+ +'</div>'
+ +encAtraso(r);
 /* a folga é a resposta prática: sobra aula no contrato para pagar o que está devendo? */
 if(e.emAberto)
  h+='<div class="enc-aviso '+((r.vagas||0)>=e.emAberto?'ok':'aperto')+'">'
@@ -7341,7 +7422,9 @@ h+='<div class="pr-tiles">'
     r.faltamBlocos!=null?'até o fim do livro':'',
     r.faltamBlocos!=null?(1-r.faltamBlocos/r.totalBlocos)*100:null,
     (r.faltamBlocos!=null&&r.faltamBlocos<=2&&r.faltamLicoes>0)?'alerta':'')
- +progTile('Última aula',(pos.data?dataCurta(pos.data):'—'),r.dadas+' dadas · '+r.faltas+' faltas',null)
+ /* "quantas faltas eu tenho?" tem duas respostas, e as duas cabem aqui (2026-09-19): quantas ele teve e
+    quantas ainda deve. O João "tinha 6 faltas" e não devia nenhuma — o cartão só dizia a primeira. */
+ +progTile('Última aula',(pos.data?dataCurta(pos.data):'—'),r.dadas+' dadas · '+r.faltas+' faltas · '+(r.debito||0)+' em aberto',null)
  +progTile('Defasagem',(r.aulasAtraso!=null
      ?'<span class="pr-def '+(r.aulasAtraso>0?'atras':(r.aulasAtraso<0?'frente':''))+'"'
       +' title="'+(r.aulasAtraso>0?'atrasado '+r.aulasAtraso+' aula(s) em relação ao relógio do contrato'
@@ -8421,7 +8504,11 @@ tx.innerHTML=marca+alerta
 +'<b>'+l.numero+'</b> '+escBloco(l.diaCurto)+' · '+escBloco(l.mes.slice(0,3))+' <small style="color:var(--tx3)">'+escBloco(nomeLivro(l.livro))+'</small>'
 +(l.avulso?' <span class="av-motivo">'+escBloco(l.avulso.motivo)+'</span>':'')
 +(l.minutos!=null?' <span class="lc-dur'+(l.minutos<20?' curta':'')+'">'+escBloco(fmtDur(l.minutos))+'</span>':'')
-+(l.auto?' <span class="badge b-off" title="Falta lançada pelo fecho do dia, não por alguém">auto</span>':'');
++(l.auto?' <span class="badge b-off" title="Falta lançada pelo fecho do dia, não por alguém">auto</span>':'')
+/* dia que o calendário letivo fechou (2026-09-19): o lançamento existe, mas falta e não-aula ali não contam */
++(l.semAula?' <span class="freq-sem-aula" title="'+escBloco('O calendário letivo fechou este dia ('+l.semAula+'). '
+  +(l.status==='P'?'A presença continua contando até alguém decidir — veja a Central de controle.'
+   :'Não conta: saiu da fila de reposição e do atraso. Pode apagar este lançamento.'))+'">sem aula · '+escBloco(l.semAula)+'</span>':'');
 var del=document.createElement('button');del.type='button';del.className='remover';del.textContent='✕';
 del.title=l.status===null?'Desmarcar este encontro (fica no histórico)':'Remover este lançamento';
 del.onclick=function(){
@@ -12071,6 +12158,16 @@ feita:[{p:'aula',t:'Saída foi engano',s:'Ainda está na sala; o relógio volta 
 falta:[{p:'aula',t:'Ele está aqui',s:'Falta por engano — o aluno está na sala agora.',perde:'a falta; entra presença com a hora de agora'},
        {p:'avir',t:'Ainda não chegou',s:'Não é falta ainda: pode vir mais tarde hoje.',perde:'a falta'}]};
 
+/* ===== DIA SEM AULA NO CALENDÁRIO (2026-09-19, dele) =====
+   *"Qualquer data que o calendário letivo não considera aula não pode ter nenhum tipo de coisa de aula... tem que
+   estar na tabela de cada uma lá, que não tem aula nesse dia, e o motivo."* Lançamento antigo que ficou num dia
+   depois fechado não é oferecido aqui: está na Central de controle, para alguém decidir. */
+function lcSemAulaHtml(c,b){
+ var velhos=b.alunos.filter(function(a){return a.pontos[c.data]}).length;
+ return '<div class="lc-sa" title="'+escBloco('O calendário letivo fechou este dia: não entra presença, falta nem não-aula. Para reabrir, mude no Calendário.'
+   +(velhos?' Há '+velhos+' lançamento(s) antigo(s) neste dia — estão na Central de controle.':''))+'">'
+  +'<b>Sem aula</b><span>'+escBloco(c.semAula.nome)+'</span></div>';
+}
 function lcCard(b){
 var card=document.createElement('div');card.className='lc-card compacto';
 var chipCls=b.tipoKey==='Kids'?'mod-Kids':(b.mod==='Conn'?'mod-Conn':'mod-Inter');
@@ -12081,8 +12178,9 @@ head.innerHTML='<div class="lc-head-esq"><span class="lc-hora-badge">'+escBloco(
 +'<div class="lc-head-dir"><div class="lc-resumo"></div></div>';
 card.appendChild(head);
 /* "Não aula" no cabeçalho, ao lado da estatística: é ação do BLOCO inteiro (feriado, férias,
-   aula cancelada), e não de uma coluna do quadro — onde ela morava antes. */
-if(LCM==='sala'){
+   aula cancelada), e não de uma coluna do quadro — onde ela morava antes. Nas DUAS telas desde
+   2026-09-19: é também por ele que se fecha um dia para a escola inteira, no calendário. */
+{
 var fer=document.createElement('button');fer.type='button';fer.className='lc-feriado';
 fer.innerHTML='<span class="ic">'+icon('calendar-clock',13)+'</span>Não aula';
 fer.title='Marcar dias inteiros como não aula (feriado, férias, aula cancelada) para os alunos deste bloco';
@@ -12115,9 +12213,9 @@ tb.className='lc-tabela semana kanban';
 var abas='';
 LC.semana.forEach(function(c,i){
 var cd=lcCodigoDia(c.codigo||c.curto);
-abas+='<th class="lc-dia-aba'+(c.data===LC.data?' on':'')+(c.hoje?' eh-hoje':'')+'" data-dia="'+escBloco(c.data)+'"'
+abas+='<th class="lc-dia-aba'+(c.data===LC.data?' on':'')+(c.hoje?' eh-hoje':'')+(c.semAula?' sem-aula':'')+'" data-dia="'+escBloco(c.data)+'"'
 +' role="tab" aria-selected="'+(c.data===LC.data)+'" tabindex="0"'
-+' title="'+escBloco(c.dia+', dia '+c.numero+(c.hoje?' — hoje':''))+'">'
++' title="'+escBloco(c.dia+', dia '+c.numero+(c.hoje?' — hoje':'')+(c.semAula?' — sem aula: '+c.semAula.nome:''))+'">'
 +'<span class="lc-dia-cx"><span class="lc-dia-bola'+(cd.palavra?' palavra':'')+'">'+cd.html+'</span>'
 +'<span class="lc-dia-num"><span class="lc-dia-bolha">'+c.numero+'</span></span></span></th>'});
 tb.innerHTML='<thead><tr>'+meta+abas+'</tr>'
@@ -12136,9 +12234,11 @@ LC.semana.forEach(function(c,i){
    cabeçalho continua DUPLO (a recepção não tem abas de dia — ela edita a semana inteira de uma
    vez), então o que muda é só a tipografia, não a estrutura. */
 var cd=lcCodigoDia(c.codigo||c.curto);
-h1+='<th class="lc-dia'+(cd.palavra?' palavra':'')+(c.hoje?' hoje':'')+'" data-col="'+i+'"'
-+' title="'+escBloco(c.dia+(c.hoje?' — hoje':''))+'">'+cd.html+'</th>';
-h2+='<th class="lc-num'+(c.hoje?' hoje':'')+'" data-col="'+i+'" title="Clique para marcar o dia inteiro como não aula (feriado/férias)">'
+h1+='<th class="lc-dia'+(cd.palavra?' palavra':'')+(c.hoje?' hoje':'')+(c.semAula?' sem-aula':'')+'" data-col="'+i+'"'
++' title="'+escBloco(c.dia+(c.hoje?' — hoje':'')+(c.semAula?' — sem aula: '+c.semAula.nome:''))+'">'+cd.html+'</th>';
+h2+='<th class="lc-num'+(c.hoje?' hoje':'')+(c.semAula?' sem-aula':'')+'" data-col="'+i+'" title="'+escBloco(c.semAula
+ ?'Sem aula: '+c.semAula.nome+' — o calendário letivo fechou este dia'
+ :'Clique para marcar o dia inteiro como não aula (feriado/férias)')+'">'
 +'<span class="lc-dia-bolha">'+c.numero+'</span></th>'});
 tb.innerHTML='<thead>'+h1+'</tr>'+h2+'</tr></thead>';
 tb.querySelectorAll('thead .lc-num').forEach(function(th){
@@ -12184,8 +12284,17 @@ pa.title=emAula
 tr.querySelector('.lc-nome').appendChild(pa);
 }
 if(LCM==='sala'){
-/* uma célula só, com os 5 slots de estado do dia aberto */
 var c=LC.semana.filter(function(x){return x.data===LC.data})[0]||LC.semana[0];
+if(c.semAula){
+/* dia fechado no calendário: UMA célula atravessando o quadro de todos os alunos do bloco, com o motivo.
+   Não há estado a mover, e cinco colunas vazias em cada linha diriam o contrário (2026-09-19). */
+ if(b.alunos.indexOf(al)===0){
+  var tdS=document.createElement('td');tdS.className='lc-sem-aula';
+  tdS.colSpan=LC.semana.length;tdS.rowSpan=b.alunos.length;
+  tdS.innerHTML=lcSemAulaHtml(c,b);tr.appendChild(tdS);
+ }
+}else{
+/* uma célula só, com os 5 slots de estado do dia aberto */
 var td=document.createElement('td');
 td.className='lc-est-cel'+(al.regular[c.data]?'':' off');
 td.colSpan=LC.semana.length;
@@ -12193,8 +12302,17 @@ var faixa=lcSlots(al,c,card,b);
 LC_CELULAS.push({al:al,data:c.data,box:faixa,card:card,bloco:b});
 td.appendChild(faixa);
 tr.appendChild(td);
+}
 }else{
 LC.semana.forEach(function(c,ic){
+/* dia fechado no calendário: a coluna vira UMA célula de cima a baixo, com o motivo (2026-09-19) */
+if(c.semAula){
+ if(b.alunos.indexOf(al)===0){
+  var tdS=document.createElement('td');tdS.className='lc-cel lc-sem-aula';tdS.dataset.col=ic;
+  tdS.rowSpan=b.alunos.length;tdS.innerHTML=lcSemAulaHtml(c,b);tr.appendChild(tdS);
+ }
+ return;
+}
 var td=document.createElement('td');
 var regular=al.regular[c.data];
 /* off-day (dia que não é o do aluno) fica hachurado e apagado, mas continua clicável:
@@ -12216,6 +12334,15 @@ return card;
 /* cabeçalho das 5 colunas de estado, com o contador de cada uma. O contador é atualizado no
    lugar (lcContarEstados), nunca redesenhando o quadro inteiro. */
 function lcFaixaEstados(b,card){
+/* dia sem aula no calendário: não há estado a acompanhar nem cartão a arrastar. A tarja diz o motivo, e
+   `_faixa` fica nulo — é ele que faz lcContarEstados sair sem pintar contador nenhum. Sem isto o quadro
+   dizia "A vir 1" logo acima da célula que diz "Sem aula" (2026-09-19). */
+var cAb=LC.semana.filter(function(x){return x.data===LC.data})[0];
+if(cAb&&cAb.semAula){
+var t=document.createElement('div');t.className='lc-est-sem';
+t.title='O calendário letivo fechou este dia: não há aula, nem estado a acompanhar.';
+t.innerHTML='<b>Sem aula</b><span>'+escBloco(cAb.semAula.nome)+'</span>';
+card._faixa=null;return t}
 var g=document.createElement('div');g.className='lc-est-grade';
 LC_EST.forEach(function(e){
 /* a classe do estado vai no HEADER, não só na bolinha: é dela que saem --pt e --pt-forte, e é o
@@ -12439,7 +12566,8 @@ var d=REG_EST.dados,s=REG_EST.sel;
 if(!d||!s||regSemConteudo())return '';
 var a=d.anterior;
 if(a&&a.aula!=null)
- return String(a.data===d.data&&a.ordem===s.licaoOrdem&&d.seq>d.previstas?a.aula:a.aula+1);
+ /* `a.dita`: só repete quando a lição anterior foi REGISTRADA — a Ficha só agrupa entre lições ditas */
+ return String(a.data===d.data&&a.dita&&a.ordem===s.licaoOrdem&&d.seq>d.previstas?a.aula:a.aula+1);
 var l=d.licoes.filter(function(x){return x.ordem===s.licaoOrdem})[0];
 return l&&l.aula!=null?String(l.aula):''}
 
@@ -13378,14 +13506,27 @@ var linhas=LC.semana.map(function(c){
 /* "já é não aula" = TODOS os alunos do bloco com N naquele dia. Parcial não conta: seria mentira
    dizer que o dia está marcado quando metade da turma tem presença lançada. */
 var jaN=b.alunos.length>0&&b.alunos.every(function(a){var x=a.pontos[c.data];return x&&x.status==='N'});
-var aberto=c.data===LC.data;
-return {c:c,jaN:jaN,marcar:jaN||aberto};
+/* o dia aberto só existe na SALA, que tem abas de dia. Na Recepção a semana inteira está à vista e
+   nenhum dia está "aberto": pré-marcar o dia de referência ali marcaria N num dia que a pessoa não
+   escolheu — visível só no texto da confirmação (2026-09-19, ao levar o botão para as duas telas). */
+var aberto=LCM==='sala'&&c.data===LC.data;
+/* o dia que o CALENDÁRIO fechou vem travado, com o motivo: nada a marcar nem desmarcar aqui (2026-09-19) */
+var fech=c.semAula||null;
+return {c:c,jaN:jaN,fech:fech,marcar:!fech&&(jaN||aberto)};
 });
 m.innerHTML='<div class="tit">Marcar como não aula — '+escBloco(b.hora)+', '+b.alunos.length+' aluno(s)</div>'
 +linhas.map(function(l,i){
+if(l.fech)return '<label class="dia fech" title="'+escBloco('O calendário letivo fechou este dia ('+l.fech.nome+'). Para reabrir, mude no Calendário.')+'">'
++'<input type="checkbox" disabled>'+escBloco(l.c.dia)+'<span class="num">sem aula · '+escBloco(l.fech.nome)+'</span></label>';
 return '<label class="dia'+(l.jaN?' jaN':'')+(l.c.data===LC.data?' hoje':'')+'">'
 +'<input type="checkbox" data-i="'+i+'"'+(l.marcar?' checked':'')+'>'
 +escBloco(l.c.dia)+'<span class="num">'+(l.jaN?'já é não aula':'dia '+l.c.numero)+'</span></label>'}).join('')
+/* ===== FECHAR PARA A ESCOLA INTEIRA (2026-09-19) =====
+   O "N" deste painel vale só para os alunos DESTE bloco (aula cancelada naquele horário). Feriado, recesso e
+   férias são da escola inteira, e o lugar deles é o calendário: marcar aqui grava no Calendário letivo, e as
+   duas telas, a Ficha, o planejamento e o fecho do dia passam a saber sozinhos. */
++'<label class="escola"><input type="checkbox" class="esc"> Fechar para a escola inteira (vai para o Calendário letivo)</label>'
++'<input class="motivo" placeholder="Motivo — ex.: Recesso, Reunião pedagógica" hidden>'
 +'<div class="rod"><button type="button" class="ok">Aplicar</button></div>';
 document.body.appendChild(m);
 var r=ev.currentTarget.getBoundingClientRect();
@@ -13393,13 +13534,33 @@ m.style.left=Math.max(8,Math.min(r.right-m.offsetWidth,innerWidth-m.offsetWidth-
 m.style.top=(r.bottom+6+m.offsetHeight>innerHeight?Math.max(8,r.top-m.offsetHeight-6):r.bottom+6)+'px';
 LC_MENU_REV=m;
 m.onclick=function(e){e.stopPropagation()};
+var esc=m.querySelector('.esc'),mot=m.querySelector('.motivo');
+esc.onchange=function(){mot.hidden=!esc.checked;if(esc.checked)mot.focus()};
 m.querySelector('.ok').onclick=function(){
 var marcar=[],limpar=[];
 m.querySelectorAll('input[data-i]').forEach(function(inp){
 var l=linhas[+inp.dataset.i];
+if(l.fech)return;
 if(inp.checked&&!l.jaN)      marcar.push(l.c);
 else if(!inp.checked&&l.jaN) limpar.push(l.c);
 });
+if(esc.checked){
+ var dias=m.querySelectorAll('input[data-i]'), escolhidos=[];
+ dias.forEach(function(inp){var l=linhas[+inp.dataset.i];if(inp.checked&&!l.fech)escolhidos.push(l.c)});
+ if(!escolhidos.length){lcFecharMenuRev();return}
+ var motivo=mot.value.trim();
+ if(!motivo){mot.focus();msg('Diga o motivo — é ele que aparece nas telas e no Calendário.',true);return}
+ var comP=0;escolhidos.forEach(function(c){b.alunos.forEach(function(a){var x=a.pontos[c.data];if(x&&x.status==='P')comP++})});
+ dlgConfirmar({titulo:'Fechar para a escola inteira',ok:'Fechar no calendário',perigo:!!comP,
+  texto:'Fechar '+escolhidos.map(function(c){return c.dia+' '+c.numero}).join(', ')+' para TODOS os alunos da escola, com o motivo "'+motivo+'"?'
+   +'\n\nO dia vai para o Calendário letivo: sai da agenda de todo mundo, ninguém leva falta nele e o planejamento se refaz sozinho. Para desfazer, apague a marcação no Calendário.'
+   +(comP?'\n\nAtenção: '+comP+' presença(s) já lançada(s) nesses dias continuam gravadas e vão aparecer na Central de controle.':'')},
+ function(sim){if(!sim)return;lcFecharMenuRev();
+  run('salvarMarcacao',[{nome:motivo,tipo:'recesso',ambito:'escola',fecha:true,
+    trechos:escolhidos.map(function(c){return {modo:'data',dataIni:c.data}})}],function(){
+   msg(escolhidos.length+' dia(s) fechado(s) no calendário: '+motivo+'.');lcCarregar()})});
+ return;
+}
 if(!marcar.length&&!limpar.length){lcFecharMenuRev();return}
 /* diz com todas as letras o que vai por cima: marcar N num dia que já tem presença lançada apaga
    o lançamento daqueles alunos, e isso não pode acontecer em silêncio */
@@ -13425,6 +13586,7 @@ lcCarregar()})});
 };
 }
 function lcColunaNaoAula(b,c,card){
+if(c.semAula){dlgAviso({titulo:'Dia sem aula',texto:'O calendário letivo fechou o dia '+c.numero+' ('+c.semAula.nome+'): ali não entra presença, falta nem não-aula.\n\nSe houve aula, reabra o dia no Calendário.'});return}
 var todosN=b.alunos.every(function(a){var x=a.pontos[c.data];return x&&x.status==='N'});
 var novo=todosN?null:'N';
 dlgConfirmar({titulo:todosN?'Desmarcar não aula':'Marcar dia como não aula',ok:todosN?'Desmarcar':'Marcar não aula',

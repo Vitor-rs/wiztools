@@ -3410,10 +3410,13 @@ th.ev.ultima .es-ev-data{background:var(--marca);color:#fff}
 /* ===== SALA: tabela-Kanban (as colunas de dia viram abas; o quadro de estados fica embaixo) =====
    Larguras vêm do CSS e não do conteúdo: trocar de dia não pode redimensionar coluna nenhuma. */
 /* As larguras precisam SOMAR algo que caiba, senão o table-layout:fixed redistribui tudo e as
-   colunas param de valer o que está escrito aqui. Soma: 220+100+92+76 + 6×94 = 1052px, e o
+   colunas param de valer o que está escrito aqui. Soma: 220+100+92+76 + 6×113 = 1166px, e o
    min-width garante isso mesmo em tela estreita (o container já rola quando precisa).
    Em 1920px, que é a tela das três máquinas da escola, sobra folga. */
-.lc-tabela.kanban{table-layout:fixed;min-width:1052px}
+/* 2026-09-15, pedido dele: +19px (=0,5cm, a conversão da casa) em cada aba de dia, porque
+   a hora com entrada e saída ficava cortada no cartão. O quadro de 5 estados acompanha sozinho:
+   vive num colspan dessas 6 colunas, então os slots crescem juntos e continuam IGUAIS. */
+.lc-tabela.kanban{table-layout:fixed;min-width:1166px}
 /* 5px de respiro vertical e não 7: é o que faz TODA linha do Kanban medir exatos 48px.
    A coluna Estágio tem conteúdo de altura fracionária (pílula do livro + modalidade = 35,75px) e,
    com 7px, era ela que mandava na linha: 49,75px umas, 48,75px outras. Linha fracionária faz cada
@@ -3431,7 +3434,7 @@ th.ev.ultima .es-ev-data{background:var(--marca);color:#fff}
    pixel de padding a menos é um pixel de folga entre os dois. E borda DIREITA transparente nas
    abas fechadas: a aberta ganha uma de verdade, e sem esta o conteúdo dela ficava 0,5px à esquerda
    do das vizinhas — some no papel, aparece na tela. */
-.lc-tabela thead th.lc-dia-aba{width:94px;text-align:center;padding:5px 2px;cursor:pointer;
+.lc-tabela thead th.lc-dia-aba{width:113px;text-align:center;padding:5px 2px;cursor:pointer;
   background:var(--cz);border-left:1px solid var(--borda);border-bottom:1px solid var(--aba-bd);
   border-right:1px solid transparent;
   color:var(--tx3);user-select:none;line-height:1;transition:background .13s,color .13s}
@@ -3456,7 +3459,7 @@ th.lc-dia-aba:focus-visible{outline:2px solid var(--azul);outline-offset:-2px}
 .lc-dia-bola sup,.lc-tabela thead th.lc-dia sup{font-size:.5em;font-weight:700;letter-spacing:0;
   margin-left:.5px;line-height:0;vertical-align:baseline;position:relative;top:-.48em}
 /* sábado no MESMO corpo dos numerais (19px, como ele pediu). Só o espacejamento fecha e ele
-   encosta na borda: são TRÊS letras no lugar de um dígito dentro de 94px fixos, e a bolha do dia
+   encosta na borda: são TRÊS letras no lugar de um dígito dentro dos 113px fixos (15/09/2026: a medida de 32,3px logo abaixo foi feita com 94px), e a bolha do dia
    do mês está no centro. Medido: 32,3px de "SÁB" contra os 34px onde a bolha começa. */
 .lc-dia-bola.palavra{font-size:19px;letter-spacing:-2.2px;left:0}
 /* o dia do mês fica no centro do cabeçalho; quando o dia está aberto ele vira uma BOLHA cheia —
@@ -3690,7 +3693,8 @@ td.lc-est-cel{padding:0!important;border-left:1px solid var(--aba-bd);border-rig
 /* marcador de estado */
 /* padding e gap enxutos: a hora com entrada E saída mais o P¹ é a linha mais larga que o cartão
    precisa comportar, e ela estava terminando rente à borda — sem folga, qualquer diferença de
-   renderização entre as três máquinas voltaria a cortar o fim do texto. */
+   renderização entre as três máquinas voltaria a cortar o fim do texto. 2026-09-15: as abas de dia ganharam 0,5cm cada, e o slot
+   (e esta folga) cresceram junto — a origem foi o horário de saída cortado no cartão. */
 /* stretch e não center: o conteúdo se espalha pela altura do cartão em vez de se amontoar no meio */
 /* Com o livro de 24px, medido na tela de 1920: "09:43" ocupa 27,3px dos 50,7px que sobram para o
    texto, e "08:42–09:08" ocupa 59,9px de 76,7px. Folga real dos dois lados — padding e gap ficam

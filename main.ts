@@ -219,6 +219,53 @@ db.exec(`CREATE TABLE IF NOT EXISTS tipo_aula (
   arquivado TEXT,
   momento TEXT NOT NULL
 )`);
+/* ===== POR QUE O ALUNO SAIU (2026-09-19, módulo da semana) =====
+   Até aqui a saída era uma PALAVRA — "Evadido" em `alunos.situacao` — sem data, sem causa e sem quem
+   registrou. Medido no banco da recepção em 19/09: dos 54 alunos desativados, **49 não têm data de saída
+   em lugar nenhum**, e a tabela de histórico nunca recebeu uma única linha "Evadido" ou "Cancelado".
+   Nenhum ser humano jamais escreveu um motivo em campo nenhum do sistema, porque não havia onde.
+
+   DUAS COISAS POR SAÍDA, decisão dele em 19/09: o **tipo da rede**, que é a caixa que a franqueadora conta
+   (as seis do IPP/PEF, mais Formado), e o **motivo da casa**, que é a causa de verdade — e é esta lista,
+   editável em Cadastros, que responde "por que perdemos aluno". Cada motivo carrega o tipo da rede que ele
+   costuma alimentar, para a tela sugerir e a recepção só confirmar.
+   *"A gente pode cadastrar várias coisas: tipo de aula, tipos de evasão, essas coisas"* — o cadastro estava
+   esperando esta tela desde 13/09.
+   ARMADILHA DA REDE, registrada antes de alguém cair nela: contar `situacao='Cancelado'` como perda dá
+   retenção INFLADA. A perda do IPP é a soma das seis caixas, e três delas o sistema ainda não sabe deduzir. */
+db.exec(`CREATE TABLE IF NOT EXISTS motivo_saida (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  nome TEXT NOT NULL UNIQUE,
+  -- a caixa do IPP/PEF que este motivo alimenta. NULO = ninguém disse ainda; quem carimba é quem encerra
+  tipo_rede TEXT CHECK (tipo_rede IS NULL OR tipo_rede IN
+    ('Cancelado','Rescindido sem aula','Rescindido com aula','Evadido por falta',
+     'Trancado não-retornado','Não rematriculado','Formado')),
+  -- fixa: "Não informado" existe de propósito. Campo que pode ficar vazio volta a ser o vazio de hoje;
+  -- uma linha dizendo "ninguém soube" é dado, e dá para contar quantas vezes ela foi escolhida
+  especial TEXT UNIQUE CHECK (especial IS NULL OR especial IN ('nao_informado')),
+  ordem INTEGER NOT NULL DEFAULT 100,
+  arquivado TEXT,
+  momento TEXT NOT NULL
+)`);
+/* AS CAIXAS DA REDE, com a definição de cada uma na letra do IPP/PEF e do Booklet Gestão de Dados. Ficam em
+   código, e não em tabela: quem as define é a franqueadora, e renomear uma delas aqui desalinharia o número
+   entregue todo mês. `perda` diz se a caixa entra no denominador da retenção — "Formado" é o caso em aberto:
+   o Booklet diz por escrito que formado NÃO é evadido "porém deve ser incluído no cálculo", e o IPP o lista
+   dentro do bloco de evasão. Enquanto ele não decidir, Formado fica fora da perda e o rótulo diz isso. */
+/* AS DUAS RÉGUAS DO RISCO, escolhidas por ele em 19/09 e deixadas em constante porque vão virar parâmetro
+   de Configurações quando a tela de retenção amadurecer (o guia técnico já reservou as chaves
+   `evasao_alerta_faltas` e `evasao_faltas_consecutivas`). 3 é a atenção da casa; 8 é a régua do IPP/PEF. */
+const REGRA_ATENCAO_FALTAS = 3;
+const REGRA_EVASAO_FALTAS = 8;
+const TIPOS_SAIDA_REDE = [
+  { nome: "Cancelado", perda: true, oque: "Rescindiu antes do início das aulas ou do plano pedagógico." },
+  { nome: "Rescindido sem aula", perda: true, oque: "Rescindiu formalmente sem ter comparecido a nenhuma aula." },
+  { nome: "Rescindido com aula", perda: true, oque: "Rescindiu formalmente depois de já ter começado o livro." },
+  { nome: "Evadido por falta", perda: true, oque: "Sumiu: 8 faltas consecutivas, ou um mês inteiro sem comparecer." },
+  { nome: "Trancado não-retornado", perda: true, oque: "Trancou e não voltou na data combinada (a rede sugere 6 meses)." },
+  { nome: "Não rematriculado", perda: true, oque: "Terminou o livro ou o contrato e não seguiu para o próximo." },
+  { nome: "Formado", perda: false, oque: "Concluiu o W12 ou o último livro da série. Não é evasão — mas a rede manda incluir no cálculo." },
+];
 db.exec(`CREATE TABLE IF NOT EXISTS aula_registro (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   id_matricula TEXT NOT NULL REFERENCES alunos(id_matricula) ON DELETE CASCADE,
@@ -248,6 +295,23 @@ db.exec(`CREATE TABLE IF NOT EXISTS aula_registro (
   UNIQUE (id_matricula, livro, data, seq)
 )`);
 db.exec("CREATE INDEX IF NOT EXISTS ix_registro_contrato ON aula_registro(id_matricula, livro, data)");
+/* ===== A HORA DE CADA AULA, E A LIÇÃO QUE FICOU PELA METADE (2026-09-19, dele) =====
+   Duas perguntas que o registro não sabia responder, e as duas saem da mesma cena que ele descreveu:
+   *"O aluno chega uma e duas da tarde, faz a lição 51. Faz um intervalinho de cinco minutos, sobe de novo
+   e faz a 52 das 14h03 às 15h. Quando eu lanço uma segunda aula, esse timestamp é gravado."*
+
+   `inicio` — a hora em que AQUELA aula começou. A entrada e a saída em `presenca` são do DIA: dizem quando
+   ele chegou e quando foi embora, e nunca souberam dividir o intervalo entre a 1ª e a 2ª aula. A 1ª aula
+   começa na entrada (não se repete aqui); da 2ª em diante o relógio carimba sozinha no momento em que ela
+   é criada, e quem registrou pode corrigir. É isto que torna legível "quantas lições couberam entre a
+   entrada e a saída", que é a pergunta dele.
+
+   `concluida` / `parou_em` — *"tem que ter um botão se a lição foi terminada ou não. Às vezes ele para na
+   metade... e marcado onde foi marcado, que parte da lição, que atividade foi."* Nulo quer dizer "ninguém
+   disse" e continua valendo a dedução de sempre; 0 é a lição que continua na próxima aula, e é ela que faz
+   a janela seguinte sugerir A MESMA lição em vez da próxima. */
+for (const [c, def] of [["inicio", "TEXT"], ["concluida", "INTEGER"], ["parou_em", "TEXT"]])
+  addColuna("aula_registro", c, def);
 db.exec(`CREATE TABLE IF NOT EXISTS aula_registro_tipo (
   registro_id INTEGER NOT NULL REFERENCES aula_registro(id) ON DELETE CASCADE,
   tipo_id INTEGER NOT NULL REFERENCES tipo_aula(id),
@@ -327,7 +391,13 @@ function regraDaTarefa(eventos: any[], regsPorId: Map<number, any>): Map<number,
     if (!r) continue;
     const cLimite = datas.filter((d: string) => d > e.data)[nAtraso - 1] || null;
     let v: string | null = null;
-    if (r.tarefa) v = r.tarefa_em ? (cLimite && r.tarefa_em >= cLimite ? "Atrasado" : "Em dia") : null;
+    /* ===== QUEM DECIDE EM DIA × ATRASADO É A ENTREGA, NÃO A NOTA (2026-09-20, dele) =====
+       *"A avaliação pode ser feita em qualquer momento; depende do professor, da demanda. O que importa é
+       se o aluno entregou atrasado ou não."* Até aqui a situação só existia depois de alguém dar a nota —
+       e a nota chega dias depois da entrega, às vezes nunca. Agora ela sai de `tarefa_em`, que é a data em
+       que a tarefa CHEGOU. Nota sem data é dado antigo e continua sem situação. */
+    if (r.tarefa_em) v = cLimite && r.tarefa_em >= cLimite ? "Atrasado" : "Em dia";
+    else if (r.tarefa) v = null;
     else if (cLimite && r.origem === "aula") v = "Atrasado";
     out.set(r.id, v);
   }
@@ -422,6 +492,25 @@ db.exec(`CREATE TABLE IF NOT EXISTS encontro_avulso_desmarcado (
   desmarcado_em TEXT NOT NULL          -- quando alguém o tirou da grade
 )`);
 db.exec("CREATE INDEX IF NOT EXISTS ix_desmarcado_matricula ON encontro_avulso_desmarcado(id_matricula, livro)");
+/* ===== QUAL ATRASO ESTA REPOSIÇÃO PAGA (2026-09-20, dele) =====
+   *"Eu quero poder selecionar quais aulas vou repor naquele dia, porque às vezes o aluno faz três lições
+   numa reposição de uma hora e meia."* E: *"por padrão vai ser a mais antiga"*.
+   Até aqui quem decidia era só a FILA, no instante do cálculo: a reposição pagava sempre a falta mais
+   antiga em aberto e nada ficava escrito. Isso continua sendo o PADRÃO — esta tabela é a exceção, para
+   quando ele escolhe. Uma reposição pode cobrir VÁRIAS linhas (três lições numa sentada), e cada linha
+   diz de que ATRASO ela é: a falta em si, ou um dos outros motivos que atrasam o curso e que a conta de
+   [[project_atraso_aula_por_aula]] já separa — aula que não virou lição, tarefa atrasada, tempo de app.
+   `falta_data` é nula quando o que se repõe não é uma falta: ali não há dia a apontar. */
+db.exec(`CREATE TABLE IF NOT EXISTS reposicao_cobre (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  encontro_id INTEGER NOT NULL REFERENCES encontro_avulso(id) ON DELETE CASCADE,
+  falta_data TEXT CHECK (falta_data IS NULL OR falta_data GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]'),
+  tipo TEXT NOT NULL DEFAULT 'falta'
+    CHECK (tipo IN ('falta','sem_licao','pedaco','tarefa','aplicativo','outro')),
+  momento TEXT NOT NULL
+)`);
+db.exec("CREATE UNIQUE INDEX IF NOT EXISTS ux_repo_cobre ON reposicao_cobre(encontro_id, IFNULL(falta_data,''), tipo)");
+db.exec("CREATE INDEX IF NOT EXISTS ix_repo_cobre_enc ON reposicao_cobre(encontro_id)");
 
 /* ===== AS TRÊS TABELAS QUE FALTAVAM (2026-09-13, dele) =====
    O guia técnico mostrou que quase metade do que os manuais da rede pedem esbarrava em três tabelas
@@ -438,6 +527,13 @@ for (const [c, def] of [["papel", "TEXT"], ["telefone", "TEXT"], ["email", "TEXT
    responsável — é para ele que vai o Report Card de quem tem menos de 18 */
 for (const [c, def] of [["nascimento", "TEXT"], ["telefone", "TEXT"], ["email", "TEXT"], ["responsavel", "TEXT"],
   ["responsavel_telefone", "TEXT"]]) addColuna("alunos", c, def);
+/* A SAÍDA GANHA CAUSA E RELÓGIO (2026-09-19): o histórico de situação já era a linha do tempo — tem data e
+   tem livro —, então é nele que a saída passa a dizer por quê. Três colunas e nenhuma tabela nova: uma
+   segunda tabela de saída seria a terceira verdade sobre o mesmo fato (`alunos.situacao` e
+   `aluno_estagio.estado` já são duas). `momento` separa QUANDO o aluno saiu de QUANDO alguém registrou —
+   sem ele não dá para saber se a evasão foi lançada no dia ou seis meses depois. */
+for (const [c, def] of [["motivo_id", "INTEGER"], ["tipo_rede", "TEXT"], ["momento", "TEXT"],
+  ["observacao", "TEXT"]]) addColuna("aluno_situacao_historico", c, def);
 
 /* ===== QUEM DÁ CADA HORÁRIO, COM DATA =====
    `aula_professor` responde "quem dá a aula de terça às 13h HOJE": trocar a professora reescrevia o passado
@@ -1785,6 +1881,25 @@ const CHECAGENS: Checagem[] = [
           d: nomeDoLivro(x.livro) + " · " + x.data.slice(8, 10) + "/" + x.data.slice(5, 7) + "/" + x.data.slice(0, 4)
              + " · " + (ROT[x.status] || x.status) + " em " + fech.get(x.data)!.nome, a: x.id_matricula }));
     } },
+  /* ===== ENCONTRO MARCADO NA PRÓPRIA HORA DO ALUNO (2026-09-19, decisão dele) =====
+     *"É erro de lançamento — a reposição deveria estar em outra hora."* São 22 casos no banco da escola.
+     A projeção parou de contar duas aulas nesses dias (a hora é a mesma), e a falta que a recepção quis
+     quitar continua aberta até alguém mover o encontro para a hora em que ele de fato aconteceu. */
+  { id: "avulso_na_hora_do_aluno", destino: "aluno", area: "Alunos", gravidade: "media", aba: "alunos",
+    titulo: "Encontro marcado na mesma hora que o aluno já tem",
+    porque: "O encontro (reposição, reforço) foi marcado numa hora que já é da agenda dele naquele dia — então é a MESMA aula, não uma a mais. O dia conta uma aula só, e a falta que a reposição deveria pagar continua em aberto.",
+    acao: "Corrija a hora do encontro para a hora em que ele realmente veio (na aba Frequência do contrato), ou apague o encontro se a aula foi a normal do dia mesmo.",
+    itens: () => A(`SELECT e.id, e.id_matricula, e.livro, e.data, e.hora, e.motivo, a.nome
+                    FROM encontro_avulso e
+                    JOIN alunos a ON a.id_matricula=e.id_matricula
+                    JOIN aulas au ON au.id_matricula=e.id_matricula AND au.livro=e.livro AND au.hora=e.hora
+                    WHERE au.dia = CASE CAST(strftime('%w', e.data) AS INTEGER)
+                      WHEN 0 THEN 'Domingo' WHEN 1 THEN 'Segunda' WHEN 2 THEN 'Terça' WHEN 3 THEN 'Quarta'
+                      WHEN 4 THEN 'Quinta' WHEN 5 THEN 'Sexta' ELSE 'Sábado' END
+                    GROUP BY e.id ORDER BY e.data DESC`)
+      .map((x: any) => ({ k: String(x.id), r: x.nome,
+        d: nomeDoLivro(x.livro) + " · " + x.data.slice(8, 10) + "/" + x.data.slice(5, 7) + " às " + x.hora
+           + " · " + x.motivo + " marcada na hora da agenda dele", a: x.id_matricula })) },
   { id: "entrega_sem_data", destino: "entrega", area: "Alunos", gravidade: "baixa", aba: "estoque",
     titulo: "Entrega registrada sem data",
     porque: "Sabe-se que o aluno recebeu, não quando. É o caso das entregas deduzidas das matrículas antigas.",
@@ -2022,6 +2137,36 @@ function sugerirCodigo(nome: string) {
    matrículas que já existem: rodar de novo repovoaria entregas que a recepção tivesse apagado, e
    aluno matriculado DEPOIS da semeadura deve mesmo aparecer como pendente — ele ainda não recebeu
    o livro. Os ITENS, esses, são reconciliados sempre: livro novo no catálogo vira item novo. */
+/* A LISTA NASCE ESCRITA, e não vazia: aba vazia é promessa, não cadastro. Estes são os motivos que a
+   recepção de Naviraí vai reconhecer, cada um já apontando para a caixa que a rede conta — ele renomeia,
+   arquiva e reordena na tela, como faz com os tipos de aula. Semeia UMA vez (marca em `config`): a segunda
+   passada desfaria o que ele tiver ajustado. "Não informado" é fixa e não se arquiva. */
+function semearMotivosSaida() {
+  if (G("SELECT valor FROM config WHERE chave='motivos_saida_semeados'")) return { motivos: 0 };
+  const LISTA: [string, string | null, string | null][] = [
+    ["Parou de vir, sem avisar", "Evadido por falta", null],
+    ["Mudou de cidade", "Rescindido com aula", null],
+    ["Não pôde mais pagar", "Rescindido com aula", null],
+    ["O horário não deu mais", "Rescindido com aula", null],
+    ["Foi para outra escola", "Rescindido com aula", null],
+    ["Saúde ou problema de família", "Rescindido com aula", null],
+    ["Desistiu antes de começar", "Cancelado", null],
+    ["Rescindiu antes da 1ª aula", "Rescindido sem aula", null],
+    ["Não comprou o material do próximo estágio", "Não rematriculado", null],
+    ["Trancou e não voltou", "Trancado não-retornado", null],
+    ["Terminou o último livro", "Formado", null],
+    ["Não informado", null, "nao_informado"],
+  ];
+  let n = 0;
+  LISTA.forEach(([nome, tipo, especial], i) => {
+    if (G("SELECT 1 FROM motivo_saida WHERE lower(nome)=lower(?)", nome)) return;
+    R("INSERT INTO motivo_saida (nome,tipo_rede,especial,ordem,momento) VALUES (?,?,?,?,?)",
+      nome, tipo, especial, (i + 1) * 10, agora());
+    n++;
+  });
+  R("INSERT OR REPLACE INTO config (chave,valor) VALUES ('motivos_saida_semeados',?)", agora());
+  return { motivos: n };
+}
 function semearEstoque() {
   for (const lv of A("SELECT nome, ordem FROM livros ORDER BY ordem")) {
     if (G("SELECT 1 FROM estoque_item WHERE livro=?", lv.nome)) continue;
@@ -3314,10 +3459,20 @@ function indicePontos(ini: string, fim: string) {
   const horas: Record<string, string[]> = {};
   A("SELECT id_matricula, livro, dia, hora FROM aulas ORDER BY hora")
     .forEach(r => (horas[r.id_matricula + "|" + r.livro + "|" + r.dia] ||= []).push(r.hora));
+  /* ===== O DIA DE REPOSIÇÃO TEM DUAS AULAS, E O CARTÃO DIZIA UMA (2026-09-19) =====
+     `previstas` saía só da agenda; a projeção conta agenda + encontros marcados. No dia em que o aluno
+     repõe, o cartão do Kanban dizia "1 aula esperada · 1 de 1 registrada" enquanto a janela do registro
+     abria dois chips — duas respostas para "quantas aulas este dia tinha". A hora do avulso entra na
+     mesma lista e o `Set` não repete a que já está na agenda: quando a recepção marca a reposição no
+     próprio horário dele, é a MESMA aula, e contar duas inventaria uma lição. */
+  const avuls: Record<string, string[]> = {};
+  A("SELECT id_matricula, livro, data, hora FROM encontro_avulso ORDER BY hora")
+    .forEach(r => (avuls[r.id_matricula + "|" + r.livro + "|" + r.data] ||= []).push(r.hora));
   const idx: Record<string, Record<string, any>> = {};
   A("SELECT * FROM presenca WHERE data BETWEEN ? AND ?", ini, fim).forEach(p => {
     const dia = NOMES_DIA[new Date(p.data + "T12:00:00").getDay()];
-    const lst = horas[p.id_matricula + "|" + p.livro + "|" + dia] || [];
+    const lst = [...new Set([...(horas[p.id_matricula + "|" + p.livro + "|" + dia] || []),
+      ...(avuls[p.id_matricula + "|" + p.livro + "|" + p.data] || [])])].sort();
     const cumpridas: string[] = p.licoes ? String(p.licoes).split(",") : [];
     (idx[p.id_matricula + "|" + p.livro] ||= {})[p.data] = {
       status: p.status, entrada: p.entrada || null, saida: p.saida || null, minutos: p.minutos ?? null,
@@ -3671,10 +3826,33 @@ const minutosEntre = (ini: string, fim: string) => emMinutos(fim) - emMinutos(in
 const fmtMin = (m: number) => m >= 60 ? Math.floor(m/60) + "h" + (m%60 ? " " + (m%60) + "min" : "") : m + "min";
 
 /* status vazio/null apaga o lançamento (volta a "não preenchido") */
-function gravarPresenca({ idMatricula, livro, data, status }: any) {
+function gravarPresenca({ idMatricula, livro, data, status, confirmadoRegistros }: any) {
   if (!idMatricula || !livro || !data) throw new Error("Dados incompletos para lançar presença.");
-  if (!status) { R("DELETE FROM presenca WHERE id_matricula=? AND livro=? AND data=?", idMatricula, livro, data);
-    anotar(idMatricula, livro, data, "limpeza", null, "status removido"); return { ok: true, status: null }; }
+  if (!status) {
+    /* ===== DESFAZER O DIA DESFAZ TUDO DO DIA (2026-09-20, dele) =====
+       *"Se eu registro a aula do aluno e desfaço — a saída foi engano —, tem que sumir tudo: a lição,
+       quando as lições foram feitas, a ficha, as presenças, as avaliações. Ele vai perguntar: você deseja
+       desfazer o registro de aulas desse dia?"*
+       Até aqui o registro de aula SOBREVIVIA à limpeza da presença: a linha da ficha sumia e a lição
+       continuava contada, porque a projeção lê os registros. Ficava um fantasma que ninguém via.
+       Pergunta antes, sempre: apagar avaliação é perda de trabalho de professor. */
+    const regs = A(`SELECT id FROM aula_registro WHERE id_matricula=? AND livro=? AND data=?`,
+      idMatricula, livro, data);
+    if (regs.length && !confirmadoRegistros) {
+      const comNota = G(`SELECT COUNT(*) n FROM aula_registro WHERE id_matricula=? AND livro=? AND data=?
+        AND (fala IS NOT NULL OR audicao IS NOT NULL OR leitura IS NOT NULL OR escrita IS NOT NULL
+             OR tarefa IS NOT NULL OR checking_sentences IS NOT NULL OR app IS NOT NULL
+             OR engajamento IS NOT NULL)`, idMatricula, livro, data)?.n || 0;
+      return { ok: false, precisaConfirmarRegistros: true, registros: regs.length, comNota,
+        aviso: regs.length + (regs.length > 1 ? " aulas registradas" : " aula registrada") + " neste dia"
+          + (comNota ? ", " + comNota + " com avaliação" : "") + "." };
+    }
+    for (const r of regs) R("DELETE FROM aula_registro WHERE id=?", r.id);   // tipos e professores caem na cascata
+    R("DELETE FROM presenca WHERE id_matricula=? AND livro=? AND data=?", idMatricula, livro, data);
+    anotar(idMatricula, livro, data, "limpeza", null,
+      "status removido" + (regs.length ? " · " + regs.length + " registro(s) de aula apagado(s)" : ""));
+    return { ok: true, status: null, registrosApagados: regs.length };
+  }
   if (!["P", "F", "N"].includes(status)) throw new Error("Status inválido: use P (presente), F (falta) ou N (não aula).");
   /* apagar continua livre (acima): é assim que se limpa o que ficou num dia depois fechado */
   recusarDiaSemAula(data);
@@ -3788,6 +3966,7 @@ try { aplicarFaltasAutomaticas(); } catch (e) { console.warn("fecho do dia falho
 /* aqui e não junto das migrações: semearEstoque usa `agora()`, que é declarado bem depois no
    arquivo. Falhar aqui não pode derrubar a subida — recepção sem estoque ainda é recepção. */
 try { semearEstoque(); } catch (e) { console.warn("semeadura do estoque falhou (segue o baile):", e); }
+try { semearMotivosSaida(); } catch (e) { console.warn("semeadura dos motivos de saída falhou (segue o baile):", e); }
 /* depois da semeadura: converte os materiais em kit e limpa os zeros que a tela antiga obrigava a
    digitar. As duas rodam uma vez só e não tocam em quantidade nenhuma. */
 try { migrarMaterialParaKit(); } catch (e) { console.warn("conversão de material em kit falhou (segue o baile):", e); }
@@ -4048,6 +4227,37 @@ function diaSemAula(data: string): { nome: string; tipo: string } | null {
   if (!data || !/^\d{4}-\d{2}-\d{2}$/.test(String(data))) return null;
   return feriadosNomeados(data, data).get(data) || null;
 }
+/* Quantas faltas do aluno AINDA não foram pagas até aquela data. Sai da mesma fila FIFO que a Ficha e os
+   Encaminhamentos usam — não se reimplementa a conta aqui, senão duas telas discordariam sobre quem deve.
+   A falta em dia fechado no calendário nem chega nesta fila (ver [[project_dia_sem_aula]]). */
+function faltasEmAbertoAte(idMatricula: string, livro: string, data: string): number {
+  try {
+    const p: any = projetarContrato({ idMatricula, livro });
+    const fila: any[] = p?.encaminhamentos?.fila || [];
+    return fila.filter((f: any) => f.data && !f.paga && !f.adiantada && f.data <= data).length;
+  } catch { return 0; }
+}
+/* ===== O QUE A REPOSIÇÃO VEIO PAGAR (2026-09-20, dele) =====
+   Lista fechada de tipos, e cada linha é ou uma FALTA (com a data dela) ou um dos outros atrasos que a
+   conta de `atraso` já separa. Regravar substitui: a escolha é do agendamento, não se acumula sozinha. */
+const TIPOS_ATRASO = ["falta", "sem_licao", "pedaco", "tarefa", "aplicativo", "outro"];
+function gravarCobertura(encontroId: number, cobre: any[]) {
+  R("DELETE FROM reposicao_cobre WHERE encontro_id=?", encontroId);
+  for (const c of (Array.isArray(cobre) ? cobre : [])) {
+    const tipo = TIPOS_ATRASO.includes(String(c?.tipo)) ? String(c.tipo) : "falta";
+    const d = c?.faltaData ? String(c.faltaData) : null;
+    if (tipo === "falta" && !d) continue;              // falta sem data não diz nada
+    if (d && !/^\d{4}-\d{2}-\d{2}$/.test(d)) continue;
+    try {
+      R("INSERT INTO reposicao_cobre (encontro_id, falta_data, tipo, momento) VALUES (?,?,?,?)",
+        encontroId, d, tipo, agora());
+    } catch { /* repetido na mesma reposição: o índice único cuida, e não é erro */ }
+  }
+}
+function coberturaDe(encontroId: number) {
+  return A("SELECT falta_data, tipo FROM reposicao_cobre WHERE encontro_id=? ORDER BY falta_data, tipo", encontroId)
+    .map((x: any) => ({ faltaData: x.falta_data || null, tipo: x.tipo }));
+}
 function recusarDiaSemAula(data: string) {
   const f = diaSemAula(data);
   if (f) throw new Error(`${data.slice(8, 10)}/${data.slice(5, 7)} não tem aula no calendário letivo (${f.nome}): `
@@ -4296,9 +4506,29 @@ function projetarContrato({ idMatricula, livro, inicio, fechadosPre }: any) {
   /* os encontros FORA da agenda, por data: é o que transforma "veio num dia estranho" em
      "repôs" ou "antepôs" — a diferença que ele faz questão de separar */
   const avulsosPorData: Record<string, any[]> = {};
+  /* ===== ENCONTRO MARCADO NA PRÓPRIA HORA DELE É A MESMA AULA (2026-09-19, decisão dele) =====
+     Medido no banco da escola: 22 dos 130 encontros estão marcados numa hora que o aluno JÁ TEM na agenda
+     daquele dia. O lançador sempre escondeu essa linha ("evita linha duplicada"), mas a projeção somava
+     `regulares + extras` e dava DUAS aulas ao dia — duas lições consumidas e uma falta quitada num dia de
+     uma hora só. Ele decidiu: *"é erro de lançamento"* — a reposição devia estar em outra hora. Então a
+     hora repetida não cria aula nova; ela só diz que aquela hora pagou uma falta. A Central aponta os casos
+     para a recepção corrigir (checagem `avulso_na_hora_do_aluno`). */
   for (const e of A(`SELECT data, hora, motivo FROM encontro_avulso WHERE id_matricula=? AND livro=?
-                     ORDER BY data, hora`, idMatricula, c.livro))
-    (avulsosPorData[e.data] ||= []).push(e);
+                     ORDER BY data, hora`, idMatricula, c.livro)) {
+    const lista = (avulsosPorData[e.data] ||= []);
+    const naAgenda = e.hora && horasDoDia(e.data).includes(e.hora);
+    lista.push({ ...e, naAgenda: !!naAgenda });
+  }
+  /* as faltas que ELE escolheu para cada reposição (quando escolheu): a chave é a aula que paga —
+     data + posição no dia —, a mesma que a fila usa para saber quem quitou o quê */
+  const escolhaDaReposicao = new Map<string, string[]>();
+  for (const x of A(`SELECT e.data, rc.falta_data FROM reposicao_cobre rc
+                     JOIN encontro_avulso e ON e.id=rc.encontro_id
+                     WHERE e.id_matricula=? AND e.livro=? AND rc.falta_data IS NOT NULL
+                     ORDER BY rc.falta_data`, idMatricula, c.livro)) {
+    const k = x.data + "|1";   /* o agendamento é do DIA; a 1ª reposição daquele dia carrega a escolha */
+    (escolhaDaReposicao.get(k) || escolhaDaReposicao.set(k, []).get(k)!).push(x.falta_data);
+  }
   /* os registros de aula do contrato: onde houver, é o professor quem diz o que o dia foi */
   const registros = registrosDoContrato(idMatricula, c.livro);
   for (const p of A(`SELECT data, status, entrada, saida, minutos, observacao, aulas_feitas, licao_ordem
@@ -4323,8 +4553,10 @@ function projetarContrato({ idMatricula, livro, inicio, fechadosPre }: any) {
     if (regsDia && regsDia.length) {
       const regulares = horasDoDia(p.data).length;
       const extras = avulsosPorData[p.data] || [];
+      /* o encontro marcado na PRÓPRIA hora da agenda não acrescenta aula: é a mesma (decisão dele, 19/09) */
+      const extrasQueContam = extras.filter((e: any) => !e.naAgenda).length;
       const digitou = p.aulas_feitas != null && p.aulas_feitas !== "";
-      const deduzidas = digitou ? Math.max(0, Number(p.aulas_feitas)) : Math.max(1, (regulares + extras.length) || 1);
+      const deduzidas = digitou ? Math.max(0, Number(p.aulas_feitas)) : Math.max(1, (regulares + extrasQueContam) || 1);
       const porSeq = new Map<number, any>(regsDia.map((r: any) => [r.seq, r]));
       const total = Math.max(deduzidas, ...regsDia.map((r: any) => r.seq));
       /* ===== O QUE O REGISTRO JÁ DISSE VALE PRIMEIRO; A DEDUÇÃO SÓ REPARTE O QUE SOBROU (2026-09-14) =====
@@ -4352,7 +4584,7 @@ function projetarContrato({ idMatricula, livro, inicio, fechadosPre }: any) {
       const dedPorSeq = new Map<number, string | null>(livres.map((s, i) => [s, rotLivres[i]]));
       /* quantas aulas o dia PREVIA (agenda + encontros marcados): a que passa disso é a hora a mais, e é
          ela que decide se a lição continuada repete o número da aula na Ficha (31ᴬ, 31ᴮ) */
-      const previstas = regulares + extras.length;
+      const previstas = regulares + extrasQueContam;
       const doDia: any[] = [];
       for (let s = 1; s <= total; s++) {
         const r = porSeq.get(s) || null;
@@ -4403,9 +4635,11 @@ function projetarContrato({ idMatricula, livro, inicio, fechadosPre }: any) {
        presença a gastar uma lição, que é o que fazia a posição do aluno correr na frente da
        realidade. Zero só vale quando foi DIGITADO; `null` continua caindo na dedução pela agenda. */
     const digitou = p.aulas_feitas != null && p.aulas_feitas !== "";
+    /* o encontro marcado na PRÓPRIA hora da agenda não acrescenta aula: é a mesma (decisão dele, 19/09) */
+    const extrasQueContam = extras.filter((e: any) => !e.naAgenda).length;
     const quantas = digitou ? Math.max(0, Number(p.aulas_feitas))
-                            : Math.max(1, (regulares + extras.length) || 1);
-    const previstas = regulares + extras.length;
+                            : Math.max(1, (regulares + extrasQueContam) || 1);
+    const previstas = regulares + extrasQueContam;
     if (!quantas) {
       /* fica na linha do tempo como aula dada que não avançou lição — some do planejamento, não da
          história */
@@ -4689,6 +4923,22 @@ function projetarContrato({ idMatricula, livro, inicio, fechadosPre }: any) {
       const a = { data: e.data, seq: e.seq ?? null, licao: e.licao || null, cobre: null };
       antepostas.push(a); semPar.push(a);
     } else if (e.extra === "Reposição") {
+      /* ===== A ESCOLHA DELE VENCE A FILA (2026-09-20) =====
+         Quando o agendamento disse QUAIS faltas esta reposição paga (`reposicao_cobre`), são essas —
+         mesmo que não sejam as mais antigas. Sem escolha escrita, segue a FIFO de sempre, que é o padrão
+         e resolve 99% dos dias. Uma reposição pode quitar mais de uma falta: três lições numa sentada. */
+      const escolhidas = escolhaDaReposicao.get(e.data + "|" + (e.seq ?? 1)) || null;
+      if (escolhidas && escolhidas.length) {
+        let pagou = false;
+        for (const d of escolhidas) {
+          const alvo = fila.find((f: any) => f.data === d && !f.paga && !f.adiantada);
+          if (!alvo) continue;
+          alvo.paga = e.data; alvo.pagaSeq = e.seq ?? null; alvo.licao = e.licao || null; alvo.escolhida = true;
+          pagou = true;
+        }
+        if (pagou) continue;
+        /* escolheu faltas que já não estão abertas (alguém repôs antes): cai na fila, sem sumir */
+      }
       const aberta = fila.find((f: any) => f.data && !f.paga && !f.adiantada);
       if (aberta) { aberta.paga = e.data; aberta.pagaSeq = e.seq ?? null; aberta.licao = e.licao || null; }
       else fila.push({ data: null, paga: e.data, pagaSeq: e.seq ?? null, licao: e.licao || null, sobra: true });
@@ -5171,7 +5421,7 @@ const api: Record<string, (a: any) => unknown> = {
      SAI SÓ O OPERACIONAL: a matrícula e a agenda (as aulas vão pela cascata da FK). FICAM a
      biografia em `aluno_estagio`, a frequência e as entregas — é exatamente para isso que as duas
      tabelas existem separadas. */
-  encerrarLivro({ idMatricula, livro, data, estado, confirmado }: any) {
+  encerrarLivro({ idMatricula, livro, data, estado, confirmado, motivoId, tipoRede, observacao }: any) {
     if (!idMatricula || !livro) throw new Error("Aluno e estágio são obrigatórios.");
     if (!G("SELECT 1 FROM aluno_livro WHERE id_matricula=? AND livro=?", idMatricula, livro))
       throw new Error("Matrícula em " + livro + " não encontrada.");
@@ -5189,8 +5439,16 @@ const api: Record<string, (a: any) => unknown> = {
                    ORDER BY ae.id DESC LIMIT 1`, idMatricula, livro);
       const aulas = G("SELECT COUNT(*) n FROM aulas WHERE id_matricula=? AND livro=?", idMatricula, livro)?.n || 0;
       const meio = !!(p?.total && p.licao_atual != null && p.licao_atual < p.total);
+      /* ===== A DATA DA SAÍDA É DIGITADA, E NASCE SUGERIDA (2026-09-19, decisão dele) =====
+         Ela vinha carimbada com HOJE, sempre — a tela nunca mandava `data`, mesmo esta rota aceitando. E o
+         aluno quase nunca sai no dia em que a escola registra: a última aula dele costuma ser semanas antes.
+         Data errada é mês errado na retenção que vai para a franqueadora, e vencimento errado no contrato.
+         A sugestão é a ÚLTIMA PRESENÇA daquele livro; quem encerra corrige se souber melhor. */
+      const ultima = G(`SELECT MAX(data) d FROM presenca WHERE id_matricula=? AND livro=? AND status='P'`,
+        idMatricula, livro)?.d || null;
       return { precisaConfirmar: true, motivo: meio ? "meio" : "fim",
         licao: p?.licao_atual ?? null, total: p?.total ?? null, aulas,
+        ultimaAula: ultima, sugestaoData: ultima || dataISO(new Date()), hoje: dataISO(new Date()),
         texto: (meio
           ? "Este aluno está na lição " + p.licao_atual + " de " + p.total + " em " + livro
             + " — ainda falta livro para terminar.\n\n"
@@ -5198,15 +5456,42 @@ const api: Record<string, (a: any) => unknown> = {
           + (aulas ? "A agenda deste estágio sai junto (" + aulas + " aula(s) por semana). " : "")
           + "A frequência, as entregas e o percurso continuam registrados." };
     }
-    const fechou = fecharPercurso(idMatricula, livro, est, data);
+    if (data && !/^\d{4}-\d{2}-\d{2}$/.test(String(data))) throw new Error("Data da saída inválida.");
+    const dia = data || dataISO(new Date());
+    if (dia > dataISO(new Date())) throw new Error("A saída não pode ser numa data que ainda não chegou.");
+    const mot = motivoId ? G("SELECT * FROM motivo_saida WHERE id=?", Number(motivoId)) : null;
+    if (motivoId && !mot) throw new Error("Motivo de saída não encontrado.");
+    const tipo = tipoRede ? String(tipoRede) : (mot?.tipo_rede || null);
+    if (tipo && !TIPOS_SAIDA_REDE.some(x => x.nome === tipo)) throw new Error("Tipo da rede desconhecido: " + tipo);
+    /* ===== EM QUE LIÇÃO ELE PAROU (2026-09-19) =====
+       `aluno_estagio.licao_atual` existe desde sempre e estava NULO nos 14 encerrados do banco da escola —
+       então "a gente perde aluno na lição 10 ou na 50?" não tinha resposta. A projeção sabe a posição AGORA;
+       congelá-la no momento da saída é a única chance de saber depois, porque a matrícula sai em seguida e
+       com ela a agenda. Só preenche o que está vazio: lição corrigida à mão por ele continua valendo. */
+    try {
+      const pj: any = projetarContrato({ idMatricula, livro });
+      const ordem = pj?.posicao?.ordem ?? null;
+      if (ordem != null)
+        R(`UPDATE aluno_estagio SET licao_atual=? WHERE id_matricula=? AND livro=? AND estado='cursando'
+             AND licao_atual IS NULL`, ordem, idMatricula, livro);
+    } catch { /* sem estrutura ou sem agenda não dá para projetar — a saída não depende disso */ }
+    const fechou = fecharPercurso(idMatricula, livro, est, dia);
     const aulas = G("SELECT COUNT(*) n FROM aulas WHERE id_matricula=? AND livro=?", idMatricula, livro)?.n || 0;
     R("DELETE FROM aluno_livro WHERE id_matricula=? AND livro=?", idMatricula, livro); // a cascata leva as aulas
     const rotulo = est === "evadido" ? "Evadido" : est === "trancado" ? "Trancado"
       : est === "cancelado" ? "Cancelado" : "Encerrado";
     try {
-      R("INSERT INTO aluno_situacao_historico (id_matricula,situacao,data,livro) VALUES (?,?,?,?)",
-        idMatricula, rotulo, data || dataISO(new Date()), livro);
-    } catch { /* já havia registro igual na mesma data e livro — não é erro */ }
+      R(`INSERT INTO aluno_situacao_historico (id_matricula,situacao,data,livro,motivo_id,tipo_rede,observacao,momento)
+         VALUES (?,?,?,?,?,?,?,?)`,
+        idMatricula, rotulo, dia, livro, mot?.id ?? null, tipo, String(observacao ?? "").trim() || null, agora());
+    } catch {
+      /* já havia registro igual na mesma data e livro (o índice único) — não é erro, mas o motivo que
+         acabou de ser dito vale mais que o silêncio do registro antigo */
+      R(`UPDATE aluno_situacao_historico SET motivo_id=COALESCE(?,motivo_id), tipo_rede=COALESCE(?,tipo_rede),
+           observacao=COALESCE(?,observacao), momento=COALESCE(momento,?)
+         WHERE id_matricula=? AND situacao=? AND data=? AND livro IS ?`,
+        mot?.id ?? null, tipo, String(observacao ?? "").trim() || null, agora(), idMatricula, rotulo, dia, livro);
+    }
     /* A SITUAÇÃO DO ALUNO SAI DO HISTÓRICO, não daqui (corrigido 2026-08-22). A primeira versão
        desta rota gravava `alunos.situacao` na mão — e era o mesmo furo que o dropdown do cadastro
        tinha: dois lugares decidindo o mesmo campo acabam discordando. `sincronizarSituacao` lê a
@@ -5218,6 +5503,141 @@ const api: Record<string, (a: any) => unknown> = {
     return { ok: true, percursoFechado: fechou, aulasRemovidas: aulas, restam, estado: est, rotulo,
       situacaoCorrente: corrente,
       status: G("SELECT status FROM v_alunos WHERE id_matricula=?", idMatricula)?.status };
+  },
+
+  /* ===== QUEM ESTÁ INDO EMBORA, E QUEM JÁ FOI (2026-09-19, módulo da semana) =====
+     *"Planejar ações para evitar evasão e assegurar a retenção"* é atribuição DIÁRIA do coordenador, na
+     letra do Booklet de Gestão de Pessoas. O sinal para fazer isso já estava todo no banco e ninguém lia:
+     medido no banco da escola em 19/09, 27 alunos ativos estavam com 3 ou mais faltas seguidas e 22 sem
+     aparecer há mais de duas semanas — e nenhuma das 24 checagens da Central olhava para presença.
+
+     DUAS RÉGUAS, decisão dele, e elas pegam gente diferente de propósito:
+       · 3 FALTAS SEGUIDAS é a atenção — perto do protocolo da rede, que manda ligar já na 2ª falta da
+         matrícula nova e abrir follow-up na 3ª;
+       · 8 FALTAS SEGUIDAS é a régua do IPP/PEF: ali o aluno já é "evadido por falta" na conta da rede.
+     A sequência conta do último dia em que ele VEIO para cá. "Não aula" não quebra nem soma: o dia em que
+     não houve aula não é falta de ninguém — mesma regra do dia fechado no calendário.
+     Só contrato ABERTO entra: quem já saiu não está em risco, está fora. */
+  getRetencao({ ano }: any = {}) {
+    const hoje = dataISO(new Date());
+    const y = Number(ano) || Number(hoje.slice(0, 4));
+    const risco = A(`SELECT al.id_matricula, al.livro, a.nome
+                     FROM aluno_livro al JOIN alunos a ON a.id_matricula=al.id_matricula
+                     JOIN v_alunos v ON v.id_matricula=al.id_matricula
+                     WHERE v.status='Ativado' ORDER BY a.nome`).map((c: any) => {
+      const linhas = A(`SELECT data, status FROM presenca
+                        WHERE id_matricula=? AND livro=? AND status IN ('P','F') AND data<=?
+                        ORDER BY data DESC`, c.id_matricula, c.livro, hoje);
+      let seguidas = 0;
+      for (const l of linhas) { if (l.status === "F") seguidas++; else break; }
+      const ultima = linhas.find((l: any) => l.status === "P")?.data || null;
+      const dias = ultima ? Math.round((Date.parse(hoje) - Date.parse(ultima)) / 86400000) : null;
+      const prof = A(`SELECT DISTINCT f.nome FROM aulas au
+                      JOIN aula_professor ap ON ap.aula_id=au.id JOIN funcionarios f ON f.id=ap.funcionario_id
+                      WHERE au.id_matricula=? AND au.livro=?`, c.id_matricula, c.livro).map((x: any) => x.nome);
+      return { id: c.id_matricula, nome: c.nome, livro: c.livro, livroNome: nomeDoLivro(c.livro),
+        seguidas, ultimaAula: ultima, dias, lancamentos: linhas.length, professores: prof,
+        /* nunca veio é outra história: não sumiu, nunca chegou — e a rede tem caixa própria para isso */
+        nuncaVeio: !ultima && linhas.length > 0, semLancamento: linhas.length === 0,
+        nivel: seguidas >= REGRA_EVASAO_FALTAS ? "evasao" : seguidas >= REGRA_ATENCAO_FALTAS ? "atencao"
+          : (dias != null && dias >= 30) ? "sumido" : null };
+    }).filter((r: any) => r.nivel);
+    /* as saídas do ano, com a causa. É esta lista que responde "por que perdemos aluno" — e o que a
+       franqueadora recebe é a coluna `tipoRede`, somada por caixa. */
+    const saidas = A(`SELECT h.*, a.nome, m.nome motivo_nome FROM aluno_situacao_historico h
+                      JOIN alunos a ON a.id_matricula=h.id_matricula
+                      LEFT JOIN motivo_saida m ON m.id=h.motivo_id
+                      JOIN situacoes s ON s.situacao=h.situacao AND s.ativa=0
+                      WHERE h.data>=? AND h.data<=? ORDER BY h.data DESC, a.nome`,
+      y + "-01-01", y + "-12-31").map((h: any) => ({
+        registroId: h.id, id: h.id_matricula, nome: h.nome, situacao: h.situacao, data: h.data,
+        livro: h.livro || null, livroNome: h.livro ? nomeDoLivro(h.livro) : null,
+        motivo: h.motivo_nome || null, tipoRede: h.tipo_rede || null, observacao: h.observacao || null,
+        registradoEm: h.momento || null }));
+    const porMes: Record<string, number> = {};
+    for (const s of saidas) porMes[s.data.slice(0, 7)] = (porMes[s.data.slice(0, 7)] || 0) + 1;
+    const porTipo: Record<string, number> = {};
+    for (const s of saidas) porTipo[s.tipoRede || "sem caixa"] = (porTipo[s.tipoRede || "sem caixa"] || 0) + 1;
+    const porMotivo: Record<string, number> = {};
+    for (const s of saidas) porMotivo[s.motivo || "sem motivo"] = (porMotivo[s.motivo || "sem motivo"] || 0) + 1;
+    return { hoje, ano: y, risco, saidas, porMes, porTipo, porMotivo,
+      /* a lista de motivos vem junto: é ela que a repescagem oferece linha a linha, e uma segunda
+         ida ao servidor só para isso deixaria a tela meio pintada por um instante */
+      motivos: (api as any).getMotivosSaida().motivos,
+      regras: { atencao: REGRA_ATENCAO_FALTAS, evasao: REGRA_EVASAO_FALTAS },
+      ativos: G("SELECT COUNT(*) n FROM v_alunos WHERE status='Ativado'")?.n || 0,
+      pendentes: (api as any).getSaidasPendentes() };
+  },
+
+  /* ===== A REPESCAGEM DAS SAÍDAS ANTIGAS (2026-09-19, decisão dele) =====
+     No banco da recepção, 49 dos 54 alunos desativados não têm data de saída em lugar nenhum: a recepção
+     trocava o campo do cadastro e seguia a vida, e o campo não guarda nem quando nem por quê. Sem isso não
+     existe taxa de evasão de 2026 — não dá para dizer quantos saíram em agosto.
+     Esta rota devolve a lista do que falta, com a data SUGERIDA (a última presença dele) e o estágio provável
+     já escolhidos, para a tela virar duas escolhas por linha em vez de um formulário.
+     DUAS FILAS, e a diferença importa: `semRegistro` é quem não tem nenhuma linha na linha do tempo — a
+     saída inteira falta; `semMotivo` é quem tem a linha e não tem causa. A primeira conserta a contagem por
+     mês; a segunda responde "por que perdemos aluno". */
+  getSaidasPendentes() {
+    const hoje = dataISO(new Date());
+    const linhas = A(`SELECT a.id_matricula, a.nome, a.situacao FROM alunos a
+                      JOIN situacoes s ON s.situacao=a.situacao AND s.ativa=0
+                      ORDER BY a.nome`).map((a: any) => {
+      const reg = G(`SELECT h.id, h.data, h.livro, h.motivo_id FROM aluno_situacao_historico h
+                     WHERE h.id_matricula=? AND h.situacao=? ORDER BY h.data DESC, h.id DESC LIMIT 1`,
+        a.id_matricula, a.situacao);
+      const ult = G(`SELECT data, livro FROM presenca WHERE id_matricula=? AND status='P'
+                     ORDER BY data DESC LIMIT 1`, a.id_matricula);
+      const perc = G(`SELECT livro, data_fim, estado FROM aluno_estagio WHERE id_matricula=?
+                      ORDER BY (estado='cursando') DESC, id DESC LIMIT 1`, a.id_matricula);
+      const matricula = G("SELECT livro FROM aluno_livro WHERE id_matricula=? ORDER BY rowid DESC LIMIT 1", a.id_matricula);
+      const aulas = G("SELECT COUNT(*) n FROM presenca WHERE id_matricula=? AND status='P'", a.id_matricula)?.n || 0;
+      const livro = reg?.livro || ult?.livro || matricula?.livro || perc?.livro || null;
+      return { id: a.id_matricula, nome: a.nome, situacao: a.situacao,
+        registroId: reg?.id ?? null, data: reg?.data ?? null, temMotivo: !!reg?.motivo_id,
+        livro, livroNome: livro ? nomeDoLivro(livro) : null,
+        ultimaAula: ult?.data ?? null, aulas, temMatricula: !!matricula,
+        /* a sugestão de data, na ordem em que a verdade é mais forte: o que já está registrado, a última
+           aula que ele deu o ar da graça, o fim do percurso, e — só em último caso — hoje */
+        sugestao: reg?.data || ult?.data || perc?.data_fim || hoje,
+        /* quem nunca teve uma aula não "evadiu": a rede chama isso de Cancelado ou Rescindido sem aula */
+        nuncaVeio: aulas === 0 };
+    });
+    return { hoje, semRegistro: linhas.filter((l: any) => !l.registroId),
+      semMotivo: linhas.filter((l: any) => l.registroId && !l.temMotivo),
+      completas: linhas.filter((l: any) => l.registroId && l.temMotivo).length };
+  },
+  /* Uma saída antiga, registrada agora. Decide sozinha o caminho, que é o que a tela não deveria ter de
+     saber: quem AINDA tem matrícula naquele estágio passa por `encerrarLivro` (a agenda tem de sair junto,
+     senão o horário fica ocupado por quem não vem mais); quem já não tem só ganha a linha na linha do tempo.
+     Registro que já existe e só não tinha causa é completado no lugar — não se cria uma segunda saída. */
+  registrarSaidaAntiga({ idMatricula, livro, situacao, data, motivoId, tipoRede, observacao, registroId }: any) {
+    const sit = String(situacao || "");
+    if (!G("SELECT 1 FROM situacoes WHERE situacao=? AND ativa=0", sit))
+      throw new Error("Escolha uma situação de saída (Encerrado, Trancado, Evadido ou Cancelado).");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(data || ""))) throw new Error("Diga a data da saída.");
+    if (String(data) > dataISO(new Date())) throw new Error("A saída não pode ser numa data que ainda não chegou.");
+    const mot = motivoId ? G("SELECT * FROM motivo_saida WHERE id=?", Number(motivoId)) : null;
+    if (motivoId && !mot) throw new Error("Motivo de saída não encontrado.");
+    const tipo = tipoRede ? String(tipoRede) : (mot?.tipo_rede || null);
+    if (registroId) {
+      const r = G("SELECT * FROM aluno_situacao_historico WHERE id=?", Number(registroId));
+      if (!r) throw new Error("Registro não encontrado.");
+      R(`UPDATE aluno_situacao_historico SET data=?, motivo_id=?, tipo_rede=?, observacao=?,
+           momento=COALESCE(momento,?) WHERE id=?`,
+        data, mot?.id ?? null, tipo, String(observacao ?? "").trim() || null, agora(), r.id);
+      sincronizarPercurso(idMatricula, r.livro);
+      return { ok: true, caminho: "completado", situacaoCorrente: sincronizarSituacao(idMatricula) };
+    }
+    const estado: Record<string, string> = { Encerrado: "encerrado", Trancado: "trancado", Evadido: "evadido", Cancelado: "cancelado" };
+    if (livro && G("SELECT 1 FROM aluno_livro WHERE id_matricula=? AND livro=?", idMatricula, livro)) {
+      const r: any = (api as any).encerrarLivro({ idMatricula, livro, data, estado: estado[sit] || "encerrado",
+        confirmado: true, motivoId, tipoRede: tipo, observacao });
+      return { ...r, caminho: "encerrou" };
+    }
+    const r: any = (api as any).salvarHistoricoAluno({ idMatricula, situacao: sit, data, livro: livro || null,
+      motivoId, tipoRede: tipo, observacao });
+    return { ...r, caminho: "registrou" };
   },
 
   /* ===== histórico de situação (linha do tempo manual: matrícula/rematrícula/etc por data) ===== */
@@ -5249,23 +5669,40 @@ const api: Record<string, (a: any) => unknown> = {
         const primeira = !!r.livro && !jaVisto.has(r.livro);
         if (r.livro) jaVisto.add(r.livro);
         return { id: r.id, situacao: r.situacao, data: r.data, livro: r.livro || null,
+          /* por que ele saiu, quando isso foi digitado, e a caixa que a rede conta (2026-09-19) */
+          motivoId: r.motivo_id ?? null,
+          motivo: r.motivo_id ? (G("SELECT nome FROM motivo_saida WHERE id=?", r.motivo_id)?.nome || null) : null,
+          tipoRede: r.tipo_rede || null, observacao: r.observacao || null, momento: r.momento || null,
           emCurso: primeira && pc?.estado === "cursando",
           contrato: pc?.contrato_seq ? id + "/" + pc.contrato_seq : null,
           /* vencimento só do que está em curso: contrato encerrado não vence, já acabou */
           vence: primeira && pc?.estado === "cursando" && pc?.data_inicio ? pc.vence : null };
       });
   },
-  salvarHistoricoAluno({ idMatricula, situacao, data, livro }: any) {
+  salvarHistoricoAluno({ idMatricula, situacao, data, livro, motivoId, tipoRede, observacao }: any) {
     if (!idMatricula || !situacao || !data) throw new Error("Situação e data são obrigatórias.");
     if (!G("SELECT 1 FROM situacoes WHERE situacao=?", situacao)) throw new Error("Situação inválida: " + situacao);
+    /* o motivo só faz sentido na SAÍDA: "por que ele se matriculou" não é esta pergunta (2026-09-19).
+       É por aqui que a repescagem das saídas antigas escreve o que faltava. */
+    const mot = motivoId ? G("SELECT * FROM motivo_saida WHERE id=?", Number(motivoId)) : null;
+    if (motivoId && !mot) throw new Error("Motivo de saída não encontrado.");
+    /* TRANCAR NÃO É SAIR, e a rede é explícita: o trancado só vira perda quando NÃO retorna na data
+       combinada. Então a caixa da rede não se herda do motivo aqui — quem tranca ainda é aluno da casa,
+       com o horário reservado. Se alguém disser a caixa na mão, vale o que disseram. */
+    const tRede = tipoRede ? String(tipoRede) : (situacao === "Trancado" ? null : (mot?.tipo_rede || null));
+    if (tRede && !TIPOS_SAIDA_REDE.some(x => x.nome === tRede)) throw new Error("Tipo da rede desconhecido: " + tRede);
+    if ((mot || tRede) && !G("SELECT 1 FROM situacoes WHERE situacao=? AND ativa=0", situacao))
+      throw new Error("Motivo de saída só entra em situação de saída (Encerrado, Trancado, Evadido ou Cancelado).");
     /* o livro é opcional (registro geral do aluno), mas se vier tem de ser um livro em que ele
        esteve matriculado — senão a pílula do histórico apontaria para um curso que nunca existiu.
        Aceita também livro de matrícula JÁ ENCERRADA, por isso a checagem é em `livros` e não em
        `aluno_livro`: quem encerrou o W2 e foi para o W4 não tem mais a linha do W2, e ainda assim
        precisa poder registrar "Encerrado · W2". */
     if (livro && !G("SELECT 1 FROM livros WHERE nome=?", livro)) throw new Error("Estágio inválido: " + livro);
-    R("INSERT INTO aluno_situacao_historico (id_matricula,situacao,data,livro) VALUES (?,?,?,?)",
-      idMatricula, situacao, data, livro || null);
+    R(`INSERT INTO aluno_situacao_historico (id_matricula,situacao,data,livro,motivo_id,tipo_rede,observacao,momento)
+       VALUES (?,?,?,?,?,?,?,?)`,
+      idMatricula, situacao, data, livro || null, mot?.id ?? null, tRede,
+      String(observacao ?? "").trim() || null, agora());
     /* o registro novo manda no resto: a situação corrente do aluno (e daí o status) e o percurso
        daquele estágio se ajustam sozinhos — é o que substituiu a digitação em dois lugares */
     sincronizarPercurso(idMatricula, livro);
@@ -5437,14 +5874,31 @@ const api: Record<string, (a: any) => unknown> = {
       cacheProf.set(k, r);
       return r;
     };
-    /* a hora do dia: a do slot do aluno naquele dia da semana, ou a do encontro avulso quando ele
-       veio fora da agenda */
-    const horaSlot = new Map<string, string>();
-    for (const x of A("SELECT dia, hora FROM aulas WHERE id_matricula=? AND livro=?", idm, livro)) horaSlot.set(x.dia, x.hora);
-    const horaAvulso = new Map<string, string>();
-    for (const x of A("SELECT data, hora FROM encontro_avulso WHERE id_matricula=? AND livro=?", idm, livro))
-      if (x.hora) horaAvulso.set(x.data, x.hora);
-    const horaDe = (data: string) => horaAvulso.get(data) || horaSlot.get(nomeDoDia.get(diaDaSemana(data)) || "") || null;
+    /* ===== UMA HORA POR AULA, EM ORDEM (2026-09-19, decisão dele) =====
+       Era UMA hora por DATA: no dia em que o aluno repõe, as duas linhas da ficha mostravam a hora do
+       encontro marcado, e o professor da segunda saía errado (ele é procurado por aquela hora). Pior, o
+       mapa por dia da semana guardava só a ÚLTIMA hora lida, sem ordenar — quem tem duas horas no mesmo
+       dia via uma arbitrária, e são 18 contratos assim na escola.
+       Agora as horas do dia (agenda + encontros marcados, sem repetir) vêm ORDENADAS e cada aula pega a
+       sua pela posição: *"as horas do dia em ordem, a 1ª aula na primeira hora"*. Como a reposição vem
+       primeiro no dia, ela fica com a mais cedo e a aula normal é empurrada para a seguinte — que é o que
+       ele descreveu. A hora digitada no registro (`inicio`) vence todas: é a que de fato aconteceu. */
+    const horaSlot = new Map<string, string[]>();
+    for (const x of A("SELECT dia, hora FROM aulas WHERE id_matricula=? AND livro=? ORDER BY hora", idm, livro))
+      (horaSlot.get(x.dia) || horaSlot.set(x.dia, []).get(x.dia)!).push(x.hora);
+    const horaAvulso = new Map<string, string[]>();
+    for (const x of A("SELECT data, hora FROM encontro_avulso WHERE id_matricula=? AND livro=? ORDER BY hora", idm, livro))
+      if (x.hora) (horaAvulso.get(x.data) || horaAvulso.set(x.data, []).get(x.data)!).push(x.hora);
+    const horasDaData = (data: string) => [...new Set([
+      ...(horaSlot.get(nomeDoDia.get(diaDaSemana(data)) || "") || []),
+      ...(horaAvulso.get(data) || []),
+    ])].sort();
+    const horaDe = (data: string, seq?: number | null) => {
+      const hs = horasDaData(data);
+      if (!hs.length) return null;
+      const i = Math.max(1, Number(seq) || 1) - 1;
+      return hs[i] ?? hs[hs.length - 1];
+    };
 
     const MES3 = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
     const codDia = new Map<number, string>();
@@ -5472,7 +5926,8 @@ const api: Record<string, (a: any) => unknown> = {
       /* o pedaço de uma lição que continuou em outra aula (37ᴬ) mostra a lição de que é pedaço */
       const lParte = e.parteDe != null ? porOrdem.get(e.parteDe) : null;
       const pr = pres.get(e.data) || null;
-      const hora = horaDe(e.data);
+      /* a hora REGISTRADA pelo professor manda; senão, a da posição da aula no dia (2026-09-19) */
+      const hora = (reg && reg.inicio) || horaDe(e.data, e.seq);
       linhas.push({
         ...datar(e.data), tipo: e.tipo, hora,
         aula: reg && reg.aula_n != null ? reg.aula_n : l ? l.aula : lParte ? lParte.aula : (lRep ? lRep.aula : null),
@@ -5493,6 +5948,14 @@ const api: Record<string, (a: any) => unknown> = {
         tipoLicao: e.tipoLicao || (l ? l.tipo : lParte ? lParte.tipo : null),
         afirmada: l ? !!l.afirmada : false,
         extra: e.extra || null,
+        /* ===== A AULA NORMAL QUE FOI EMPURRADA (2026-09-20, dele) =====
+           *"A hora que seria uma às duas vai ser empurrada para as duas às três, porque da uma às duas vai
+           ser a reposição da terça. Isso precisa aparecer na ficha e nas duas telas de frequência."*
+           A ordem já estava certa desde 14/09 (a reposição vem primeiro); o que faltava era DIZER. Não é
+           coluna nova: é a leitura do próprio dia — se uma aula ANTERIOR do mesmo dia é reposição e esta é
+           normal, esta é a empurrada. */
+        empurrada: !e.extra && e.tipo !== "falta" && (e.seq ?? 1) > 1
+          && (p.eventos || []).some((x: any) => x.data === e.data && (x.seq ?? 1) < (e.seq ?? 1) && x.extra === "Reposição"),
         status: pr ? pr.status : (e.tipo === "falta" ? "F" : "P"),
         auto: pr ? !!pr.auto : false,
         entrada: pr ? pr.entrada : null, saida: pr ? pr.saida : null, minutos: pr ? pr.minutos : null,
@@ -5685,6 +6148,58 @@ const api: Record<string, (a: any) => unknown> = {
     return { ok: true };
   },
 
+  /* ===== OS MOTIVOS DE SAÍDA (2026-09-19) =====
+     Mesmo molde dos tipos de aula: lista editável, arrastável, arquivável, com as fixas no topo. O que muda
+     é a segunda coluna — `tipo_rede`, a caixa do IPP que aquele motivo alimenta —, e é ela que faz o
+     relatório mensal sair certo sem obrigar a recepção a pensar em vocabulário de franqueadora.
+     `usos` conta as saídas já registradas com o motivo: é o que impede arquivar algo achando que não custa. */
+  getMotivosSaida() {
+    return { motivos: A(`SELECT m.*, (SELECT COUNT(*) FROM aluno_situacao_historico h WHERE h.motivo_id=m.id) usos
+              FROM motivo_saida m ORDER BY m.arquivado IS NOT NULL, m.especial IS NULL, m.ordem, m.id`)
+      .map((m: any) => ({ id: m.id, nome: m.nome, tipoRede: m.tipo_rede || null, especial: m.especial || null,
+        ordem: m.ordem, arquivado: m.arquivado || null, usos: m.usos })),
+      /* as caixas da rede são FIXAS e não se cadastram: quem as define é o IPP/PEF, e renomear uma delas
+         aqui desalinharia o número entregue à franqueadora. Vêm com a definição ao lado, para a tela poder
+         explicar cada uma sem obrigar ninguém a abrir o manual. */
+      tiposRede: TIPOS_SAIDA_REDE };
+  },
+  salvarMotivoSaida({ id, nome, tipoRede }: any) {
+    const n = String(nome ?? "").trim().replace(/\s+/g, " ");
+    if (!n) throw new Error("Dê um nome ao motivo.");
+    const t = tipoRede ? String(tipoRede) : null;
+    if (t && !TIPOS_SAIDA_REDE.some(x => x.nome === t)) throw new Error("Tipo da rede desconhecido: " + t);
+    if (G("SELECT 1 FROM motivo_saida WHERE lower(nome)=lower(?) AND id<>?", n, Number(id) || 0))
+      throw new Error(`Já existe um motivo chamado "${n}".`);
+    if (id) {
+      const m = G("SELECT * FROM motivo_saida WHERE id=?", id);
+      if (!m) throw new Error("Motivo não encontrado.");
+      if (m.especial && n.toLowerCase() !== String(m.nome).toLowerCase())
+        throw new Error(`"${m.nome}" é fixa: é ela que registra a saída de que ninguém soube o motivo.`);
+      R("UPDATE motivo_saida SET nome=?, tipo_rede=? WHERE id=?", n, t, id);
+      return { ok: true, id: Number(id) };
+    }
+    const ordem = (G("SELECT MAX(ordem) m FROM motivo_saida WHERE especial IS NULL")?.m ?? 0) + 10;
+    const r = R("INSERT INTO motivo_saida (nome,tipo_rede,ordem,momento) VALUES (?,?,?,?)", n, t, ordem, agora());
+    return { ok: true, id: Number(r.lastInsertRowid) };
+  },
+  moverMotivoSaida({ id, passo }: any) {
+    const lista = A("SELECT id FROM motivo_saida WHERE especial IS NULL AND arquivado IS NULL ORDER BY ordem, id");
+    const i = lista.findIndex((m: any) => m.id === Number(id));
+    const j = i + (Number(passo) < 0 ? -1 : 1);
+    if (i < 0 || j < 0 || j >= lista.length) return { ok: false };
+    [lista[i], lista[j]] = [lista[j], lista[i]];
+    lista.forEach((m: any, k: number) => R("UPDATE motivo_saida SET ordem=? WHERE id=?", (k + 1) * 10, m.id));
+    return { ok: true };
+  },
+  /* arquivar tira da escolha e NÃO mexe nas saídas que já usaram o motivo — a história fica de pé */
+  arquivarMotivoSaida({ id, arquivar }: any) {
+    const m = G("SELECT * FROM motivo_saida WHERE id=?", id);
+    if (!m) throw new Error("Motivo não encontrado.");
+    if (m.especial) throw new Error(`"${m.nome}" é fixa e não se arquiva.`);
+    R("UPDATE motivo_saida SET arquivado=? WHERE id=?", arquivar ? agora() : null, id);
+    return { ok: true };
+  },
+
   /* ===== O REGISTRO DE AULA, VISTO DE DENTRO DA SALA (2026-09-13, dele) =====
      Tudo o que a janela precisa numa volta só: a estrutura do livro para escolher a lição, a lição que a
      projeção espera AGORA, os professores daquele horário, os tipos, e as tarefas que podem estar
@@ -5735,7 +6250,15 @@ const api: Record<string, (a: any) => unknown> = {
     const ultima = anteriores.length ? anteriores[anteriores.length - 1] : null;
     const ordemUltima = ultima ? (ultima.ordem ?? ultima.parteDe ?? null) : null;
     const iUlt = ordemUltima != null ? licoes.findIndex((l: any) => l.ordem === ordemUltima) : -1;
-    const proxima = iUlt >= 0 ? (licoes[iUlt + 1] || null)
+    /* ===== A LIÇÃO QUE FICOU PELA METADE CONTINUA (2026-09-19, dele) =====
+       *"Às vezes ele para na metade, às vezes não consegue terminar."* Quando o professor disse isso na
+       aula anterior (`concluida=0`), a sugestão desta aula é A MESMA lição, não a seguinte — senão a tela
+       empurra o livro para a frente sobre uma lição que ninguém terminou. Ele pode escolher outra: isto é
+       sugestão, não trava. */
+    const regUlt = ultima && ultima.registro != null ? regsPorId.get(ultima.registro) : null;
+    const continuaLicao = !!regUlt && regUlt.concluida === 0;
+    const proxima = continuaLicao && iUlt >= 0 ? licoes[iUlt]
+      : iUlt >= 0 ? (licoes[iUlt + 1] || null)
       : (licoes.find((l: any) => !l.dataReal || l.dataReal >= data) || null);
     const evReg = reg ? eventos.find((e: any) => e.registro === reg.id) : null;
     const ordemDoRegistro = reg ? (reg.licao_ordem ?? evReg?.ordem ?? evReg?.parteDe ?? null) : null;
@@ -5773,19 +6296,34 @@ const api: Record<string, (a: any) => unknown> = {
       }
     }
 
-    /* AS TAREFAS QUE PODEM CHEGAR HOJE: as das últimas aulas com lição de DIAS anteriores — a de ontem
-       à noite ninguém entrega na aula seguinte do mesmo dia */
+    /* ===== AS TAREFAS QUE PODEM CHEGAR NESTA AULA (redesenhado em 2026-09-20, dele) =====
+       *"Às vezes o aluno entrega mais de uma tarefa numa aula específica. Às vezes ele consegue fazer a
+       lição no tablet e a tarefa da mesma lição, e entrega no mesmo dia, na mesma hora."*
+       Então a lista deixou de ser "as 4 últimas aulas de DIAS anteriores" e passou a ser a FILA do aluno:
+       toda lição já dada cuja tarefa ainda não chegou, mais as que chegaram NESTA aula (para poder
+       desfazer) — incluindo a lição desta mesma aula, que antes era excluída de propósito e é o caso que
+       ele descreveu. Ordem: a mais antiga primeiro, porque é a que está devendo há mais tempo.
+       A entrega fora de ordem ("entregou a 25, a 26, pulou e entregou a 28") não precisa de nada
+       especial: cada lição carrega a sua data de chegada. */
     const regra = regraDaTarefa(eventos, regsPorId);
     const nAtraso = Math.max(1, Pn("tarefa_encontros_atraso"));
     const datasAulas = [...new Set(eventos.filter((e: any) => e.tipo === "aula").map((e: any) => e.data))].sort();
-    const tarefas = eventos.filter((e: any) => e.tipo === "aula" && e.ordem != null && e.data < data)
-      .slice(-4).reverse().map((e: any) => {
-        const r = e.registro != null ? regsPorId.get(e.registro) : null;
-        return { data: e.data, seq: e.seq || 1, ordem: e.ordem, licao: e.licao,
-          nota: r ? r.tarefa : null, tarefaEm: r ? r.tarefa_em : null,
-          situacaoFixa: r ? r.situacao_tarefa : null, situacaoRegra: r ? (regra.get(r.id) ?? null) : null,
-          cLimite: datasAulas.filter((d: string) => d > e.data)[nAtraso - 1] || null };
-      });
+    const candidatas = eventos.filter((e: any) => e.tipo === "aula" && e.ordem != null
+      && (e.data < data || (e.data === data && (e.seq ?? 1) <= s)));
+    const tarefas = candidatas.map((e: any) => {
+      const r = e.registro != null ? regsPorId.get(e.registro) : null;
+      const em = r ? r.tarefa_em : null;
+      return { data: e.data, seq: e.seq || 1, ordem: e.ordem, licao: e.licao,
+        /* o código curto do dia ("3ª", "Sáb") sai da mesma tabela `dias` que a Ficha usa — a pílula da
+           lista de tarefas lê igual ao resto do sistema */
+        ds: G("SELECT codigo FROM dias WHERE ordem=?", diaDaSemana(e.data) + 1)?.codigo || null,
+        nota: r ? r.tarefa : null, tarefaEm: em,
+        /* entregue NESTA aula (dá para tirar da lista) × entregue antes (não se mexe daqui) */
+        nesta: em === data, entregue: !!em,
+        situacaoFixa: r ? r.situacao_tarefa : null, situacaoRegra: r ? (regra.get(r.id) ?? null) : null,
+        cLimite: datasAulas.filter((d: string) => d > e.data)[nAtraso - 1] || null };
+    }).filter((t: any) => !t.entregue || t.nesta)
+      .sort((a: any, b: any) => a.data < b.data ? -1 : a.data > b.data ? 1 : (a.seq - b.seq));
 
     const rotulo = (r: any) => r.semConteudo ? (r.tipos.find((t: any) => t.conteudo === 0) || {}).nome || "sem conteúdo"
       : (r.licao_ordem != null && porOrdem.has(r.licao_ordem)) ? porOrdem.get(r.licao_ordem).licao : null;
@@ -5809,10 +6347,19 @@ const api: Record<string, (a: any) => unknown> = {
       registro: reg ? { id: reg.id, definido: definiu, licaoOrdem: ordemDoRegistro, aulaN: reg.aula_n,
         observacao: reg.observacao ?? (s === 1 && pres ? pres.observacao : null),
         fala: reg.fala, audicao: reg.audicao, leitura: reg.leitura, escrita: reg.escrita,
-        checking_sentences: reg.checking_sentences, app: reg.app, engajamento: reg.engajamento } : null,
-      sugestao: { licaoOrdem: proxima ? proxima.ordem : null, ultima: ordemUltima },
+        checking_sentences: reg.checking_sentences, app: reg.app, engajamento: reg.engajamento,
+        /* a hora desta aula e o que ela fez da lição (2026-09-19) */
+        inicio: reg.inicio || null, concluida: reg.concluida == null ? null : reg.concluida === 1,
+        parouEm: reg.parou_em || null } : null,
+      /* a 1ª aula começa na entrada do dia; da 2ª em diante, no relógio de quando ela foi criada */
+      inicioSugerido: s === 1 ? (pres?.entrada || null) : null,
+      sugestao: { licaoOrdem: proxima ? proxima.ordem : null, ultima: ordemUltima, continua: continuaLicao,
+        parouEm: continuaLicao ? (regUlt?.parou_em || null) : null },
       observacaoDia: !reg && s === 1 && pres ? (pres.observacao || null) : null,
-      licoes: licoes.map((l: any) => ({ ordem: l.ordem, licao: l.licao, tipo: l.tipo, conteudo: l.conteudo, aula: l.aula })),
+      /* `dataReal`: em que dia a lição foi dada, quando já foi — é ela que diz se a etiqueta do campo
+         mostra "feita" ou "a fazer" (2026-09-20) */
+      licoes: licoes.map((l: any) => ({ ordem: l.ordem, licao: l.licao, tipo: l.tipo, conteudo: l.conteudo,
+        aula: l.aula, dataReal: l.dataReal || null })),
       tipos, tiposSel,
       funcionarios: A("SELECT id, nome FROM funcionarios ORDER BY nome"), profs,
       tarefas, encontrosAtraso: nAtraso, semEstrutura: !licoes.length,
@@ -5844,6 +6391,21 @@ const api: Record<string, (a: any) => unknown> = {
     const cat = ids.length ? A(`SELECT * FROM tipo_aula WHERE id IN (${ids.map(() => "?").join(",")})`, ...ids) : [];
     if (cat.length !== ids.length) throw new Error("Um dos tipos de aula não existe mais — reabra o registro.");
     if (cat.filter((t: any) => t.especial).length > 1) throw new Error("A aula é reposição OU anteposição, não as duas.");
+    /* a mesma trava do lançamento do encontro, no outro caminho: o professor marcando "Reposição" no
+       livrinho do cartão também precisa de falta pendente (2026-09-19, decisão dele). Se a recepção já
+       marcou o encontro daquele dia, ele está só confirmando — e aí passa. */
+    if (cat.some((t: any) => t.especial === "Reposição")) {
+      const jaMarcada = G(`SELECT 1 FROM encontro_avulso WHERE id_matricula=? AND livro=? AND data=?
+                           AND motivo='Reposição'`, idMatricula, livro, data)
+        || G(`SELECT 1 FROM aula_registro r JOIN aula_registro_tipo rt ON rt.registro_id=r.id
+              JOIN tipo_aula t ON t.id=rt.tipo_id
+              WHERE r.id_matricula=? AND r.livro=? AND r.data=? AND r.seq=? AND t.especial='Reposição'`,
+          idMatricula, livro, data, s);
+      if (!jaMarcada && !faltasEmAbertoAte(idMatricula, livro, String(data)))
+        throw new Error("Reposição paga uma falta que já aconteceu, e este aluno não tem falta em aberto "
+          + "até " + String(data).slice(8, 10) + "/" + String(data).slice(5, 7) + ". "
+          + "Se a aula foi reforço ou aula a mais, escolha esse tipo.");
+    }
     const semConteudo = cat.some((t: any) => t.conteudo === 0);
     let lic: number | null = null;
     if (!semConteudo && !vazio(x.licaoOrdem)) {
@@ -5857,6 +6419,17 @@ const api: Record<string, (a: any) => unknown> = {
     }
     if (!vazio(x.checking_sentences) && !["Ok", "Atenção"].includes(x.checking_sentences))
       throw new Error("Checking sentences: use Ok ou Atenção.");
+    /* ---- a hora desta aula e o que ela fez da lição (2026-09-19, dele) ---- */
+    let inicio: string | null = null;
+    if (!vazio(x.inicio)) {
+      inicio = String(x.inicio);
+      if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(inicio)) throw new Error("Hora de início inválida: use HH:MM.");
+    }
+    /* nulo = ninguém disse (segue a dedução de sempre); 1 = fechou a lição; 0 = ficou pela metade */
+    const concluida = vazio(x.concluida) ? null : (x.concluida ? 1 : 0);
+    const parouEm = String(x.parouEm ?? "").trim().slice(0, 60) || null;
+    if (concluida !== 0 && parouEm)
+      throw new Error("Só a lição que ficou pela metade diz onde parou.");
     const campos = {
       fala: nota(x.fala, "Fala"), audicao: nota(x.audicao, "Audição"), leitura: nota(x.leitura, "Leitura"),
       escrita: nota(x.escrita, "Escrita"), cs: vazio(x.checking_sentences) ? null : x.checking_sentences,
@@ -5878,10 +6451,29 @@ const api: Record<string, (a: any) => unknown> = {
     const novo = !reg;
     if (!reg) reg = { id: Number(R("INSERT INTO aula_registro (id_matricula, livro, data, seq, origem, momento) VALUES (?,?,?,?,'aula',?)",
       idMatricula, livro, data, s, agora()).lastInsertRowid) };
+    /* ===== O RELÓGIO DA 2ª AULA (2026-09-19, dele) =====
+       A 1ª aula começa na ENTRADA, que `presenca` já guarda — repeti-la aqui seria a segunda verdade sobre
+       o mesmo instante. Da 2ª em diante não havia nada: o intervalo entre entrada e saída não se dividia, e
+       *"quando eu lanço uma segunda aula, automaticamente esse timestamp é gravado"*. Carimba no NASCIMENTO
+       do registro, e só quando a aula é de HOJE: numa aula de semanas atrás o relógio de agora seria mentira.
+       Quem registrou pode corrigir depois — a hora vem no corpo e vence o carimbo. */
+    const agoraD = new Date();
+    const hojeISO = dataISO(agoraD);
+    /* carimba quando a aula AINDA NÃO TEM hora, e não só quando a linha é nova: a Ficha cria registros de
+       `origem='nota'` para guardar avaliação (registroGarantido), e por ali a 2ª aula nascia sem relógio.
+       `x.inicio === ""` é o pedido explícito de APAGAR a hora — sem este caso o COALESCE abaixo devolvia
+       sempre a antiga e não havia como desfazer um carimbo errado. */
+    const limpar = x.inicio === "";
+    const tinha = G("SELECT inicio FROM aula_registro WHERE id=?", reg.id)?.inicio || null;
+    const carimbo = (!inicio && !limpar && s > 1 && data === hojeISO && !tinha)
+      ? ("0" + agoraD.getHours()).slice(-2) + ":" + ("0" + agoraD.getMinutes()).slice(-2) : null;
+    /* a hora final: a digitada vence o carimbo, o carimbo vence o que estava, e o vazio explícito apaga */
+    const horaAula = limpar ? null : (inicio || carimbo || tinha);
     R(`UPDATE aula_registro SET origem='aula', licao_ordem=?, aula_n=?, observacao=?, fala=?, audicao=?, leitura=?,
-         escrita=?, checking_sentences=?, app=?, engajamento=?, momento=? WHERE id=?`,
+         escrita=?, checking_sentences=?, app=?, engajamento=?, inicio=?,
+         concluida=?, parou_em=?, momento=? WHERE id=?`,
       lic, aulaN, obs, campos.fala, campos.audicao, campos.leitura, campos.escrita, campos.cs,
-      campos.app, campos.engajamento, agora(), reg.id);
+      campos.app, campos.engajamento, horaAula, concluida, parouEm, agora(), reg.id);
     R("DELETE FROM aula_registro_tipo WHERE registro_id=?", reg.id);
     for (const t of ids) R("INSERT INTO aula_registro_tipo (registro_id, tipo_id) VALUES (?,?)", reg.id, t);
     R("DELETE FROM aula_registro_professor WHERE registro_id=?", reg.id);
@@ -8036,9 +8628,12 @@ const api: Record<string, (a: any) => unknown> = {
         anotar(idMatricula, livro, data, "limpeza", null, "entrada desfeita; presença mantida");
         return { ok: true, entrada: null, saida: null, status: "P" };
       }
-      R("DELETE FROM presenca WHERE id_matricula=? AND livro=? AND data=?", idMatricula, livro, data);
-      anotar(idMatricula, livro, data, "limpeza", null, "lançamento do dia removido");
-      return { ok: true, entrada: null, saida: null, status: null };
+      /* apagar a linha inteira do dia passa pela MESMA porta da limpeza de status (2026-09-20): é ela que
+         pergunta antes de levar junto o registro de aula, a lição e as avaliações do dia */
+      const r = gravarPresenca({ idMatricula, livro, data, status: null, confirmadoRegistros: confirmado });
+      if ((r as any).precisaConfirmarRegistros) return r;
+      return { ok: true, entrada: null, saida: null, status: null,
+        registrosApagados: (r as any).registrosApagados || 0 };
     }
     /* A hora pode vir digitada (edição do ponto na célula), então aqui ela é dado de fora e precisa
        ser conferida — o CHECK do banco pega '99:99', mas não pega '25:00' virando lixo silencioso,
@@ -8090,8 +8685,133 @@ const api: Record<string, (a: any) => unknown> = {
     const grav = G("SELECT licoes, aulas_feitas a FROM presenca WHERE id_matricula=? AND livro=? AND data=?", idMatricula, livro, data);
     anotar(idMatricula, livro, data, "saida", hhmm,
       lst ? "lições cumpridas: " + lst.join(", ") + " (de " + previstas + ")" : null);
+    /* ===== A SAÍDA PERGUNTA SE A LIÇÃO FECHOU (2026-09-19, dele) =====
+       *"Quando ele vai embora, o cartão já dá como aula encerrada — não importa se a lição foi terminada ou
+       não. Pode haver um popover confirmando se a lição foi terminada."* Encerrar a aula e concluir a lição
+       são fatos diferentes, e o segundo só o professor sabe. A pergunta sai daqui, junto da saída, para a
+       tela não precisar de outra ida ao servidor — e só quando há aula registrada com lição e sem resposta.
+       Sem registro nenhum ninguém é incomodado: registrar depois continua valendo. */
+    const aberta = G(`SELECT r.id, r.seq, r.licao_ordem FROM aula_registro r
+                      WHERE r.id_matricula=? AND r.livro=? AND r.data=? AND r.origem='aula'
+                        AND r.licao_ordem IS NOT NULL AND r.concluida IS NULL
+                      ORDER BY r.seq DESC LIMIT 1`, idMatricula, livro, data);
+    /* o estágio é o do PERCURSO do aluno (o Kids 4 legado tem dois), e só depois o corrente do livro —
+       mesma ordem de `projetarContrato` */
+    const estagio = aberta
+      ? (G(`SELECT estagio_id e FROM aluno_estagio WHERE id_matricula=? AND livro=? ORDER BY id DESC LIMIT 1`,
+          idMatricula, livro)?.e ?? estagioDoLivro(livro))
+      : null;
+    const licaoNome = aberta && estagio
+      ? (G("SELECT sigla, numero FROM estagio_licao WHERE dono_id=? AND ordem=?", estagio, aberta.licao_ordem) || null)
+      : null;
     return { ok: true, entrada: atual.entrada, saida: hhmm, status: "P", minutos: dur,
-      licoes: grav?.licoes ? String(grav.licoes).split(",") : null, aulasFeitas: grav?.a ?? null, previstas };
+      licoes: grav?.licoes ? String(grav.licoes).split(",") : null, aulasFeitas: grav?.a ?? null, previstas,
+      perguntarLicao: aberta ? { registroId: aberta.id, seq: aberta.seq,
+        licao: licaoNome?.sigla || (licaoNome?.numero != null ? "L" + licaoNome.numero : null) } : null };
+  },
+  /* ===== AGENDAMENTOS: O AVISO PRÉVIO DA REPOSIÇÃO (2026-09-20, dele) =====
+     *"Um agendamento é praticamente um aviso prévio que o aluno vai fazer reposição."* Metade disso já
+     existia e ninguém via: o encontro marcado SEM presença já é o prévio, e `encontrosMarcados` já sabe
+     dizer se ele veio, faltou, não veio ou desmarcou. Faltava a tela — e a tela precisa de duas respostas
+     que o servidor já tem: quem está devendo, e QUAL falta a próxima reposição paga (a mais antiga da
+     fila, como é de praxe).
+     Nada aqui cria conceito novo: é a mesma `encontro_avulso`, a mesma fila FIFO, a mesma trava de
+     reposição sem falta. A agenda do aluno entra junto porque a hora sugerida sai dela. */
+  getAgendamentos({ de, ate }: any = {}) {
+    const hoje = dataISO(new Date());
+    const ini = de || maisDias(hoje, -7);
+    const fim = ate || maisDias(hoje, 30);
+    const linhas = A(`SELECT e.*, a.nome FROM encontro_avulso e JOIN alunos a ON a.id_matricula=e.id_matricula
+                      WHERE e.data BETWEEN ? AND ? ORDER BY e.data, e.hora`, ini, fim);
+    const porContrato = new Map<string, any[]>();
+    const itens = linhas.map((e: any) => {
+      const k = e.id_matricula + "|" + e.livro;
+      if (!porContrato.has(k)) porContrato.set(k, encontrosMarcados(e.id_matricula, e.livro));
+      const m = (porContrato.get(k) || []).find((x: any) => x.data === e.data && x.hora === e.hora);
+      const pres = G("SELECT status, entrada FROM presenca WHERE id_matricula=? AND livro=? AND data=?",
+        e.id_matricula, e.livro, e.data);
+      return { id: e.id, id_matricula: e.id_matricula, nome: e.nome, livro: e.livro, livroNome: nomeDoLivro(e.livro),
+        data: e.data, hora: e.hora, motivo: e.motivo, observacao: e.observacao || null,
+        resultado: m?.resultado || (e.data < hoje ? "nao_veio" : "marcado"),
+        entrada: pres?.entrada || null, marcadoEm: e.momento || null,
+        /* o que ele escolheu que esta reposição paga; vazio = a fila decide (2026-09-20) */
+        cobre: coberturaDe(e.id) };
+    });
+    /* desmarcados no mesmo intervalo: a tela precisa mostrar que o aviso existiu e foi desfeito */
+    const desmarcados = A(`SELECT d.*, a.nome FROM encontro_avulso_desmarcado d
+                           JOIN alunos a ON a.id_matricula=d.id_matricula
+                           WHERE d.data BETWEEN ? AND ? ORDER BY d.data, d.hora`, ini, fim)
+      .map((e: any) => ({ id: null, id_matricula: e.id_matricula, nome: e.nome, livro: e.livro,
+        livroNome: nomeDoLivro(e.livro), data: e.data, hora: e.hora, motivo: e.motivo,
+        observacao: e.observacao || null, resultado: "desmarcado", entrada: null,
+        marcadoEm: e.marcado_em || null, desmarcadoEm: e.desmarcado_em }));
+    return { hoje, de: ini, ate: fim,
+      itens: [...itens, ...desmarcados].sort((a: any, b: any) => (a.data + a.hora).localeCompare(b.data + b.hora)) };
+  },
+  /* o que a tela precisa saber ANTES de marcar: quanto ele deve, qual falta a fila vai pagar, e em que
+     horas ele costuma vir (a sugestão sai da agenda dele, não do chute) */
+  getFaltasParaRepor({ idMatricula, livro }: any) {
+    if (!idMatricula) throw new Error("Escolha o aluno.");
+    const contratos = A(`SELECT al.livro FROM aluno_livro al WHERE al.id_matricula=? ORDER BY al.contrato_seq DESC`,
+      idMatricula).map((x: any) => ({ livro: x.livro, nome: nomeDoLivro(x.livro) }));
+    const lv = livro || contratos[0]?.livro || null;
+    if (!lv) return { semContrato: true, contratos };
+    const p: any = projetarContrato({ idMatricula, livro: lv });
+    const fila: any[] = p?.encaminhamentos?.fila || [];
+    const abertas = fila.filter((f: any) => f.data && !f.paga && !f.adiantada)
+      .map((f: any) => ({ data: f.data, licao: f.licao || null }));
+    const agenda = A("SELECT dia, hora FROM aulas WHERE id_matricula=? AND livro=? ORDER BY hora", idMatricula, lv)
+      .map((x: any) => ({ dia: x.dia, hora: x.hora }));
+    const marcados = encontrosMarcados(idMatricula, lv)
+      .filter((m: any) => m.resultado === "marcado")
+      .map((m: any) => ({ data: m.data, hora: m.hora, motivo: m.motivo }));
+    return { contratos, livro: lv, livroNome: nomeDoLivro(lv),
+      aluno: G("SELECT nome FROM alunos WHERE id_matricula=?", idMatricula)?.nome || idMatricula,
+      /* a PRÓXIMA a ser paga é a primeira da fila — a mais antiga, como sempre foi */
+      proxima: abertas[0] || null, abertas, emAberto: abertas.length, agenda, marcados,
+      horas: [...new Set(agenda.map((a: any) => a.hora))].sort() };
+  },
+
+  /* ===== A ENTREGA DA TAREFA É UM FATO DO DIA (2026-09-20, dele) =====
+     *"A avaliação da tarefa pode ser feita em qualquer momento — o que importa é se o aluno entregou
+     atrasado ou não."* Então a janela da aula registra ENTREGA (uma ou várias, em qualquer ordem: *"às
+     vezes ele entrega a 25, a 26, pula e entrega a 28"*), e a NOTA fica para a Ficha, onde o professor
+     corrige quando der. `tarefa_em` = a data desta aula, que é o dia em que a tarefa chegou à mão dele.
+     Tirar da lista apaga a data — é como se desfaz uma entrega marcada por engano. */
+  registrarEntregaTarefa({ idMatricula, livro, data, entregues, retiradas }: any) {
+    if (!idMatricula || !livro || !data) throw new Error("Falta dizer o aluno, o estágio e a data da aula.");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(data))) throw new Error("Data inválida.");
+    const lista = (v: any) => (Array.isArray(v) ? v : []).filter((x: any) => x && x.data);
+    let n = 0;
+    for (const t of lista(entregues)) {
+      const reg = registroGarantido(idMatricula, livro, String(t.data), Number(t.seq) || 1, "nota");
+      /* COALESCE: a tarefa que já tinha data de chegada não se remarca — quem chegou, chegou naquele dia */
+      R("UPDATE aula_registro SET tarefa_em=COALESCE(tarefa_em,?), momento=? WHERE id=?", data, agora(), reg.id);
+      n++;
+    }
+    let fora = 0;
+    for (const t of lista(retiradas)) {
+      const reg = G("SELECT id FROM aula_registro WHERE id_matricula=? AND livro=? AND data=? AND seq=?",
+        idMatricula, livro, String(t.data), Number(t.seq) || 1);
+      if (!reg) continue;
+      /* só desfaz o que foi marcado NESTA aula: a entrega de outro dia não se apaga por aqui */
+      const nn = R("UPDATE aula_registro SET tarefa_em=NULL, momento=? WHERE id=? AND tarefa_em=?",
+        agora(), reg.id, data).changes;
+      fora += Number(nn) || 0;
+    }
+    anotar(idMatricula, livro, data, "tarefa", null,
+      (n ? n + " tarefa(s) entregue(s)" : "") + (fora ? (n ? "; " : "") + fora + " retirada(s)" : "") || "sem mudança");
+    return { ok: true, entregues: n, retiradas: fora };
+  },
+  /* só as duas colunas da lição: reabrir o registro inteiro para responder "terminou?" faria a janela
+     pedir tudo de novo, e a resposta chega quando o professor está saindo da sala (2026-09-19) */
+  marcarLicaoConcluida({ registroId, concluida, parouEm }: any) {
+    const r = G("SELECT * FROM aula_registro WHERE id=?", Number(registroId));
+    if (!r) throw new Error("Registro de aula não encontrado.");
+    const c = concluida === null || concluida === undefined ? null : (concluida ? 1 : 0);
+    const onde = c === 0 ? (String(parouEm ?? "").trim().slice(0, 60) || null) : null;
+    R("UPDATE aula_registro SET concluida=?, parou_em=?, momento=? WHERE id=?", c, onde, agora(), r.id);
+    return { ok: true, id: r.id, concluida: c, parouEm: onde };
   },
   /* aba "Presenças hoje": quem já passou pela recepção, em ordem cronológica de entrada */
   getPresencasHoje({ data }: any = {}) {
@@ -8214,7 +8934,7 @@ const api: Record<string, (a: any) => unknown> = {
      Dois usos, uma gravação só. comPresenca=true é o lançamento MOMENTÂNEO (ele está aqui na
      frente); false é o PRÉVIO, quando a recepção soube pelo WhatsApp que ele vem às 15h — aí não
      existe presença nenhuma ainda, só a linha aparecendo na grade para o professor já contar com ele. */
-  lancarAvulso({ idMatricula, livro, data, hora, motivo, observacao, comPresenca }: any) {
+  lancarAvulso({ idMatricula, livro, data, hora, motivo, observacao, comPresenca, cobre }: any) {
     if (!idMatricula || !livro || !data || !hora) throw new Error("Informe aluno, estágio, data e hora.");
     if (!/^\d{4}-\d{2}-\d{2}$/.test(String(data))) throw new Error("Data inválida.");
     if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(String(hora))) throw new Error("Hora inválida: use HH:MM.");
@@ -8223,15 +8943,73 @@ const api: Record<string, (a: any) => unknown> = {
     recusarDiaSemAula(String(data));   /* reposição marcada num feriado seria aula num dia sem aula */
     if (!G("SELECT 1 FROM aluno_livro WHERE id_matricula=? AND livro=?", idMatricula, livro))
       throw new Error("O aluno não tem matrícula em " + livro + ".");
+    /* SÓ É REPOSIÇÃO QUANDO HÁ FALTA PENDENTE (2026-09-19, decisão dele — ele mandou BARRAR).
+       Até aqui nada ligava as duas coisas: dava para marcar reposição para quem não devia nada, e a fila
+       de faltas ganhava um pagamento sem dívida (a projeção chamava de `semFalta` e a tela dizia "não é
+       erro"). Editar um encontro que já existe continua livre — senão corrigir a hora de uma reposição
+       antiga ficaria impossível depois que ela pagou a falta. */
+    const jaExiste = G("SELECT 1 FROM encontro_avulso WHERE id_matricula=? AND livro=? AND data=? AND hora=?",
+      idMatricula, livro, data, hora);
+    if (motivo === "Reposição" && !jaExiste) {
+      const ab = faltasEmAbertoAte(idMatricula, livro, String(data));
+      if (!ab)
+        throw new Error("Reposição paga uma falta que já aconteceu, e este aluno não tem falta em aberto "
+          + "até " + String(data).slice(8, 10) + "/" + String(data).slice(5, 7) + ". "
+          + "Se foi reforço, preparação ou aula a mais, escolha esse motivo; se ele vai faltar mais adiante, "
+          + "é anteposição.");
+    }
     const obs = (observacao || "").trim() || null;
     R(`INSERT INTO encontro_avulso (id_matricula, livro, data, hora, motivo, observacao, momento)
        VALUES (?,?,?,?,?,?,datetime('now','localtime'))
        ON CONFLICT(id_matricula, livro, data, hora) DO UPDATE SET
          motivo=excluded.motivo, observacao=excluded.observacao, momento=excluded.momento`,
       idMatricula, livro, data, hora, motivo, obs);
+    /* o que esta reposição veio pagar, quando ele escolheu (2026-09-20). Sem isso, a fila decide sozinha */
+    const enc = G("SELECT id FROM encontro_avulso WHERE id_matricula=? AND livro=? AND data=? AND hora=?",
+      idMatricula, livro, data, hora);
+    if (enc && Array.isArray(cobre)) gravarCobertura(enc.id, cobre);
     anotar(idMatricula, livro, data, "avulso", hora, motivo + (obs ? " — " + obs : ""));
     const presenca = comPresenca ? gravarPresenca({ idMatricula, livro, data, status: "P" }) : null;
     return { ok: true, hora, motivo, observacao: obs, presenca };
+  },
+  /* ===== EDITAR E EXCLUIR O AGENDAMENTO (2026-09-20, dele) =====
+     *"Eu quero ter um botão de eliminar ou editar também."* São três gestos diferentes e só um existia:
+     DESMARCAR guarda a cópia (ele avisou e não veio — isso é história do aluno); EDITAR corrige hora,
+     motivo ou observação de um aviso que continua de pé; EXCLUIR é para o lançamento ERRADO, que não
+     merece virar história. Trocar a data/hora passa pelo mesmo caminho do lançamento, com a mesma trava
+     de reposição sem falta. */
+  editarAvulso({ id, data, hora, motivo, observacao, cobre }: any) {
+    const e = G("SELECT * FROM encontro_avulso WHERE id=?", Number(id));
+    if (!e) throw new Error("Encontro não encontrado.");
+    const d = String(data || e.data), h = String(hora || e.hora);
+    const m = String(motivo || e.motivo);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) throw new Error("Data inválida.");
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(h)) throw new Error("Hora inválida: use HH:MM.");
+    if (!["Reposição", "Anteposição", "Reforço", "Preparação", "Outro"].includes(m))
+      throw new Error("Escolha o motivo do encontro.");
+    if (d !== e.data) recusarDiaSemAula(d);
+    /* virar Reposição exige falta pendente, igual ao lançamento novo — a não ser que ela já fosse */
+    if (m === "Reposição" && e.motivo !== "Reposição" && !faltasEmAbertoAte(e.id_matricula, e.livro, d))
+      throw new Error("Reposição paga uma falta que já aconteceu, e este aluno não tem falta em aberto até "
+        + d.slice(8, 10) + "/" + d.slice(5, 7) + ".");
+    if ((d !== e.data || h !== e.hora)
+      && G("SELECT 1 FROM encontro_avulso WHERE id_matricula=? AND livro=? AND data=? AND hora=? AND id<>?",
+        e.id_matricula, e.livro, d, h, e.id))
+      throw new Error("Já existe um encontro desse aluno nesse dia e hora.");
+    R(`UPDATE encontro_avulso SET data=?, hora=?, motivo=?, observacao=? WHERE id=?`,
+      d, h, m, String(observacao ?? "").trim() || null, e.id);
+    if (Array.isArray(cobre)) gravarCobertura(e.id, cobre);
+    if (m !== "Reposição") R("DELETE FROM reposicao_cobre WHERE encontro_id=?", e.id);   // deixou de ser reposição
+    anotar(e.id_matricula, e.livro, d, "avulso", h, "encontro corrigido: " + m);
+    return { ok: true, id: e.id };
+  },
+  /* apaga sem guardar cópia: é o lançamento que não devia ter existido */
+  excluirAvulso({ id }: any) {
+    const e = G("SELECT * FROM encontro_avulso WHERE id=?", Number(id));
+    if (!e) throw new Error("Encontro não encontrado.");
+    R("DELETE FROM encontro_avulso WHERE id=?", e.id);
+    anotar(e.id_matricula, e.livro, e.data, "limpeza", e.hora, "encontro excluído (lançamento errado)");
+    return { ok: true };
   },
   removerAvulso({ id }: any) {
     const e = G("SELECT * FROM encontro_avulso WHERE id=?", id);
@@ -9169,6 +9947,15 @@ if (MOCK && !G("SELECT 1 FROM alunos WHERE id_matricula='9002'")) {
   const { montarAlunas } = await import("./alunas-modelo.ts");
   try { montarAlunas({ A, G, R, API: api, agora }); }
   catch (e) { console.warn("   as alunas de contraste não subiram (segue o baile):", (e as Error).message); }
+}
+/* ===== E OS QUE SAÍRAM (2026-09-19) =====
+   Os três primeiros estão todos matriculados, então a tela de evasão nasceria vazia — e tela vazia não
+   se testa. Seis casos, um por caminho de saída que existe de verdade na recepção, inclusive o pior:
+   o aluno marcado "Evadido" no cadastro, sem data e sem motivo, com o horário ainda ocupado. */
+if (MOCK && !G("SELECT 1 FROM alunos WHERE id_matricula='9004'")) {
+  const { montarEvadidos } = await import("./evadidos-modelo.ts");
+  try { montarEvadidos({ A, G, R, API: api, agora }); }
+  catch (e) { console.warn("   os alunos que saíram não subiram (segue o baile):", (e as Error).message); }
 }
 
 /* ===== AS NOTAS QUE ERAM DA LIÇÃO VIRAM NOTAS DA AULA (2026-09-13) =====

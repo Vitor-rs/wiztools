@@ -11572,6 +11572,80 @@ function fechar2316EmL4() {
 try { fechar2316EmL4(); } catch (e) { console.warn("fechar a 2316 em L4 falhou (segue o baile):", e); }
 try { acertar2316(); } catch (e) { console.warn("acerto da 2316 falhou (segue o baile):", e); }
 
+/* ===== A 2232 JÁ ESTÁ NO PRE-TEENS (Wiztools 16, 27/09, dele) =====
+   A planilha o pôs na L120 do KIDS 4 (2ª edição, a última lição) em 24/08 — e ele disse: *"ele foi para o
+   Preteens já"*, a partir de 26/08, a primeira aula depois, no mesmo horário (segunda e quarta, 13h). A
+   recepção nunca registrou a troca: no backup de 26/09 ele segue no KIDS 4 com aula até 23/09, e a tela o
+   mostraria com o livro terminado e oito aulas "além do fim".
+   Não dá para fazer pela tela: a troca de livro não aceita data (começaria no dia do registro) e não move as
+   presenças. Então aqui, datado: o contrato Pre-Teens nasce em 26/08 herdando a agenda; as presenças, o
+   diário, os avulsos e os registros de aula de 26/08 em diante vão com ele; o KIDS 4 ENCERRA em 26/08 (sem
+   caixa da rede — fim de livro não é saída) e o Pre-Teens entra como Rematriculado no mesmo dia. O
+   "Encerrado" no histórico não é enfeite: sem ele, `sincronizarPercurso` leria só a matrícula de 2025 no
+   KIDS 4 e o reabriria.
+   Trava pelo estado: só roda se ele ainda tem o KIDS 4 aberto e nada de Pre-Teens. Se a recepção fizer a
+   troca antes do deploy, a marca é gravada e nada muda. */
+function passar2232ParaPreTeens() {
+  if (G("SELECT valor FROM config WHERE chave='m2232_preteens_v1'")) return;
+  const ID = "2232", DE = "KIDS 4", PARA = "Pre-Teens", D = "2026-08-26";
+  const marcar = () => R("INSERT OR REPLACE INTO config (chave,valor) VALUES ('m2232_preteens_v1',?)", agora());
+  const antiga = G("SELECT * FROM aluno_livro WHERE id_matricula=? AND livro=?", ID, DE);
+  const lvNovo = G("SELECT * FROM livros WHERE nome=?", PARA);
+  if (!antiga || !lvNovo || G("SELECT 1 FROM aluno_livro WHERE id_matricula=? AND livro=?", ID, PARA)
+    || G("SELECT 1 FROM presenca WHERE id_matricula=? AND livro=?", ID, PARA)
+    || G("SELECT 1 FROM aluno_situacao_historico WHERE id_matricula=? AND livro=?", ID, PARA)) { marcar(); return; }
+  let movidas = 0;
+  db.exec("BEGIN");
+  try {
+    const seq = proximoContrato(ID);
+    const mod = lvNovo.tipo_fixo === 1 ? lvNovo.tipo_padrao : antiga.modalidade;
+    R(`INSERT INTO aluno_livro (id_matricula,livro,modalidade,vip,tipo_encontro,contrato_seq) VALUES (?,?,?,?,?,?)`,
+      ID, PARA, mod, antiga.vip, antiga.tipo_encontro, seq);
+    R("UPDATE aulas SET livro=? WHERE id_matricula=? AND livro=?", PARA, ID, DE);
+    for (const t of ["presenca", "diario", "encontro_avulso", "aula_registro", "presenca_avaliacao"]) {
+      const cs = colunas(t);
+      if (!cs.includes("id_matricula") || !cs.includes("livro") || !cs.includes("data")) continue;
+      const n = R(`UPDATE ${t} SET livro=? WHERE id_matricula=? AND livro=? AND data>=?`, PARA, ID, DE, D).changes as number;
+      if (t === "presenca") movidas = n;
+    }
+    R("DELETE FROM aluno_livro WHERE id_matricula=? AND livro=?", ID, DE);
+    R(`INSERT INTO aluno_situacao_historico (id_matricula,situacao,data,livro,momento) VALUES (?,?,?,?,?)`,
+      ID, "Encerrado", D, DE, agora());
+    R(`INSERT INTO aluno_situacao_historico (id_matricula,situacao,data,livro,momento) VALUES (?,?,?,?,?)`,
+      ID, "Rematriculado", D, PARA, agora());
+    fecharPercurso(ID, DE, "encerrado", D);
+    /* a lição em que ele parou é a última do livro — é o que "terminou" quer dizer */
+    const ult = G(`SELECT MAX(l.ordem) o FROM aluno_estagio ae JOIN estagio_licao l ON l.dono_id=ae.estagio_id
+                   WHERE ae.id_matricula=? AND ae.livro=? AND ae.estado='encerrado'`, ID, DE)?.o;
+    if (ult) R(`UPDATE aluno_estagio SET licao_atual=? WHERE id_matricula=? AND livro=? AND estado='encerrado'
+                  AND licao_atual IS NULL`, ult, ID, DE);
+    abrirPercurso(ID, PARA, D, seq);
+    marcar();
+    db.exec("COMMIT");
+  } catch (e) { db.exec("ROLLBACK"); console.warn("passar a 2232 para o Pre-Teens falhou:", e); return; }
+  try { sincronizarSituacao(ID); } catch { /* segue */ }
+  console.log(`acerto: 2232 — KIDS 4 encerrado e Pre-Teens desde ${dataBR(D)}, com ${movidas} presença(s) movida(s)`);
+}
+try { passar2232ParaPreTeens(); } catch (e) { console.warn("acerto da 2232 falhou (segue o baile):", e); }
+
+/* ===== A MATRÍCULA DA 2237 COM O ANO ERRADO (Wiztools 16, 27/09, dele) =====
+   "Matriculado em 25/10/2026" — um mês no futuro — numa aluna com aula desde julho e o livro entregue em
+   21/10/2025. É o ano digitado errado, e ele confirmou: vale 25/10/2025. A Central apontava isso como
+   "situação no futuro". O início do percurso segue a regra da casa (a entrega manda: 21/10/2025), e é o
+   `sincronizarPercurso` que o recalcula. Trava pelo valor exato: se alguém já corrigiu, não mexe. */
+try {
+  if (!G("SELECT valor FROM config WHERE chave='m2237_ano_v1'")) {
+    const n = R(`UPDATE aluno_situacao_historico SET data='2025-10-25'
+                 WHERE id_matricula='2237' AND situacao='Matriculado' AND data='2026-10-25'`).changes;
+    R("INSERT OR REPLACE INTO config (chave,valor) VALUES ('m2237_ano_v1',?)", agora());
+    if (n) {
+      for (const l of A("SELECT livro FROM aluno_livro WHERE id_matricula='2237'")) sincronizarPercurso("2237", l.livro);
+      sincronizarSituacao("2237");
+      console.log("correção: 2237 — matrícula de 25/10/2026 para 25/10/2025 (o ano estava errado)");
+    }
+  }
+} catch (e) { console.warn("correção da 2237 falhou (segue o baile):", e); }
+
 /* ===== O CONTRATO COMEÇOU UM ANO ANTES (2026-08-25) =====
    Ele abriu a matrícula 1985 e viu: *"ela começou o curso dia 29 do 4 de 2025, não 2026. Tem vários
    alunos que tá errado aqui, isso tem que ser respeitado."*

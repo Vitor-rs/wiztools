@@ -14547,6 +14547,11 @@ if((i.saidaSemCaixa||[]).length)avisos.push('<b>'+pefN(i.saidaSemCaixa.length,'s
 if((i.saidaSemCanal||[]).length)avisos.push(i.saidaSemCanal.length+' saída(s) registradas antes de 21/09 não guardaram se o aluno era online ou presencial — contei como <b>presencial</b>, que é o caso de quase todo mundo.');
 if((i.doisContratos||[]).length)avisos.push('<b>'+pefN(i.doisContratos.length,'dois','Alunos com dois contratos abertos',
  i.doisContratos.map(function(x){return {id:x.id,nome:x.nome,extra:x.livros}}))+' aluno(s) com dois contratos</b> contam uma vez só, pelo contrato mais recente — as modalidades precisam somar o total.');
+if((i.naoRematriculadosDetectados||[]).length)avisos.push('<b>'+pefN(i.naoRematriculadosDetectados.length,'naorem','Terminaram o livro e não seguiram',
+ i.naoRematriculadosDetectados.map(function(x){return {id:x.id,nome:x.nome,livro:x.livro,data:x.desde,extra:x.criterio}}))
+ +' aluno(s) terminaram o livro e não seguiram</b> — continuam ativos no formulário. Se não vão voltar, registre a saída com o motivo "Não comprou o material do próximo estágio" (caixa Não rematriculado); se vão, rematricule.');
+if((i.saidasRealocadas||[]).length)avisos.push('<b>'+pefN(i.saidasRealocadas.length,'realoc','Saídas de meses já entregues que entram neste mês',i.saidasRealocadas.map(nome))
+ +' saída(s) de meses já entregues</b> foram registradas depois do fechamento e entram neste mês — a data do fato fica como está.');
 if(!i.responsavel)avisos.push('Ninguém tem o papel de <b>coordenador</b> na Equipe — o campo "responsável" do formulário fica vazio. Preencha em Professores.');
 if(avisos.length)h+='<div class="ret-pend"><div class="ret-pend-cab">'+icon('triangle-alert',15)+'<b>Antes de copiar para o portal</b></div>'
  +avisos.map(function(a){return '<div class="pef-av">'+a+'</div>'}).join('')+'</div>';
@@ -14554,7 +14559,7 @@ if(avisos.length)h+='<div class="ret-pend"><div class="ret-pend-cab">'+icon('tri
 h+='<div class="pef-bloco"><div class="pef-bt">Identificação</div><div class="pef-grade g4">'
  +pefCampo('Nome do coordenador',i.responsavel?escBloco(i.responsavel.nome):'<span class="pef-vazio">ninguém com o papel</span>')
  +pefCampo('Função do colaborador',i.responsavel?escBloco(i.responsavel.funcao||''):'—')
- +pefCampo('Total de alunos ativos no início do mês',pefN(i.ativosInicio,'aini','',null),'o mesmo número do último dia do mês anterior')
+ +pefCampo('Total de alunos ativos no início do mês',pefN(i.ativosInicio,'aini','',null),i.ativosInicioDoFechamento?'o número entregue no fechamento do mês anterior':'o mesmo número do último dia do mês anterior')
  +pefCampo('Total de alunos ativos no último dia do mês',pefN(i.ativosFim,'afim','Ativos no último dia do mês',(i.listaAtivosFim||[]).map(nome)))
  +'</div></div>';
 /* ---------- 2. modalidades ---------- */
@@ -14598,7 +14603,8 @@ var rp=(i.rematricula||{}).ipp||{};
 h+='<div class="pef-bloco"><div class="pef-bt">Rematrícula <small>ciclo '+escBloco(((i.rematricula||{}).ciclo||{}).nome||'')+'</small></div><div class="pef-grade g3">'
  +pefCampo('Total de alunos rematriculados no ciclo',pefN(rp.rematriculados,'rrem','Rematriculados no ciclo',(rp.rematriculadosLista||[]).map(nome)),'renovaram ou mudaram de livro; cresce mês a mês')
  +pefCampo('Total de alunos a rematricular no ciclo',pefN(rp.aRematricular,'rarem','Ainda a rematricular (contrato termina no ciclo)',(rp.pendentes||[]).map(function(x){return {id:x.id,nome:x.nome,livro:x.livro,data:x.fimContrato,extra:'contrato termina'}})
-   .concat((rp.renovaramDepois||[]).map(function(x){return {id:x.id,nome:x.nome,livro:x.livro,data:x.fimContrato,extra:'renovou em '+dataCurta(x.renovouEm)+', depois do mês — contrato terminava'}}))),'contrato terminando no ciclo — os que ainda faltam')
+   .concat((rp.renovaramDepois||[]).map(function(x){return {id:x.id,nome:x.nome,livro:x.livro,data:x.fimContrato,extra:'renovou em '+dataCurta(x.renovouEm)+', depois do mês — contrato terminava'}}))
+   .concat((rp.encerraramSemRenovar||[]).map(function(x){return {id:x.id,nome:x.nome,livro:x.livro,data:x.terminouEm,extra:'terminou o livro e não renovou'}}))),'contrato terminando no ciclo — os que ainda faltam')
  +pefCampo('Percentual de alunos rematriculados','<span class="pef-n pct'+(rp.percentual!=null&&rp.percentual<((r.metas||{}).rematricula||80)?' baixo':'')+'">'+(rp.percentual==null?'—':String(rp.percentual).replace('.',',')+'%')+'</span>','meta: '+((r.metas||{}).rematricula||80)+'%')
  +'</div></div>';
 /* ---------- as conferências que o próprio formulário impõe ---------- */

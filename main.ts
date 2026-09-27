@@ -5013,11 +5013,36 @@ function faltasSeguidasEmAulas(idm: string, livro: string, ate: string): { aulas
   return { aulas, desde };
 }
 
+/* ===== R1 — O MÊS EM QUE A SAÍDA É INFORMADA (decisão dele, 26/09) =====
+   A saída guarda a data do FATO (a última aula, na sugestão). Mas se ela é registrada depois que o mês dela
+   já foi fechado e entregue, contá-la lá é não contá-la nunca: o número entregue está congelado. Então ela
+   entra no PRIMEIRO mês seguinte ainda aberto — ou fechado depois do registro, porque aí o fechamento já a
+   levou. Registro sem carimbo de momento (os antigos da recepção) fica no mês da data, como sempre. */
+function mesDeReporteDaSaida(h: any): string {
+  let m = String(h.data).slice(0, 7);
+  const mom = String(h.momento || "");
+  if (!mom) return m;
+  for (let i = 0; i < 36; i++) {
+    const f = G("SELECT fechado_em FROM pef_fechamento WHERE mes=?", m);
+    if (!f || String(f.fechado_em) > mom) return m;
+    m = maisMeses(m + "-01", 1).slice(0, 7);
+  }
+  return m;
+}
+
 /* ===== O IPP DE UM MÊS ===== */
 function ippDoMes(mes: string) {
   const ini = mes + "-01", fim = fimDoMes(mes), hoje = dataISO(new Date());
   const ativosFim = ativosEm(fim < hoje ? fim : hoje);
   const ativosIni = ativosEm(maisDias(ini, -1));
+  /* OS ATIVOS DO DIA 1 SÃO OS DO ÚLTIMO DIA DO MÊS ENTREGUE (IPP p.3, e o que faz a R1 fechar): se o mês
+     anterior foi fechado, vale o número que foi para a franqueadora — recalcular hoje daria outro, porque
+     uma saída registrada depois muda o passado, e a rolagem nunca bateria */
+  const fechAnt = G("SELECT dados FROM pef_fechamento WHERE mes=?", maisMeses(ini, -1).slice(0, 7));
+  let iniEntregue: number | null = null;
+  try { if (fechAnt) iniEntregue = Number(JSON.parse(fechAnt.dados).ativosFim); } catch { /* JSON ruim: fica o recalculado */ }
+  if (iniEntregue != null && !Number.isFinite(iniEntregue)) iniEntregue = null;
+  const ativosInicioN = iniEntregue ?? ativosIni.size;
   /* ---------- modalidades e experiências, no último dia do mês ---------- */
   const modalidades: Record<string, any[]> = {}; for (const m of IPP_MODALIDADES) modalidades[m] = [];
   const experiencias: Record<string, any[]> = {
@@ -5043,9 +5068,16 @@ function ippDoMes(mes: string) {
   /* uma saída por aluno no mês: a última. Registro sem caixa da rede não entra em linha nenhuma — vai
      para a lista do que falta completar, porque chutar a caixa seria mandar número inventado */
   const vistos = new Set<string>();
-  for (const h of A(`SELECT h.*, a.nome FROM aluno_situacao_historico h JOIN alunos a ON a.id_matricula=h.id_matricula
+  /* as do mês, e as de meses JÁ ENTREGUES que foram registradas depois do fechamento e caem aqui (R1) */
+  const realocadas = A(`SELECT h.*, a.nome FROM aluno_situacao_historico h JOIN alunos a ON a.id_matricula=h.id_matricula
+                        JOIN pef_fechamento f ON f.mes=substr(h.data,1,7) AND f.fechado_em < h.momento
+                        WHERE h.data < ? AND h.situacao IN ('Evadido','Trancado','Cancelado','Encerrado')
+                        ORDER BY h.data DESC, h.id DESC`, ini)
+    .filter((h: any) => mesDeReporteDaSaida(h) === mes).map((h: any) => ({ ...h, realocada: true }));
+  const saidasRealocadas: any[] = [];
+  for (const h of [...A(`SELECT h.*, a.nome FROM aluno_situacao_historico h JOIN alunos a ON a.id_matricula=h.id_matricula
                      WHERE h.data BETWEEN ? AND ? AND h.situacao IN ('Evadido','Trancado','Cancelado','Encerrado')
-                     ORDER BY h.data DESC, h.id DESC`, ini, fim)) {
+                     ORDER BY h.data DESC, h.id DESC`, ini, fim), ...realocadas]) {
     if (vistos.has(h.id_matricula)) continue;
     /* TRANCAR NÃO É SAIR (auditoria de 26/09): o trancamento sem caixa não é "saída a completar" — ele
        vira perda sozinho, pela data da volta combinada (o laço de baixo). Só o trancamento ANTIGO, com a
@@ -5061,14 +5093,16 @@ function ippDoMes(mes: string) {
                      AND situacao IN ('Retornado','Matriculado','Rematriculado')`, h.id_matricula, tr.data, h.data)) continue;
     }
     const linha = h.tipo_rede ? IPP_LINHA_SAIDA[h.tipo_rede] : null;
-    const x = { id: h.id_matricula, nome: h.nome, data: h.data, livro: h.livro, situacao: h.situacao,
+    const x: any = { id: h.id_matricula, nome: h.nome, data: h.data, livro: h.livro, situacao: h.situacao,
       tipoRede: h.tipo_rede || null, registroId: h.id };
+    if (h.realocada) { x.realocada = true; x.extra = "saída de " + dataBR(h.data) + ", registrada depois que aquele mês foi entregue"; }
     if (!linha) {
       /* "Encerrado" sem caixa é o fim de livro normal — só vira saída quando alguém diz que foi */
       if (h.situacao !== "Encerrado") saidaSemCaixa.push(x);
       continue;
     }
     vistos.add(h.id_matricula);
+    if (x.realocada) saidasRealocadas.push(x);
     const m = ippModalidade(h.livro) || "Ws";
     const canal = h.canal || "Presencial";
     if (!h.canal) saidaSemCanal.push(x);
@@ -5110,6 +5144,21 @@ function ippDoMes(mes: string) {
       detectados.push({ id: a.id, nome: a.nome, livro: a.livro, faltasSeguidas: f.aulas, desde: f.desde,
         criterio: f.aulas >= regua ? regua + "+ aulas seguidas com falta" : "o mês todo sem vir" });
   }
+  /* ---------- R2 — QUEM TERMINOU O LIVRO E NÃO SEGUIU (decisão dele, 26/09; IPP p.6 item 17) ----------
+     "Encerrado não desliga": quem termina o livro continua aluno da casa, entre livros, até rematricular.
+     Se não rematricula e ninguém registra, fica ativo no formulário para sempre — e fora do denominador da
+     rematrícula. Detectar não é carimbar: esta lista pede que alguém registre a saída (motivo "Não comprou o
+     material do próximo estágio", caixa Não rematriculado) ou faça a rematrícula. */
+  const naoRematriculadosDetectados: any[] = [];
+  for (const a of ativosFim.values()) {
+    if (a.origem !== "hoje" || a.livro) continue;           // com contrato aberto não é o caso
+    const ult = G(`SELECT livro, data_fim FROM aluno_estagio WHERE id_matricula=? AND estado='encerrado'
+                     AND data_fim IS NOT NULL AND data_fim<=? ORDER BY data_fim DESC, id DESC LIMIT 1`, a.id, fim);
+    if (!ult) continue;
+    if (G("SELECT 1 FROM presenca WHERE id_matricula=? AND status='P' AND data BETWEEN ? AND ?", a.id, ini, fim)) continue;
+    naoRematriculadosDetectados.push({ id: a.id, nome: a.nome, livro: ult.livro, desde: ult.data_fim,
+      criterio: "terminou " + nomeDoLivro(ult.livro) + " em " + dataBR(ult.data_fim) + " e não seguiu" });
+  }
   /* ---------- as contagens, na ordem do formulário ---------- */
   const conta = (o: any) => Array.isArray(o) ? o.length : 0;
   const evadidosPor = (filtro: (m: string, c: string) => boolean) => {
@@ -5150,7 +5199,8 @@ function ippDoMes(mes: string) {
   return {
     mes, de: ini, ate: fim, parcial: fim >= hoje,
     responsavel: coord[0] ? { nome: coord[0].nome_completo || coord[0].nome, funcao: coord[0].papel } : null,
-    ativosInicio: ativosIni.size, ativosFim: ativosFim.size,
+    ativosInicio: ativosInicioN, ativosInicioDoFechamento: iniEntregue != null, ativosInicioRecalculado: ativosIni.size,
+    ativosFim: ativosFim.size, saidasRealocadas, naoRematriculadosDetectados,
     listaAtivosFim: [...ativosFim.values()].sort((a, b) => String(a.nome).localeCompare(String(b.nome))),
     modalidades, experiencias, saidas, linhas: IPP_LINHAS, resumoSaidas, retencao, rematricula: rem,
     matriculadosNoMes, detectados, saidaSemCaixa, saidaSemCanal, semCaixa, doisContratos,
@@ -5159,9 +5209,9 @@ function ippDoMes(mes: string) {
         valor: somaMod, esperado: ativosFim.size, fonte: "IPP p.4" },
       { id: "experiencias", ok: somaExp === ativosFim.size, texto: "As 4 experiências somam o total de ativos no último dia",
         valor: somaExp, esperado: ativosFim.size, fonte: "IPP p.5" },
-      { id: "rolagem", ok: ativosIni.size - evadidosPor(() => true) - resumoSaidas.formados + matriculadosNoMes.length === ativosFim.size,
+      { id: "rolagem", ok: ativosInicioN - evadidosPor(() => true) - resumoSaidas.formados + matriculadosNoMes.length === ativosFim.size,
         texto: "Ativos no dia 1 − saídas + matriculados no mês = ativos no último dia",
-        valor: ativosIni.size - evadidosPor(() => true) - resumoSaidas.formados + matriculadosNoMes.length,
+        valor: ativosInicioN - evadidosPor(() => true) - resumoSaidas.formados + matriculadosNoMes.length,
         esperado: ativosFim.size, fonte: "IPP p.3 (leitura conjunta dos itens 2 e 3)" },
     ],
   };
@@ -5266,7 +5316,36 @@ function rematriculaDoCiclo(mes: string) {
     jaContados.add(r.id_matricula);
     renovaramDepois.push({ id: r.id_matricula, nome: r.nome, livro: ant.livro || r.livro, fimContrato: fim, renovouEm: r.data });
   }
-  const aRematricular = pendentes.length + rematriculadosCiclo.length + naoRematriculados.length + renovaramDepois.length;
+  /* R2 — QUEM TERMINOU O LIVRO NO CICLO E NÃO RENOVOU (decisão dele, 26/09). `lista` sai de aluno_livro, e
+     encerrar o livro apaga essa linha: o aluno que terminou e não voltou — justamente o que o índice mede —
+     sumia do denominador, e o percentual subia. A biografia (aluno_estagio) não é apagada: é dela que ele
+     volta. Entra quem terminou o plano (ou venceu o contrato, o que vier primeiro) dentro do ciclo, sem
+     percurso novo nem entrada depois disso. Formado não é "a rematricular". */
+  const encerraramSemRenovar: any[] = [];
+  for (const e of A(`SELECT ae.id_matricula, ae.livro, ae.data_inicio, ae.data_fim, a.nome FROM aluno_estagio ae
+                     JOIN alunos a ON a.id_matricula=ae.id_matricula
+                     WHERE ae.estado='encerrado' AND ae.data_fim IS NOT NULL ORDER BY ae.data_fim`)) {
+    if (jaContados.has(e.id_matricula)) continue;
+    const fimC = e.data_inicio && dataPlausivel(e.data_inicio) ? maisDias(e.data_inicio, Pn("contrato_dias")) : null;
+    const quando = [e.data_fim, fimC].filter(Boolean).sort()[0];
+    if (!noIntervalo(quando, ciclo.de, ciclo.ate) || quando > ref) continue;
+    if (G(`SELECT 1 FROM aluno_estagio WHERE id_matricula=? AND data_inicio>=? AND NOT (livro=? AND data_fim=?)`,
+      e.id_matricula, e.data_fim, e.livro, e.data_fim)) continue;
+    if (G(`SELECT 1 FROM aluno_situacao_historico WHERE id_matricula=? AND data>=?
+             AND situacao IN ('Matriculado','Rematriculado','Retornado')`, e.id_matricula, e.data_fim)) continue;
+    if (G(`SELECT 1 FROM aluno_situacao_historico WHERE id_matricula=? AND livro=? AND tipo_rede='Formado'`,
+      e.id_matricula, e.livro)) continue;
+    /* quem ainda estuda em outro livro seguiu (a data de fim de um percurso antigo pode ter sido carimbada
+       depois, por migração — medido: um Teens 2 "terminado em 18/08" de quem cursa o Teens 4 desde fevereiro) */
+    if (G("SELECT 1 FROM aluno_livro WHERE id_matricula=?", e.id_matricula)
+      || G("SELECT 1 FROM aluno_estagio WHERE id_matricula=? AND estado='cursando'", e.id_matricula)) continue;
+    /* terminou o ÚLTIMO livro da série: é formando, não "a rematricular" (MSA p.25) */
+    if (podeSerFormado(e.livro)) continue;
+    jaContados.add(e.id_matricula);
+    encerraramSemRenovar.push({ id: e.id_matricula, nome: e.nome, livro: e.livro, fimContrato: quando, terminouEm: e.data_fim });
+  }
+  const aRematricular = pendentes.length + rematriculadosCiclo.length + naoRematriculados.length + renovaramDepois.length
+    + encerraramSemRenovar.length;
   const grupos: Record<string, Record<string, Record<string, any[]>>> = {};
   for (const x of lista) {
     const s = x.segmento || "Kids", c = x.canal || "Presencial", e = x.experiencia || "Interactive";
@@ -5288,7 +5367,7 @@ function rematriculaDoCiclo(mes: string) {
     ipp: { aRematricular, rematriculados: rematriculadosCiclo.length,
       percentual: aRematricular ? Math.round(rematriculadosCiclo.length / aRematricular * 10000) / 100 : null,
       meta: Pn("pef_meta_rematricula"), pendentes, rematriculadosLista: rematriculadosCiclo, naoRematriculados,
-      renovaramDepois },
+      renovaramDepois, encerraramSemRenovar },
   };
 }
 const dataBR = (iso: string | null) => iso ? iso.slice(8, 10) + "/" + iso.slice(5, 7) + "/" + iso.slice(0, 4) : "—";

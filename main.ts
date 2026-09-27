@@ -77,10 +77,88 @@ if (intruso) {
 
    O `iniciar.bat`, o `iniciar-app.vbs` e o `servidor.vbs` — que são como a recepção sobe, e os
    três únicos lugares onde isso acontece — passaram a mandar `--producao` no mesmo commit. */
-const PRODUCAO = Deno.args.includes("--producao") || Deno.args.includes("--init");
+/* ===== A RECEPÇÃO SEM A FLAG ABRE A ESCOLA, NÃO O MOCK (Wiztools 16, 27/09) =====
+   A regra acima tem um furo no dia do deploy, e ele é da própria recepção. O `servidor.vbs` que ela
+   roda na inicialização do Windows faz o `git pull` e só DEPOIS chama o deno — mas o VBScript já foi
+   lido inteiro para a memória antes do pull. O arquivo novo (com `--producao`) chega ao disco, e o
+   comando que roda é o VELHO, sem flag, do código de 18/08. O main.ts novo, sem flag, abriria o
+   `wizard-mock.db`: a escola passaria o dia lançando presença num banco de brinquedo, sem backup, e
+   só o boot seguinte (com o .vbs novo) voltaria ao banco dela. O `iniciar-app.vbs` velho, idem.
+   A saída não mexe na decisão de 26/08 — no laptop o comando cru continua abrindo o mock. Ela só
+   reconhece a máquina que FECHA O DIA, que é por definição a recepção: se existe um `wizard.db` aqui
+   e o `fecho_estacao` dele é esta máquina (a mesma comparação do fecho, por prefixo normalizado), o
+   comando sem nenhum argumento é a recepção subindo, e abre o banco da escola. Qualquer argumento
+   (`--mock`, `--novo`) ou um `WIZ_DB` é pedido explícito e ganha. Na dúvida (sem wizard.db, sem a
+   chave, erro de leitura), segue o padrão — o mock. */
+function recepcaoSemFlag(): boolean {
+  if (Deno.args.length || Deno.env.get("WIZ_DB")) return false;
+  let alvo = "";
+  /* só-leitura primeiro. Mas se a última sessão morreu no meio de uma gravação (queda de luz), fica um
+     `wizard.db-journal` QUENTE, e uma conexão só-leitura não pode desfazê-lo (SQLITE_READONLY_ROLLBACK): a
+     espiada falharia e a recepção cairia no mock justamente no boot do deploy (revisão da Wiztools 16). Nesse
+     caso, e só nele, a espiada abre com escrita — que é o que a abertura principal faria de qualquer jeito. */
+  const espiar = (somenteLeitura: boolean) => {
+    const espia = new DatabaseSync(PASTA + "wizard.db", somenteLeitura ? { readOnly: true } : {});
+    try {
+      espia.exec("PRAGMA busy_timeout=5000");
+      return String((espia.prepare("SELECT valor FROM config WHERE chave='fecho_estacao'").get() as any)?.valor ?? "").trim();
+    } finally { espia.close(); }
+  };
+  try {
+    Deno.statSync(PASTA + "wizard.db");
+    try { alvo = espiar(true); }
+    catch (e) {
+      try { Deno.statSync(PASTA + "wizard.db-journal"); } catch { throw e; }
+      alvo = espiar(false);
+    }
+  } catch { return false; }
+  if (!alvo) return false;
+  let aqui = ""; try { aqui = Deno.hostname(); } catch { return false; }
+  const norm = (x: string) => x.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const a = norm(alvo), h = norm(aqui);
+  return !!a && !!h && (h.startsWith(a) || a.startsWith(h));
+}
+const RECEPCAO_SEM_FLAG = recepcaoSemFlag();
+if (RECEPCAO_SEM_FLAG)
+  console.log("sem --producao, mas esta é a estação que fecha o dia: abrindo o banco da escola (wizard.db)");
+const PRODUCAO = Deno.args.includes("--producao") || Deno.args.includes("--init") || RECEPCAO_SEM_FLAG;
 const VAR_DB = Deno.env.get("WIZ_DB");   // ensaio sobre uma cópia nomeada: continua valendo
 const MOCK = !PRODUCAO && !VAR_DB;
 const ARQUIVO_DB = PRODUCAO ? "wizard.db" : (VAR_DB || "wizard-mock.db");
+/* 8420 e ponto — a porta que `iniciar.bat`, `iniciar-app.vbs`, `iniciar-sala.vbs`, `servidor.vbs`
+   e a regra do firewall conhecem. O mock sobe AQUI também: ele é o app de desenvolvimento, não um
+   segundo app, e trocar de porta só serviria para a tela do dia a dia mudar de endereço.
+   `WIZ_PORT` existe para o caso de precisar dos dois lado a lado (o de verdade e o mock), e é
+   ignorada fora de ensaio/mock: nenhuma variável esquecida no ambiente pode fazer a recepção
+   acordar num número que o firewall não liberou. */
+const PORTA = !PRODUCAO ? Number(Deno.env.get("WIZ_PORT") || 8420) : 8420;
+if (!Number.isInteger(PORTA) || PORTA < 1 || PORTA > 65535) {
+  console.error("WIZ_PORT inválida: " + Deno.env.get("WIZ_PORT"));
+  Deno.exit(1);
+}
+/* ===== A PORTA ABRE ANTES DO BANCO (Wiztools 16) =====
+   Ela abria no FIM do arquivo, depois de todas as migrações. No boot comum são 2 s e ninguém percebe; no
+   primeiro boot de uma leva nova (12 s no laptop, mais na recepção) a porta fica fechada esse tempo todo, e
+   o atalho da recepção (`iniciar-app.vbs`), que só pergunta "a porta responde?", subia um SEGUNDO deno no
+   mesmo wizard.db — duas levas de migração ao mesmo tempo, "database is locked" no meio, marcas parciais.
+   Agora a porta é a primeira coisa: o segundo processo tropeça nela (AddrInUse, síncrono) e sai antes de
+   abrir o banco — e antes do `--novo` apagar o mock de um servidor que está no ar. Enquanto o primeiro migra,
+   o laço de eventos está parado (não há `await` no nível do módulo), então quem pergunta pela porta espera
+   a resposta em vez de concluir que não há servidor. `tratar` é preenchido no fim, com as rotas. */
+let tratar: ((req: Request, info: any) => Response | Promise<Response>) | null = null;
+try {
+  Deno.serve({ port: PORTA, hostname: "0.0.0.0", onListen() { /* o aviso de subida sai no fim, com o banco */ } },
+    (req, info) => tratar ? tratar(req, info)
+      : new Response("O Wizard ainda está subindo — tente de novo em alguns segundos.",
+          { status: 503, headers: { "retry-after": "5", "content-type": "text/plain; charset=utf-8" } }));
+} catch (e) {
+  if (e instanceof Deno.errors.AddrInUse) {
+    console.error(`A porta ${PORTA} já está em uso: outro servidor do Wizard está no ar (ou subindo). `
+      + "Este não abre o banco — feche o outro antes, se a ideia era reiniciar.");
+    Deno.exit(0);
+  }
+  throw e;
+}
 /* precisa ser decidido ANTES de abrir: `DatabaseSync` cria o arquivo, e depois disso não dá mais
    para saber se ele já existia */
 let mockNascendo = false;
@@ -3787,7 +3865,12 @@ function executarBackup(nome: string, pularExistentes: boolean) {
    tem de ser o servidor dela, não um teste meu que vai ser derrubado em dez minutos. */
 try { // backup diário na subida do servidor (a leitura da config acima já recuperou journal pendente)
   if (ENSAIO) throw new Error("instância de ensaio (WIZ_DB) não escreve na pasta de backup");
-  const r = executarBackup("wizard-" + new Date().toISOString().slice(0, 10) + ".db", true);
+  /* a data LOCAL (Wiztools 16): o toISOString é UTC, e aqui é UTC−4 — um boot depois das 20h gravava o
+     arquivo com a data de amanhã, e o boot da manhã seguinte, achando "o do dia" pronto, pulava o backup.
+     (`dataISO` é declarado mais abaixo no arquivo; por isso a conta vai aqui mesmo.) */
+  const d0 = new Date();
+  const diaLocal = d0.getFullYear() + "-" + ("0" + (d0.getMonth() + 1)).slice(-2) + "-" + ("0" + d0.getDate()).slice(-2);
+  const r = executarBackup("wizard-" + diaLocal + ".db", true);
   r.feitos.forEach(f => console.log("Backup do dia salvo em " + f.caminho));
   r.erros.forEach(e => console.warn("Backup falhou (o app segue normal) — " + e));
 } catch (e) { console.warn("Backup adiado: " + (e as Error).message); }
@@ -5040,9 +5123,60 @@ function ippDoMes(mes: string) {
      uma saída registrada depois muda o passado, e a rolagem nunca bateria */
   const fechAnt = G("SELECT dados FROM pef_fechamento WHERE mes=?", maisMeses(ini, -1).slice(0, 7));
   let iniEntregue: number | null = null;
-  try { if (fechAnt) iniEntregue = Number(JSON.parse(fechAnt.dados).ativosFim); } catch { /* JSON ruim: fica o recalculado */ }
-  if (iniEntregue != null && !Number.isFinite(iniEntregue)) iniEntregue = null;
+  let idsEntregues: Set<string> | null = null;
+  try {
+    if (fechAnt) {
+      const d = JSON.parse(fechAnt.dados);
+      iniEntregue = Number(d.ativosFim);
+      if (Array.isArray(d.listaAtivosFim)) idsEntregues = new Set(d.listaAtivosFim.map((a: any) => String(a.id)));
+    }
+  } catch { /* JSON ruim: fica o recalculado */ }
+  if (iniEntregue != null && !Number.isFinite(iniEntregue)) { iniEntregue = null; idsEntregues = null; }
   const ativosInicioN = iniEntregue ?? ativosIni.size;
+  /* ===== AS ENTRADAS QUE CHEGARAM DEPOIS DA ENTREGA (Wiztools 16) =====
+     O dia 1 congelado (acima) fecha a rolagem para as SAÍDAS registradas depois — elas são realocadas (R1).
+     As ENTRADAS não têm essa contrapartida: a matrícula de 28/08 lançada em 10/09, um Retornado corrigido
+     para agosto, ficam fora do número entregue de agosto e fora dos "matriculados no mês" de setembro, mas
+     dentro dos ativos do fim. A rolagem ficava vermelha sem conserto (antes do R1, o dia 1 recalculado já
+     os tinha). São os ativos do dia 1 RECALCULADO que não estavam na lista entregue — e entram na conta
+     com nome, para ninguém ter de adivinhar a diferença. */
+  /* ===== O LIVRO-RAZÃO DO QUE JÁ FOI ENTREGUE (Wiztools 16) =====
+     Com o R1, uma saída pode chegar a um mês DEPOIS de outro já ter levado a mesma perda para a franqueadora —
+     e as datas não bastam para ver isso: o trancado cuja volta venceu em dezembro (entregue) e cuja evasão
+     só é lançada em janeiro, com a data do fato; a evasão entregue em agosto e depois corrigida para 05/09; o
+     trancamento lançado DEPOIS de dezembro ser entregue (aí dezembro NÃO o levou, e a evasão tem de contar).
+     A verdade está no que foi entregue: o JSON de cada mês fechado guarda as saídas por linha. Uma perda
+     entregue, de quem não voltou desde então e não estava nos ativos do dia 1 deste mês, é a mesma perda.
+     (Formado não é perda — Booklet de Dados p.18 — e não entra aqui.) */
+  const perdasEntregues = new Map<string, string>();
+  for (const f of A("SELECT mes, dados FROM pef_fechamento WHERE mes<? ORDER BY mes", mes)) {
+    try {
+      const d = JSON.parse(f.dados);
+      for (const [linha, porMod] of Object.entries(d.saidas || {})) {
+        if (linha === "formados") continue;
+        for (const porCanal of Object.values(porMod as any)) for (const lista of Object.values(porCanal as any))
+          for (const x of (lista as any[]) || []) {
+            const id = String(x.id), dd = String(x.data || f.mes + "-01");
+            if ((perdasEntregues.get(id) || "") < dd) perdasEntregues.set(id, dd);
+          }
+      }
+    } catch { /* JSON ruim: aquele mês não entra no razão */ }
+  }
+  const noDia1 = (id: string) => idsEntregues ? idsEntregues.has(String(id)) : ativosIni.has(String(id));
+  function perdaJaEntregue(id: string, ate: string): boolean {
+    const dd = perdasEntregues.get(String(id));
+    if (!dd || noDia1(id)) return false;
+    /* voltou depois da perda entregue? então esta é outra história. O MESMO dia conta como volta: no trancado,
+       a data do razão é a da volta combinada, e voltar nela é o caso natural (revisão da Wiztools 16) */
+    return !G(`SELECT 1 FROM aluno_situacao_historico WHERE id_matricula=? AND data>=? AND data<=?
+                 AND situacao IN ('Retornado','Matriculado','Rematriculado')`, id, dd, ate);
+  }
+  /* (a entrada de quem tem perda entregue sem ter voltado não é entrada: é a saída entregue com a data mexida
+     depois — ela sai da rolagem pelos dois lados, e não aparece aqui como "matrícula com data antiga") */
+  const entradasRealocadas = idsEntregues
+    ? [...ativosIni.values()].filter((a: any) => !idsEntregues!.has(String(a.id)) && !perdaJaEntregue(a.id, maisDias(ini, -1)))
+        .map((a: any) => ({ id: a.id, nome: a.nome, livro: a.livro || null }))
+    : [];
   /* ---------- modalidades e experiências, no último dia do mês ---------- */
   const modalidades: Record<string, any[]> = {}; for (const m of IPP_MODALIDADES) modalidades[m] = [];
   const experiencias: Record<string, any[]> = {
@@ -5092,6 +5226,10 @@ function ippDoMes(mes: string) {
       if (tr && !G(`SELECT 1 FROM aluno_situacao_historico WHERE id_matricula=? AND data>=? AND data<=?
                      AND situacao IN ('Retornado','Matriculado','Rematriculado')`, h.id_matricula, tr.data, h.data)) continue;
     }
+    /* e a perda que JÁ FOI ENTREGUE (o livro-razão, acima): a evasão do trancado cuja volta venceu num mês
+       entregue, registrada depois com a data do fato; a saída entregue em agosto com a data corrigida para
+       setembro. É a mesma perda — contá-la aqui seria mandá-la duas vezes */
+    if (perdaJaEntregue(h.id_matricula, h.data)) continue;
     const linha = h.tipo_rede ? IPP_LINHA_SAIDA[h.tipo_rede] : null;
     const x: any = { id: h.id_matricula, nome: h.nome, data: h.data, livro: h.livro, situacao: h.situacao,
       tipoRede: h.tipo_rede || null, registroId: h.id };
@@ -5116,6 +5254,8 @@ function ippDoMes(mes: string) {
     const voltou = G(`SELECT 1 FROM aluno_situacao_historico WHERE id_matricula=? AND data>=?
                         AND situacao IN ('Retornado','Matriculado','Rematriculado')`, h.id_matricula, h.data);
     if (voltou) continue;
+    /* a perda deste aluno já foi entregue num mês fechado (o livro-razão) e ele não voltou: é a mesma */
+    if (perdaJaEntregue(h.id_matricula, h.retorno_previsto)) continue;
     /* e o inverso: a saída registrada ANTES da volta vencer já foi contada no mês dela */
     if (G(`SELECT 1 FROM aluno_situacao_historico WHERE id_matricula=? AND situacao IN ('Evadido','Cancelado','Encerrado')
              AND tipo_rede IS NOT NULL AND (data>? OR (data=? AND id>?)) AND data<=?`,
@@ -5126,6 +5266,13 @@ function ippDoMes(mes: string) {
     saidas.trancados[m][canal].push({ id: h.id_matricula, nome: h.nome, data: h.retorno_previsto, livro: h.livro,
       situacao: "Trancado", tipoRede: "Trancado não-retornado", registroId: h.id, canal, porData: true });
   }
+  /* A SAÍDA REALOCADA DE QUEM JÁ ESTAVA FORA DO NÚMERO ENTREGUE (Wiztools 16, medido no banco da recepção).
+     A evasão lançada em 20/08 SEM caixa já tira o aluno dos ativos de agosto — o número entregue de 31/08 não o
+     tem —, mas não conta como saída (falta a caixa). Quando a caixa chega depois do fechamento, a saída entra
+     aqui, realocada: é a perda que nunca foi informada, e ela conta na retenção. Só que o dia 1 deste mês (o
+     entregue) já não o tinha, e descontá-lo da rolagem o tiraria duas vezes. A conferência o devolve, com nome. */
+  const saidasForaDoEntregue = idsEntregues
+    ? saidasRealocadas.filter((x: any) => !idsEntregues!.has(String(x.id))) : [];
   /* ---------- o que o sistema DETECTA e ninguém registrou (alerta, não número) ----------
      A régua de evasão por falta dispara sozinha, mas carimbar "evadido" é decisão de gente (a mesma
      disciplina da Central). O formulário conta o que está registrado; esta lista diz o que falta registrar
@@ -5200,7 +5347,7 @@ function ippDoMes(mes: string) {
     mes, de: ini, ate: fim, parcial: fim >= hoje,
     responsavel: coord[0] ? { nome: coord[0].nome_completo || coord[0].nome, funcao: coord[0].papel } : null,
     ativosInicio: ativosInicioN, ativosInicioDoFechamento: iniEntregue != null, ativosInicioRecalculado: ativosIni.size,
-    ativosFim: ativosFim.size, saidasRealocadas, naoRematriculadosDetectados,
+    ativosFim: ativosFim.size, saidasRealocadas, entradasRealocadas, saidasForaDoEntregue, naoRematriculadosDetectados,
     listaAtivosFim: [...ativosFim.values()].sort((a, b) => String(a.nome).localeCompare(String(b.nome))),
     modalidades, experiencias, saidas, linhas: IPP_LINHAS, resumoSaidas, retencao, rematricula: rem,
     matriculadosNoMes, detectados, saidaSemCaixa, saidaSemCanal, semCaixa, doisContratos,
@@ -5209,9 +5356,14 @@ function ippDoMes(mes: string) {
         valor: somaMod, esperado: ativosFim.size, fonte: "IPP p.4" },
       { id: "experiencias", ok: somaExp === ativosFim.size, texto: "As 4 experiências somam o total de ativos no último dia",
         valor: somaExp, esperado: ativosFim.size, fonte: "IPP p.5" },
-      { id: "rolagem", ok: ativosInicioN - evadidosPor(() => true) - resumoSaidas.formados + matriculadosNoMes.length === ativosFim.size,
-        texto: "Ativos no dia 1 − saídas + matriculados no mês = ativos no último dia",
-        valor: ativosInicioN - evadidosPor(() => true) - resumoSaidas.formados + matriculadosNoMes.length,
+      { id: "rolagem", ok: ativosInicioN - evadidosPor(() => true) - resumoSaidas.formados + matriculadosNoMes.length
+          + entradasRealocadas.length + saidasForaDoEntregue.length === ativosFim.size,
+        texto: "Ativos no dia 1 − saídas + matriculados no mês"
+          + (entradasRealocadas.length ? " + entradas registradas depois da entrega" : "")
+          + (saidasForaDoEntregue.length ? " + saídas realocadas de quem já não estava no número entregue" : "")
+          + " = ativos no último dia",
+        valor: ativosInicioN - evadidosPor(() => true) - resumoSaidas.formados + matriculadosNoMes.length
+          + entradasRealocadas.length + saidasForaDoEntregue.length,
         esperado: ativosFim.size, fonte: "IPP p.3 (leitura conjunta dos itens 2 e 3)" },
     ],
   };
@@ -5329,16 +5481,28 @@ function rematriculaDoCiclo(mes: string) {
     const fimC = e.data_inicio && dataPlausivel(e.data_inicio) ? maisDias(e.data_inicio, Pn("contrato_dias")) : null;
     const quando = [e.data_fim, fimC].filter(Boolean).sort()[0];
     if (!noIntervalo(quando, ciclo.de, ciclo.ate) || quando > ref) continue;
-    if (G(`SELECT 1 FROM aluno_estagio WHERE id_matricula=? AND data_inicio>=? AND NOT (livro=? AND data_fim=?)`,
-      e.id_matricula, e.data_fim, e.livro, e.data_fim)) continue;
-    if (G(`SELECT 1 FROM aluno_situacao_historico WHERE id_matricula=? AND data>=?
-             AND situacao IN ('Matriculado','Rematriculado','Retornado')`, e.id_matricula, e.data_fim)) continue;
+    /* "SEGUIU?" SE PERGUNTA NA DATA DO RELATÓRIO, não hoje (Wiztools 16). Sem o `<= ref`, quem terminou em
+       20/08 e renovou em 02/09 sumia do denominador de agosto (o percurso novo já existia quando o PEF foi
+       aberto, em setembro) e `renovaramDepois` não o devolvia, porque o contrato anterior vencia fora do
+       ciclo. O percentual mudava conforme o dia em que se olhava — o defeito que `renovaramDepois` resolveu
+       para os pendentes. Na data do relatório ele terminou e não tinha seguido: é denominador. */
+    if (G(`SELECT 1 FROM aluno_estagio WHERE id_matricula=? AND data_inicio>=? AND data_inicio<=?
+             AND NOT (livro=? AND data_fim=?)`,
+      e.id_matricula, e.data_fim, ref, e.livro, e.data_fim)) continue;
+    if (G(`SELECT 1 FROM aluno_situacao_historico WHERE id_matricula=? AND data>=? AND data<=?
+             AND situacao IN ('Matriculado','Rematriculado','Retornado')`, e.id_matricula, e.data_fim, ref)) continue;
     if (G(`SELECT 1 FROM aluno_situacao_historico WHERE id_matricula=? AND livro=? AND tipo_rede='Formado'`,
       e.id_matricula, e.livro)) continue;
     /* quem ainda estuda em outro livro seguiu (a data de fim de um percurso antigo pode ter sido carimbada
-       depois, por migração — medido: um Teens 2 "terminado em 18/08" de quem cursa o Teens 4 desde fevereiro) */
-    if (G("SELECT 1 FROM aluno_livro WHERE id_matricula=?", e.id_matricula)
-      || G("SELECT 1 FROM aluno_estagio WHERE id_matricula=? AND estado='cursando'", e.id_matricula)) continue;
+       depois, por migração — medido: um Teens 2 "terminado em 18/08" de quem cursa o Teens 4 desde fevereiro).
+       Também na data do relatório: outro percurso já começado até lá e ainda de pé quando este terminou. O
+       contrato aberto SEM percurso (não dá para datar) segue contando como "seguiu", como antes. */
+    if (G(`SELECT 1 FROM aluno_estagio WHERE id_matricula=? AND NOT (livro=? AND data_fim IS ?)
+             AND (data_inicio IS NULL OR data_inicio<=?) AND (data_fim IS NULL OR data_fim>=?)`,
+          e.id_matricula, e.livro, e.data_fim, ref, e.data_fim)
+      || G(`SELECT 1 FROM aluno_livro al WHERE al.id_matricula=? AND NOT EXISTS
+              (SELECT 1 FROM aluno_estagio x WHERE x.id_matricula=al.id_matricula AND x.livro=al.livro)`,
+          e.id_matricula)) continue;
     /* terminou o ÚLTIMO livro da série: é formando, não "a rematricular" (MSA p.25) */
     if (podeSerFormado(e.livro)) continue;
     jaContados.add(e.id_matricula);
@@ -6775,7 +6939,8 @@ const api: Record<string, (a: any) => unknown> = {
       /* a sugestão não pode vir ANTES do último registro do estágio: no trancado, a última aula é anterior
          ao trancamento, e a saída datada por ela invertia a linha do tempo (auditoria de 26/09) */
       const hojeC = dataISO(new Date());
-      const ultRegC = G(`SELECT data FROM aluno_situacao_historico WHERE id_matricula=? AND livro=?
+      /* `data d`: sem o apelido o `?.d` saía sempre nulo e esta trava nunca agia (Wiztools 16) */
+      const ultRegC = G(`SELECT data d FROM aluno_situacao_historico WHERE id_matricula=? AND livro=?
                          AND data<=? ORDER BY data DESC, id DESC LIMIT 1`, idMatricula, livro, hojeC)?.d || null;
       const sugestao = [ultima, ultRegC].filter(Boolean).sort().pop() || hojeC;
       return { precisaConfirmar: true, motivo: meio ? "meio" : "fim",
@@ -6840,11 +7005,14 @@ const api: Record<string, (a: any) => unknown> = {
     } catch {
       /* já havia registro igual na mesma data e livro (o índice único) — não é erro, mas o motivo que
          acabou de ser dito vale mais que o silêncio do registro antigo */
+      /* o momento é o de quando a saída PASSOU A CONTAR: se a linha antiga não tinha caixa e agora tem, ela
+         nasce hoje para o IPP (o SET lê os valores ANTIGOS da linha) — ver registrarSaidaAntiga */
       R(`UPDATE aluno_situacao_historico SET motivo_id=COALESCE(?,motivo_id), tipo_rede=COALESCE(?,tipo_rede),
-           observacao=COALESCE(?,observacao), momento=COALESCE(momento,?),
+           observacao=COALESCE(?,observacao),
+           momento=CASE WHEN tipo_rede IS NULL AND ? IS NOT NULL THEN ? ELSE COALESCE(momento,?) END,
            canal=COALESCE(canal,?), experiencia=COALESCE(experiencia,?), retorno_previsto=COALESCE(?,retorno_previsto)
          WHERE id_matricula=? AND situacao=? AND data=? AND livro IS ?`,
-        mot?.id ?? null, tipo, String(observacao ?? "").trim() || null, agora(), canal, experiencia, volta,
+        mot?.id ?? null, tipo, String(observacao ?? "").trim() || null, tipo, agora(), agora(), canal, experiencia, volta,
         idMatricula, rotulo, dia, livro);
     }
     /* A SITUAÇÃO DO ALUNO SAI DO HISTÓRICO, não daqui (corrigido 2026-08-22). A primeira versão
@@ -6971,9 +7139,18 @@ const api: Record<string, (a: any) => unknown> = {
       const r = r0;
       if (!r) throw new Error("Registro não encontrado.");
       exigirFormadoValido(tipo, r.livro || livro || null);
+      /* ===== O MOMENTO QUE CONTA É O DA CAIXA (Wiztools 16) =====
+         O R1 manda a saída registrada depois do fechamento para o 1º mês aberto, e decide isso pelo
+         `momento`. Só que completar a caixa de uma linha ANTIGA mantinha o momento dela: a evasão lançada
+         sem motivo em 20/08 (fora da conta, "saída sem caixa"), agosto fechado em 04/09, a caixa dita em
+         10/09 — o momento continuava 20/08, a saída ficava presa em agosto congelado e não ia para a
+         franqueadora em mês nenhum. É o próprio aviso do PEF que manda completar aqui. Então: quando a
+         linha passa de SEM caixa para COM caixa, o momento vira agora — é quando ela passou a contar. */
+      const passouAContar = !r.tipo_rede && !!tipo;
       R(`UPDATE aluno_situacao_historico SET data=?, motivo_id=?, tipo_rede=?, observacao=?,
-           momento=COALESCE(momento,?) WHERE id=?`,
-        data, mot?.id ?? null, tipo, String(observacao ?? "").trim() || null, agora(), r.id);
+           momento=? WHERE id=?`,
+        data, mot?.id ?? null, tipo, String(observacao ?? "").trim() || null,
+        passouAContar ? agora() : (r.momento || agora()), r.id);
       sincronizarPercurso(idMatricula, r.livro);
       return { ok: true, caminho: "completado", situacaoCorrente: sincronizarSituacao(idMatricula) };
     }
@@ -7724,6 +7901,12 @@ const api: Record<string, (a: any) => unknown> = {
   fecharMesPEF({ mes, observacao }: any) {
     const m = mesValido(mes);
     if (m + "-01" > dataISO(new Date())) throw new Error("Esse mês ainda não começou.");
+    /* fechar DE NOVO um mês já fechado sobrescreve o que foi entregue — e, com um mês seguinte fechado, é o mesmo
+       furo da reabertura fora de ordem (ver reabrirMesPEF): a perda que o R1 mandou adiante voltaria para cá */
+    const depois = G("SELECT MAX(mes) m FROM pef_fechamento WHERE mes>?", m)?.m;
+    if (depois && G("SELECT 1 FROM pef_fechamento WHERE mes=?", m))
+      throw new Error(`Este mês já foi fechado, e ${depois.slice(5, 7)}/${depois.slice(0, 4)} também — fechá-lo de novo mudaria o que `
+        + "o mês seguinte recebeu. Reabra do mais recente para o mais antigo, se for mesmo preciso refazer.");
     const dados = ippDoMes(m);
     R(`INSERT INTO pef_fechamento (mes,dados,fechado_em,observacao) VALUES (?,?,?,?)
        ON CONFLICT(mes) DO UPDATE SET dados=excluded.dados, fechado_em=excluded.fechado_em, observacao=excluded.observacao`,
@@ -7732,6 +7915,12 @@ const api: Record<string, (a: any) => unknown> = {
   },
   reabrirMesPEF({ mes }: any) {
     const m = mesValido(mes);
+    /* DE TRÁS PARA A FRENTE (revisão da Wiztools 16): o mês seguinte fechado congelou o dia 1 a partir DESTE
+       entregue e levou as saídas que o R1 mandou adiante. Reabrir este e fechar de novo traria essas saídas de
+       volta para cá — a mesma perda nos dois meses — e o dia 1 de lá deixaria de bater. */
+    const depois = G("SELECT MAX(mes) m FROM pef_fechamento WHERE mes>?", m)?.m;
+    if (depois) throw new Error(`Reabra primeiro ${depois.slice(5, 7)}/${depois.slice(0, 4)}: o mês seguinte foi fechado a partir `
+      + "deste como ele foi entregue (o dia 1 e as saídas registradas depois). A reabertura vai do mais recente para o mais antigo.");
     R("DELETE FROM pef_fechamento WHERE mes=?", m);
     return { ok: true };
   },
@@ -11142,9 +11331,14 @@ function acertarLivrosConferidos() {
           /* mesma prateleira, outra edição: só o percurso muda de estágio */
           R("UPDATE aluno_estagio SET estagio_id=? WHERE id_matricula=? AND livro=?", est.id, a.id, a.para);
         }
-        /* a âncora: na última aula lançada ele estava na lição que a planilha diz */
+        /* a âncora: na última aula lançada ATÉ A LEITURA DA PLANILHA ele estava na lição que ela diz.
+           O corte em 24/08 é da Wiztools 16: sem ele, "a última aula" era a de hoje — no laptop, em 24/08,
+           dava no mesmo; na recepção, onde esta marca nunca rodou, cairia no fim de setembro, e a lição
+           de agosto seria afirmada um mês depois (medido em 26/09: 328, 1989, 2232, 1991 e 391 têm de 1
+           a 8 presenças depois de 24/08 — todos apareceriam um mês atrás). */
         const l = G("SELECT ordem FROM estagio_licao WHERE dono_id=? AND numero=?", est.id, a.comum);
-        const ult = G(`SELECT MAX(data) d FROM presenca WHERE id_matricula=? AND livro=? AND status='P'`, a.id, a.para)?.d;
+        const ult = G(`SELECT MAX(data) d FROM presenca WHERE id_matricula=? AND livro=? AND status='P'
+                         AND data<='2026-08-24'`, a.id, a.para)?.d;
         if (l && ult) {
           R("UPDATE presenca SET licao_ordem=? WHERE id_matricula=? AND livro=? AND data=?", l.ordem, a.id, a.para, ult);
           ancorados++;
@@ -11215,6 +11409,10 @@ function corrigir270ParaW10() {
   const est = G("SELECT id FROM estagio WHERE livro=? ORDER BY (status='ativo') DESC, legado, id LIMIT 1", PARA);
   const item = G("SELECT id FROM estoque_item WHERE livro=? LIMIT 1", PARA);
   if (!est) return;
+  /* A QUINTA É AULA — confirmado por ele em 27/09 (Wiztools 16): *"tem aula terça e quinta"*. No banco da
+     recepção as quintas em que ele veio (06/08 e 10/09) foram lançadas como REPOSIÇÃO, porque a agenda de lá
+     só tinha terça; com a quinta na agenda, esses dois avulsos caem na hora da aula dele e a Central os
+     aponta ("avulso na hora do aluno") — é limpeza para a recepção, não para esta migração. */
   db.exec("BEGIN");
   try {
     /* O NOVO PRIMEIRO, O VELHO POR ÚLTIMO. `aulas`, `presenca` e as outras apontam para
@@ -11252,7 +11450,10 @@ function corrigir270ParaW10() {
   if (!p?.linhas?.length) return;
   const jaTem = new Set(A("SELECT data FROM presenca WHERE id_matricula=? AND livro=?", ID, PARA).map(r => r.data));
   const primeiraReal = G("SELECT MIN(data) d FROM presenca WHERE id_matricula=? AND livro=? AND status='P'", ID, PARA)?.d;
-  const jaP = G("SELECT COUNT(*) n FROM presenca WHERE id_matricula=? AND livro=? AND status='P'", ID, PARA)?.n ?? 0;
+  /* as aulas dadas ATÉ a leitura da planilha (24/08): a lição 255 era a posição NAQUELE dia. Contar as de
+     setembro (que a recepção lançou depois) semearia de menos — ver o corte em acertarLivrosConferidos */
+  const jaP = G(`SELECT COUNT(*) n FROM presenca WHERE id_matricula=? AND livro=? AND status='P'
+                   AND data<='2026-08-24'`, ID, PARA)?.n ?? 0;
   const faltam = alvo.ordem - jaP;
   if (faltam <= 0) return;
   /* candidatas: dias de aula previstos ANTES da primeira presença de verdade e ainda livres */
@@ -11276,8 +11477,9 @@ function corrigir270ParaW10() {
          VALUES (?,?,?,?,'seed','P',?)`, agora(), ID, PARA, d,
         "presença reconstruída no acerto do W10 — a data é estimada pela projeção, a aula aconteceu");
     });
-    /* a âncora: na última aula lançada ele estava na lição 255 */
-    const ultima = G("SELECT MAX(data) d FROM presenca WHERE id_matricula=? AND livro=? AND status='P'", ID, PARA)?.d;
+    /* a âncora: na última aula lançada ATÉ 24/08 ele estava na lição 255 */
+    const ultima = G(`SELECT MAX(data) d FROM presenca WHERE id_matricula=? AND livro=? AND status='P'
+                        AND data<='2026-08-24'`, ID, PARA)?.d;
     if (ultima) R("UPDATE presenca SET licao_ordem=? WHERE id_matricula=? AND livro=? AND data=?",
       alvo.ordem, ID, PARA, ultima);
     R("INSERT OR REPLACE INTO config (chave,valor) VALUES ('arthur_w10_v1',?)", agora());
@@ -11310,7 +11512,11 @@ function acertar2316() {
   const est = G(`SELECT id FROM estagio WHERE livro=? ORDER BY (status='ativo') DESC, legado, id LIMIT 1`, LV);
   if (!est) return;
   const l4 = G("SELECT ordem FROM estagio_licao WHERE dono_id=? AND numero=4", est.id);
-  const hoje = dataISO(new Date());
+  /* "HOJE" É 25/08, O DIA EM QUE ELE AFIRMOU (Wiztools 16). Estava `dataISO(new Date())`: no laptop dava
+     no mesmo, porque rodou no próprio dia. Na recepção esta marca nunca existiu, e a migração rodaria no
+     dia do DEPLOY — inventando uma presença nesse dia e voltando a aluna para L4 um mês depois. No banco
+     da recepção de 26/09 ela já tem P em 25/08 (13:00–14:00), então lá nada é inserido: só a âncora. */
+  const hoje = "2026-08-25";
   db.exec("BEGIN");
   try {
     /* o primeiro dia consumiu duas lições */
@@ -11345,7 +11551,7 @@ function fechar2316EmL4() {
   const est = G(`SELECT id FROM estagio WHERE livro=? ORDER BY (status='ativo') DESC, legado, id LIMIT 1`, LV);
   const l4 = est ? G("SELECT ordem FROM estagio_licao WHERE dono_id=? AND numero=4", est.id) : null;
   if (!l4) return;
-  const hoje = dataISO(new Date());
+  const hoje = "2026-08-25";   // o dia da afirmação dele, não o do boot — ver acertar2316
   const tarefa = ["2026-08-06", "2026-08-13"];
   db.exec("BEGIN");
   try {
@@ -11688,18 +11894,8 @@ try {
 try { const n = sincronizarVigencia(); if (n) console.log(`   vigência dos professores: ${n} vínculo(s) registrado(s)`); }
 catch (e) { console.warn("vigência dos professores falhou (segue o baile):", e); }
 
-/* 8420 e ponto — a porta que `iniciar.bat`, `iniciar-app.vbs`, `iniciar-sala.vbs`, `servidor.vbs`
-   e a regra do firewall conhecem. O mock sobe AQUI também: ele é o app de desenvolvimento, não um
-   segundo app, e trocar de porta só serviria para a tela do dia a dia mudar de endereço.
-   `WIZ_PORT` existe para o caso de precisar dos dois lado a lado (o de verdade e o mock), e é
-   ignorada fora de ensaio/mock: nenhuma variável esquecida no ambiente pode fazer a recepção
-   acordar num número que o firewall não liberou. */
-const PORTA = ENSAIO ? Number(Deno.env.get("WIZ_PORT") || 8420) : 8420;
-if (!Number.isInteger(PORTA) || PORTA < 1 || PORTA > 65535) {
-  console.error("WIZ_PORT inválida: " + Deno.env.get("WIZ_PORT"));
-  Deno.exit(1);
-}
-Deno.serve({ port: PORTA, hostname: "0.0.0.0" }, async (req, info) => {
+/* as rotas: a porta já está aberta desde o topo do arquivo (ver "A PORTA ABRE ANTES DO BANCO") */
+tratar = async (req: Request, info: any) => {
   const url = new URL(req.url);
   const ip = (info?.remoteAddr as Deno.NetAddr | undefined)?.hostname ?? "127.0.0.1";
   if (url.pathname === "/ws") {
@@ -11796,7 +11992,7 @@ Deno.serve({ port: PORTA, hostname: "0.0.0.0" }, async (req, info) => {
   if (volatil) cabecalhos["cache-control"] = "no-store, must-revalidate";
   try { return new Response(await Deno.readFile(PASTA + arquivo), { headers: cabecalhos }); }
   catch { return new Response("não encontrado", { status: 404 }); }
-});
+};
 /* O log diz QUAL BANCO, já que a porta não distingue mais — é o mesmo aviso que a faixa dá na tela,
    para quem estiver olhando o terminal em vez do navegador. */
 console.log(`Wizard local em http://localhost:${PORTA}  (painel único: Alunos, Turmas, Horários e Impressão)`

@@ -14552,6 +14552,10 @@ if((i.naoRematriculadosDetectados||[]).length)avisos.push('<b>'+pefN(i.naoRematr
  +' aluno(s) terminaram o livro e não seguiram</b> — continuam ativos no formulário. Se não vão voltar, registre a saída com o motivo "Não comprou o material do próximo estágio" (caixa Não rematriculado); se vão, rematricule.');
 if((i.saidasRealocadas||[]).length)avisos.push('<b>'+pefN(i.saidasRealocadas.length,'realoc','Saídas de meses já entregues que entram neste mês',i.saidasRealocadas.map(nome))
  +' saída(s) de meses já entregues</b> foram registradas depois do fechamento e entram neste mês — a data do fato fica como está.');
+if((i.entradasRealocadas||[]).length)avisos.push('<b>'+pefN(i.entradasRealocadas.length,'entrealoc','Entradas registradas depois da entrega do mês anterior',i.entradasRealocadas.map(nome))
+ +' aluno(s) entraram na conta depois que o mês anterior foi entregue</b> (matrícula ou retorno lançado com data antiga) — não estão no número entregue do dia 1, então a conferência da rolagem os soma à parte.');
+if((i.saidasForaDoEntregue||[]).length)avisos.push('<b>'+pefN(i.saidasForaDoEntregue.length,'saifora','Saídas completadas depois da entrega de quem já não estava no dia 1',i.saidasForaDoEntregue.map(nome))
+ +' saída(s) completadas depois da entrega</b> são de alunos que o mês anterior já tinha tirado dos ativos (a saída estava sem caixa) — elas contam como perda aqui, e a conferência da rolagem as devolve ao dia 1.');
 if(!i.responsavel)avisos.push('Ninguém tem o papel de <b>coordenador</b> na Equipe — o campo "responsável" do formulário fica vazio. Preencha em Professores.');
 if(avisos.length)h+='<div class="ret-pend"><div class="ret-pend-cab">'+icon('triangle-alert',15)+'<b>Antes de copiar para o portal</b></div>'
  +avisos.map(function(a){return '<div class="pef-av">'+a+'</div>'}).join('')+'</div>';

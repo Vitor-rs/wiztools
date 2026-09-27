@@ -2544,6 +2544,8 @@ th.ev.ultima .es-ev-data{background:var(--marca);color:#fff}
    faz a tela inteira gritar, e aí nada grita. */
 .ct-barra{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px}
 .ct-barra .ct-dir{margin-left:auto;display:flex;gap:6px}
+/* as pílulas chegam do JS coladas, sem espaço entre os botões: o vão vem do flex, o mesmo 6px do Estoque */
+.ct-barra .es-chips{display:flex;flex-wrap:wrap;gap:6px}
 .ct-regra{border:1px solid var(--borda);border-radius:10px;background:#fff;margin-bottom:8px;
   overflow:hidden}
 .ct-regra.aberta{border-color:var(--azul-borda);box-shadow:0 1px 6px rgba(7,29,73,.07)}
@@ -2589,7 +2591,25 @@ th.ev.ultima .es-ev-data{background:var(--marca);color:#fff}
 .ct-kpi .k-media{background:var(--es-pedido-cl);color:#B26A00}
 .ct-kpi .k-baixa{background:var(--fundo);color:var(--tx2);border:1px solid var(--borda)}
 /* trilho das três abas da Central */
-.ct-abas{margin:12px 0 0}
+/* ===== HOJE e ALUNOS EM RISCO (2026-09-21) ===== */
+.ct-kpi span[onclick]{cursor:pointer}
+.ct-hoje{display:flex;flex-direction:column;gap:8px;max-width:1120px}
+.ct-av{display:flex;align-items:center;gap:14px;border:1px solid var(--borda);border-left-width:3px;border-radius:10px;
+  background:#fff;padding:10px 14px}
+.ct-av.alta{border-left-color:#B3261E}
+.ct-av.media{border-left-color:#B26A00}
+.ct-av.baixa{border-left-color:#C9D1DA}
+.ct-av-txt{flex:1;min-width:0}
+.ct-av-tit{font-size:13px;font-weight:700;color:var(--marca)}
+.ct-av-sub{font-size:12px;color:var(--tx2);margin-top:2px;line-height:1.45}
+.ct-av-sub b{color:#202124;font-weight:600}
+.ct-av-bt{display:flex;gap:6px;flex-shrink:0}
+.ct-av-bt .acao{margin:0;padding:4px 10px;font-size:12px}
+.ret-tag.nv{background:#E8F0FE;color:#1A56B8}
+.ret-tag.fs{background:#F3E8FD;color:#6B3FA0}
+.ret-tab tr.n-novo td:first-child{box-shadow:inset 3px 0 0 #1A56B8}
+.ret-tab tr.n-faltoso td:first-child{box-shadow:inset 3px 0 0 #9C6ADE}
+.ct-sem{display:block;font-size:10.5px;color:var(--tx3);font-weight:400}
 /* ===== O CASO LEVA AO RECURSO (2026-08-17) ===== */
 .ct-item.vai{cursor:pointer;border-radius:7px;margin:0 -6px;padding-left:6px;padding-right:6px;
   transition:background .12s}
@@ -4600,7 +4620,7 @@ button.lc-cron.parado .lc-cron-n{right:-5px;bottom:-5px;min-width:12px;height:12
    Ele pediu enxuto: *"esse painel tá muito firula, deixa ele um pouco mais minimalista"*. Duas colunas
    e nenhum cartão dentro de cartão: à esquerda o que a aula FOI, à direita como o aluno FOI. */
 .reg-fundo{z-index:390}   /* abaixo do .dlg-fundo (400): a confirmação de excluir abre por cima */
-.dlg.reg{width:min(880px,100%);display:flex;flex-direction:column;max-height:calc(100vh - 40px);overflow:hidden}
+.dlg.reg{display:flex;flex-direction:column;max-height:calc(100vh - 40px);overflow:hidden}
 .reg-cab{display:flex;align-items:center;gap:10px;padding:13px 14px 12px 16px;border-bottom:1px solid #EEF1F4}
 .reg-ic{width:32px;height:32px;flex:0 0 32px;display:flex;align-items:center;justify-content:center;
   border-radius:8px;background:var(--azul-cl)}
@@ -4610,39 +4630,119 @@ button.lc-cron.parado .lc-cron-n{right:-5px;bottom:-5px;min-width:12px;height:12
 .reg-quem{font-size:12px;color:var(--tx3);display:flex;gap:6px;flex-wrap:wrap;margin-top:1px}
 .reg-quem b{color:#202124;font-weight:600}
 .reg-quem span::before{content:'·';margin-right:6px;color:#C5CCD3}
-.reg-dia{display:flex;gap:4px;align-items:flex-end;padding:0 16px;border-bottom:1px solid var(--borda);
-  background:#FBFCFD;min-height:0}
+/* ===== AS ABAS DAS AULAS, NA GRAMÁTICA DA PÁGINA DO ALUNO (2026-09-20, dele) =====
+   *"O realce dela quando eu coloco o mouse fica pegando o header do formulário. Eu quero mais ou menos
+   o mesmo estilo da página do aluno, quando você tem o contrato: Painel, Horário, Frequência."*
+   O que "pegava o header" era o fundo cinza com cantos arredondados no :hover, que subia até encostar
+   na borda de cima. Agora é a mesma aba de `.lc-aba`: nada de fundo, o realce é a COR e o traço
+   embaixo — e o "+" deixou de flutuar no canto direito para virar a próxima aba da fila, que é o que
+   ele é: *"coloca uma aba extra, como se fosse um botão, dependendo da quantidade de aulas."* */
+.reg-dia{display:flex;gap:2px;align-items:flex-end;padding:0 16px;border-bottom:1px solid var(--borda);
+  background:#fff;min-height:0}
 .reg-dia:empty{display:none}
-.reg-dia .reg-chip-mais{margin-left:auto}
-.reg-chip{appearance:none;border:0;border-bottom:2px solid transparent;background:none;border-radius:8px 8px 0 0;
-  padding:8px 12px 7px;font:inherit;font-size:12px;font-weight:600;color:var(--tx3);cursor:pointer;
-  display:flex;gap:6px;align-items:center;position:relative;top:1px}
-.reg-chip:hover{background:rgba(0,0,0,.03);color:var(--tx2)}
-/* ===== A PÍLULA DA AULA (2026-09-20, dele) =====
-   *"O número da aula e a palavra aula não em negrito, a lição sim, e o horário não precisa. Tudo do mesmo
-   tamanho de fonte. A lição dentro de uma pílula dentro da pílula, mais evidenciada."* Então: mesmo corpo
-   para os três, peso normal no "1ª aula" e na hora, e a lição numa caixinha clara dentro da pílula. */
+.reg-chip{appearance:none;border:0;border-bottom:2px solid transparent;background:none;border-radius:0;
+  padding:9px 14px 8px;font:inherit;font-size:12.5px;font-weight:600;color:var(--tx2);cursor:pointer;
+  display:flex;gap:7px;align-items:center;margin-bottom:-1px;transition:color .12s,border-color .12s}
+.reg-chip:hover{color:var(--marca)}
+.reg-chip.on{color:var(--marca);border-bottom-color:var(--marca)}
 .reg-chip i{font-style:normal;font-weight:400}
-.reg-chip u{text-decoration:none;font-weight:400;font-variant-numeric:tabular-nums;opacity:.85}
-.reg-chip-lic{font-weight:800;background:rgba(255,255,255,.16);border-radius:9px;padding:0 6px;line-height:16px}
-.reg-chip .reg-chip-lic{background:var(--azul-cl,#EAF4FE);color:var(--marca)}
+.reg-chip u{text-decoration:none;font-weight:400;font-variant-numeric:tabular-nums;color:var(--tx3)}
+.reg-chip-lic{font-weight:800;border-radius:9px;padding:0 6px;line-height:17px;font-size:11.5px;
+  background:#EEF3F8;color:var(--tx2)}
 .reg-chip.on .reg-chip-lic{background:var(--marca);color:#fff}
-.reg-chip.on u{cursor:pointer;text-decoration:underline dotted}
+.reg-chip.on u{cursor:pointer;text-decoration:underline dotted;color:var(--tx2)}
 .reg-chip small{font-size:10px;font-weight:600;opacity:.85}
 /* a aba JÁ REGISTRADA ganha um ponto verde antes do texto, em vez de mudar a cor da letra inteira */
 .reg-chip.feita::before{content:'';width:5px;height:5px;border-radius:50%;background:#2d9147;flex:0 0 5px}
-.reg-chip.on{color:var(--marca);border-bottom-color:var(--azul);background:#fff}
-.reg-chip-mais{padding:6px 10px;font-weight:800;border-radius:8px;align-self:center;top:0}
+/* o "+" é a aba seguinte: mesma altura, mesma linha, tracejado para dizer que ainda não existe */
+.reg-chip-mais{margin-left:0;font-weight:700;color:var(--tx3);padding:9px 13px 8px;
+  border-bottom:2px dashed transparent}
+.reg-chip-mais:hover{color:var(--marca);border-bottom-color:#C9D6E2}
+/* ===== TRÊS ZONAS, E A JANELA DEITADA (2026-09-20, dele) =====
+   *"Eu não quero que ele seja alto, prefiro mais comprido, por causa da tela do laptop."* A janela foi
+   de 880 a 1040px e os conceitos passaram a ocupar DUAS colunas lado a lado em vez de uma pilha só. */
+.dlg.reg{width:min(1040px,100%)}
+.reg-corpo{display:grid;grid-template-columns:minmax(300px,0.92fr) minmax(0,1.5fr);overflow:auto;min-height:140px}
+.reg-esq{padding:14px 16px;display:flex;flex-direction:column;gap:11px;border-right:1px solid #EEF1F4;min-width:0}
+.reg-dir{padding:14px 16px;display:flex;flex-direction:column;gap:8px;min-width:0}
+/* FALE à esquerda, os três de escala à direita: é o vazio que sobrava debaixo da matriz, ocupado */
+/* a matriz FALE tem 4 botões e as outras escalas têm até 5 (o Aplicativo vai de 0 a 4): dividir a
+   largura em dois iguais fazia o "4" cair sozinho numa segunda linha — medido na tela, 186px de botão
+   para 171px de espaço. A coluna da direita leva a diferença. */
+.reg-aval{display:grid;grid-template-columns:minmax(0,0.9fr) minmax(0,1.1fr);gap:6px 14px;align-items:start}
+.reg-fale,.reg-outras{display:flex;flex-direction:column;gap:5px;min-width:0}
+.reg-outras .reg-linha{grid-template-columns:104px minmax(0,1fr)}
+/* "Checking sentences" não cabe em 104px numa linha só, e o nome é o da rede — não se abrevia. Ele
+   quebra em duas, e a entrelinha apertada mantém a altura igual à das outras escalas. */
+.reg-outras .reg-rot{font-size:12px;line-height:1.14}
+/* as observações e o interruptor desceram para a esquerda, no vazio debaixo dos tipos de aula */
+.reg-esq .reg-obs{margin-top:auto}
+.reg-esq .reg-obs textarea{min-height:56px}
+/* ===== O REALCE DA HABILIDADE (2026-09-20, dele) =====
+   *"Quando eu passar no regular de fala, você vai fazer como se fosse um crosshair: ele vai realçar a
+   linha da fala. Se eu estiver com o mouse no muito bom da audição, toda a linha de audição fica com
+   uma borda de pontas arredondadas, leve."* Só para dizer qual habilidade está sendo avaliada. */
+.reg-linha{display:grid;grid-template-columns:96px minmax(0,1fr);align-items:center;gap:8px;min-height:30px;
+  border-radius:9px;padding:1px 6px;margin:0 -6px;box-shadow:inset 0 0 0 1px transparent;
+  transition:box-shadow .12s,background .12s}
+.reg-fale .reg-linha:hover,.reg-outras .reg-linha:hover{box-shadow:inset 0 0 0 1px #D6E2EE;background:#FAFCFE}
+/* os botões encostam à DIREITA da linha, alinhados entre as quatro habilidades */
+.reg-seg{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}
+/* ===== A LIÇÃO: LISTA DA CASA, E A ETIQUETA DENTRO DO CAMPO ===== */
+.reg-cb{position:relative;min-width:0}
+.reg-cb-campo{display:flex;align-items:center;gap:6px;border:1px solid var(--borda);border-radius:7px;
+  background:#fff;padding:0 4px 0 0}
+.reg-cb.aberto .reg-cb-campo,.reg-cb-campo:focus-within{border-color:var(--azul);
+  box-shadow:0 0 0 2px rgba(26,115,232,.12)}
+.reg-cb-in{flex:1 1 auto;min-width:96px;border:0!important;outline:0;background:none;font:inherit;font-size:13px;
+  padding:6px 8px;color:#202124;box-shadow:none!important}
+.reg-cb-campo .reg-pilulas{display:flex;gap:4px;align-items:center;margin:0;flex:0 0 auto}
+.reg-cb-seta{appearance:none;border:0;background:none;color:var(--tx3);cursor:pointer;padding:2px;line-height:0;
+  border-radius:5px;flex:0 0 auto}
+.reg-cb-seta:hover{color:var(--marca);background:#EEF3F8}
+.reg-cb.aberto .reg-cb-seta svg{transform:rotate(180deg)}
+.reg-cb-lista{position:absolute;z-index:5;top:calc(100% + 3px);left:0;right:0;max-height:264px;overflow-y:auto;
+  background:#fff;border:1px solid var(--borda);border-radius:9px;box-shadow:0 8px 24px rgba(16,24,40,.13);
+  padding:4px}
+.reg-cb-op{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:7px;cursor:pointer;font-size:13px;
+  color:var(--tx2)}
+.reg-cb-op b{font-weight:700;color:#202124;flex:0 0 auto;min-width:34px}
+.reg-cb-op span{flex:1 1 auto;color:var(--tx3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.reg-cb-op i{flex:0 0 auto;font-style:normal}
+.reg-cb-op.foco{background:#EEF3F8}
+.reg-cb-op.sel{background:#EAF4FE}
+.reg-cb-op.sel b{color:var(--marca)}
+.reg-continua-l:empty{display:none}
+.reg-continua-l{margin-top:4px}
+.reg-continua-l .reg-continua{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:#8a5a00;background:#FFF8E1;border-radius:8px;padding:1px 8px;max-width:100%}
+.reg-continua-l .reg-continua b{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.reg-cb-nada{padding:9px;font-size:12.5px;color:var(--tx3);text-align:center}
+/* ===== O INTERRUPTOR DA LIÇÃO CONCLUÍDA ===== */
+.reg-tg-linha{display:flex;align-items:center;gap:10px}
+.reg-tg{appearance:none;border:0;padding:0;cursor:pointer;flex:0 0 42px;width:42px;height:24px;border-radius:12px;
+  background:#D5DAE0;position:relative;transition:background .16s}
+.reg-tg.neutro{background:#E6E9ED;box-shadow:inset 0 0 0 1px #D5DAE0}
+.reg-tg.on{background:#2d9147}
+.reg-tg-p{position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;
+  box-shadow:0 1px 3px rgba(16,24,40,.25);transition:transform .16s}
+.reg-tg.on .reg-tg-p{transform:translateX(18px)}
+.reg-tg:focus-visible{outline:2px solid var(--azul);outline-offset:2px}
+.reg-tg-rot{font-size:12.5px;font-weight:600;color:var(--tx2);display:flex;flex-direction:column;line-height:1.25}
+.reg-tg-rot small{font-size:11px;font-weight:400;color:var(--tx3)}
+@media (prefers-reduced-motion:reduce){.reg-tg,.reg-tg-p{transition:none}}
 .reg-x{appearance:none;border:0;background:none;color:var(--tx3);cursor:pointer;border-radius:6px;flex:0 0 28px;
   width:28px;height:28px;display:flex;align-items:center;justify-content:center}
 .reg-dia:empty{margin-left:auto}
 .reg-x:hover{background:#F1F3F5;color:#202124}
-.reg-corpo{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.08fr);overflow:auto;min-height:140px}
 .reg-carrega{grid-column:1/-1;display:flex;justify-content:center;align-items:center;padding:48px;color:var(--tx3)}
 .reg-carrega svg{animation:reg-gira 1s linear infinite}
+/* o véu da troca de aula: o formulário continua ocupando o espaço, só esmaece e para de aceitar clique */
+.reg-corpo{position:relative}
+.reg-corpo.carregando>*:not(.reg-veu){opacity:.45;pointer-events:none;transition:opacity .12s}
+.reg-veu{position:absolute;inset:0;z-index:6;display:flex;align-items:center;justify-content:center;
+  color:var(--marca);pointer-events:none}
+.reg-veu svg{animation:reg-gira 1s linear infinite}
 @keyframes reg-gira{to{transform:rotate(360deg)}}
-.reg-esq{padding:14px 16px;display:flex;flex-direction:column;gap:12px;border-right:1px solid #EEF1F4;min-width:0}
-.reg-dir{padding:14px 16px;display:flex;flex-direction:column;gap:6px;min-width:0}
 .reg-campo{display:flex;flex-direction:column;gap:4px;margin:0;min-width:0}
 .reg-campo>span{font-size:10.5px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.04em}
 /* 60px para o número e o resto para a lição; a lição ganhou ~2cm (a etiqueta "a fazer" vive ao lado
@@ -4659,13 +4759,6 @@ button.lc-cron.parado .lc-cron-n{right:-5px;bottom:-5px;min-width:12px;height:12
 .reg-tagl.afazer{background:var(--azul-cl,#EAF4FE);color:var(--azul-esc,#1a6ba8);
   animation:reg-pulsa 2.2s ease-in-out infinite}
 @media (prefers-reduced-motion:reduce){.reg-tagl.afazer{animation:none}}
-/* ===== A FAIXA DE BAIXO: a pergunta da lição e o campo de texto, atravessando as duas colunas =====
-   Observações precisa de LARGURA, não de altura — duas linhas no formulário inteiro dizem mais que
-   quatro numa coluna de 40% (2026-09-20, dele). */
-.reg-pe-campos{grid-column:1/-1;border-top:1px solid #EEF1F4;padding:10px 16px 12px;display:flex;
-  flex-direction:column;gap:8px;min-width:0}
-.reg-pe-campos .reg-linha{grid-template-columns:150px minmax(0,1fr)}
-.reg-pe-campos textarea{min-height:44px}
 .reg-campo input,.reg-campo select,.reg-campo textarea{font:inherit;font-size:13px;border:1px solid var(--borda);
   border-radius:7px;padding:6px 8px;background:#fff;color:#202124;width:100%;box-sizing:border-box;margin:0;height:auto}
 .reg-campo textarea{resize:vertical;min-height:64px;line-height:1.4}
@@ -4689,9 +4782,7 @@ button.lc-cron.parado .lc-cron-n{right:-5px;bottom:-5px;min-width:12px;height:12
 .reg-dica{font-size:11px;color:var(--tx3);line-height:1.35}
 .reg-vazio{font-size:12px;color:var(--tx3)}
 /* uma habilidade por linha: rótulo à esquerda, os botões à direita */
-.reg-linha{display:grid;grid-template-columns:132px minmax(0,1fr);align-items:center;gap:8px;min-height:30px}
 .reg-rot{font-size:12.5px;font-weight:600;color:var(--tx2);display:flex;align-items:center;gap:5px;min-width:0}
-.reg-seg{display:flex;gap:4px;flex-wrap:wrap}
 .reg-op{appearance:none;font:inherit;font-size:12px;font-weight:700;min-width:34px;height:28px;padding:0 8px;margin:0;
   border:1px solid #DDE2E7;border-radius:7px;background:#fff;color:#8A929B;cursor:pointer;
   transition:background .12s,color .12s,border-color .12s}
@@ -4711,21 +4802,11 @@ button.lc-cron.parado .lc-cron-n{right:-5px;bottom:-5px;min-width:12px;height:12
 .reg-op.on.st-atraso{background:#FBE3E4;color:var(--perigo)}
 /* a situação que a REGRA escolheu fica tracejada: está marcada, mas ninguém a marcou */
 .reg-op.on.auto{border:1px dashed currentColor}
-/* ===== AS DUAS PÍLULAS DA LIÇÃO (2026-09-19, dele) =====
-   *"Coloca uma pílula, uma tag, com azul, meio que piscando. E o que foi feito é um verde, só um verde,
-   com um ícone de check."* Verde é fato consumado e fica quieto; azul pulsa devagar porque é a única coisa
-   da janela que pede decisão. Clicar escolhe — são atalho, não legenda. */
-.reg-pilulas{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:5px}
-.reg-pilula{display:inline-flex;align-items:center;gap:4px;font:inherit;font-size:11.5px;font-weight:600;
-  border-radius:9px;padding:2px 8px;cursor:pointer;border:1px solid transparent;line-height:1.5}
-.reg-pilula svg{width:11px;height:11px;flex:0 0 11px}
-.reg-pilula.feita{background:#E9F6EC;color:#2d7a41;border-color:#CBE8D3}
-.reg-pilula.afazer{background:var(--azul-cl,#EAF4FE);color:var(--azul-esc,#1a6ba8);border-color:#C9E2F7;
-  animation:reg-pulsa 2.2s ease-in-out infinite}
-.reg-pilula.on{outline:2px solid currentColor;outline-offset:1px;animation:none}
-.reg-pilula:hover{filter:brightness(.97)}
+/* a caixa da etiqueta de estado, que desde 2026-09-20 mora DENTRO do campo da lição. As pílulas
+   CLICÁVEIS que viviam aqui saíram: quem escolhe agora é a lista do combobox, e duas maneiras de
+   escolher a mesma coisa na mesma tela é uma a mais. */
+.reg-pilulas{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 @keyframes reg-pulsa{0%,100%{box-shadow:0 0 0 0 rgba(51,170,227,.42)}55%{box-shadow:0 0 0 5px rgba(51,170,227,0)}}
-@media (prefers-reduced-motion:reduce){.reg-pilula.afazer{animation:none}}
 .reg-continua{font-size:11px;color:#8a5a00;background:#FFF8E1;border-radius:8px;padding:2px 8px;cursor:help}
 /* o popover da saída: canto de tela, largura de recado, e nenhum fundo escuro atrás — ele não bloqueia
    a sala, só oferece a resposta enquanto ela ainda é fresca (2026-09-19) */
@@ -4749,7 +4830,6 @@ button.lc-cron.parado .lc-cron-n{right:-5px;bottom:-5px;min-width:12px;height:12
 .reg-hora-fixa{font-size:13px;color:var(--tx2);font-variant-numeric:tabular-nums;display:flex;align-items:baseline;gap:6px}
 .reg-parou input{font:inherit;font-size:13px;border:1px solid var(--borda);border-radius:7px;padding:4px 7px;margin:0;width:100%}
 .reg-conc{display:flex;flex-direction:column;gap:6px}
-.reg-fio{height:1px;background:#EEF1F4;margin:4px 0}
 .reg-tar .reg-rot{flex-wrap:wrap}
 /* ===== A LISTA DE TRANSFERÊNCIA DAS TAREFAS (2026-09-20, dele) =====
    Duas colunas estreitas e as setas no meio, no tamanho do que já existe na janela: ela não pode crescer,
@@ -4794,7 +4874,7 @@ label.reg-tar-it{display:flex;align-items:center;gap:5px;padding:2px 4px;border-
 .reg-av{margin-left:auto;font-size:12px;color:var(--perigo)}
 button.acao.sec.reg-excluir{color:var(--perigo)}
 @media (max-width:760px){.reg-corpo{grid-template-columns:1fr}.reg-esq{border-right:0;border-bottom:1px solid #EEF1F4}}
-@media (prefers-reduced-motion:reduce){button.lc-cron{transition:none}.reg-carrega svg{animation:none}}
+@media (prefers-reduced-motion:reduce){button.lc-cron{transition:none}.reg-carrega svg,.reg-veu svg{animation:none}}
 /* ===== CADASTROS · tipos de aula (2026-09-13) =====
    Uma pilha, não uma grade: são poucos itens, e a ordem da lista É a ordem em que aparecem no Registro
    de aula. As duas fixas em cima, um fio, e as editáveis embaixo. */
@@ -4845,23 +4925,62 @@ button.acao.sec.reg-excluir{color:var(--perigo)}
 .ag-ja{margin-top:8px;font-size:11.5px;color:var(--tx3);display:flex;gap:6px;flex-wrap:wrap}
 .ag-ja span{border:1px dashed var(--borda);border-radius:8px;padding:1px 7px}
 .ag-vazio{font-size:13px;color:var(--tx3);padding:8px 2px}
-.ag-cobre{border:1px solid #CBE8D3;background:#F4FBF6;border-radius:9px;padding:8px 10px;margin:0 0 8px}
-.ag-cobre-cab{display:flex;align-items:baseline;gap:7px;flex-wrap:wrap;color:#1B7A3E;font-size:12.5px;margin-bottom:6px}
-.ag-cobre-cab span{font-size:11px;color:var(--tx3);flex:1 1 220px}
-.ag-cobre-l{display:flex;gap:6px;flex-wrap:wrap}
-.ag-cf{display:inline-flex;align-items:center;gap:5px;margin:0;border:1px solid var(--borda);background:#fff;
-  border-radius:8px;padding:2px 8px;font-size:12px;font-weight:400;text-transform:none;letter-spacing:0;
-  color:var(--tx2);cursor:pointer}
-.ag-cf.on{border-color:#2d9147;background:#EAF7EE}
-.ag-cf input{width:13px;height:13px;flex:0 0 13px;margin:0;padding:0}
-.ag-cf-d{font-variant-numeric:tabular-nums}
-.ag-cf-l{font-size:10.5px;background:var(--marca);color:#fff;border-radius:7px;padding:0 5px;line-height:15px}
-.ag-cf-tag{font-size:10px;color:var(--tx3)}
-.ag-cf-mais{font-size:11px;color:var(--tx3);align-self:center}
-.ag-cobre-tp{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:7px;font-size:11.5px;color:var(--tx3)}
-.ag-tp{appearance:none;border:1px dashed var(--borda);background:#fff;border-radius:8px;padding:2px 8px;
-  font:inherit;font-size:11.5px;color:var(--tx2);cursor:pointer}
-.ag-tp.on{border-style:solid;border-color:#8a5a00;background:#FFF8E1;color:#8a5a00;font-weight:600}
+/* ===== A HORA SE DIGITA, e as da agenda viram atalho (2026-09-20, dele) ===== */
+.ag-lb-hora{width:auto}
+.ag-hora-cx{display:flex;align-items:center;gap:6px}
+.ag-hora-cx input[type=time]{width:112px}
+.ag-horas{display:flex;gap:4px}
+.ag-hr{appearance:none;border:1px dashed var(--borda);background:#fff;border-radius:7px;padding:2px 7px;
+  font:inherit;font-size:11.5px;font-weight:400;letter-spacing:0;text-transform:none;color:var(--tx3);
+  cursor:pointer;font-variant-numeric:tabular-nums}
+.ag-hr:hover{border-style:solid;border-color:var(--marca);color:var(--marca);background:#EEF3F8}
+/* ===== A LINHA DE RESUMO: o que esta reposição paga, em uma frase ===== */
+.ag-resumo{display:flex;align-items:center;gap:8px;flex-wrap:wrap;border:1px solid #CBE8D3;background:#F4FBF6;
+  border-radius:9px;padding:7px 10px;margin:8px 0 0;color:#1B7A3E;font-size:12.5px}
+.ag-resumo .ag-rs-t{flex:1 1 220px}
+.ag-resumo b{font-variant-numeric:tabular-nums}
+.ag-rs-vazio{color:var(--tx3)}
+.ag-resumo .acao{margin:0;padding:3px 10px;font-size:12px}
+/* ===== A JANELA: a PILHA de faltas, e os quatro tipos com a aula já achada =====
+   Pilha e não faixa: com 31 faltas a fila lado a lado era ilegível, e cortar em 12 escondia o resto
+   sem dizer. Aqui ela rola, e cada linha é uma leitura só — data, lição, número da aula. */
+.ag-jan{display:flex;flex-direction:column;gap:14px}
+.ag-jan-sec{border:1px solid var(--borda);border-radius:10px;padding:9px 11px;background:#fff}
+.ag-jan-cab{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:7px;color:var(--marca);font-size:13px}
+.ag-jan-cab span{font-size:11px;color:var(--tx3);flex:1 1 240px;font-weight:400}
+.ag-jan-vazio{font-size:12.5px;color:var(--tx3);padding:4px 2px}
+.ag-stack{display:flex;flex-direction:column;max-height:230px;overflow-y:auto;border:1px solid #EEF1F4;border-radius:8px}
+.ag-st-l{display:flex;align-items:center;gap:9px;margin:0;padding:5px 9px;border-bottom:1px solid #F3F5F7;
+  font-size:12.5px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--tx2);cursor:pointer}
+.ag-st-l:last-child{border-bottom:0}
+.ag-st-l:hover{background:#FAFBFC}
+.ag-st-l:has(.ag-st-c:checked){background:#EAF7EE}
+.ag-st-c{width:14px;height:14px;flex:0 0 14px;margin:0;padding:0}
+.ag-st-n{width:22px;flex:0 0 22px;font-size:10.5px;color:var(--tx3);font-variant-numeric:tabular-nums;text-align:right}
+.ag-st-d{font-variant-numeric:tabular-nums;font-weight:600;width:76px;flex:0 0 76px}
+.ag-st-l2{flex:1 1 auto;color:var(--tx3)}
+.ag-st-l2 i{font-style:italic;opacity:.75}
+.ag-st-a{font-size:10.5px;background:#EEF3F8;color:var(--tx2);border-radius:7px;padding:1px 6px;white-space:nowrap}
+.ag-st-tag{font-size:10px;color:#1B7A3E;background:#EAF7EE;border-radius:7px;padding:1px 6px;white-space:nowrap}
+.ag-st-bts{display:flex;gap:6px;margin-top:6px}
+.ag-st-bt{appearance:none;border:0;background:none;padding:0;font:inherit;font-size:11.5px;color:var(--tx3);
+  cursor:pointer;text-decoration:underline}
+.ag-st-bt:hover{color:var(--marca)}
+/* cada tipo de atraso: o nome, quantas vezes aconteceu, e QUAL aula — que o servidor achou sozinho */
+.ag-tp-l{border:1px solid var(--borda);border-radius:8px;padding:7px 9px;margin-bottom:6px}
+.ag-tp-l:last-child{margin-bottom:0}
+.ag-tp-l.on{border-color:#8a5a00;background:#FFFBF2}
+.ag-tp-l.vazio{border-style:dashed;opacity:.6;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.ag-tp-cab{display:flex;align-items:center;gap:8px;margin:0;font-size:12.5px;font-weight:600;
+  text-transform:none;letter-spacing:0;color:var(--tx2);cursor:pointer}
+.ag-tp-c{width:14px;height:14px;flex:0 0 14px;margin:0;padding:0}
+.ag-tp-nome{flex:1 1 auto}
+.ag-tp-n{font-size:10.5px;background:#F1F3F5;color:var(--tx3);border-radius:7px;padding:1px 7px;
+  font-variant-numeric:tabular-nums}
+.ag-tp-oq{font-size:11px;color:var(--tx3);margin:2px 0 5px 22px}
+.ag-tp-sel{margin:0 0 0 22px;width:calc(100% - 22px);font-size:12px}
+.ag-tp-sel:disabled{opacity:.5}
+.ag-tp-nada{font-size:11px;color:var(--tx3)}
 .ag-cobre-pil{font-size:10.5px;background:#EAF7EE;color:#1B7A3E;border-radius:8px;padding:1px 7px;cursor:help}
 .ag-acoes{white-space:nowrap}
 .ag-bt{appearance:none;border:1px solid transparent;background:none;border-radius:7px;cursor:pointer;
@@ -4874,7 +4993,13 @@ button.acao.sec.reg-excluir{color:var(--perigo)}
 .ag-tag-hoje{font-size:10px;font-weight:700;background:var(--azul-cl,#EAF4FE);color:var(--azul-esc,#1a6ba8);
   border-radius:8px;padding:0 6px}
 .ret-tab tr.ag-hoje td{background:#FBFDFF}
-.ret-kpis{display:flex;gap:10px;flex-wrap:wrap}
+/* o respiro que faltava: sem a margem, os três cartões encostam na borda de baixo do cabeçalho.
+   É o mesmo conserto que `.ag-kpis` já tinha em Agendamentos (2026-09-20) */
+.ret-kpis{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+/* e o de BAIXO: na Retenção e no PEF o trilho de abas vem logo depois dos cartões, mas FORA do
+   `.pg-topo`, então não herda os 10px de `.pg-topo .pg-abas` e encostava neles (medido: 0px).
+   Os mesmos 10px da distância título → trilho. */
+.pg-topo>.ret-kpis{margin-bottom:10px}
 .ret-kpi{display:flex;flex-direction:column;gap:1px;border:1px solid var(--borda);border-radius:10px;
   padding:6px 14px;background:#fff;min-width:96px}
 .ret-kpi b{font-size:19px;color:var(--marca);font-variant-numeric:tabular-nums;line-height:1.1}
@@ -4917,6 +5042,140 @@ button.acao.sec.reg-excluir{color:var(--perigo)}
 .ret-pl input[type=date]{width:150px;margin:0}
 .ret-pl select{width:210px;margin:0}
 .ret-pl .acao{margin:0}
+/* ===== O PEF (2026-09-21) ===== */
+.pef-mes{display:inline-flex;align-items:center;gap:4px;margin-left:12px;font-weight:600;color:var(--marca);font-size:14px}
+.pef-mes span{min-width:132px;text-align:center}
+.pef-mv{appearance:none;border:1px solid var(--borda);background:#fff;border-radius:7px;width:26px;height:26px;cursor:pointer;
+  color:var(--tx2);font-size:16px;line-height:1}
+.pef-mv:hover{border-color:var(--marca);color:var(--marca)}
+#pef-estado{display:inline-flex;align-items:center;gap:8px;margin-left:12px}
+#pef-estado .acao{margin:0;padding:4px 11px;font-size:12.5px}
+/* no `.pg-cab` cada filho traz o próprio respiro acima do fio (h2 12px, sub 14px, `.pg-dir` 9px);
+   o mês e o estado não traziam e sentavam em cima da borda. Os 9px do `.pg-dir`. */
+.pg-cab>.pef-mes,.pg-cab>#pef-estado{padding-bottom:9px}
+.pef-chip{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;border-radius:9px;padding:2px 9px}
+.pef-chip.ok{background:#E8F5E9;color:#256029}
+.pef-chip.meio{background:#FFF8E1;color:#8a5a00}
+.pef-chip.nao{background:#FBE9E7;color:#B03A2E}
+.pef-bloco{background:#fff;border:1px solid var(--borda);border-radius:10px;padding:11px 13px;margin:0 0 12px}
+.pef-bt{font-size:12px;font-weight:700;color:var(--marca);text-transform:uppercase;letter-spacing:.03em;margin:0 0 9px}
+.pef-bt small{font-weight:400;text-transform:none;letter-spacing:0;color:var(--tx3);font-size:11.5px;margin-left:6px}
+.pef-grade{display:grid;gap:8px 14px}
+.pef-grade.g4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.pef-grade.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media (max-width:900px){.pef-grade.g4,.pef-grade.g3{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.pef-campo{border:1px solid #EEF1F4;border-radius:8px;padding:7px 9px;background:#FBFCFD;min-width:0}
+.pef-cr{font-size:11.5px;color:var(--tx3);line-height:1.3;min-height:30px}
+.pef-cv{margin-top:3px;font-size:13px;color:#202124}
+.pef-cd{font-size:10.5px;color:var(--tx3);margin-top:2px}
+/* o número: grande, e clicável quando há gente por trás dele */
+.pef-n{appearance:none;border:0;background:none;padding:0 2px;font:inherit;font-size:20px;font-weight:700;color:var(--marca);
+  font-variant-numeric:tabular-nums;cursor:pointer;border-bottom:2px dotted #C9D6E2;line-height:1.2}
+.pef-n:hover{border-bottom-color:var(--marca)}
+.pef-n.zero{cursor:default;border-bottom-color:transparent;color:#9AA5B1}
+.pef-n.fixo{cursor:default;border-bottom-color:transparent}
+.pef-n.pct{cursor:default;border-bottom:0;color:#256029}
+.pef-n.pct.baixo{color:#B03A2E}
+.pef-tab .pef-n{font-size:14px}
+.pef-vazio{color:var(--tx3);font-style:italic;font-size:12.5px}
+.pef-av{font-size:12.5px;color:var(--tx2);padding:5px 0;border-top:1px solid #F3E7CF;line-height:1.45}
+.pef-av .pef-n{font-size:13px}
+.pef-av-nao{display:flex;align-items:flex-start;gap:6px;color:#B03A2E;border:0;background:#FBE9E7;border-radius:8px;padding:6px 9px;margin-bottom:8px}
+.pef-nota{font-size:11.5px;color:var(--tx3);margin-top:8px;line-height:1.45}
+/* a grade de retenção e evasão, no desenho do portal */
+.pef-tab{width:100%;border-collapse:collapse;font-size:12.5px}
+.pef-tab th{font-size:11px;text-transform:uppercase;letter-spacing:.3px;color:#fff;background:#1F6F99;font-weight:600;padding:6px 8px;text-align:left}
+.pef-tab th.c,.pef-tab td.c{text-align:center}
+.pef-tab td{padding:4px 8px;border-bottom:1px solid #F1F3F5;vertical-align:middle}
+.pef-tab-cab td{background:#F6F8FA;font-size:12px;color:var(--tx2);padding:6px 8px}
+.pef-tab-cab td span{color:var(--tx3);font-size:11.5px}
+.pef-tab-x{background:repeating-linear-gradient(135deg,#FAFBFC,#FAFBFC 4px,#F1F3F5 4px,#F1F3F5 8px)}
+.pef-cf{display:flex;align-items:center;gap:8px;font-size:12.5px;padding:5px 8px;border-radius:8px;margin-bottom:5px}
+.pef-cf span{flex:1 1 auto}
+.pef-cf small{color:var(--tx3);font-size:11px}
+.pef-cf.ok{background:#F1F8F2;color:#256029}
+.pef-cf.nao{background:#FBE9E7;color:#B03A2E}
+/* a rematrícula: as duas caixas da planilha lado a lado, e a lista agrupada embaixo */
+.pef-rem-top{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:12px}
+@media (max-width:900px){.pef-rem-top{grid-template-columns:1fr}}
+.pef-rem-t{width:100%;border-collapse:collapse;font-size:12.5px}
+.pef-rem-t td,.pef-rem-t th{padding:5px 7px;border-bottom:1px solid #F1F3F5}
+.pef-rem-t th{font-size:11px;color:var(--tx3);font-weight:600;text-align:left}
+.pef-rem-t .c{text-align:center}
+.pef-rem-t tr.tot td{font-weight:700;color:var(--marca)}
+.pef-g1 td{background:#1F3A5F;color:#fff;font-weight:700;letter-spacing:.04em;padding:6px 8px}
+.pef-g2 td{background:#E4ECF4;color:var(--marca);font-weight:700;padding:4px 8px 4px 16px}
+.pef-g3 td{background:#F4F7FA;color:var(--tx2);font-weight:600;font-size:12px;padding:3px 8px 3px 26px}
+.pef-venc{color:#B03A2E;font-weight:600}
+/* a gestão pedagógica */
+.pef-como{display:inline-block;font-size:10.5px;font-weight:600;border-radius:8px;padding:1px 7px;white-space:nowrap}
+.pef-como.auto{background:#E8F5E9;color:#256029}
+.pef-como.semi{background:#EEF3F8;color:var(--marca)}
+.pef-como.digita{background:#FFF8E1;color:#8a5a00}
+.pef-como.rede{background:#F1F3F5;color:var(--tx3)}
+.pef-gest td{vertical-align:top;padding:7px 8px}
+.pef-base{font-size:11.5px;color:var(--tx3);line-height:1.4;max-width:420px}
+.pef-al{margin-top:4px;color:#B03A2E;font-weight:600;display:flex;gap:4px;align-items:flex-start}
+.pef-in{width:74px;text-align:center;font:inherit;font-size:13px;border:1px solid var(--borda);border-radius:7px;padding:4px 6px}
+.pef-sn{display:inline-flex;border:1px solid var(--borda);border-radius:8px;overflow:hidden}
+.pef-sn button{appearance:none;border:0;background:#fff;padding:4px 11px;font:inherit;font-size:12px;color:var(--tx3);cursor:pointer}
+.pef-sn button+button{border-left:1px solid var(--borda)}
+.pef-sn button.on{background:#E8F5E9;color:#256029;font-weight:700}
+.pef-sn button.on.nao{background:#FBE9E7;color:#B03A2E}
+.pef-lnk{appearance:none;border:0;background:none;padding:0;font:inherit;font-size:11.5px;color:var(--marca);text-decoration:underline;cursor:pointer}
+/* as aulas observadas */
+.pef-obs-f{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
+.pef-obs-f .ag-lb{width:150px}
+.pef-obs-f .pef-obs-an{flex:1 1 280px;width:auto}
+.pef-obs-f textarea{font:inherit;font-size:13px;border:1px solid var(--borda);border-radius:7px;padding:5px 7px;resize:vertical;min-height:34px}
+.pef-obs-f .acao{margin:0}
+/* a janela que lista quem forma um número */
+.pef-lst{display:flex;flex-direction:column;max-height:380px;overflow-y:auto;border:1px solid #EEF1F4;border-radius:8px}
+.pef-lst-l{display:flex;align-items:center;gap:9px;padding:5px 9px;border-bottom:1px solid #F3F5F7;font-size:12.5px}
+.pef-lst-l:last-child{border-bottom:0}
+.pef-lst-nome{flex:1 1 auto;font-weight:600;color:#202124}
+.pef-lst-d{font-variant-numeric:tabular-nums;color:var(--tx3);font-size:11.5px}
+.pef-lst-x{font-size:11px;color:#8a5a00;background:#FFF8E1;border-radius:7px;padding:1px 7px}
+.pef-lst-l .acao{margin:0;padding:2px 9px;font-size:11.5px}
+/* ===== ATENDIMENTO (2026-09-20) — a fila de risco ganha memória =====
+   A coluna "Falado" é a leitura de meio segundo: quem nunca foi procurado aparece em vermelho, quem
+   foi ontem sai do caminho, e quem passou de quinze dias fica âmbar. Tentativa NÃO é conversa, e por
+   isso vem em letra menor ao lado, nunca no lugar dela. */
+.at-cel{white-space:nowrap}
+.at-nunca{font-size:11.5px;font-weight:600;color:#B03A2E;background:#FBE9E7;border-radius:9px;padding:1px 8px}
+.at-quando{font-size:12px;color:var(--tx2)}
+.at-quando.velho{color:#8a5a00;font-weight:600}
+.at-tent{font-size:10.5px;color:var(--tx3);margin-left:5px;font-variant-numeric:tabular-nums}
+.at-venceu{display:block;font-size:10.5px;font-weight:600;color:#B03A2E;margin-top:1px}
+/* os dois botões da linha: o de registrar é o gesto principal e vem cheio; abrir o aluno é o seguinte */
+.at-acoes{white-space:nowrap}
+.at-acoes .acao{margin:0 0 0 5px;padding:3px 9px;font-size:12px}
+.at-acoes .acao:first-child{margin-left:0}
+/* o formulário do contato: três campos por linha, porque são perguntas curtas de um fato só */
+.at-lin{display:flex;gap:10px;flex-wrap:wrap}
+.at-lin .dlg-l{flex:1 1 170px;margin:0}
+.at-ret input[type=date]{width:170px}
+/* a lista de atendimentos */
+.at-tab td{vertical-align:top}
+.at-cq{display:block;font-size:11px;color:var(--tx3)}
+.at-tipo{font-size:11.5px;background:#EEF3F8;color:var(--tx2);border-radius:9px;padding:1px 8px;white-space:nowrap}
+.at-canal{font-size:11px;color:var(--tx3);background:#F1F3F5;border-radius:8px;padding:1px 6px;white-space:nowrap}
+/* o relato é o coração da linha e precisa caber: duas linhas e reticências, com o texto inteiro no
+   title. Cortar no servidor perderia o que a rede manda guardar. */
+.at-rel{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+  font-size:12.5px;color:var(--tx2);max-width:360px}
+.at-df{font-size:10.5px;font-weight:600;border-radius:9px;padding:1px 7px;white-space:nowrap}
+.at-df.ok{background:#E8F5E9;color:#256029}
+.at-df.meio{background:#FFF8E1;color:#8a5a00}
+.at-df.nao{background:#F1F3F5;color:var(--tx3)}
+.at-volta{font-size:12px;color:var(--tx2)}
+.at-volta.venceu{color:#B03A2E;font-weight:600}
+/* o retorno vencido, na faixa âmbar: mesma letra e mesmo lugar da repescagem das saídas */
+.at-vl{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 0;border-top:1px solid #F3E7CF}
+.at-vl-q{font-size:11.5px;background:#fff;border:1px solid var(--borda);border-radius:9px;padding:1px 8px;color:var(--tx2)}
+.at-vl-a{font-size:11.5px;font-weight:600;color:#B03A2E}
+.at-vl-r{font-size:11.5px;color:var(--tx3);flex:1 1 220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.at-vl .acao{margin:0}
 /* ===== MOTIVOS DE SAÍDA (2026-09-19) =====
    A caixa da rede fica no MEIO da linha, entre o nome e o uso: é a tradução do motivo da casa para o
    vocabulário da franqueadora, e lê-se junto com o nome. Largura fixa para as sete não fazerem a coluna
@@ -4967,6 +5226,11 @@ input.cg-in{font:inherit;font-size:13px;border:1px solid var(--borda);border-rad
 input.cg-in.cg-num{width:76px;text-align:right;font-variant-numeric:tabular-nums;font-weight:700;flex:0 0 76px}
 input.cg-in.cg-uf{width:58px;text-transform:uppercase;text-align:center;font-weight:700;flex:0 0 58px}
 input.cg-in.cg-hora{width:78px;text-align:center;font-variant-numeric:tabular-nums;flex:0 0 78px}
+input.cg-in.cg-diames{width:70px;text-align:center;font-variant-numeric:tabular-nums;font-weight:700;flex:0 0 70px}
+/* a linha do tempo dos ciclos: o de hoje em destaque, sem gritar */
+.cg-ciclos{max-width:620px}
+.cg-ciclos tr.agora td{background:#F5FAFE;color:var(--tx1,#202124)}
+.cg-agora{font-size:10.5px;font-weight:700;background:var(--azul-cl);color:var(--azul-esc);border-radius:9px;padding:1px 8px}
 .cg-un{font-size:12px;color:var(--tx3);line-height:1.3}
 .cg-chave{display:inline-flex;align-items:center;gap:8px;margin:0;font-size:12.5px;color:var(--tx2);cursor:pointer;font-weight:600}
 .cg-chave input{width:17px;height:17px;margin:0;accent-color:var(--azul)}
@@ -5025,7 +5289,8 @@ button.acao.sec.cg-ir{margin:0;padding:4px 10px;font-size:12px;white-space:nowra
 <button onclick="aba('central',this)"><span class="ic"></span>Central<span class="sb-aviso" id="sb-aviso-central" title="pendências abertas na central de controle"></span></button>
 <!-- Retenção fica no PANORAMA e não dentro de Alunos: a rede põe "planejar ações para evitar evasão"
      na agenda DIÁRIA do coordenador, e o que se olha todo dia não pode estar três cliques adentro. -->
-<button onclick="aba('retencao',this)"><span class="ic"></span>Retenção<span class="sb-aviso" id="sb-aviso-retencao" title="alunos sumindo"></span></button>
+<button onclick="aba('retencao',this)"><span class="ic"></span>Retenção</button>
+<button onclick="aba('pef',this)"><span class="ic"></span>PEF<span class="sb-aviso" id="sb-aviso-pef" title="o mês a entregar ainda não foi fechado"></span></button>
 <button onclick="aba('calendario',this)"><span class="ic"></span>Calendário</button>
 
 <div class="sb-fio"></div>
@@ -5558,6 +5823,8 @@ Os horários da matriz costumam ser fixos e raramente mudam. Confirma que quer e
 <button class="pg-aba on" type="button" data-a="escola" onclick="cgAba('escola')">A escola</button>
 <button class="pg-aba" type="button" data-a="aulas" onclick="cgAba('aulas')">Contrato e aulas</button>
 <button class="pg-aba" type="button" data-a="fecho" onclick="cgAba('fecho')">Faltas e fecho do dia</button>
+<button class="pg-aba" type="button" data-a="risco" onclick="cgAba('risco')">Alunos em risco</button>
+<button class="pg-aba" type="button" data-a="pef" onclick="cgAba('pef')">PEF</button>
 <button class="pg-aba" type="button" data-a="sistema" onclick="cgAba('sistema')">Sistema</button>
 </div>
 <div class="pg-corpo pg-corpo-abas">
@@ -5600,25 +5867,67 @@ Os horários da matriz costumam ser fixos e raramente mudam. Confirma que quer e
      contado). A primeira é para agir hoje; a segunda é para fechar o mês com a franqueadora. -->
 <div id="tab-retencao" class="tab tab-fixa">
 <div class="pg-topo">
-<div class="pg-cab"><h2>Retenção</h2><span class="pg-sub">quem está sumindo, e quem já saiu</span></div>
+<div class="pg-cab"><h2>Retenção</h2><span class="pg-sub">quem já saiu, e por quê — quem está sumindo fica na Central</span></div>
 <div class="ret-kpis" id="ret-kpis"></div>
 </div>
 <div class="pg-abas" id="ret-abas">
-<button class="pg-aba on" type="button" data-a="risco" onclick="retAba('risco')">Em risco<span class="n" id="ret-risco-n">0</span></button>
-<button class="pg-aba" type="button" data-a="saidas" onclick="retAba('saidas')">Saídas<span class="n" id="ret-saidas-n">0</span></button>
+<button class="pg-aba on" type="button" data-a="saidas" onclick="retAba('saidas')">Saídas<span class="n" id="ret-saidas-n">0</span></button>
+<button class="pg-aba" type="button" data-a="atend" onclick="retAba('atend')">Atendimentos<span class="n" id="ret-atend-n">0</span></button>
 </div>
 <div class="pg-corpo pg-corpo-abas">
-<div class="es-painel" id="ret-painel-risco">
-<div class="pg-fixo">
-<div class="info cad-info">Quem ainda é aluno da casa e parou de aparecer. <b>Atenção</b> é a régua daqui: três faltas seguidas — a rede manda ligar já na segunda. <b>Evadido pela rede</b> são oito faltas seguidas: nessa altura ele já conta como perda no relatório do mês. <b>Sumido</b> é um mês sem vir, mesmo sem ter faltas seguidas no papel.</div>
-</div>
-<div class="pg-rola"><div id="ret-risco"></div></div>
-</div>
-<div class="es-painel" id="ret-painel-saidas" hidden>
+<!-- a aba "Em risco" foi para a Central em 21/09 (Central › Alunos em risco) -->
+<div class="es-painel" id="ret-painel-saidas">
 <div class="pg-fixo">
 <div class="info cad-info">Quem saiu, quando e por quê. A coluna <b>caixa da rede</b> é o que vai no IPP todo mês — a soma dela é a perda da escola. Saída sem data ou sem motivo aparece em cima, para ser completada: sem a data não existe taxa de evasão do mês, e sem o motivo não há por que.</div>
 </div>
 <div class="pg-rola"><div id="ret-saidas"></div></div>
+</div>
+<div class="es-painel" id="ret-painel-atend" hidden>
+<div class="pg-fixo">
+<div class="info cad-info">O que foi conversado com cada um. A rede pede por escrito: <b>"todo atendimento a pais, responsáveis e alunos deve gerar um follow-up"</b>. <b>Retorno prometido</b> que venceu sobe para o topo — é a promessa que ninguém cumpriu ainda, e ela só sai da lista quando houver conversa nova. Deixar recado não é ter falado: só <b>falei com alguém</b> tira o aluno do "sem contato" da fila de risco, na Central.</div>
+</div>
+<div class="pg-rola"><div id="ret-atend"></div></div>
+</div>
+</div>
+</div>
+
+<!-- ===== O PEF (2026-09-21) — o relatório mensal da franqueadora, montado pelo sistema =====
+     Quatro abas: o IPP (o formulário oficial, na ordem do portal), a Rematrícula do ciclo (o "Relatorio PEF"
+     da planilha dele), a Gestão Pedagógica (os outros itens do painel, com os pontos) e as Aulas Observadas. -->
+<div id="tab-pef" class="tab tab-fixa">
+<div class="pg-topo">
+<div class="pg-cab"><h2>PEF</h2><span class="pg-sub">o relatório mensal da franqueadora, montado com o que o sistema já sabe</span>
+<div class="pef-mes">
+<button type="button" class="pef-mv" onclick="pefMover(-1)" title="mês anterior">&lsaquo;</button>
+<span id="pef-mes-rot">—</span>
+<button type="button" class="pef-mv" onclick="pefMover(1)" title="mês seguinte">&rsaquo;</button>
+</div>
+<span id="pef-estado"></span>
+</div>
+<div class="ret-kpis" id="pef-kpis"></div>
+</div>
+<div class="pg-abas" id="pef-abas">
+<button class="pg-aba on" type="button" data-a="ipp" onclick="pefAba('ipp')">IPP do mês</button>
+<button class="pg-aba" type="button" data-a="rem" onclick="pefAba('rem')">Rematrícula</button>
+<button class="pg-aba" type="button" data-a="gest" onclick="pefAba('gest')">Gestão pedagógica</button>
+<button class="pg-aba" type="button" data-a="obs" onclick="pefAba('obs')">Aulas observadas<span class="n" id="pef-obs-n">0</span></button>
+</div>
+<div class="pg-corpo pg-corpo-abas">
+<div class="es-painel" id="pef-painel-ipp">
+<div class="pg-fixo"><div class="info cad-info">O formulário <b>Índices de Performance Pedagógica</b>, na ordem em que o portal pede. Vale <b>20 pontos</b> todo mês e alimenta outros 50, e fecha no <b id="pef-prazo-dia">dia 5</b> do mês seguinte. Clique em qualquer número para ver os alunos que o formam. <b>Fechar o mês</b> congela os números: o que foi entregue à franqueadora não muda sozinho depois.</div></div>
+<div class="pg-rola"><div id="pef-ipp"></div></div>
+</div>
+<div class="es-painel" id="pef-painel-rem" hidden>
+<div class="pg-fixo"><div class="info cad-info" id="pef-rem-info">O acompanhamento da <b>rematrícula do ciclo</b>.</div></div>
+<div class="pg-rola"><div id="pef-rem"></div></div>
+</div>
+<div class="es-painel" id="pef-painel-gest" hidden>
+<div class="pg-fixo"><div class="info cad-info">Os outros itens do painel <b>Gestão Pedagógica</b> do portal. <span class="pef-como auto">automático</span> o sistema calcula · <span class="pef-como semi">confirmar</span> o sistema sugere e você confirma · <span class="pef-como digita">digitar</span> você informa · <span class="pef-como rede">franqueadora</span> ela mesma preenche. Os itens que valem zero ponto (WIP, Pesquisa SAT) ficaram de fora.</div></div>
+<div class="pg-rola"><div id="pef-gest"></div></div>
+</div>
+<div class="es-painel" id="pef-painel-obs" hidden>
+<div class="pg-fixo"><div class="info cad-info"><b>Aulas avaliadas pelo coordenador</b> — 10 pontos por mês. A rede pede no mínimo <b>uma aula de cada professor</b> e no máximo <b>dez</b> observações no mês, com feedback em até 48 horas. O número do mês sai daqui sozinho.</div></div>
+<div class="pg-rola"><div id="pef-obs"></div></div>
 </div>
 </div>
 </div>
@@ -5630,6 +5939,7 @@ Os horários da matriz costumam ser fixos e raramente mudam. Confirma que quer e
 <div class="pg-abas" id="cad-abas">
 <button class="pg-aba on" type="button" data-a="tipos" onclick="cadAba('tipos')">Tipos de aula<span class="n" id="cad-tipos-n">0</span></button>
 <button class="pg-aba" type="button" data-a="saida" onclick="cadAba('saida')">Motivos de saída<span class="n" id="cad-saida-n">0</span></button>
+<button class="pg-aba" type="button" data-a="atend" onclick="cadAba('atend')">Assuntos de atendimento<span class="n" id="cad-atend-n">0</span></button>
 </div>
 <div class="pg-corpo pg-corpo-abas">
 <div class="es-painel" id="cad-painel-tipos">
@@ -5643,6 +5953,12 @@ Os horários da matriz costumam ser fixos e raramente mudam. Confirma que quer e
 <div class="info cad-info">São os motivos que a tela pergunta quando um estágio se encerra. Cada um aponta para a <b>caixa da rede</b> que o IPP conta no relatório do mês — assim a recepção escolhe a causa de verdade e o número mensal sai certo sozinho. <b>Não informado</b> é fixa: melhor uma saída dizendo que ninguém soube do que uma saída muda.</div>
 </div>
 <div class="pg-rola"><div id="cad-saida"></div></div>
+</div>
+<div class="es-painel" id="cad-painel-atend" hidden>
+<div class="pg-fixo">
+<div class="info cad-info">O <b>assunto</b> do atendimento, como a escola fala dele. O <b>canal</b> (telefone, WhatsApp, presencial, e-mail) não se cadastra: muda de década em década, e não de semestre em semestre. Arquivar tira o assunto da escolha e não mexe em nada do que já foi registrado com ele.</div>
+</div>
+<div class="pg-rola"><div id="cad-atend"></div></div>
 </div>
 </div>
 </div>
@@ -5917,27 +6233,31 @@ Ponto facultativo entra como <b>“a escola abre”</b> — fechar em 24/12 ou 2
      página de Arquivados (topo fixo + uma região que rola), porque é o mesmo tipo de tela: uma lista
      de coisas para resolver, com a ação em cada linha. -->
 <div id="tab-central" class="tab tab-fixa">
+<!-- ===== A CENTRAL VIRA A TELA DE AGIR (2026-09-21, decisão dele) =====
+     Cinco abas, na ordem da urgência: HOJE (o que tem data: retorno vencido, trancado que combinou voltar,
+     encontro de hoje e amanhã, prazo do PEF), ALUNOS EM RISCO (a fila que morava na Retenção, inteira, com
+     o Registrar contato na linha), PENDÊNCIAS (as regras de dado — o backlog de antes), e as duas de
+     arquivo. O selo da barra lateral conta só o que pede você; o backlog tem número à parte. -->
 <div class="pg-topo">
-<div class="pg-cab"><h2>Central de controle</h2><span class="pg-sub">o que está incompleto ou pendente no sistema</span>
+<div class="pg-cab"><h2>Central</h2><span class="pg-sub">o que precisa de você: os avisos do dia, quem está sumindo e o que está incompleto</span>
 <div class="pg-dir" id="ct-placar"></div></div>
+</div>
+<div class="pg-abas" id="ct-abas">
+<button type="button" class="pg-aba on" data-a="hoje" onclick="ctAba('hoje')">Hoje<span class="n">0</span></button>
+<button type="button" class="pg-aba" data-a="risco" onclick="ctAba('risco')">Alunos em risco<span class="n">0</span></button>
+<button type="button" class="pg-aba" data-a="alertas" onclick="ctAba('alertas')">Pendências<span class="n">0</span></button>
+<button type="button" class="pg-aba" data-a="resolvidos" onclick="ctAba('resolvidos')">Resolvidos<span class="n">0</span></button>
+<button type="button" class="pg-aba" data-a="silenciados" onclick="ctAba('silenciados')">Silenciados<span class="n">0</span></button>
 </div>
 <div class="pg-corpo pg-corpo-abas">
 <div class="es-painel">
 <div class="pg-fixo">
-<div class="info" style="max-width:940px">Cada faixa é uma <b>pergunta que o sistema faz aos dados</b> — não um erro. Clique para abrir os casos.<br>
-Pendência que é <b>proposital</b> (o último estágio da trilha não tem próximo, a edição aposentada não tem estoque) pode ser <b>silenciada</b>: some daqui e fica registrada com o motivo, para você lembrar depois por que decidiu assim.</div>
+<div class="info" id="ct-info" style="max-width:940px"></div>
 <div class="ct-barra">
 <span id="ct-chips" class="es-chips"></span>
 <span class="ct-dir">
 <button type="button" class="chip" onclick="ctRecarregar()">reverificar</button>
 </span>
-</div>
-<!-- TRÊS ABAS: o que precisa de você, o que está em dia, e o que você calou. O "ver silenciados"
-     era um botão solto na barra e virou aba, que é onde ele já procurava. -->
-<div class="pg-abas ct-abas">
-<button type="button" class="pg-aba on" data-a="alertas" onclick="ctAba('alertas')">Alertas<span class="n">0</span></button>
-<button type="button" class="pg-aba" data-a="resolvidos" onclick="ctAba('resolvidos')">Resolvidos<span class="n">0</span></button>
-<button type="button" class="pg-aba" data-a="silenciados" onclick="ctAba('silenciados')">Silenciados<span class="n">0</span></button>
 </div>
 </div>
 <div class="pg-rola"><div id="ct-lista"></div></div>
@@ -6236,7 +6556,8 @@ if(n==='estoque'){esZerar();
 if(n==='arquivados')arqCarregar();
 if(n==='cadastros')cadCarregar();
 /* a retenção volta sempre na fila de risco: é a pergunta do dia, e a lista de saídas é consulta */
-if(n==='retencao'){retAba('risco');retCarregar()}
+if(n==='retencao'){retAba('saidas');retCarregar()}
+if(n==='pef'){pefCarregar()}
 /* agendamentos: recarrega sempre, porque a recepção marca e desmarca o dia inteiro */
 if(n==='agendamentos'){agLimpar();agCarregar();if(!ALUNOS||!ALUNOS.length)run('getAlunos',[],function(x){ALUNOS=x})}
 /* a página volta à primeira aba a cada entrada, pela regra da casa */
@@ -6293,6 +6614,7 @@ sbIcones();
    `aba('x')` — o mesmo caminho que o `abaPor` usa para achar o botão —, então acrescentar uma
    página é acrescentar uma linha aqui, sem mexer no HTML. */
 var SB_ICONES={inicio:'house',dashboard:'layout-dashboard',central:'triangle-alert',
+ retencao:'life-buoy',agendamentos:'calendar-plus',pef:'award',
  calendario:'calendar-days',recepcao:'list-checks',presenca:'clipboard-check',
  alunos:'users',turmas:'graduation-cap',horarios:'calendar-clock',professores:'presentation',
  estoque:'package',estagios:'clipboard-list',arquivados:'archive',
@@ -8087,11 +8409,40 @@ var nova=sel.value, antes=sel.dataset.antes;
 if(nova===antes)return;
 var saida=MAT_SIT_SAIDA[nova];
 if(saida){sel.value=antes;matEncerrar(livro,saida);return}
+if(nova==='Trancado'){sel.value=antes;matTrancar(livro);return}
 run('salvarHistoricoAluno',[{idMatricula:alSel.id,situacao:nova,data:isoLocal(new Date()),livro:livro}],
 function(r){
  msg(livro+': '+nova+(r.resolvido?' — registrado; a situação corrente ficou '+r.resolvido:'')+'.');
  if(r.situacaoCorrente)alSitPor(r.situacaoCorrente);
  recarregarMatriculas()})}
+/* ===== TRANCAR PERGUNTA QUANDO ELE VOLTA (2026-09-21, decisão dele) =====
+   *"A escola combina uma data de volta."* No PEF, "trancado não-retornado" é quem passou DESSA data sem
+   voltar — e sem ela a caixa é indecidível. Antes o seletor gravava "Trancado · hoje" direto, sem perguntar
+   nada; agora pergunta o dia do trancamento (sugerido hoje) e o dia combinado para a volta. O horário dele
+   continua reservado: trancar não passa pelo encerrar, porque ele volta ao MESMO estágio. */
+function matTrancar(livro){
+if(!alSel)return;
+var hoje=isoLocal(new Date());
+dlgAbrir({tipo:'confirmar',titulo:'Trancar '+livro+'?',ok:'Trancar',
+ texto:'O horário dele continua reservado neste estágio. Se ele não voltar na data combinada, entra no IPP como "trancado não retornado" e acende na Central.',
+ form:'<label class="dlg-l">Trancou em<input type="date" id="mtr-data" value="'+hoje+'" max="'+hoje+'"></label>'
+  +'<label class="dlg-l">Volta combinada para<input type="date" id="mtr-volta"></label>'
+  +'<label class="dlg-l">Observação <span class="opc">(opcional)</span><input id="mtr-obs" maxlength="140" placeholder="o motivo, o que ficou combinado"></label>',
+ aoAbrir:function(f){var d=f.querySelector('#mtr-data'),v=f.querySelector('#mtr-volta');
+  var ajusta=function(){if(d.value){var t=new Date(d.value+'T12:00:00');t.setDate(t.getDate()+1);v.min=isoLocal(t)}};
+  d.addEventListener('change',ajusta);ajusta()},
+ coletar:function(f){
+  var d=f.querySelector('#mtr-data').value,v=f.querySelector('#mtr-volta').value;
+  if(!d){msg('Diga quando ele trancou.',true);return null}
+  if(!v){msg('Diga a volta combinada — é ela que decide, no PEF, se o trancamento vira perda.',true);f.querySelector('#mtr-volta').focus();return null}
+  if(v<=d){msg('A volta tem de ser depois do trancamento.',true);return null}
+  return {data:d,volta:v,obs:f.querySelector('#mtr-obs').value.trim()}},
+ cb:function(x){if(!x||typeof x!=='object')return;
+  run('salvarHistoricoAluno',[{idMatricula:alSel.id,situacao:'Trancado',data:x.data,livro:livro,
+   retornoPrevisto:x.volta,observacao:x.obs||null}],function(r){
+   msg(livro+': trancado em '+dataCurta(x.data)+', volta combinada para '+dataCurta(x.volta)+'.');
+   if(r.situacaoCorrente)alSitPor(r.situacaoCorrente);
+   recarregarMatriculas()})}})}
 /* ===== AS SEÇÕES VOLTAM PARA CASA ANTES DE OS CARTÕES SEREM REFEITOS =====
    `matSubAba` MOVE `al-s-freq` e companhia para dentro do contrato aberto. Se os cartões forem
    reconstruídos com elas lá dentro, os nós vão junto para o lixo — e a próxima chamada a
@@ -12880,19 +13231,37 @@ var corpo=f.querySelector('.reg-corpo');
    preso a botão morreria na primeira repintura */
 corpo.addEventListener('click',function(e){
  if(!REG_EST||!REG_EST.sel)return;
- var b=e.target.closest('.reg-op');
+ /* o interruptor da licao concluida entra aqui junto dos botoes de conceito: ele tambem e uma
+    marca de campo, so que com duas posicoes em vez de quatro (2026-09-20) */
+ var b=e.target.closest('.reg-op,.reg-tg');
  if(b){regMarca(b.dataset.campo,b.dataset.v,b);return}
- /* as pílulas de lição (concluída · a fazer) são atalho de escolha, não decoração */
- var pl=e.target.closest('.reg-pilula');
- if(pl){var s=REG_EST.sel;s.licaoOrdem=Number(pl.dataset.licao);
-  var inp=REG.corpo.querySelector('[data-f="licaoTx"]');
-  var l=REG_EST.dados.licoes.filter(function(x){return x.ordem===s.licaoOrdem})[0];
-  if(inp&&l)inp.value=regLicRotulo(l);
-  regLicPilulasPintar();regAulaAtualiza();return}
+ /* a lista da lição: clicar numa opção escolhe; clicar na seta abre/fecha */
+ var op=e.target.closest('.reg-cb-op');
+ if(op){regCbEscolher(op.dataset.ordem);return}
+ if(e.target.closest('.reg-cb-seta')){
+  var cb=regCbEl();
+  if(cb&&cb.classList.contains('aberto'))regCbFechar();
+  else{regCbAbrir('');var i=cb&&cb.querySelector('.reg-cb-in');if(i)i.focus()}
+  return}
+ /* clique fora da lista fecha: a janela inteira é o escopo, e o ouvinte já está aqui */
+ if(!e.target.closest('.reg-cb'))regCbFechar();
  var x=e.target.closest('[data-tira]');
  if(x){var s=REG_EST.sel,id=x.dataset.tira;s.profs=s.profs.filter(function(p){return p!==id});regProfsPintar();return}
  var mv=e.target.closest('[data-mv]');
  if(mv){regTarMover(mv.dataset.mv);return}
+});
+/* teclado do combobox: ↑↓ andam, Enter escolhe a realçada, Esc fecha sem mexer na escolha.
+   O keydown mora no corpo (e não no input) porque o campo é repintado a cada troca de aula. */
+corpo.addEventListener('keydown',function(e){
+ if(!e.target.classList||!e.target.classList.contains('reg-cb-in'))return;
+ var cb=regCbEl(),aberto=cb&&cb.classList.contains('aberto');
+ if(e.key==='ArrowDown'){e.preventDefault();if(!aberto)regCbAbrir(e.target.value);else regCbAndar(1);return}
+ if(e.key==='ArrowUp'){e.preventDefault();if(aberto)regCbAndar(-1);return}
+ if(e.key==='Enter'&&aberto){
+  var f=cb.querySelector('.reg-cb-op.foco');
+  if(f){e.preventDefault();e.stopPropagation();regCbEscolher(f.dataset.ordem)}
+  return}
+ if(e.key==='Escape'&&aberto){e.preventDefault();e.stopPropagation();regCbFechar();return}
 });
 corpo.addEventListener('change',function(e){
  var el=e.target,s=REG_EST&&REG_EST.sel;if(!s)return;
@@ -12913,6 +13282,8 @@ corpo.addEventListener('change',function(e){
 });
 corpo.addEventListener('input',function(e){
  var el=e.target,s=REG_EST&&REG_EST.sel;if(!s)return;
+ /* busca enquanto digita: a lista é nossa, então ela filtra na hora em vez de esperar o `change` */
+ if(el.dataset.f==='licaoTx'){regCbAbrir(el.value);return}
  if(el.dataset.f==='obs'){s.observacao=el.value;return}
  if(el.dataset.f==='parouEm'){s.parouEm=el.value;return}
  if(el.dataset.f==='aula'){
@@ -12927,7 +13298,13 @@ f.querySelector('.reg-dia').addEventListener('click',function(e){
  /* a hora mora dentro da pílula desde 2026-09-20; clicar NELA corrige o carimbo, clicar no resto da
     pílula troca de aula */
  if(e.target.closest('u')&&Number(c.dataset.seq)===REG_EST.dados.seq){regEditarHora();return}
- if(Number(c.dataset.seq)!==REG_EST.dados.seq)regBuscar(Number(c.dataset.seq));
+ if(Number(c.dataset.seq)!==REG_EST.dados.seq){
+  /* a aba clicada acende NA HORA: esperar a resposta para mudar o destaque deixava a aba antiga acesa
+     por cima do véu, como se o clique não tivesse pegado. Um segundo clique durante a carga é ignorado
+     sozinho — REG_EST.dados fica nulo até a resposta, e o teste logo acima barra (2026-09-20) */
+  REG.dia.querySelectorAll('.reg-chip.on').forEach(function(x){x.classList.remove('on')});
+  c.classList.add('on');
+  regBuscar(Number(c.dataset.seq))}
 });
 document.addEventListener('keydown',function(e){
  if(!f.classList.contains('on'))return;
@@ -12947,13 +13324,34 @@ var r=regMontar();
 REG_EST={o:o,dados:null,sel:null};
 r.foco=document.activeElement;
 r.fundo.classList.add('on');
+/* abrir é começar do zero: o corpo ainda guarda a ÚLTIMA janela (regFechar não o esvazia), e sem isto
+   o véu da troca de aula mostraria o aluno anterior esmaecido enquanto este carrega */
+r.corpo.innerHTML='';r.corpo.classList.remove('carregando');
 regBuscar(o.seq||null);
 }
 function regBuscar(seq){
 var r=REG,o=REG_EST.o;
 REG_EST.dados=null;REG_EST.sel=null;
-r.quem.textContent='carregando…';r.av.textContent='';
-r.corpo.innerHTML='<div class="reg-carrega">'+icon('loader-circle',18)+'</div>';
+r.av.textContent='';
+/* ===== TROCAR DE ABA NÃO DESMONTA A JANELA (2026-09-20, dele) =====
+   *"Quando eu seleciono a aula em aba diferente, o formulário apaga todo o painel, ele encolhe, fica
+   metade da altura. Aí em meio segundo ele volta tudo."* O corpo era TROCADO pelo spinner: o formulário
+   sumia, a janela despencava para a altura do spinner e subia de volta quando a resposta chegava.
+   Medido na tela: 659px → 313px → 680px, a cada troca de aula.
+   Agora o conteúdo FICA onde está, esmaecido e sem aceitar clique, e um véu com o spinner passa por
+   cima: a altura não mexe, e o que se vê é a mesma janela esperando — não outra nascendo.
+   Só a PRIMEIRA abertura (corpo ainda vazio) usa o spinner centralizado: ali não há nada a preservar.
+   O nome do aluno no cabeçalho também fica: é o mesmo aluno, só a aula muda. */
+var jaTinha=r.corpo.children.length>0&&!r.corpo.querySelector('.reg-carrega');
+if(jaTinha){
+ r.corpo.classList.add('carregando');
+ if(!r.corpo.querySelector('.reg-veu')){
+  var veu=document.createElement('div');veu.className='reg-veu';veu.innerHTML=icon('loader-circle',18);
+  r.corpo.appendChild(veu)}
+}else{
+ r.quem.textContent='carregando…';
+ r.corpo.innerHTML='<div class="reg-carrega">'+icon('loader-circle',18)+'</div>';
+}
 r.excluir.style.display='none';r.salvar.disabled=true;
 run('getRegistroAula',[{idMatricula:o.idMatricula,livro:o.livro,data:o.data,hora:o.hora||null,seq:seq}],function(d){
  if(!REG_EST||REG_EST.o!==o)return;   // fechou, ou abriu outro aluno, enquanto buscava
@@ -13003,46 +13401,51 @@ return l&&l.aula!=null?String(l.aula):''}
 
 function regPintar(){
 var r=REG,d=REG_EST.dados;
+r.corpo.classList.remove('carregando');
 r.quem.innerHTML='<b>'+escBloco(d.aluno.nome)+'</b><span>'+escBloco(d.livroNome||d.livro)+'</span>'
  +'<span>'+escBloco(regDataCurta(d.data))+(d.hora?' · '+escBloco(d.hora):'')+'</span>';
 r.dia.innerHTML=regDiaHtml();
-/* ===== A ARRUMAÇÃO DE 2026-09-20, com a tela dele na mão =====
-   *"Olha o espaço branco que ficou ali embaixo. Muito espaço vazio, isso é desnecessário. Detesto
-   front-end que desperdiça espaço."* A lista de tarefas voltou para a COLUNA DA DIREITA, no vazio que
-   sobrava debaixo do Aplicativo; "a lição foi concluída?" subiu para cima das Observações; e as
-   Observações atravessam as duas colunas, porque texto longo pede LARGURA e não altura.
-   Regra da casa que sai daqui: em formulário cheio, espaço em branco é erro, não respiro. */
+/* ===== A ARRUMAÇÃO DE 2026-09-20 (segunda leva), com a tela dele rabiscada na mão =====
+   *"Eu não quero que ele seja alto. Eu prefiro que ele seja mais comprido, por causa da tela do laptop,
+   que é menor."* Então a janela alargou e baixou: Checking sentences, Engajamento e Aplicativo saíram
+   de baixo da matriz FALE e foram para uma coluna AO LADO dela; as tarefas ocuparam o vazio que eles
+   deixaram; e "a lição foi concluída" e as Observações desceram para a coluna da esquerda, no espaço
+   que sobrava debaixo dos tipos de aula.
+   São três zonas: à esquerda o que a aula FOI, à direita como o aluno FOI (duas colunas de conceito),
+   e as tarefas embaixo da direita, atravessando as duas. */
 r.corpo.innerHTML='<div class="reg-esq">'
  +'<div class="reg-par">'
  +'<label class="reg-campo reg-n"><span>Aula</span><input data-f="aula" inputmode="numeric" maxlength="3" value="'
   +escBloco(REG_EST.sel.aulaN)+'" title="por padrão, o número que a ficha dá a esta lição"></label>'
- +'<label class="reg-campo reg-lic"><span>Lição</span>'+regSelectLicao()+'</label>'
+ +'<div class="reg-campo reg-lic"><span>Lição</span>'+regSelectLicao()+'</div>'
  +'</div>'
  +'<div class="reg-campo"><span>Professores</span><div class="reg-profs">'+regProfsHtml()+'</div></div>'
  +'<div class="reg-campo"><span>Tipo de aula</span><div class="reg-tipos">'+regTiposHtml()+'</div>'
  +'<small class="reg-dica reg-tipos-dica">'+regTiposDica()+'</small></div>'
+ +'<div class="reg-conc">'+regConcluidaHtml()+'</div>'
+ +'<label class="reg-campo reg-obs"><span>Observações e anotações</span><textarea data-f="obs" rows="3">'
+  +escBloco(REG_EST.sel.observacao)+'</textarea></label>'
  +'</div>'
  +'<div class="reg-dir">'
+ +'<div class="reg-aval">'
+ +'<div class="reg-fale">'
  +regEscala('fala','Fala',REG_NOTAS)+regEscala('audicao','Audição',REG_NOTAS)
  +regEscala('leitura','Leitura',REG_NOTAS)+regEscala('escrita','Escrita',REG_NOTAS)
- +'<div class="reg-fio"></div>'
+ +'</div>'
+ +'<div class="reg-outras">'
  +regEscala('cs','Checking sentences',REG_CS)
  +regEscala('eng','Engajamento',REG_ENG)
  +regEscala('app','Aplicativo',REG_APP)
- +'<div class="reg-tarefa"></div>'
  +'</div>'
- /* a faixa de baixo é a única coisa que atravessa: a pergunta da lição e o campo de texto */
- +'<div class="reg-pe-campos">'
- +'<div class="reg-conc">'+regConcluidaHtml()+'</div>'
- +'<label class="reg-campo reg-obs"><span>Observações e anotações</span><textarea data-f="obs" rows="2">'
-  +escBloco(REG_EST.sel.observacao)+'</textarea></label>'
+ +'</div>'
+ +'<div class="reg-tarefa"></div>'
  +'</div>';
 /* a faixa das tarefas nasce vazia no HTML e é pintada aqui: é a mesma função que as setas chamam */
 regTarefaPintar();
 r.excluir.style.display=(d.registro&&d.registro.definido)?'':'none';
 r.salvar.disabled=false;
 r.salvar.textContent=(d.registro&&d.registro.definido)?'Salvar alterações':'Salvar registro';
-var foco=r.corpo.querySelector('.reg-lic select:not([disabled])')||r.corpo.querySelector('.reg-op');
+var foco=r.corpo.querySelector('.reg-cb-in:not([disabled])')||r.corpo.querySelector('.reg-op');
 if(foco)setTimeout(function(){try{foco.focus()}catch(e){}},30);
 }
 
@@ -13080,12 +13483,89 @@ for(var k=1;k<=maior;k++){
 if(todas)h+='<button type="button" class="reg-chip reg-chip-mais" data-seq="'+(maior+1)+'" title="registrar outra aula neste mesmo dia">+</button>';
 return h}
 
-/* ===== A LIÇÃO: BUSCÁVEL, E COM AS DUAS PÍLULAS (2026-09-19, dele) =====
-   *"Eu quero que esse dropdown seja digitável, buscável."* Num livro de 72 lições, rolar a lista é o gesto
-   errado: quem sabe que quer a 51 digita 51. `input` + `datalist` dá o type-ahead do próprio navegador sem
-   biblioteca nenhuma — e o valor de verdade continua sendo a ORDEM, resolvida pelo rótulo.
-   *"Em vez de 'última feita', coloca concluída; em vez de 'próxima', a fazer."* As duas viraram pílula:
-   verde com o check para a concluída, azul piscando para a que falta — e clicar numa delas escolhe. */
+/* ===== A LIÇÃO: UM COMBOBOX DA CASA, E A ETIQUETA DENTRO DELE (2026-09-20, dele) =====
+   *"Esse dropdown preto eu não gostei, eu odiei. Coloca uma coisa melhor. Ele tem que ser navegável e
+   selecionável."* Era `<datalist>`: o type-ahead vem de graça, mas quem desenha a lista é o SISTEMA
+   OPERACIONAL — no Windows ela sai preta, fora da identidade da tela, e não aceita conteúdo nenhum
+   além do texto. Trocado por lista própria: busca enquanto digita, setas e Enter, Esc fecha, clique
+   escolhe, e cada linha cabe a sigla, o nome e a etiqueta de estado.
+   *"As duas pílulas vão ficar dentro do dropdown de buscar a lição. É ali que tem que estar."* — a
+   etiqueta saiu de baixo do campo e passou a morar DENTRO dele, à direita, e repete-se em cada opção
+   da lista, que é onde ela ajuda a escolher. */
+function regSelectLicao(){
+var d=REG_EST.dados,s=REG_EST.sel;
+if(d.semEstrutura)return '<input disabled value="estágio sem estrutura de lições">';
+if(regSemConteudo())return '<input disabled value="— sem lição —">';
+var atual=d.licoes.filter(function(l){return l.ordem===s.licaoOrdem})[0];
+return '<div class="reg-cb">'
+ +'<div class="reg-cb-campo">'
+ +'<input data-f="licaoTx" class="reg-cb-in" autocomplete="off" spellcheck="false" role="combobox"'
+ +' aria-autocomplete="list" aria-expanded="false" placeholder="digite o número ou o nome da lição"'
+ +' value="'+escBloco(atual?regLicRotulo(atual):'')+'">'
+ +'<span class="reg-pilulas">'+regLicPilulas()+'</span>'
+ +'<button type="button" class="reg-cb-seta" tabindex="-1" aria-label="Ver todas as lições">'
+ +icon('chevron-down',14)+'</button>'
+ +'</div>'
+ +'<div class="reg-cb-lista" role="listbox" hidden></div></div>'
+ /* fora do .reg-cb de propósito: a lista abre em top:100% dele, e esta linha dentro o faria crescer
+    e empurraria a lista para longe do campo */
+ +'<div class="reg-continua-l">'+regLicContinua()+'</div>'}
+/* o estado da lição de UMA opção: já dada antes desta aula, ou ainda por fazer na trilha */
+function regLicEstado(l){
+var d=REG_EST.dados;
+if(l.dataReal&&l.dataReal<d.data)return ['feita','check','feita em '+regDataCurta(l.dataReal)];
+if(l.ordem===d.sugestao.licaoOrdem)return ['afazer','crosshair',d.sugestao.continua
+ ?'a anterior ficou pela metade — esta aula continua nela':'é a que falta fazer na trilha'];
+return null}
+function regCbLista(q){
+var d=REG_EST.dados,s=REG_EST.sel;
+var t=String(q||'').trim().toLowerCase();
+var lista=d.licoes;
+if(t)lista=lista.filter(function(l){
+ var r=regLicRotulo(l).toLowerCase();
+ return r.indexOf(t)>=0||String(l.licao).toLowerCase().replace(/^l/,'')===t.replace(/^l/,'')});
+if(!lista.length)return '<div class="reg-cb-nada">nenhuma lição com esse nome</div>';
+return lista.map(function(l){
+ var e=regLicEstado(l),on=l.ordem===s.licaoOrdem;
+ return '<div class="reg-cb-op'+(on?' sel':'')+'" role="option" aria-selected="'+on+'" data-ordem="'+l.ordem+'"'
+  +(e?' title="'+escBloco(e[2])+'"':'')+'>'
+  +'<b>'+escBloco(l.licao)+'</b>'
+  +'<span>'+escBloco(l.conteudo&&l.conteudo!==l.licao?l.conteudo:'')+'</span>'
+  +(e?'<i class="reg-tagl '+e[0]+'">'+icon(e[1],10)+(e[0]==='feita'?'feita':'a fazer')+'</i>':'')
+  +'</div>'}).join('')}
+function regCbEl(){return REG&&REG.corpo?REG.corpo.querySelector('.reg-cb'):null}
+function regCbAbrir(q){
+var cb=regCbEl();if(!cb)return;
+var lst=cb.querySelector('.reg-cb-lista'),inp=cb.querySelector('.reg-cb-in');
+lst.innerHTML=regCbLista(q===undefined?'':q);
+lst.hidden=false;cb.classList.add('aberto');inp.setAttribute('aria-expanded','true');
+/* a lição escolhida entra em vista sem roubar o foco do campo, que continua recebendo o que se digita */
+var sel=lst.querySelector('.reg-cb-op.sel')||lst.querySelector('.reg-cb-op');
+if(sel){regCbRealce(sel);try{sel.scrollIntoView({block:'nearest'})}catch(e){}}}
+function regCbFechar(){
+var cb=regCbEl();if(!cb)return;
+var lst=cb.querySelector('.reg-cb-lista'),inp=cb.querySelector('.reg-cb-in');
+lst.hidden=true;cb.classList.remove('aberto');inp.setAttribute('aria-expanded','false')}
+function regCbRealce(el){
+var cb=regCbEl();if(!cb||!el)return;
+cb.querySelectorAll('.reg-cb-op.foco').forEach(function(o){o.classList.remove('foco')});
+el.classList.add('foco')}
+function regCbAndar(passo){
+var cb=regCbEl();if(!cb)return;
+var ops=[].slice.call(cb.querySelectorAll('.reg-cb-op'));
+if(!ops.length)return;
+var i=ops.findIndex(function(o){return o.classList.contains('foco')});
+var j=Math.max(0,Math.min(ops.length-1,(i<0?0:i+passo)));
+regCbRealce(ops[j]);try{ops[j].scrollIntoView({block:'nearest'})}catch(e){}}
+function regCbEscolher(ordem){
+var s=REG_EST.sel,d=REG_EST.dados;
+var l=d.licoes.filter(function(x){return x.ordem===Number(ordem)})[0];
+if(!l)return;
+s.licaoOrdem=l.ordem;
+var inp=REG.corpo.querySelector('.reg-cb-in');
+if(inp)inp.value=regLicRotulo(l);
+regCbFechar();regLicPilulasPintar();regAulaAtualiza()}
+
 function regLicRotulo(l){return l.licao+(l.conteudo&&l.conteudo!==l.licao?' — '+l.conteudo:'')}
 function regLicPorRotulo(txt){
 var d=REG_EST.dados,t=String(txt||'').trim().toLowerCase();
@@ -13096,19 +13576,8 @@ if(achou)return achou;
 var curto=d.licoes.filter(function(l){return String(l.licao).toLowerCase()===t
  ||String(l.licao).toLowerCase()==='l'+t});
 return curto.length===1?curto[0]:null}
-function regSelectLicao(){
-var d=REG_EST.dados,s=REG_EST.sel;
-if(d.semEstrutura)return '<input disabled value="estágio sem estrutura de lições">';
-if(regSemConteudo())return '<input disabled value="— sem lição —">';
-var atual=d.licoes.filter(function(l){return l.ordem===s.licaoOrdem})[0];
-return '<input data-f="licaoTx" class="reg-lic-in" list="reg-licoes" autocomplete="off" spellcheck="false"'
- +' placeholder="digite o número ou o nome da lição"'
- +' value="'+escBloco(atual?regLicRotulo(atual):'')+'">'
- +'<datalist id="reg-licoes">'+d.licoes.map(function(l){
-  var marca=l.ordem===d.sugestao.licaoOrdem?' · a fazer':(l.ordem===d.sugestao.ultima?' · concluída':'');
-  return '<option value="'+escBloco(regLicRotulo(l))+'">'+escBloco(marca.replace(' · ',''))+'</option>'}).join('')+'</datalist>'
- +'<span class="reg-pilulas">'+regLicPilulas()+'</span>'}
-function regLicPilulasPintar(){var b=REG.corpo.querySelector('.reg-pilulas');if(b)b.innerHTML=regLicPilulas()}
+function regLicPilulasPintar(){var b=REG.corpo.querySelector('.reg-pilulas');if(b)b.innerHTML=regLicPilulas();
+var c=REG.corpo.querySelector('.reg-continua-l');if(c)c.innerHTML=regLicContinua()}
 function regConcluidaPintar(){var b=REG.corpo.querySelector('.reg-conc');if(b)b.innerHTML=regConcluidaHtml();
 /* a etiqueta do campo da lição acompanha a resposta: dizer "sim" aqui é dizer "feita" lá */
 regLicPilulasPintar();
@@ -13124,29 +13593,60 @@ if(regSemConteudo()||s.licaoOrdem==null)return '';
 var l=d.licoes.filter(function(x){return x.ordem===s.licaoOrdem})[0];
 /* "feita" em dois casos: o professor disse agora que ela foi concluída, ou ela já tinha sido dada numa
    aula ANTERIOR (a ficha guarda a data real). Nos dois, o que falta fazer é outra coisa. */
-var feita=s.concluida===true||!!(l&&l.dataReal&&l.dataReal<d.data);
+/* DOIS caminhos para "feita", e o título precisa saber qual foi (2026-09-20): ou ela já tinha sido
+   dada numa aula ANTERIOR (e aí há data para citar), ou o professor acabou de dizer que ela terminou
+   AGORA. O título antigo citava sempre `dataReal` — e na lição que nunca tinha sido dada ela é nula:
+   `regDataCurta(null)` quebrava, a etiqueta ficava presa em "a fazer" e o console acusava erro a cada
+   vez que alguém ligava o interruptor numa lição nova. */
+var dadaAntes=!!(l&&l.dataReal&&l.dataReal<d.data);
+var feita=s.concluida===true||dadaAntes;
 h+=feita
- ?'<span class="reg-tagl feita" title="esta lição já foi dada em '+escBloco(regDataCurta(l.dataReal))+'">'+icon('check',10)+'feita</span>'
- :'<span class="reg-tagl afazer" title="'+(d.sugestao.continua?'a lição anterior ficou pela metade — esta aula continua nela'
-   :'é a que falta fazer na trilha')+'">'+icon('crosshair',10)+'a fazer</span>';
-if(d.sugestao.continua)h+='<span class="reg-continua" title="'+escBloco('Na aula anterior ela não foi concluída'
- +(d.sugestao.parouEm?' — parou em: '+d.sugestao.parouEm:''))+'">continua'
- +(d.sugestao.parouEm?' de '+escBloco(d.sugestao.parouEm):'')+'</span>';
+ ?'<span class="reg-tagl feita" title="'+(dadaAntes?'esta lição já foi dada em '+escBloco(regDataCurta(l.dataReal))
+   :'concluída nesta aula')+'">'+icon('check',10)+'feita</span>'
+ :'<span class="reg-tagl afazer" title="'+(regLicContinuaAqui()?'a lição anterior ficou pela metade — esta aula continua nela'
+   :'ainda não foi dada')+'">'+icon('crosshair',10)+'a fazer</span>';
 return h}
+/* ===== "CONTINUA DE…" SAIU DE DENTRO DO CAMPO (2026-09-20) =====
+   Dois defeitos numa pílula só, vistos na tela: (1) ela mora agora dentro do campo da lição, e com
+   "continua de exercise B, página 47" o texto da lição ficava espremido em duas letras; (2) ela aparecia
+   sempre que a SUGESTÃO era continuação — escolher a L37 depois de a L36 ter ficado pela metade mostrava
+   "continua de exercise B" colado na L37, que não continua nada.
+   Agora ela desce para uma linha própria debaixo do campo, e só existe quando a lição ESCOLHIDA é a
+   mesma que ficou pela metade. */
+function regLicContinuaAqui(){
+var d=REG_EST.dados,s=REG_EST.sel;
+return !!(d.sugestao&&d.sugestao.continua&&s.licaoOrdem===d.sugestao.licaoOrdem)}
+function regLicContinua(){
+var d=REG_EST.dados;
+if(regSemConteudo()||!regLicContinuaAqui())return '';
+return '<span class="reg-continua" title="'+escBloco('Na aula anterior ela não foi concluída'
+ +(d.sugestao.parouEm?' — parou em: '+d.sugestao.parouEm:''))+'">'+icon('info',11)+' continua de onde parou'
+ +(d.sugestao.parouEm?': <b>'+escBloco(d.sugestao.parouEm)+'</b>':'')+'</span>'}
+/* ===== A LIÇÃO FOI CONCLUÍDA? UM INTERRUPTOR (2026-09-20, dele) =====
+   *"Esse botão sim ou botão de não parou no meio, eu não quero. Coloca um toggle. Por padrão ele vai
+   estar não. Se foi concluída, eu só ativo o sim."*
+   TRÊS estados por dentro, dois à vista, e a diferença importa: quem ainda NÃO TOCOU no interruptor não
+   afirma nada (`null`), e é assim que tem de ser — `concluida = 0` faz a aula SEGUINTE sugerir a mesma
+   lição (main.ts, `continuaLicao`), então um "não" automático em todo registro travaria o livro na
+   sugestão. Por isso: nasce desligado e apagado; o primeiro clique LIGA (concluída); daí em diante
+   alterna entre concluída e "parou no meio", e só nesse caso o campo do onde-parou aparece. */
 function regConcluidaHtml(){
 var s=REG_EST.sel;
 if(regSemConteudo())return '';
-/* `s.concluida` é BOOLEANO (ou nulo) e `v` é texto: comparar os dois direto dava sempre falso e o botão
-   escolhido nunca acendia — só a etiqueta da lição denunciava o estado (achado na tela, 2026-09-20) */
-var op=function(v,rot,cls){var on=(v==='sim')?s.concluida===true:s.concluida===false;
- return '<button type="button" role="radio" aria-checked="'+on+'"'
- +' class="reg-op reg-op-tx '+cls+(on?' on':'')+'" data-campo="concluida" data-v="'+v+'">'+rot+'</button>'};
-return '<div class="reg-linha"><span class="reg-rot">A lição foi concluída?</span>'
- +'<div class="reg-seg" role="radiogroup" aria-label="A lição foi concluída">'
- +op('sim','sim','st-dia')+op('nao','não, parou no meio','st-atraso')+'</div></div>'
+var on=s.concluida===true, disse=s.concluida!=null;
+return '<div class="reg-tg-linha">'
+ +'<button type="button" class="reg-tg'+(on?' on':'')+(disse?'':' neutro')+'" role="switch"'
+ +' aria-checked="'+(on?'true':'false')+'" data-campo="concluida" data-v="alterna"'
+ +' title="'+(disse?(on?'a lição foi dada inteira':'ela ficou pela metade')
+   :'ninguém respondeu ainda — clique para dizer que foi concluída')+'">'
+ +'<span class="reg-tg-p"></span></button>'
+ +'<span class="reg-tg-rot">A lição foi concluída?<small>'
+ +(disse?(on?'sim, foi dada inteira':'não, parou no meio'):'ainda não respondido')+'</small></span>'
+ +'</div>'
  +(s.concluida===false?'<div class="reg-linha reg-parou"><span class="reg-rot">Parou em</span>'
   +'<input data-f="parouEm" maxlength="60" value="'+escBloco(s.parouEm||'')+'"'
   +' placeholder="atividade 4, página 32, exercise B…"></div>':'')}
+
 /* a hora desta aula: a 1ª começa na entrada do dia (só se mostra); da 2ª em diante o relógio carimbou
    sozinho quando ela foi criada, e dá para corrigir */
 /* ===== CORRIGIR A HORA DA AULA (2026-09-20) =====
@@ -13234,8 +13734,10 @@ var s=REG_EST.sel;
 /* concluída é TRÊS estados: sim, não, e ninguém disse (clicar de novo volta ao não-dito). O "não"
    abre o campo de onde parou, então esta é a única marca que repinta o bloco (2026-09-19) */
 if(campo==='concluida'){
- var quer=(v==='sim');
- s.concluida=(s.concluida===quer)?null:quer;
+ /* o interruptor: nasce no NÃO-DITO e o primeiro clique LIGA; daí alterna entre concluída e pela
+    metade. Nunca volta ao não-dito, porque a partir do momento em que ele responde, há resposta. */
+ if(v==='alterna')s.concluida=(s.concluida===true)?false:true;
+ else{var quer=(v==='sim');s.concluida=(s.concluida===quer)?null:quer}
  if(s.concluida!==false)s.parouEm='';
  regConcluidaPintar();return}
 s[campo]=(String(s[campo])===String(v))?'':v;
@@ -13276,9 +13778,9 @@ if(!d.tarefas||!d.tarefas.length)
  return '<div class="reg-linha"><span class="reg-rot">Tarefas</span><span class="reg-vazio">nenhuma lição dada até aqui</span></div>';
 var esq=d.tarefas.filter(function(t){return s.tarEntregues.indexOf(regTarKey(t))<0});
 var dir=d.tarefas.filter(function(t){return s.tarEntregues.indexOf(regTarKey(t))>=0});
-var nA=d.encontrosAtraso||2;
-return '<div class="reg-tar-cab"><span class="reg-rot">Tarefas entregues nesta aula</span>'
- +'<small class="reg-dica">atrasada = chegou no '+nA+'º encontro seguinte ou depois</small></div>'
+/* a linha "atrasada = chegou no Nº encontro seguinte" saiu a pedido dele (2026-09-20): a etiqueta
+   vermelha já diz isso na própria tarefa, e a explicação roubava a altura que a janela não tem */
+return '<div class="reg-tar-cab"><span class="reg-rot">Tarefas entregues nesta aula</span></div>'
  +'<div class="reg-tar-tl">'
  +'<div class="reg-tar-col"><div class="reg-tar-tit">a entregar<span>'+esq.length+'</span></div>'
  +'<div class="reg-tar-lst" data-lado="esq">'+(esq.length?esq.map(function(t){return regTarItem(t,'esq')}).join('')
@@ -13427,80 +13929,181 @@ f.innerHTML='<div class="ag-cab"><b>'+escBloco(r.aluno)+'</b>'
    :'<span class="lc-livro">'+escBloco(r.livroNome)+'</span>')
  +'<span class="ag-deve'+(r.emAberto?'':' zero')+'">'+r.emAberto+' falta(s) em aberto</span>'
  +'<button type="button" class="ag-x" onclick="agLimpar()" title="trocar de aluno">✕</button></div>'
- +(p?agCobreHtml(r):'<div class="ag-prox zero">'+icon('info',13)+'<span>ele não tem falta em aberto — reposição não cabe aqui. '
+ +(p?'':'<div class="ag-prox zero">'+icon('info',13)+'<span>ele não tem falta em aberto — reposição não cabe aqui. '
     +'Para aula a mais, marque reforço ou preparação.</span></div>')
  +'<div class="ag-linha">'
  +'<label class="ag-lb">Dia<input type="date" id="ag-data" value="'+escBloco(AG?AG.hoje:'')+'"></label>'
- +'<label class="ag-lb">Hora'+(r.horas.length
-   ?'<select id="ag-hora">'+r.horas.map(function(h){return '<option value="'+h+'">'+h+'</option>'}).join('')
-     +'<option value="">outra…</option></select>'
-   :'<input type="time" id="ag-hora">')+'</label>'
- +'<label class="ag-lb">Motivo<select id="ag-motivo">'
+ /* A HORA SE DIGITA (2026-09-20, dele): *"a hora ela tem que ser editável, ela pode ser colocada na mão
+    também."* Antes era um select das horas da agenda com um "outra…" que valia string vazia — escolher
+    "outra" deixava o campo sem valor e sem onde digitar. Agora o campo é de hora mesmo, e as horas da
+    agenda viram botõezinhos que o preenchem: sugestão sem prisão. */
+ +'<label class="ag-lb ag-lb-hora">Hora<span class="ag-hora-cx"><input type="time" id="ag-hora" value="'+escBloco(r.horas[0]||'')+'">'
+ +(r.horas.length?'<span class="ag-horas">'+r.horas.map(function(h){
+    return '<button type="button" class="ag-hr" onclick="agHora(\''+h+'\')" title="hora dele na agenda">'+escBloco(h)+'</button>'}).join('')+'</span>':'')
+ +'</span></label>'
+ +'<label class="ag-lb">Motivo<select id="ag-motivo" onchange="agMotivoMudou()">'
  +['Reposição','Anteposição','Reforço','Preparação','Outro'].map(function(m){
    return '<option value="'+m+'"'+(m==='Reposição'?' selected':'')+(m==='Reposição'&&!p?' disabled':'')+'>'+m+'</option>'}).join('')
  +'</select></label>'
  +'<label class="ag-lb ag-obs">Observação<input id="ag-obs" maxlength="120" placeholder="o que a mãe combinou, por exemplo"></label>'
  +'<button type="button" class="acao" onclick="agMarcar()">Agendar</button></div>'
+ +'<div id="ag-cobre-caixa"'+(p?'':' hidden')+'>'+(p?agResumoHtml(r):'')+'</div>'
  +(r.marcados.length?'<div class="ag-ja">já marcado: '+r.marcados.map(function(m){
    return '<span>'+dataCurta(m.data)+' '+escBloco(m.hora)+' · '+escBloco(m.motivo)+'</span>'}).join('')+'</div>':'');
 if(!p){var sel=f.querySelector('#ag-motivo');if(sel)sel.value='Reforço'}
 }
+function agHora(h){var el=$('ag-hora');if(el)el.value=h}
 /* ===== O QUE ESTA REPOSIÇÃO VAI PAGAR (2026-09-20, dele) =====
    *"Eu quero poder selecionar quais aulas vou repor naquele dia, porque às vezes o aluno faz três lições
-   numa reposição de uma hora e meia."* Por padrão vem marcada a MAIS ANTIGA — que é o que a fila faria
-   sozinha —, e daí ele marca quantas quiser. Enquanto só a primeira estiver marcada, nada é gravado:
-   o padrão continua sendo a fila, e escrever uma escolha igual à dedução só criaria dado para manter.
-   Além das faltas, ele pode dizer que a reposição está pagando OUTRO tipo de atraso — os mesmos motivos
-   que a conta do atraso já separa (aula sem lição, tarefa atrasada, tempo de aplicativo). */
+   numa reposição de uma hora e meia."* Por padrão vem a MAIS ANTIGA — o que a fila faria sozinha.
+   *"Aqui só tá todas as faltas de forma linear e fica muito feio... eu quero uma list. Ela pode ser uma
+   janela que abre, um popover. Aí vai tipo uma stack, um empilhamento de faltas."* (20/09)
+   A faixa de caixinhas lado a lado morreu: com 31 faltas ela era ilegível e ainda por cima cortava em 12.
+   Agora o formulário mostra uma LINHA de resumo, e a escolha mora numa janela com a pilha inteira.
+   Ganho de quebra: marcar não repinta mais o formulário, então o dia, a hora e a observação já digitados
+   param de ser perdidos a cada clique — era o que acontecia quando `agCobreMarcar` chamava `agFormPintar`.
+   *"Só quando o motivo for reposição. Anteposição não precisa, porque são faltas futuras que vão ser
+   repostas automaticamente."* — por isso o resumo só existe com Reposição escolhida. */
 var AG_COBRE=null;
-var AG_TIPOS_ATRASO=[['sem_licao','aula que não virou lição'],['tarefa','tarefa atrasada'],
- ['aplicativo','tempo de aplicativo'],['pedaco','lição que levou mais de uma aula']];
+var AG_TIPOS_ATRASO=[
+ ['semLicao','sem_licao','aula que não virou lição','veio, mas não andou no livro'],
+ ['pedaco','pedaco','lição que levou mais de uma aula','a lição ficou pela metade e continuou depois'],
+ ['tarefa','tarefa','tarefa atrasada','entregou depois do prazo, ou não entregou'],
+ ['aplicativo','aplicativo','tempo de aplicativo','pouco ou nenhum tempo no wiz.me']];
 function agCobreEstado(r){
 if(AG_COBRE)return AG_COBRE;
-AG_COBRE={faltas:(r.proxima?[r.proxima.data]:[]),tipos:[]};
+/* nasce com a mais antiga marcada e nenhum tipo — exatamente o que a fila faria sem ninguém mexer */
+AG_COBRE={faltas:(r.proxima?[r.proxima.data]:[]),tipos:{}};
 return AG_COBRE}
-function agCobreHtml(r){
+function agPend(r,chave){return ((r.pendencias||{})[chave])||[]}
+/* o rótulo curto de uma ocorrência: "17/09 · aula 45 · L31 (parou em Exercise 4)" */
+function agOcorrencia(chave,o){
+var s=dataCurta(o.data)+(o.aula!=null?' · aula '+o.aula:'');
+if(o.licao)s+=' · '+o.licao;
+if(chave==='pedaco'&&o.parouEm)s+=' (parou em '+o.parouEm+')';
+if(chave==='semLicao'&&o.oque)s+=' · '+o.oque;
+if(chave==='tarefa')s+=o.entregue?' (entregue '+dataCurta(o.entregue)+')':' (não entregue)';
+if(chave==='aplicativo')s+=' · app '+o.app;
+return s}
+
+/* ---------- a LINHA DE RESUMO, dentro do formulário ---------- */
+function agResumoHtml(r){
 var st=agCobreEstado(r);
-var lista=(r.abertas||[]).slice(0,12);
-return '<div class="ag-cobre"><div class="ag-cobre-cab">'+icon('circle-check',13)
- +'<b>O que esta reposição paga</b>'
- +'<span>por padrão, a falta mais antiga — marque mais se ele vai repor várias lições</span></div>'
- +'<div class="ag-cobre-l">'+lista.map(function(f,i){
-   var on=st.faltas.indexOf(f.data)>=0;
-   return '<label class="ag-cf'+(on?' on':'')+'"><input type="checkbox"'+(on?' checked':'')
-    +' onchange="agCobreMarcar(\''+f.data+'\',this.checked)">'
-    +'<span class="ag-cf-d">'+dataCurta(f.data)+'</span>'
-    +(f.licao?'<span class="ag-cf-l">'+escBloco(f.licao)+'</span>':'')
-    +(i===0?'<span class="ag-cf-tag">mais antiga</span>':'')+'</label>'}).join('')
- +((r.abertas||[]).length>12?'<span class="ag-cf-mais">+'+((r.abertas||[]).length-12)+' faltas mais novas</span>':'')
- +'</div>'
- +'<div class="ag-cobre-tp"><span>Também repõe:</span>'+AG_TIPOS_ATRASO.map(function(t){
-   var on=st.tipos.indexOf(t[0])>=0;
-   return '<button type="button" class="ag-tp'+(on?' on':'')+'" onclick="agCobreTipo(\''+t[0]+'\')">'
-    +escBloco(t[1])+'</button>'}).join('')+'</div></div>'}
+var nf=st.faltas.length, nt=Object.keys(st.tipos).length;
+var txt;
+if(!nf&&!nt)txt='<span class="ag-rs-vazio">não diz o que paga — a fila decide pela mais antiga</span>';
+else{
+ var partes=[];
+ if(nf===1)partes.push('a falta de <b>'+dataCurta(st.faltas[0])+'</b>');
+ else if(nf>1)partes.push('<b>'+nf+'</b> faltas');
+ if(nt)partes.push('<b>'+nt+'</b> outro'+(nt>1?'s':'')+' atraso'+(nt>1?'s':''));
+ txt='paga '+partes.join(' e ');
+}
+return '<div class="ag-resumo" id="ag-resumo">'+icon('circle-check',14)
+ +'<span class="ag-rs-t">'+txt+'</span>'
+ +'<button type="button" class="acao sec" onclick="agCobreAbrir()">Escolher o que repor</button></div>'}
+function agResumoPintar(){
+var r=AG_SEL&&AG_SEL.dados, el=$('ag-resumo');
+if(!r||!el)return;
+var novo=document.createElement('div');novo.innerHTML=agResumoHtml(r);
+el.replaceWith(novo.firstChild)}
+/* o resumo só faz sentido com Reposição: anteposição paga falta FUTURA, que a fila casa sozinha */
+function agMotivoMudou(){
+var r=AG_SEL&&AG_SEL.dados;if(!r)return;
+var m=$('ag-motivo'),caixa=$('ag-cobre-caixa');
+if(!m||!caixa)return;
+var rep=m.value==='Reposição'&&!!r.proxima;
+caixa.innerHTML=rep?agResumoHtml(r):'';
+caixa.hidden=!rep}
+
+/* ---------- a JANELA: a pilha de faltas e os quatro tipos ---------- */
+function agCobreAbrir(){
+var r=AG_SEL&&AG_SEL.dados;if(!r)return;
+var st=agCobreEstado(r);
+/* cópia de trabalho: fechar no Cancelar tem de deixar o estado como estava */
+var sel={faltas:st.faltas.slice(),tipos:JSON.parse(JSON.stringify(st.tipos||{}))};
+var abertas=r.abertas||[];
+var pilha=abertas.map(function(f,i){
+ return '<label class="ag-st-l" data-d="'+escBloco(f.data)+'">'
+  +'<input type="checkbox" class="ag-st-c" value="'+escBloco(f.data)+'"'+(sel.faltas.indexOf(f.data)>=0?' checked':'')+'>'
+  +'<span class="ag-st-n">'+(i+1)+'</span>'
+  +'<span class="ag-st-d">'+dataCurta(f.data)+'</span>'
+  +'<span class="ag-st-l2">'+(f.licao?escBloco(f.licao):'<i>sem lição registrada</i>')+'</span>'
+  +(f.aula!=null?'<span class="ag-st-a">aula '+f.aula+'</span>':'')
+  +(i===0?'<span class="ag-st-tag">mais antiga</span>':'')
+  +'</label>'}).join('');
+var tipos=AG_TIPOS_ATRASO.map(function(t){
+ var chave=t[0],id=t[1],lista=agPend(r,chave);
+ var esc=sel.tipos[id]||null;
+ var on=!!esc;
+ if(!lista.length)return '<div class="ag-tp-l vazio"><span class="ag-tp-nome">'+escBloco(t[2])+'</span>'
+  +'<span class="ag-tp-nada">nada lançado assim neste estágio</span></div>';
+ return '<div class="ag-tp-l'+(on?' on':'')+'" data-id="'+id+'">'
+  +'<label class="ag-tp-cab"><input type="checkbox" class="ag-tp-c" value="'+id+'"'+(on?' checked':'')+'>'
+   +'<span class="ag-tp-nome">'+escBloco(t[2])+'</span>'
+   +'<span class="ag-tp-n">'+lista.length+'</span></label>'
+  +'<div class="ag-tp-oq">'+escBloco(t[3])+'</div>'
+  +'<select class="ag-tp-sel" data-id="'+id+'"'+(on?'':' disabled')+'>'
+   +lista.map(function(o,i){
+     var v=o.data+'|'+(o.seq||1);
+     return '<option value="'+escBloco(v)+'"'+((esc&&esc.ref===v)||(!esc&&i===0)?' selected':'')+'>'
+      +escBloco(agOcorrencia(chave,o))+(i===0?'  ← a mais recente':'')+'</option>'}).join('')
+   +'</select></div>'}).join('');
+dlgAbrir({tipo:'confirmar',titulo:'O que esta reposição vai repor',ok:'Guardar a escolha',
+ form:'<div class="ag-jan">'
+  +'<div class="ag-jan-sec"><div class="ag-jan-cab"><b>Faltas em aberto</b>'
+   +'<span>'+abertas.length+' na fila · a mais antiga já vem marcada. Marque mais se ele vai repor várias lições no mesmo dia.</span></div>'
+   +(abertas.length?'<div class="ag-stack">'+pilha+'</div>'
+     :'<div class="ag-jan-vazio">ele não tem falta em aberto.</div>')
+   +(abertas.length>1?'<div class="ag-st-bts"><button type="button" class="ag-st-bt" onclick="agStackTodas(1)">marcar todas</button>'
+     +'<button type="button" class="ag-st-bt" onclick="agStackTodas(0)">desmarcar todas</button></div>':'')
+   +'</div>'
+  +'<div class="ag-jan-sec"><div class="ag-jan-cab"><b>Também repõe</b>'
+   +'<span>o sistema achou sozinho em que aula está cada um — a mais recente vem escolhida, e dá para trocar.</span></div>'
+   +tipos+'</div></div>',
+ aoAbrir:function(f){
+  var cx=f.closest('.dlg'); if(cx)cx.classList.add('dlg-larga');
+  /* o select de cada tipo só vale quando o tipo está ligado; ligar/desligar não repinta a janela,
+     porque repintar aqui perderia as marcações que ele acabou de fazer */
+  f.querySelectorAll('.ag-tp-c').forEach(function(c){
+   c.addEventListener('change',function(){
+    var bloco=c.closest('.ag-tp-l'), s=bloco.querySelector('.ag-tp-sel');
+    bloco.classList.toggle('on',c.checked); if(s)s.disabled=!c.checked})});
+ },
+ coletar:function(f){
+  var faltas=[];
+  f.querySelectorAll('.ag-st-c:checked').forEach(function(c){faltas.push(c.value)});
+  var tipos={};
+  f.querySelectorAll('.ag-tp-c:checked').forEach(function(c){
+   var s=f.querySelector('.ag-tp-sel[data-id="'+c.value+'"]');
+   tipos[c.value]={ref:s?s.value:null}});
+  return {faltas:faltas,tipos:tipos}},
+ cb:function(v){if(!v||typeof v!=='object')return;
+  /* o estado morre ao trocar de aluno, nunca na repintura — a armadilha de 20/09 */
+  AG_COBRE={faltas:v.faltas,tipos:v.tipos};
+  agResumoPintar()}})}
+function agStackTodas(on){
+var cx=document.querySelector('.dlg .ag-stack');if(!cx)return;
+cx.querySelectorAll('.ag-st-c').forEach(function(c){c.checked=!!on})}
+
+/* só vai para o servidor o que DIVERGE da fila: uma falta só, a mais antiga, e nenhum outro tipo, é
+   exatamente o que a dedução faria — e o melhor registro é o que não precisa existir.
+   Nos tipos vai TAMBÉM a data da aula detectada: é ela que responde "qual aula ficou pela metade",
+   e `escolhaDaReposicao` ignora tudo que não é `tipo='falta'` para a fila não confundir as duas coisas. */
+function agCobrePayload(r){
+var st=AG_COBRE;if(!st)return null;
+var ids=Object.keys(st.tipos||{});
+var soAPadrao=ids.length===0&&st.faltas.length===1&&r.proxima&&st.faltas[0]===r.proxima.data;
+if(soAPadrao)return null;
+return st.faltas.map(function(d){return {faltaData:d,tipo:'falta'}})
+ .concat(ids.map(function(id){
+   var ref=st.tipos[id]&&st.tipos[id].ref;
+   return {tipo:id,faltaData:ref?String(ref).split('|')[0]:null}}))}
 function agCobreTexto(c){
 var rot={falta:'falta',sem_licao:'aula sem lição',tarefa:'tarefa atrasada',aplicativo:'aplicativo',
  pedaco:'lição partida',outro:'outro'};
 return 'Esta reposição paga: '+c.map(function(x){
  return (rot[x.tipo]||x.tipo)+(x.faltaData?' de '+dataCurta(x.faltaData):'')}).join(' · ')}
-function agCobreMarcar(data,on){
-var st=AG_COBRE||{faltas:[],tipos:[]};
-if(on){if(st.faltas.indexOf(data)<0)st.faltas.push(data)}
-else st.faltas=st.faltas.filter(function(d){return d!==data});
-AG_COBRE=st;agFormPintar()}
-function agCobreTipo(t){
-var st=AG_COBRE||{faltas:[],tipos:[]};
-if(st.tipos.indexOf(t)>=0)st.tipos=st.tipos.filter(function(x){return x!==t});
-else st.tipos.push(t);
-AG_COBRE=st;agFormPintar()}
-/* só vai para o servidor o que DIVERGE da fila: uma falta só, a mais antiga, e nenhum outro tipo, é
-   exatamente o que a dedução faria — e o melhor registro é o que não precisa existir */
-function agCobrePayload(r){
-var st=AG_COBRE;if(!st)return null;
-var soAPadrao=st.tipos.length===0&&st.faltas.length===1&&r.proxima&&st.faltas[0]===r.proxima.data;
-if(soAPadrao)return null;
-return st.faltas.map(function(d){return {faltaData:d,tipo:'falta'}})
- .concat(st.tipos.map(function(t){return {tipo:t}}))}
 function agTrocarLivro(lv){run('getFaltasParaRepor',[{idMatricula:AG_SEL.id,livro:lv}],function(r){AG_SEL.dados=r;agFormPintar()})}
 function agLimpar(){AG_SEL=null;AG_COBRE=null;$('ag-form').hidden=true;$('ag-q').focus()}
 function agMarcar(){
@@ -13556,47 +14159,25 @@ function(sim){if(!sim)return;
    vem para cima até alguém completá-la.
    A tela NÃO carimba ninguém sozinha: ela aponta que o aluno bateu o critério, e quem decide é gente —
    a mesma disciplina da Central de controle, e a recomendação do relatório do PEF. */
-var RET=null, RET_ABA='risco';
+var RET=null, RET_ABA='saidas';
 function retAba(a){RET_ABA=a;
 document.querySelectorAll('#ret-abas .pg-aba').forEach(function(b){b.classList.toggle('on',b.dataset.a===a)});
-var r=$('ret-painel-risco'),s=$('ret-painel-saidas');
-if(r)r.hidden=a!=='risco'; if(s)s.hidden=a!=='saidas'}
+var s=$('ret-painel-saidas'),t=$('ret-painel-atend');
+if(s)s.hidden=a!=='saidas'; if(t)t.hidden=a!=='atend';
+if(a==='atend')retAtendCarregar()}
 function retCarregar(){run('getRetencao',[{}],function(r){RET=r;retPintar()})}
 function retDias(d){return d==null?'—':(d===0?'hoje':d===1?'ontem':d+' dias')}
-function retNivel(r){
-if(r.nivel==='evasao')return '<span class="ret-tag ev" title="Oito faltas seguidas: na conta da rede ele já é evadido por falta">evadido pela rede</span>';
-if(r.nivel==='atencao')return '<span class="ret-tag at" title="Três faltas seguidas — a rede manda ligar já na segunda">atenção</span>';
-return '<span class="ret-tag su" title="Um mês sem aparecer, mesmo sem faltas seguidas lançadas">sumido</span>'}
 function retPintar(){
 if(!RET)return;
-var risco=RET.risco||[],saidas=RET.saidas||[],pend=RET.pendentes||{semRegistro:[],semMotivo:[]};
+var saidas=RET.saidas||[],pend=RET.pendentes||{semRegistro:[],semMotivo:[]};
 var faltando=(pend.semRegistro||[]).length+(pend.semMotivo||[]).length;
-$('ret-risco-n').textContent=risco.length;
 $('ret-saidas-n').textContent=saidas.length;
-var sb=$('sb-aviso-retencao');
-if(sb){sb.textContent=risco.length||'';sb.classList.toggle('on',!!risco.length)}
 /* os quatro números do topo: quantos ainda estão aqui, quantos estão indo, quantos já foram e o que
    falta completar. É a leitura de 5 segundos que ele faz antes de decidir o que fazer da manhã. */
 $('ret-kpis').innerHTML=
  '<div class="ret-kpi"><b>'+RET.ativos+'</b><span>alunos ativos</span></div>'
- +'<div class="ret-kpi'+(risco.length?' alerta':'')+'"><b>'+risco.length+'</b><span>em risco agora</span></div>'
  +'<div class="ret-kpi"><b>'+saidas.length+'</b><span>saídas em '+RET.ano+'</span></div>'
  +(faltando?'<div class="ret-kpi falta"><b>'+faltando+'</b><span>saídas por completar</span></div>':'');
-/* ---------- EM RISCO ---------- */
-var h='';
-if(!risco.length)h='<div class="ret-vazio">'+icon('check',16)+' Ninguém com três faltas seguidas nem sumido há um mês. É o estado que se quer.</div>';
-else h='<table class="ret-tab"><thead><tr><th>Aluno</th><th>Estágio</th><th class="c">Faltas seguidas</th>'
- +'<th class="c">Última aula</th><th class="c">Sem vir há</th><th>Professor</th><th></th></tr></thead><tbody>'
- +risco.map(function(r){return '<tr class="n-'+r.nivel+'">'
-  +'<td><span class="ret-nome">'+escBloco(r.nome)+'</span> '+retNivel(r)+'</td>'
-  +'<td><span class="lc-livro">'+escBloco(r.livroNome)+'</span></td>'
-  +'<td class="c"><b>'+r.seguidas+'</b></td>'
-  +'<td class="c">'+(r.ultimaAula?dataCurta(r.ultimaAula):'<span class="ret-nunca">nunca veio</span>')+'</td>'
-  +'<td class="c">'+retDias(r.dias)+'</td>'
-  +'<td>'+(r.professores&&r.professores.length?r.professores.map(function(p){return '<span class="lc-pp">'+escBloco(p)+'</span>'}).join(''):'<span class="lc-vazio-cel">—</span>')+'</td>'
-  +'<td class="c"><button type="button" class="acao sec" onclick="retIrAluno(\''+r.id+'\')">Abrir o aluno</button></td></tr>'}).join('')
- +'</tbody></table>';
-$('ret-risco').innerHTML=h;
 /* ---------- SAÍDAS ---------- */
 var s='';
 if(faltando){
@@ -13617,7 +14198,7 @@ else{
    +'<td class="c">'+dataCurta(x.data)+'</td>'
    +'<td><span class="ret-sit s-'+escBloco(x.situacao)+'">'+escBloco(x.situacao)+'</span></td>'
    +'<td>'+(x.motivo?escBloco(x.motivo):'<span class="ret-sem">sem motivo</span>')
-    +(x.observacao?' <span class="ret-obs" title="'+escBloco(x.observacao)+'">'+icon('message-square',12)+'</span>':'')+'</td>'
+    +(x.observacao?' <span class="ret-obs" title="'+escBloco(x.observacao)+'">'+icon('info',12)+'</span>':'')+'</td>'
    +'<td>'+(x.tipoRede?escBloco(x.tipoRede):'<span class="ret-sem">—</span>')+'</td></tr>'}).join('')
   +'</tbody></table>'}
 $('ret-saidas').innerHTML=s;
@@ -13673,12 +14254,533 @@ var CAD_TIPOS=[];
    sem ninguém ter de pensar no vocabulário da franqueadora. Motivo sem caixa é permitido — aparece como
    "sem caixa da rede" e a saída fica sem tipo até alguém dizer qual é. */
 var CAD_SAIDA=[], CAD_TIPOS_REDE=[], CAD_ABA='tipos';
+/* ===== O ATENDIMENTO: A FILA DE RISCO GANHA MEMÓRIA (2026-09-20) =====
+   A rede pede o follow-up por escrito (PES p.20), e sem ele a aba "Em risco" lista nomes e esquece
+   tudo. O gesto nasce ONDE ele já olha: a própria linha da fila. */
+var ATEND=null, ATEND_DIAS=90;
+function retAtendCarregar(){run('getAtendimentos',[{dias:ATEND_DIAS}],function(r){ATEND=r;retAtendPintar()})}
+/* O conjunto de ícones da casa é CURADO (42 nomes) e não tem telefone, envelope nem balão — e
+   icon() com nome desconhecido devolve um SVG VAZIO, sem erro nenhum. Rótulo curto em vez de
+   desenho: cabe na coluna, lê-se sem passar o mouse, e não depende de ícone que não existe. */
+function atendCanalCurto(c){
+return c==='WhatsApp'?'zap':c==='Presencial'?'pess.':c==='E-mail'?'e-mail':c==='Telefone'?'tel.':'outro'}
+function atendDesfecho(d){
+var m={falou:['ok','Falei com alguém'],recado:['meio','Deixei recado'],
+ nao_atendeu:['nao','Não atendeu'],numero_errado:['nao','Número errado']};
+var x=m[d]||['nao',d];
+return '<span class="at-df '+x[0]+'">'+escBloco(x[1])+'</span>'}
+/* "falado há N dias" é a leitura de meio segundo da fila: quem nunca foi procurado aparece em
+   vermelho, e quem foi ontem sai do caminho. Tentativa não é conversa — vem em letra menor ao lado. */
+function retContatoCel(r){
+var venc=r.retornoVencido?'<span class="at-venceu" title="retorno combinado para '+escBloco(r.retornarEm?dataCurta(r.retornarEm):'')+' e ninguém voltou a falar">retorno vencido</span>':'';
+if(!r.ultimoContato){
+ var t=r.tentativas?'<span class="at-tent" title="tentativas desde a última conversa de verdade">'+r.tentativas+'× sem falar</span>':'';
+ return (r.tentativas?'<span class="at-quando">só tentativas</span>':'<span class="at-nunca">nunca procurado</span>')+t+venc}
+var s='<span class="at-quando'+(r.diasContato>=15?' velho':'')+'" title="'+escBloco(r.relatoContato||'')+'">'
+ +(r.diasContato===0?'hoje':r.diasContato===1?'ontem':'há '+r.diasContato+' dias')+'</span>';
+if(r.tentativas)s+='<span class="at-tent" title="tentativas desde essa conversa">+'+r.tentativas+'</span>';
+return s+venc}
+
+/* ===== REGISTRAR O CONTATO =====
+   O formulário pergunta o número porque o cadastro da escola está VAZIO (em 20/09, zero telefones em
+   184 alunos). Quem acabou de ligar tem o número na mão — e assim a agenda se forma sozinha, uma
+   ligação de cada vez, em vez de alguém ter de digitar 184 fichas antes de a tela servir para algo. */
+/* 21/09: o diálogo deixou de ler o global da Retenção — a Central o abre da fila de risco e dos avisos
+   de hoje. `r` = {id, nome, telefone, respTelefone}; `ctx` = {hoje, tipos, canais, desfechos};
+   `opts.assunto` é uma palavra do assunto que já vem escolhido; `depois` recarrega quem chamou. */
+function atContato(r,ctx,opts,depois){
+if(!r||!ctx)return;
+opts=opts||{};
+var tipos=(ctx.tipos||[]).filter(function(t){return !t.arquivado});
+var canais=ctx.canais||['Telefone','WhatsApp','Presencial','E-mail','Outro'];
+var desf=ctx.desfechos||[];
+var hoje=ctx.hoje;
+var sabe=r.telefone||r.respTelefone||'';
+/* o assunto nasce no que quem chamou já sabe: da fila, "ele sumiu"; do retorno, "acompanhamento" */
+var rx=new RegExp(opts.assunto||'sumiu','i');
+var tipoPadrao=(tipos.filter(function(t){return rx.test(t.nome)})[0]||tipos[0]||{}).id;
+dlgAbrir({tipo:'confirmar',titulo:'Contato com '+String(r.nome||'').split(' ')[0],ok:'Registrar o contato',
+ texto:opts.resumo||r.nome,
+ form:'<div class="at-lin">'
+  +'<label class="dlg-l">Quando<input type="date" id="atc-data" value="'+escBloco(hoje)+'" max="'+escBloco(hoje)+'"></label>'
+  +'<label class="dlg-l">Por onde<select id="atc-canal">'
+   +canais.map(function(c){return '<option value="'+escBloco(c)+'"'+(c==='Telefone'?' selected':'')+'>'+escBloco(c)+'</option>'}).join('')
+   +'</select></label>'
+  +'<label class="dlg-l">Assunto<select id="atc-tipo">'
+   +tipos.map(function(t){return '<option value="'+t.id+'"'+(t.id===tipoPadrao?' selected':'')+'>'+escBloco(t.nome)+'</option>'}).join('')
+   +'</select></label></div>'
+  +'<div class="at-lin">'
+  +'<label class="dlg-l">Deu certo?<select id="atc-desf">'
+   +(desf.length?desf:[{id:'falou',nome:'Falei com alguém'}]).map(function(d){
+     return '<option value="'+escBloco(d.id)+'">'+escBloco(d.nome)+'</option>'}).join('')
+   +'</select></label>'
+  +'<label class="dlg-l">Com quem falei<input id="atc-quem" maxlength="60" placeholder="ele mesmo, a mãe, o pai…"></label>'
+  +'</div>'
+  +'<div class="at-lin">'
+  +'<label class="dlg-l">Número ou e-mail usado<input id="atc-contato" maxlength="60" value="'+escBloco(sabe)+'" placeholder="(67) 9…"></label>'
+  +'<label class="dlg-l">Guardar no cadastro<select id="atc-guardar">'
+   +'<option value="">não guardar</option>'
+   +'<option value="aluno"'+(!r.telefone?' selected':'')+'>como telefone do aluno'+(r.telefone?' (já tem)':'')+'</option>'
+   +'<option value="responsavel">como telefone do responsável'+(r.respTelefone?' (já tem)':'')+'</option>'
+   +'</select></label></div>'
+  +'<label class="dlg-l">O que ficou conversado<textarea id="atc-relato" rows="3" maxlength="600" placeholder="o que ele disse, o que ficou combinado"></textarea></label>'
+  +'<label class="dlg-l at-ret">Voltar a procurar em<input type="date" id="atc-retorno" min="'+escBloco(hoje)+'">'
+   +'<span class="dlg-dica">deixe vazio se não ficou nada marcado. Retorno que vence sem conversa nova vira aviso em Central › Hoje.</span></label>',
+ aoAbrir:function(f){
+  /* o diálogo nasce estreito de propósito; este tem três campos por linha e precisa respirar */
+  var cx=f.closest('.dlg'); if(cx)cx.classList.add('dlg-larga');
+  /* desfecho que não é conversa não pede com-quem nem retorno: some para não virar campo obrigatório
+     fantasma. É a mesma ideia da opção "Reposição" que nasce desabilitada em Agendamentos. */
+  var d=f.querySelector('#atc-desf'), q=f.querySelector('#atc-quem');
+  var pintar=function(){var falou=d.value==='falou';
+   q.closest('.dlg-l').style.opacity=falou?'':'0.45'; q.disabled=!falou;
+   if(!falou)q.value=''};
+  d.addEventListener('change',pintar); pintar()},
+ coletar:function(f){
+  var rel=f.querySelector('#atc-relato').value.trim();
+  if(!rel){msg('Escreva o que foi conversado — é isso que a rede pede por escrito, e é o que serve na próxima vez.',true);return null}
+  var dt=f.querySelector('#atc-data').value;
+  if(!dt){msg('Diga o dia do contato.',true);return null}
+  var ret=f.querySelector('#atc-retorno').value||null;
+  if(ret&&ret<dt){msg('O retorno é depois do contato, não antes.',true);return null}
+  return {data:dt,canal:f.querySelector('#atc-canal').value,tipoId:Number(f.querySelector('#atc-tipo').value)||null,
+   desfecho:f.querySelector('#atc-desf').value,comQuem:f.querySelector('#atc-quem').value.trim(),
+   contato:f.querySelector('#atc-contato').value.trim(),guardarEm:f.querySelector('#atc-guardar').value||null,
+   relato:rel,retornarEm:ret}},
+ cb:function(v){if(!v||typeof v!=='object')return;
+  v.idMatricula=r.id;
+  run('registrarAtendimento',[v],function(res){
+   msg('Contato com '+String(r.nome||'').split(' ')[0]+' registrado.'
+    +(res&&res.guardado?' O número ficou no cadastro.':''));
+   if(depois)depois()})}})}
+
+/* ===== A ABA ATENDIMENTOS ===== */
+function retAtendPintar(){
+if(!ATEND)return;
+var lista=ATEND.atendimentos||[], venc=ATEND.vencidos||[];
+var n=$('ret-atend-n'); if(n)n.textContent=venc.length||lista.length;
+var h='';
+/* os retornos vencidos vêm primeiro: é a promessa que ninguém cumpriu, e é o único item desta tela
+   que pede ação hoje. Mesmo lugar e mesma letra da faixa de repescagem das saídas. */
+if(venc.length){
+ h+='<div class="ret-pend"><div class="ret-pend-cab">'+icon('triangle-alert',15)
+  +'<b>'+venc.length+' retorno(s) prometido(s) e vencido(s)</b>'
+  +'<span>alguém disse que voltaria a procurar e não voltou. Some da lista assim que houver conversa nova.</span></div>'
+  +venc.map(function(v){return '<div class="at-vl">'
+   +'<span class="ret-pl-nome">'+escBloco(v.nome)+'</span>'
+   +'<span class="at-vl-q">era para '+dataCurta(v.retornarEm)+'</span>'
+   +'<span class="at-vl-a">'+(v.atraso===0?'hoje':v.atraso+' dia(s) atrás')+'</span>'
+   +'<span class="at-vl-r" title="'+escBloco(v.relato)+'">'+escBloco(v.relato.slice(0,90))+(v.relato.length>90?'…':'')+'</span>'
+   +'<button type="button" class="acao sec" onclick="retIrAluno(\''+escBloco(v.idMatricula)+'\')">Abrir o aluno</button>'
+   +'</div>'}).join('')+'</div>'}
+if(!lista.length)h+='<div class="ret-vazio">Nenhum atendimento registrado nos últimos '+ATEND.dias+' dias. '
+ +'O contato se registra na Central › Alunos em risco, pelo botão de cada linha.</div>';
+else{
+ h+='<table class="ret-tab at-tab"><thead><tr><th class="c">Quando</th><th>Aluno</th><th>Assunto</th>'
+  +'<th class="c">Por onde</th><th class="c">Deu certo?</th><th>O que ficou</th><th class="c">Volta em</th><th></th></tr></thead><tbody>'
+  +lista.map(function(x){return '<tr>'
+   +'<td class="c">'+dataCurta(x.data)+'</td>'
+   +'<td><span class="ret-nome">'+escBloco(x.nome)+'</span>'+(x.comQuem?'<span class="at-cq">com '+escBloco(x.comQuem)+'</span>':'')+'</td>'
+   +'<td>'+(x.tipo?'<span class="at-tipo">'+escBloco(x.tipo)+'</span>':'<span class="lc-vazio-cel">—</span>')+'</td>'
+   +'<td class="c"><span class="at-canal" title="'+escBloco(x.canal)+(x.contato?' · '+escBloco(x.contato):'')+'">'
+    +escBloco(atendCanalCurto(x.canal))+'</span></td>'
+   +'<td class="c">'+atendDesfecho(x.desfecho)+'</td>'
+   +'<td><span class="at-rel" title="'+escBloco(x.relato)+'">'+escBloco(x.relato)+'</span></td>'
+   +'<td class="c">'+(x.retornarEm?'<span class="at-volta'+(x.retornarEm<=ATEND.hoje?' venceu':'')+'">'+dataCurta(x.retornarEm)+'</span>':'<span class="lc-vazio-cel">—</span>')+'</td>'
+   +'<td class="c"><button type="button" class="acao sec ag-bt-perigo" title="Excluir o registro errado" onclick="retAtendExcluir('+x.id+')">'+icon('trash-2',14)+'</button></td>'
+   +'</tr>'}).join('')
+  +'</tbody></table>'}
+$('ret-atend').innerHTML=h}
+/* o atendimento ERRADO some; o que não deu em nada FICA — ter memória é exatamente isso */
+function retAtendExcluir(id){
+var x=((ATEND&&ATEND.atendimentos)||[]).filter(function(y){return y.id===id})[0];
+var nome=x?x.nome:"este aluno";
+dlgConfirmar({titulo:'Excluir este registro?',ok:'Excluir',perigo:true,
+ texto:'O atendimento de '+nome+' some por completo.\n\nUse isto quando o registro foi erro. '
+  +'Contato que não deu em nada NÃO se apaga: é ele que prova que a escola tentou.'},
+function(sim){if(!sim)return;
+ run('excluirAtendimento',[{id:id}],function(){msg('Registro excluído.');retAtendCarregar();retCarregar()})})}
+
+/* ===== CADASTRO DOS ASSUNTOS (molde de tipo_aula e motivo_saida, terceira vez) ===== */
+var CAD_ATEND=[];
+function cadAtendCarregar(){run('getTiposAtendimento',[{}],function(r){CAD_ATEND=(r&&r.tipos)||[];cadAtendPintar()})}
+function cadAtendTipo(id){return CAD_ATEND.filter(function(t){return t.id===id})[0]}
+function cadAtendUsos(t){
+return t.usos?'<span class="cad-usos" title="atendimentos já registrados com este assunto">'+t.usos+(t.usos>1?' contatos':' contato')+'</span>'
+ :'<span class="cad-usos zero">sem uso</span>'}
+function cadAtendLinha(t,i,n){
+return '<div class="cad-linha'+(t.arquivado?' arquivado':'')+'">'
+ +(t.arquivado?'<span class="cad-mover"></span>':'<span class="cad-mover">'
+  +'<button type="button" title="subir"'+(i<=0?' disabled':'')+' onclick="cadAtendMover('+t.id+',-1)">'+icon('chevron-down',13)+'</button>'
+  +'<button type="button" title="descer"'+(i>=n-1?' disabled':'')+' onclick="cadAtendMover('+t.id+',1)">'+icon('chevron-down',13)+'</button></span>')
+ +'<input class="cad-nome" value="'+escBloco(t.nome)+'" maxlength="60" aria-label="Nome do assunto"'+(t.arquivado?' disabled':'')
+ +' onchange="cadAtendRenomear('+t.id+',this)">'
+ +cadAtendUsos(t)
+ +'<button type="button" class="acao sec cad-arq-bt" onclick="cadAtendArquivar('+t.id+','+(t.arquivado?'false':'true')+')">'
+ +(t.arquivado?'Reativar':'Arquivar')+'</button></div>'}
+function cadAtendPintar(){
+var box=$('cad-atend');if(!box)return;
+var ativos=CAD_ATEND.filter(function(t){return !t.arquivado}),arq=CAD_ATEND.filter(function(t){return t.arquivado});
+var n=$('cad-atend-n');if(n)n.textContent=ativos.length;
+var h='<div class="cad-pilha">'+ativos.map(function(t,i){return cadAtendLinha(t,i,ativos.length)}).join('')
+ +'<div class="cad-fio"></div>'
+ +'<div class="cad-novo"><input id="cad-atend-nome" placeholder="Novo assunto — ex.: Aviso de prova na escola regular" maxlength="60"'
+ +' onkeydown="if(event.key===\'Enter\')cadAtendCriar()">'
+ +'<button type="button" class="acao" onclick="cadAtendCriar()">'+icon('plus',14)+' Adicionar</button></div></div>';
+if(arq.length)h+='<details class="cad-arq"><summary>Arquivados ('+arq.length+')</summary><div class="cad-pilha">'
+ +arq.map(function(t){return cadAtendLinha(t,-1,0)}).join('')+'</div></details>';
+/* os canais não se cadastram, e a tela diz por quê em vez de deixar o buraco sem explicação */
+h+='<details class="cad-rede-lista"><summary>Por onde se fala ('+((ATEND&&ATEND.canais)||CANAIS_FIXOS).length+')</summary><div class="cad-pilha">'
+ +((ATEND&&ATEND.canais)||CANAIS_FIXOS).map(function(c){return '<div class="cad-linha especial">'
+  +'<span class="cad-trava" title="fixo no programa">'+icon('lock',13)+'</span>'
+  +'<span class="cad-nome-fixo">'+escBloco(c)+'</span>'
+  +'<span class="cad-desc">o canal muda de década em década, não de semestre em semestre</span></div>'}).join('')
+ +'</div></details>';
+box.innerHTML=h}
+var CANAIS_FIXOS=['Telefone','WhatsApp','Presencial','E-mail','Outro'];
+function cadAtendCriar(){
+var i=$('cad-atend-nome'),nome=i?i.value.trim():'';
+if(!nome){msg('Dê um nome ao assunto.',true);if(i)i.focus();return}
+run('salvarTipoAtendimento',[{nome:nome}],function(){msg('Assunto "'+nome+'" criado.');cadAtendCarregar()})}
+function cadAtendRenomear(id,el){
+var t=cadAtendTipo(id);if(!t)return;
+var nome=el.value.trim();if(!nome||nome===t.nome){el.value=t.nome;return}
+run('salvarTipoAtendimento',[{id:id,nome:nome}],function(){msg('Renomeado para "'+nome+'".');cadAtendCarregar()},
+ function(){cadAtendCarregar()})}
+function cadAtendMover(id,passo){run('moverTipoAtendimento',[{id:id,passo:passo}],function(){cadAtendCarregar()})}
+function cadAtendArquivar(id,arq){
+run('arquivarTipoAtendimento',[{id:id,arquivar:arq}],function(){
+ msg(arq?'Assunto arquivado.':'Assunto reativado.');cadAtendCarregar()})}
+/* ===== O PEF (2026-09-21) =====
+   *"Um relatório que eu tenho que enviar todo mês, muito chato e burocrático. Eu quero ele o mais
+   automatizado possível."* A tela devolve os números NA ORDEM DO PORTAL, para copiar de cima para baixo,
+   e cada número é um botão que mostra QUEM está nele — o portal da franqueadora não sabe dizer quem são
+   os sete evadidos; o sistema sabe, e é isso que ele traz de diferente. */
+var PEF=null, PEF_MES=null, PEF_ABA='ipp', PEF_LISTAS={};
+var PEF_MESES=['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+function pefMesRot(m){return m?PEF_MESES[Number(m.slice(5,7))-1]+' de '+m.slice(0,4):'—'}
+function pefCarregar(mes){
+var alvo=mes||PEF_MES||undefined;
+run('getPEF',[alvo?{mes:alvo}:{}],function(r){PEF=r;PEF_MES=r.mes;pefPintar()})}
+function pefMover(n){
+var m=PEF_MES||(PEF&&PEF.sugerido);if(!m)return;
+var a=Number(m.slice(0,4)),k=Number(m.slice(5,7))-1+n;
+a+=Math.floor(k/12);k=((k%12)+12)%12;
+var novo=a+'-'+String(k+1).padStart(2,'0');
+if(PEF&&novo>PEF.hoje.slice(0,7)){msg('Esse mês ainda não começou.',true);return}
+pefCarregar(novo)}
+function pefAba(a){PEF_ABA=a;
+document.querySelectorAll('#pef-abas .pg-aba').forEach(function(b){b.classList.toggle('on',b.dataset.a===a)});
+['ipp','rem','gest','obs'].forEach(function(x){var p=$('pef-painel-'+x);if(p)p.hidden=x!==a})}
+/* um número que abre a lista de quem o forma. `chave` guarda a lista num registro da pintura atual, para
+   o botão não carregar um JSON inteiro no próprio atributo */
+function pefN(valor,chave,titulo,itens,cls){
+if(itens&&itens.length)PEF_LISTAS[chave]={titulo:titulo,itens:itens};
+var v=(valor==null||valor==='')?'—':valor;
+return (itens&&itens.length)
+ ?'<button type="button" class="pef-n'+(cls?' '+cls:'')+'" onclick="pefLista(\''+chave+'\')" title="ver quem são">'+escBloco(String(v))+'</button>'
+ :'<span class="pef-n '+((v==='—'||v===0||v==='0')?'zero':'fixo')+(cls?' '+cls:'')+'">'+escBloco(String(v))+'</span>'}
+function pefLista(chave){
+var L=PEF_LISTAS[chave];if(!L)return;
+dlgAbrir({tipo:'aviso',titulo:L.titulo,ok:'Fechar',
+ form:'<div class="pef-lst">'+L.itens.map(function(x){
+  return '<div class="pef-lst-l"><span class="pef-lst-nome">'+escBloco(x.nome||'')+'</span>'
+   +(x.livro?'<span class="lc-livro">'+escBloco(nomeLivro?nomeLivro(x.livro):x.livro)+'</span>':'')
+   +(x.data?'<span class="pef-lst-d">'+dataCurta(x.data)+'</span>':'')
+   +(x.extra?'<span class="pef-lst-x">'+escBloco(x.extra)+'</span>':'')
+   +(x.id?'<button type="button" class="acao sec" onclick="dlgFechar(true);pefIrAluno(\''+escBloco(x.id)+'\')">abrir</button>':'')
+   +'</div>'}).join('')+'</div>',
+ aoAbrir:function(f){var cx=f.closest('.dlg');if(cx)cx.classList.add('dlg-larga')}})}
+function pefIrAluno(id){if(typeof retIrAluno==='function')retIrAluno(id)}
+/* aba('config') abre na aba A escola; o cgAba logo depois troca para a do PEF antes da resposta chegar */
+function pefIrConfig(){abaPor('config');cgAba('pef')}
+
+function pefPintar(){
+if(!PEF)return;
+PEF_LISTAS={};
+var r=PEF,ipp=r.ipp||{},rem=ipp.rematricula||{},g=r.gestao||{};
+$('pef-mes-rot').textContent=pefMesRot(r.mes);
+/* ---------- o estado do mês: fechado, no prazo, ou atrasado ---------- */
+var est='';
+if(r.fechado)est='<span class="pef-chip ok">'+icon('lock',12)+' fechado em '+dataCurta(r.fechado.em.slice(0,10))+'</span>'
+ +'<button type="button" class="acao sec" onclick="pefReabrir()">Reabrir</button>';
+else if(ipp.parcial)est='<span class="pef-chip meio">mês em andamento — números parciais</span>';
+else est='<span class="pef-chip '+(r.atrasado?'nao':'meio')+'">'+(r.atrasado?'o prazo era '+dataCurta(r.prazo)+' — passou':'fecha no portal em '+dataCurta(r.prazo))+'</span>'
+ +'<button type="button" class="acao" onclick="pefFechar()">'+icon('lock',13)+' Fechar o mês</button>';
+$('pef-estado').innerHTML=est;
+var sb=$('sb-aviso-pef');
+if(sb){var pend=!r.sugeridoFechado;sb.textContent=pend?'!':'';sb.classList.toggle('on',pend)}
+/* ---------- os quatro números do topo ---------- */
+var pend=(ipp.detectados||[]).length+(ipp.saidaSemCaixa||[]).length;
+var rp=rem.ipp||{};
+var mt=r.metas||{rematricula:80,retencao:98,prazoDia:5};
+$('pef-kpis').innerHTML=
+ '<div class="ret-kpi"><b>'+(ipp.ativosFim??'—')+'</b><span>ativos no último dia</span></div>'
+ +'<div class="ret-kpi'+(pend&&ipp.retencao&&ipp.retencao.Geral===100?' falta':'')+'"><b>'+(ipp.retencao&&ipp.retencao.Geral!=null?String(ipp.retencao.Geral).replace('.',',')+'%':'—')+'</b><span>retenção da unidade'+(pend&&ipp.retencao&&ipp.retencao.Geral===100?' — sem saídas registradas':'')+'</span></div>'
+ +'<div class="ret-kpi'+(rp.percentual!=null&&rp.percentual<mt.rematricula?' alerta':'')+'"><b>'+(rp.percentual!=null?String(rp.percentual).replace('.',',')+'%':'—')+'</b><span>rematrícula '+escBloco((rem.ciclo&&rem.ciclo.nome)||'')+' · meta '+mt.rematricula+'%</span></div>'
+ +(pend?'<div class="ret-kpi falta"><b>'+pend+'</b><span>pendências antes de mandar</span></div>':'');
+/* o prazo e o ciclo nos textos parados das abas: vêm de Configurações › PEF, não do HTML */
+var pd=$('pef-prazo-dia');if(pd)pd.textContent='dia '+mt.prazoDia;
+var cm=rem.ciclo||{},cv=r.cicloDoMes||{};
+$('pef-rem-info').innerHTML='O acompanhamento da <b>rematrícula do ciclo</b>. '+escBloco(pefMesRot(r.mes).replace(/^./,function(c){return c.toUpperCase()}))+' cai no <b>ciclo '+escBloco(cm.nome||'—')+'</b>, de '+dataCurta(cm.de)+' a '+dataCurta(cm.ate)
+ +(r.fechado&&cv.de&&(cv.de!==cm.de||cv.ate!==cm.ate)?' — o ciclo com que o mês foi fechado; com os começos de hoje seria de '+dataCurta(cv.de)+' a '+dataCurta(cv.ate):'')
+ +'. O sistema acha o ciclo pela data; o dia em que cada ciclo começa fica em <button type="button" class="pef-lnk" onclick="pefIrConfig()">Configurações › PEF</button>.'
+ +' "A rematricular" sai em dois critérios lado a lado: pelo <b>fim do contrato</b>, que é o que o PEF pontua (meta '+mt.rematricula+'%), e pela <b>previsão de término</b> do livro, pelo ritmo real.';
+$('pef-ipp').innerHTML=pefIppHtml(r);
+$('pef-rem').innerHTML=pefRemHtml(r);
+$('pef-gest').innerHTML=pefGestHtml(r);
+$('pef-obs').innerHTML=pefObsHtml(r);
+var on=$('pef-obs-n');if(on)on.textContent=(g.observacoes||[]).length;
+pefAba(PEF_ABA)}
+
+/* ===== ABA 1: O IPP, NA ORDEM DO PORTAL ===== */
+function pefIppHtml(r){
+var i=r.ipp||{},h='';
+var nome=function(x){return {id:x.id,nome:x.nome,livro:x.livro,data:x.data||null,extra:x.extra||x.criterio||null}};
+/* ---------- o que precisa ser resolvido ANTES de copiar ---------- */
+var avisos=[];
+if((i.detectados||[]).length)avisos.push('<b>'+pefN(i.detectados.length,'det','Bateram a régua de evasão por falta e seguem como ativos',
+ i.detectados.map(function(x){return {id:x.id,nome:x.nome,livro:x.livro,data:x.desde,extra:x.criterio}}))
+ +' aluno(s) bateram a régua de evasão por falta</b> e seguem como ativos. O formulário conta a saída <i>registrada</i>: registre a saída dos que de fato saíram (Alunos › Encerrar, no estágio), senão a retenção vai para a franqueadora mais alta do que é.');
+if((i.saidaSemCaixa||[]).length)avisos.push('<b>'+pefN(i.saidaSemCaixa.length,'semcx','Saídas sem a caixa da rede',i.saidaSemCaixa.map(nome))
+ +' saída(s) do mês sem a caixa da rede</b> — sem ela o sistema não sabe em que linha do formulário elas entram. Complete na aba Saídas da Retenção.');
+if((i.saidaSemCanal||[]).length)avisos.push(i.saidaSemCanal.length+' saída(s) registradas antes de 21/09 não guardaram se o aluno era online ou presencial — contei como <b>presencial</b>, que é o caso de quase todo mundo.');
+if((i.doisContratos||[]).length)avisos.push('<b>'+pefN(i.doisContratos.length,'dois','Alunos com dois contratos abertos',
+ i.doisContratos.map(function(x){return {id:x.id,nome:x.nome,extra:x.livros}}))+' aluno(s) com dois contratos</b> contam uma vez só, pelo contrato mais recente — as modalidades precisam somar o total.');
+if(!i.responsavel)avisos.push('Ninguém tem o papel de <b>coordenador</b> na Equipe — o campo "responsável" do formulário fica vazio. Preencha em Professores.');
+if(avisos.length)h+='<div class="ret-pend"><div class="ret-pend-cab">'+icon('triangle-alert',15)+'<b>Antes de copiar para o portal</b></div>'
+ +avisos.map(function(a){return '<div class="pef-av">'+a+'</div>'}).join('')+'</div>';
+/* ---------- 1. identificação e totais ---------- */
+h+='<div class="pef-bloco"><div class="pef-bt">Identificação</div><div class="pef-grade g4">'
+ +pefCampo('Nome do coordenador',i.responsavel?escBloco(i.responsavel.nome):'<span class="pef-vazio">ninguém com o papel</span>')
+ +pefCampo('Função do colaborador',i.responsavel?escBloco(i.responsavel.funcao||''):'—')
+ +pefCampo('Total de alunos ativos no início do mês',pefN(i.ativosInicio,'aini','',null),'o mesmo número do último dia do mês anterior')
+ +pefCampo('Total de alunos ativos no último dia do mês',pefN(i.ativosFim,'afim','Ativos no último dia do mês',(i.listaAtivosFim||[]).map(nome)))
+ +'</div></div>';
+/* ---------- 2. modalidades ---------- */
+h+='<div class="pef-bloco"><div class="pef-bt">Modalidades <small>no último dia do mês</small></div><div class="pef-grade g4">'
+ +['Kids','Teens','Ws','Outros Idiomas'].map(function(m){var l=(i.modalidades||{})[m]||[];
+   return pefCampo('Total de alunos '+(m==='Outros Idiomas'?'de outros idiomas':m)+' da unidade',pefN(l.length,'mod'+m,'Alunos '+m,l.map(nome)),
+    m==='Kids'?'inclui Tots e Little Kids':null)}).join('')+'</div></div>';
+/* ---------- 3. experiências ---------- */
+var ex=i.experiencias||{};
+h+='<div class="pef-bloco"><div class="pef-bt">Experiências</div><div class="pef-grade g4">'
+ +[['Interactive Presencial','Interactive presenciais ativos'],['Interactive Online','Interactive online ativos'],
+   ['Connections Presencial','Connections presenciais ativos'],['Connections Online','Connections online ativos']].map(function(e){
+   var l=ex[e[0]]||[];return pefCampo('Total de alunos '+e[1],pefN(l.length,'exp'+e[0],e[0],l.map(nome)),
+    e[0].indexOf('Connections')===0?'VIP conta aqui, qualquer que seja a sala':null)}).join('')+'</div></div>';
+/* ---------- 4. retenção e evasão: a grade do portal ---------- */
+var MOD=['Kids','Teens','Ws','Outros Idiomas'];
+h+='<div class="pef-bloco"><div class="pef-bt">Retenção e Evasão <small>quem saiu no mês, pela caixa da rede</small></div>'
+ +'<table class="pef-tab"><thead><tr><th></th>'+MOD.map(function(m){return '<th class="c">'+m+'</th>'}).join('')+'</tr></thead><tbody>'
+ +(i.linhas||[]).map(function(l){
+   var linhas='<tr class="pef-tab-cab"><td colspan="5"><b>'+escBloco(l.nome)+':</b> <span>'+escBloco(l.oque)+'</span></td></tr>';
+   ['Online','Presencial'].forEach(function(c){
+    linhas+='<tr><td>'+escBloco(l.nome)+' '+(c==='Online'?'online':'presenciais')+'</td>'
+     +MOD.map(function(m){
+      /* formado só existe em Ws e Outros Idiomas no portal: Kids e Teens não "se formam", passam de série */
+      if(l.id==='formados'&&(m==='Kids'||m==='Teens'))return '<td class="c pef-tab-x"></td>';
+      var li=((i.saidas||{})[l.id]||{})[m];li=li?li[c]:[];
+      return '<td class="c">'+pefN(li.length,'s'+l.id+m+c,l.nome+' — '+m+' '+c.toLowerCase(),li.map(nome))+'</td>'}).join('')+'</tr>'});
+   return linhas}).join('')+'</tbody></table></div>';
+/* ---------- 5. índices de retenção: o portal calcula; aqui é conferência ---------- */
+var rt=i.retencao||{};
+var sa=(i.detectados||[]).length+(i.saidaSemCaixa||[]).length;
+h+='<div class="pef-bloco"><div class="pef-bt">Índices de Retenção <small>o portal calcula sozinho — isto é a conferência · referência '+((r.metas||{}).retencao||98)+'%</small></div>'
+ +(sa&&rt.Geral===100?'<div class="pef-av pef-av-nao">'+icon('triangle-alert',13)+' 100% porque <b>nenhuma saída do mês foi registrada</b> com a caixa da rede — veja as pendências acima.</div>':'')
+ +'<div class="pef-grade g4">'
+ +[['Kids','Retenção Kids'],['Teens','Retenção Teens'],['Ws','Retenção Ws'],['Outros Idiomas','Retenção Outros Idiomas'],
+   ['Online','Retenção Online (geral)'],['Presencial','Retenção Presencial (geral)'],['Geral','Retenção geral unidade']].map(function(x){
+   var v=rt[x[0]];return pefCampo(x[1],'<span class="pef-n pct'+(v!=null&&v<((r.metas||{}).retencao||98)?' baixo':'')+'">'+(v==null?'—':String(v).replace('.',',')+'%')+'</span>')}).join('')
+ +'</div><div class="pef-nota">Fórmula do portal: ativos ÷ (ativos + evadidos) × 100, só com os números do recorte (IPP p.8). Formado <b>não</b> entra como evadido: o Booklet de Gestão de Dados diz por escrito que "alunos formados não são evadidos" (p.18); o IPP não diz o contrário.</div></div>';
+/* ---------- 6. rematrícula ---------- */
+var rp=(i.rematricula||{}).ipp||{};
+h+='<div class="pef-bloco"><div class="pef-bt">Rematrícula <small>ciclo '+escBloco(((i.rematricula||{}).ciclo||{}).nome||'')+'</small></div><div class="pef-grade g3">'
+ +pefCampo('Total de alunos rematriculados no ciclo',pefN(rp.rematriculados,'rrem','Rematriculados no ciclo',(rp.rematriculadosLista||[]).map(nome)),'renovaram ou mudaram de livro; cresce mês a mês')
+ +pefCampo('Total de alunos a rematricular no ciclo',pefN(rp.aRematricular,'rarem','Ainda a rematricular (contrato termina no ciclo)',(rp.pendentes||[]).map(function(x){return {id:x.id,nome:x.nome,livro:x.livro,data:x.fimContrato,extra:'contrato termina'}})
+   .concat((rp.renovaramDepois||[]).map(function(x){return {id:x.id,nome:x.nome,livro:x.livro,data:x.fimContrato,extra:'renovou em '+dataCurta(x.renovouEm)+', depois do mês — contrato terminava'}}))),'contrato terminando no ciclo — os que ainda faltam')
+ +pefCampo('Percentual de alunos rematriculados','<span class="pef-n pct'+(rp.percentual!=null&&rp.percentual<((r.metas||{}).rematricula||80)?' baixo':'')+'">'+(rp.percentual==null?'—':String(rp.percentual).replace('.',',')+'%')+'</span>','meta: '+((r.metas||{}).rematricula||80)+'%')
+ +'</div></div>';
+/* ---------- as conferências que o próprio formulário impõe ---------- */
+h+='<div class="pef-bloco"><div class="pef-bt">Conferências do formulário</div>'
+ +(i.conferencias||[]).map(function(c){return '<div class="pef-cf '+(c.ok?'ok':'nao')+'">'+icon(c.ok?'circle-check':'triangle-alert',14)
+  +'<span>'+escBloco(c.texto)+'</span><b>'+c.valor+' / '+c.esperado+'</b><small>'+escBloco(c.fonte)+'</small></div>'}).join('')
+ +'</div>';
+return h}
+function pefCampo(rot,valor,dica){
+return '<div class="pef-campo"><div class="pef-cr">'+escBloco(rot)+'</div><div class="pef-cv">'+valor+'</div>'
+ +(dica?'<div class="pef-cd">'+escBloco(dica)+'</div>':'')+'</div>'}
+
+/* ===== ABA 2: A REMATRÍCULA — o "Relatorio PEF" da planilha, no mesmo formato ===== */
+function pefRemHtml(r){
+var rem=(r.ipp||{}).rematricula||{},c=rem.cabecalho||{},h='';
+var ref=pefMesRot(r.mes);
+h+='<div class="pef-rem-top">'
+ +'<div class="pef-bloco pef-rem-cab"><div class="pef-bt">Alunos ativos… <small>início do ciclo '+dataCurta((rem.ciclo||{}).de||'')+'</small></div>'
+ +'<table class="pef-rem-t"><tbody>'
+ +'<tr class="tot"><td>Contratos ativos hoje <small class="pef-cd">— o IPP conta alunos no último dia do mês; aqui é a lista de trabalho, contrato por contrato</small></td><td class="c"><b>'+(c.ativos??'—')+'</b></td></tr>'
+ +'<tr><td>…matriculados no primeiro livro, em geral</td><td class="c">'+(c.matriculados??'—')+'</td></tr>'
+ +'<tr><td>…matriculados no primeiro livro durante o ciclo</td><td class="c">'+(c.matriculadosCiclo??'—')+'</td></tr>'
+ +'<tr><td>…matriculados no primeiro livro no mês do relatório (novos)</td><td class="c">'+(c.matriculadosMes??'—')+'</td></tr>'
+ +'<tr><td>…rematriculados, em geral</td><td class="c">'+(c.rematriculados??'—')+'</td></tr>'
+ +'<tr><td>…rematriculados durante o ciclo</td><td class="c">'+(c.rematriculadosCiclo??'—')+'</td></tr>'
+ +'<tr><td>…rematriculados no mês do relatório</td><td class="c">'+(c.rematriculadosMes??'—')+'</td></tr>'
+ +'</tbody></table></div>'
+ +'<div class="pef-bloco pef-rem-jan"><div class="pef-bt">Alunos a rematricular <small>trocar de livro</small></div>'
+ +'<table class="pef-rem-t"><thead><tr><th>Período</th><th class="c">Fim do contrato</th><th class="c">Previsão de término</th></tr></thead><tbody>'
+ +(rem.janelas||[]).map(function(j){
+   var lf=(rem.lista||[]).filter(function(x){return x.fimContrato&&x.fimContrato>=j.a&&x.fimContrato<=j.b});
+   var lt=(rem.lista||[]).filter(function(x){return x.termino&&x.termino>=j.a&&x.termino<=j.b});
+   var n=function(x){return {id:x.id,nome:x.nome,livro:x.livro}};
+   return '<tr><td>'+escBloco(j.rot)+'</td><td class="c">'+pefN(j.fimContrato,'jf'+j.id,'Contrato termina — '+j.rot,lf.map(function(x){var o=n(x);o.data=x.fimContrato;return o}))
+    +'</td><td class="c">'+pefN(j.termino,'jt'+j.id,'Livro termina pela previsão — '+j.rot,lt.map(function(x){var o=n(x);o.data=x.termino;return o}))+'</td></tr>'}).join('')
+ +'</tbody></table></div></div>';
+/* ---------- a lista, agrupada como na planilha: segmento → canal → experiência ---------- */
+var G=rem.grupos||{},ORD=['Kids','Outros Idiomas','Teens','Ws'];
+h+='<div class="pef-bloco"><div class="pef-bt">Os alunos <small>'+(rem.lista||[]).length+' ativos · ordem da planilha</small></div>'
+ +'<table class="pef-tab pef-rem-l"><thead><tr><th>Aluno(a)</th><th>Tipo de contrato</th><th>Livro</th><th class="c">Início do contrato</th>'
+ +'<th class="c">Fim do contrato</th><th class="c">Última presença</th><th class="c">Lições faltantes</th></tr></thead><tbody>';
+var cont=0;
+ORD.forEach(function(s){if(!G[s])return;
+ h+='<tr class="pef-g1"><td colspan="7">'+escBloco(s==='Kids'?'KIDS':s==='Teens'?'TEENS':s)+'</td></tr>';
+ ['Presencial','Online'].forEach(function(cn){if(!G[s][cn])return;
+  h+='<tr class="pef-g2"><td colspan="7">'+cn+'</td></tr>';
+  ['Connections','Interactive'].forEach(function(e){var L=G[s][cn][e];if(!L||!L.length)return;
+   h+='<tr class="pef-g3"><td colspan="7">'+e+'</td></tr>';
+   L.forEach(function(x){cont++;
+    h+='<tr><td><span class="ret-nome">'+escBloco(x.nome)+'</span></td><td>'+escBloco(x.tipo)+'</td>'
+     +'<td><span class="lc-livro">'+escBloco(x.livroNome||x.livro)+'</span></td>'
+     +'<td class="c">'+(x.inicio?dataCurta(x.inicio):'—')+'</td>'
+     +'<td class="c'+(x.fimContrato&&x.fimContrato<=r.hoje?' pef-venc':'')+'">'+(x.fimContrato?dataCurta(x.fimContrato):'—')+'</td>'
+     +'<td class="c">'+(x.ultimaPresenca?dataCurta(x.ultimaPresenca.slice(0,10)):'<span class="ret-nunca">nunca</span>')+'</td>'
+     +'<td class="c"><b>'+(x.faltamLicoes??'—')+'</b></td></tr>'})})})});
+h+='</tbody></table></div>';
+return h}
+
+/* ===== ABA 3: GESTÃO PEDAGÓGICA — os outros itens do painel ===== */
+function pefPz(r){return String((r.metas||{}).prazoDia||5).padStart(2,'0')}
+function pefGestHtml(r){
+var g=r.gestao||{},h='';
+if((g.equipeIncompleta||[]).length)h+='<div class="ret-pend"><div class="ret-pend-cab">'+icon('triangle-alert',15)
+ +'<b>'+g.equipeIncompleta.length+' pessoa(s) da equipe sem papel</b><span>coordenador e assistente saem do papel de cada um. Preencha em Professores: '
+ +escBloco(g.equipeIncompleta.join(', '))+'.</span></div></div>';
+var COMO={auto:'automático',digita:'digitar',rede:'franqueadora',semi:'confirmar'};
+var grupo=function(per,titulo){
+ var its=(g.itens||[]).filter(function(x){return x.per===per});
+ var pts=its.reduce(function(n,x){return n+x.pts},0);
+ return '<div class="pef-bloco"><div class="pef-bt">'+titulo+' <small>'+pts+' pontos no total</small></div>'
+  +'<table class="pef-tab pef-gest"><thead><tr><th>Item</th><th class="c">Como</th><th class="c">Valor</th><th class="c">Pontos</th><th>Base</th></tr></thead><tbody>'
+  +its.map(function(it){
+   var val;
+   if(it.como==='rede')val='<span class="pef-vazio">a franqueadora preenche</span>';
+   else if(it.como==='auto')val=pefN(it.valor==null?'—':(it.chave==='ipp'?(it.valor?'fechado':'aberto'):it.valor),'g'+it.chave,it.nome,
+    (it.detalhe||[]).map(function(d){return {nome:d}}));
+   else if(it.tipo==='sim')val='<span class="pef-sn"><button type="button" class="'+(it.valor==='sim'?'on':'')+'" onclick="pefValor(\''+it.periodo+'\',\''+it.chave+'\',\'sim\')">sim</button>'
+    +'<button type="button" class="'+(it.valor==='nao'?'on nao':'')+'" onclick="pefValor(\''+it.periodo+'\',\''+it.chave+'\',\'nao\')">não</button></span>';
+   else val='<input class="pef-in" inputmode="decimal" value="'+escBloco(it.valor??'')+'" placeholder="—"'
+    +' onchange="pefValor(\''+it.periodo+'\',\''+it.chave+'\',this.value)">';
+   var base=escBloco(it.regra)
+    +(it.chave==='turmasCoordenacao'&&(it.detalhe||[]).length?' <button type="button" class="pef-lnk" onclick="pefLista(\'gt\')">ver os '+it.detalhe.length+' horários da coordenação</button>':'')
+    +(it.chave==='calendarioAssessments'?' '+pefCalendarioLnk(g):'')
+    +(it.alerta?'<div class="pef-al">'+icon('triangle-alert',12)+' '+escBloco(it.alerta)+'</div>':'');
+   if(it.chave==='turmasCoordenacao')PEF_LISTAS.gt={titulo:'Horários em que a coordenação dá aula',itens:(it.detalhe||[]).map(function(d){return {nome:d}})};
+   return '<tr><td><b>'+escBloco(it.nome)+'</b></td><td class="c"><span class="pef-como '+it.como+'">'+COMO[it.como]+'</span></td>'
+    +'<td class="c">'+val+'</td><td class="c">'+it.pts+'</td><td class="pef-base">'+base+'</td></tr>'}).join('')
+  +'</tbody></table></div>'};
+var semN=g.semestre?(g.semestre.slice(-2)==='S1'?'1º semestre (janeiro a março, fecha em '+pefPz(r)+'/04)':'2º semestre (abril a agosto, fecha em '+pefPz(r)+'/09)'):'';
+h+=grupo('mensal','Mensal · '+pefMesRot(r.mes));
+h+=grupo('semestral','Semestral · '+semN);
+if(g.limiteTurmas!=null)h+='<div class="pef-nota">Diagnóstico, 15 pontos (PEF p.48): com '+g.ativos+' alunos e '+g.cargaCoordenador
+ +' h de carga, o coordenador pode dar no máximo <b>'+g.limiteTurmas+' turma(s)</b>.</div>';
+return h}
+function pefCalendarioLnk(g){
+var ms=Object.keys(g.calendario||{}).sort();if(!ms.length)return '';
+PEF_LISTAS.cal={titulo:'Quem termina livro em cada mês (a projeção do ritmo real)',itens:[]};
+ms.forEach(function(m){(g.calendario[m]||[]).forEach(function(x){PEF_LISTAS.cal.itens.push({id:x.id,nome:x.nome,livro:x.livro,data:x.termino,extra:pefMesRot(m)})})});
+return '<button type="button" class="pef-lnk" onclick="pefLista(\'cal\')">o sistema já montou: '+PEF_LISTAS.cal.itens.length+' término(s) de livro nos próximos meses</button>'}
+function pefValor(periodo,chave,valor){
+run('salvarValorPEF',[{periodo:periodo,chave:chave,valor:valor}],function(){pefCarregar()})}
+
+/* ===== ABA 4: AULAS OBSERVADAS ===== */
+function pefObsHtml(r){
+var g=r.gestao||{},h='';
+var profs=(g.professores||[]).filter(function(p){return !p.coordenador});
+var obsv=(r.equipe||[]).filter(function(f){return /coordena/i.test(f.papel||'')});
+h+='<div class="pef-bloco"><div class="pef-bt">Registrar uma aula observada</div><div class="pef-obs-f">'
+ +'<label class="ag-lb">Dia<input type="date" id="pobs-data" value="'+escBloco(r.hoje)+'" max="'+escBloco(r.hoje)+'"></label>'
+ +'<label class="ag-lb">Professor<select id="pobs-prof"><option value="">—</option>'
+ +profs.map(function(p){return '<option value="'+escBloco(p.id)+'">'+escBloco(p.nome)+'</option>'}).join('')+'</select></label>'
+ +'<label class="ag-lb">Estágio<input id="pobs-livro" maxlength="30" placeholder="W4, Teens 2…"></label>'
+ +'<label class="ag-lb">Hora<input type="time" id="pobs-hora"></label>'
+ +'<label class="ag-lb">Observado por<select id="pobs-por">'
+ +(obsv.length?obsv:(r.equipe||[])).map(function(f,i){return '<option value="'+escBloco(f.id)+'"'+(i===0?' selected':'')+'>'+escBloco(f.nome)+'</option>'}).join('')+'</select></label>'
+ +'<label class="ag-lb">Feedback dado em<input type="date" id="pobs-fb" max="'+escBloco(r.hoje)+'"></label>'
+ +'<label class="ag-lb pef-obs-an">O que foi visto e o combinado<textarea id="pobs-an" rows="2" maxlength="600"></textarea></label>'
+ +'<button type="button" class="acao" onclick="pefObsSalvar()">Registrar observação</button>'
+ +'</div></div>';
+if((g.semObservacao||[]).length)h+='<div class="ret-pend"><div class="ret-pend-cab">'+icon('triangle-alert',15)
+ +'<b>Sem observação em '+escBloco(pefMesRot(r.mes))+'</b><span>'+escBloco(g.semObservacao.map(function(p){return p.nome}).join(', '))
+ +' — a rede pede ao menos uma aula de cada professor por mês.</span></div></div>';
+var obs=g.observacoes||[];
+h+='<div class="pef-bloco"><div class="pef-bt">Observações de '+escBloco(pefMesRot(r.mes))+' <small>'+obs.length+' de no máximo 10</small></div>';
+if(!obs.length)h+='<div class="ret-vazio">Nenhuma aula observada neste mês.</div>';
+else h+='<table class="pef-tab"><thead><tr><th class="c">Dia</th><th>Professor</th><th>Estágio</th><th>O que foi visto</th><th class="c">Feedback</th><th></th></tr></thead><tbody>'
+ +obs.map(function(o){
+  var atraso=o.feedback_em?Math.round((Date.parse(o.feedback_em)-Date.parse(o.data))/86400000):null;
+  return '<tr><td class="c">'+dataCurta(o.data)+(o.hora?' <small>'+escBloco(o.hora)+'</small>':'')+'</td>'
+   +'<td><b>'+escBloco(o.professor)+'</b>'+(o.observador?'<span class="at-cq">por '+escBloco(o.observador)+'</span>':'')+'</td>'
+   +'<td>'+(o.livro?'<span class="lc-livro">'+escBloco(o.livro)+'</span>':'<span class="lc-vazio-cel">—</span>')+'</td>'
+   +'<td><span class="at-rel">'+escBloco(o.anotacao||'')+'</span></td>'
+   +'<td class="c">'+(o.feedback_em?'<span class="'+(atraso>2?'pef-venc':'')+'" title="'+(atraso>2?'a rede pede feedback em até 48 horas':'')+'">'+dataCurta(o.feedback_em)+'</span>'
+     :'<span class="ret-sem">pendente</span> <button type="button" class="pef-lnk" onclick="pefObsFeedback('+o.id+')">dar feedback</button>')+'</td>'
+   +'<td class="c"><button type="button" class="acao sec ag-bt-perigo" title="excluir" onclick="pefObsExcluir('+o.id+')">'+icon('trash-2',14)+'</button></td></tr>'}).join('')
+ +'</tbody></table>';
+h+='</div>';
+return h}
+/* O FEEDBACK DEPOIS (revisão 21/09): a observação se grava na hora e o feedback vem 24–48 h depois — sem este
+   botão, o aviso "aula observada sem feedback" da Central não tinha como ser resolvido pela tela */
+function pefObsFeedback(id){
+var o=(((PEF||{}).gestao||{}).observacoes||[]).filter(function(x){return x.id===id})[0];if(!o)return;
+dlgTexto({titulo:'Feedback da aula de '+String(o.professor||'').split(' ')[0],
+ texto:'Aula observada em '+dataCurta(o.data)+'. A rede pede o feedback em até 48 horas.',
+ label:'Feedback dado em (AAAA-MM-DD)',valor:(PEF&&PEF.hoje)||'',ok:'Guardar'},
+ function(fb){if(!fb)return;
+  run('salvarAulaObservada',[{id:o.id,data:o.data,professorId:o.professor_id,observadorId:o.observador_id||null,
+   livro:o.livro||'',hora:o.hora||null,anotacao:o.anotacao||'',feedbackEm:String(fb).trim()}],
+   function(){msg('Feedback registrado.');PEF_ABA='obs';pefCarregar()})})}
+function pefObsSalvar(){
+var v=function(id){var e=$(id);return e?e.value:''};
+if(!v('pobs-prof')){msg('Escolha o professor observado.',true);return}
+if(!v('pobs-data')){msg('Diga o dia da aula.',true);return}
+run('salvarAulaObservada',[{data:v('pobs-data'),professorId:v('pobs-prof'),observadorId:v('pobs-por')||null,
+ livro:v('pobs-livro'),hora:v('pobs-hora')||null,anotacao:v('pobs-an'),feedbackEm:v('pobs-fb')||null}],
+ function(){msg('Aula observada registrada.');PEF_ABA='obs';pefCarregar()})}
+function pefObsExcluir(id){
+dlgConfirmar({titulo:'Excluir esta observação?',ok:'Excluir',perigo:true,texto:'Ela sai da contagem do mês.'},
+ function(sim){if(!sim)return;run('excluirAulaObservada',[{id:id}],function(){msg('Observação excluída.');pefCarregar()})})}
+
+/* ===== FECHAR E REABRIR O MÊS ===== */
+function pefFechar(){
+var i=(PEF&&PEF.ipp)||{};
+var pend=(i.detectados||[]).length+(i.saidaSemCaixa||[]).length;
+dlgAbrir({tipo:'confirmar',titulo:'Fechar '+pefMesRot(PEF.mes)+'?',ok:'Fechar o mês',
+ texto:'Os números do IPP ficam congelados como estão agora — o que for entregue à franqueadora não muda depois, nem se alguém corrigir uma data de matrícula.'
+  +(pend?'\n\nAtenção: ainda há '+pend+' pendência(s) no topo da aba IPP. Fechar assim manda o número sem elas.':''),
+ form:'<label class="dlg-l">Observação <span class="opc">(opcional)</span><input id="pef-fech-obs" maxlength="200" placeholder="enviado no portal em…"></label>',
+ coletar:function(f){return {obs:f.querySelector('#pef-fech-obs').value}},
+ cb:function(v){if(!v||typeof v!=='object')return;
+  run('fecharMesPEF',[{mes:PEF.mes,observacao:v.obs}],function(){msg(pefMesRot(PEF.mes)+' fechado.');pefCarregar()})}})}
+function pefReabrir(){
+dlgConfirmar({titulo:'Reabrir '+pefMesRot(PEF.mes)+'?',ok:'Reabrir',
+ texto:'Os números voltam a ser recalculados a partir do banco. Use isto quando o mês foi fechado por engano ou antes da hora.'},
+ function(sim){if(!sim)return;run('reabrirMesPEF',[{mes:PEF.mes}],function(){msg('Mês reaberto.');pefCarregar()})})}
 function cadAba(a){CAD_ABA=a;
 document.querySelectorAll('#cad-abas .pg-aba').forEach(function(b){b.classList.toggle('on',b.dataset.a===a)});
-var t=$('cad-painel-tipos'),s=$('cad-painel-saida');
-if(t)t.hidden=a!=='tipos'; if(s)s.hidden=a!=='saida';
-if(a==='saida'&&!CAD_SAIDA.length)cadSaidaCarregar()}
-function cadCarregar(){run('getTiposAula',[{}],function(l){CAD_TIPOS=l||[];cadPintar()});cadSaidaCarregar()}
+var t=$('cad-painel-tipos'),s=$('cad-painel-saida'),n=$('cad-painel-atend');
+if(t)t.hidden=a!=='tipos'; if(s)s.hidden=a!=='saida'; if(n)n.hidden=a!=='atend';
+if(a==='saida'&&!CAD_SAIDA.length)cadSaidaCarregar();
+if(a==='atend'&&!CAD_ATEND.length)cadAtendCarregar()}
+function cadCarregar(){run('getTiposAula',[{}],function(l){CAD_TIPOS=l||[];cadPintar()});cadSaidaCarregar();cadAtendCarregar()}
 function cadSaidaCarregar(){run('getMotivosSaida',[{}],function(r){
 CAD_SAIDA=(r&&r.motivos)||[];CAD_TIPOS_REDE=(r&&r.tiposRede)||[];cadSaidaPintar()})}
 function cadMotivo(id){return CAD_SAIDA.filter(function(m){return m.id===id})[0]}
@@ -13831,6 +14933,8 @@ function cgInfo(){
 if(CG_ABA==='escola')return 'Como a escola aparece no sistema, e de qual estado vêm os feriados estaduais.';
 if(CG_ABA==='aulas')return 'Números que mexem no <b>planejamento</b> e no <b>Progresso</b>. Os que mudam cálculo mostram o efeito na escola inteira antes de gravar — e nada é apagado: término, defasagem e adendos são calculados na hora, e voltar ao padrão desfaz tudo.';
 if(CG_ABA==='fecho')return 'O fecho do dia é a única coisa que o sistema <b>lança sozinho</b>. Por isso cada mudança aqui pede confirmação.';
+if(CG_ABA==='risco')return 'As réguas da fila <b>Alunos em risco</b> da Central. As faltas contam em <b>aulas</b> — dia de aula dupla perdido vale 2, como no portal do IPP. Mudar um número só muda quem aparece na fila: não grava nada e não mexe no IPP, que conta a saída registrada.';
+if(CG_ABA==='pef')return 'O relatório da franqueadora. Os <b>ciclos de rematrícula</b> se repetem todo ano: aqui fica só o dia em que cada um começa, e cada ciclo termina na véspera do outro. O sistema acha sozinho o ciclo de qualquer data — a linha do tempo embaixo mostra como ele está dividindo o ano agora. Mudar um começo mostra o efeito na rematrícula antes de gravar; os meses já fechados no PEF guardam o ciclo com que foram entregues.';
 return 'Esta máquina é <b>'+escBloco(CG.estacao||'—')+'</b>. As configurações moram no banco dela: se a recepção e o laptop discordarem de um número, o diário abaixo diz qual foi mudado, quando e de qual tela.'}
 function cgPintar(){
 if(!CG)return;
@@ -13840,6 +14944,7 @@ $('cg-dir').innerHTML=alt.length
  :'<span class="cg-alt zero">tudo no padrão</span>';
 $('cg-info').innerHTML=cgInfo();
 var h=CG.params.filter(function(p){return p.aba===CG_ABA}).map(cgLinha).join('');
+if(CG_ABA==='pef')h+=cgCiclos();
 if(CG_ABA==='sistema')h+=cgPaineis(alt);
 $('cg-corpo').innerHTML=h;
 }
@@ -13851,6 +14956,10 @@ if(!p.editavel)
 else if(p.tipo==='bool')
  campo='<label class="cg-chave"><input type="checkbox" id="'+id+'"'+(p.valor==='1'?' checked':'')
   +' onchange="cgMudar(\''+p.chave+'\',this.checked?\'1\':\'0\')"><span>'+(p.valor==='1'?'ligado':'desligado')+'</span></label>';
+else if(p.tipo==='diames')
+ campo='<input id="'+id+'" class="cg-in cg-diames" value="'+escBloco(p.valor)+'" inputmode="numeric" maxlength="5" placeholder="dd/mm"'
+  +' oninput="cgDiaMesMascara(this)" onchange="cgMudar(\''+p.chave+'\',this.value)">'
+  +'<span class="cg-un">'+escBloco(cgDiaMesExtenso(p.valor))+', todo ano</span>';
 else
  campo='<input id="'+id+'" class="cg-in cg-'+p.tipo+'" value="'+escBloco(p.valor)+'"'
   +(p.tipo==='num'?' inputmode="numeric"':'')+(p.tipo==='uf'?' maxlength="2"':'')+(p.tipo==='hora'?' maxlength="5"':'')
@@ -13867,6 +14976,29 @@ return '<div class="cg-linha'+(p.alterado?' alterado':'')+'">'
  +(p.alterado&&p.editavel?'<button type="button" class="cg-volta" title="voltar ao padrão ('+escBloco(cgMostra(p,p.padrao))+')"'
    +' onclick="cgMudar(\''+p.chave+'\',CG_PADRAO(\''+p.chave+'\'))">↺</button>':'')
  +'</div></div>'}
+/* ===== OS CICLOS DO PEF (2026-09-21) ===== */
+var CG_MESES=['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+function cgDiaMesExtenso(v){
+var m=/^(\d{2})\/(\d{2})$/.exec(String(v||''));if(!m)return '';
+var d=Number(m[1]);return (d===1?'1º':d)+' de '+(CG_MESES[Number(m[2])-1]||'?')}
+/* A MÁSCARA SÓ AJUDA, NÃO REESCREVE (revisão de 21/09). A primeira versão tirava tudo o que não era
+   dígito e punha a barra depois de dois: "1/04" virava "10/4" (outra data, aceita sem erro) e trocar só o
+   dia de "01/04" dava "30/40". Agora ela só tira letras e, se a pessoa digitou três ou mais dígitos SEM
+   barra ("3003"), põe a barra depois do dia. Com barra, fica como está — o servidor completa "1/4" em 01/04.
+   E só mexe no campo se algo mudou, para o cursor não pular para o fim. */
+function cgDiaMesMascara(inp){
+var v=inp.value.replace(/[^\d\/\-.]/g,'');
+if(/^\d{3,4}$/.test(v))v=v.slice(0,2)+'/'+v.slice(2);
+if(v!==inp.value)inp.value=v}
+/* A LINHA DO TEMPO: como o sistema está dividindo o ano com os começos de agora — o ciclo anterior, o de
+   hoje e os dois seguintes. É a resposta para "ele identifica sozinho?": identifica, e mostra. */
+function cgCiclos(){
+var cs=CG.ciclosPEF||[];if(!cs.length)return '';
+return '<h4 class="cg-sec">Como o sistema divide o ano agora<small>calculado a partir dos dois começos acima — não se edita aqui</small></h4>'
+ +'<table class="cg-tab cg-ciclos"><thead><tr><th>Ciclo</th><th>Começa</th><th>Termina</th><th>Meses</th><th></th></tr></thead><tbody>'
+ +cs.map(function(c){return '<tr'+(c.atual?' class="agora"':'')+'><td><b>'+escBloco(c.nome)+'</b></td><td>'+escBloco(dataCurta(c.de))
+  +'</td><td>'+escBloco(dataCurta(c.ate))+'</td><td>'+c.meses+'</td><td>'+(c.atual?'<span class="cg-agora">o ciclo de hoje</span>':'')+'</td></tr>'}).join('')
+ +'</tbody></table>'}
 function CG_PADRAO(chave){var p=CG.params.filter(function(x){return x.chave===chave})[0];return p?p.padrao:''}
 /* O RODAPÉ DA ABA SISTEMA: o que esta escola mudou, o diário, e o que mora em `config` sem ser
    configuração. Tudo só leitura. */
@@ -13916,6 +15048,17 @@ gravar();
 }
 function cgImpacto(p,v){
 var a=v.antes,d=v.depois;
+if(v.tipo==='ciclo'){
+ var lc=function(rot,x,y){return '• '+rot+': '+x+(x!==y?' → '+y:' (não muda)')};
+ var per=function(x){return x.percentual==null?'—':String(x.percentual).replace('.',',')+'%'};
+ return 'De '+cgDiaMesExtenso(v.atual)+' para '+cgDiaMesExtenso(v.proposto)+'. Medido agora:\n\n'
+  +lc('o ciclo de hoje',a.cicloHoje+' ('+dataCurta(a.hojeDe)+' a '+dataCurta(a.hojeAte)+')',d.cicloHoje+' ('+dataCurta(d.hojeDe)+' a '+dataCurta(d.hojeAte)+')')+'\n'
+  +'\nNo PEF de '+pefMesRot(a.mes)+(a.fechadoEm?' — já FECHADO em '+dataCurta(a.fechadoEm.slice(0,10))+': o que foi entregue não muda; é como ele ficaria recalculado:':', o mês que se entrega agora:')+'\n'
+  +lc('ciclo',a.cicloMes+' ('+dataCurta(a.de)+' a '+dataCurta(a.ate)+')',d.cicloMes+' ('+dataCurta(d.de)+' a '+dataCurta(d.ate)+')')+'\n'
+  +lc('a rematricular no ciclo',a.aRematricular,d.aRematricular)+'\n'
+  +lc('rematriculados no ciclo',a.rematriculados,d.rematriculados)+'\n'
+  +lc('percentual',per(a),per(d))+'\n\n'
+  +'Os meses já fechados no PEF não mudam: guardam o ciclo com que foram entregues.'}
 var lin=function(rot,x,y){return '• '+rot+': '+x+(x!==y?' → '+y:' (não muda)')};
 return 'De '+cgMostra(p,v.atual)+' para '+cgMostra(p,v.proposto)+'. Medido agora, nos '+a.contratos+' contratos abertos:\n\n'
  +lin('contratos vencidos',a.vencidos,d.vencidos)+'\n'
@@ -15536,10 +16679,10 @@ var CT=null, CT_ABERTA=null, CT_AREA=null, CT_VER_MUDOS=false;
    Ele pediu: *"as que têm zero, ou seja, que estão resolvidas, ficam meio que arquivadas"*.
    `alertas` (padrão) · `resolvidos` (as regras zeradas — a prova de que estão em dia) ·
    `silenciados`. O "ver silenciados" que era um botão virou aba, que é onde ele já procurava. */
-var CT_ABA='alertas';
+var CT_ABA='hoje', CT_RF=null;
 function ctAba(a){
 CT_ABA=a;CT_VER_MUDOS=(a==='silenciados');CT_ABERTA=null;
-document.querySelectorAll('#tab-central .ct-abas .pg-aba').forEach(function(b){
+document.querySelectorAll('#ct-abas .pg-aba').forEach(function(b){
   b.classList.toggle('on',b.dataset.a===a)});
 ctRender()}
 /* ===== NAVEGAÇÃO PROFUNDA (2026-08-17) =====
@@ -15659,27 +16802,41 @@ function ctCarregar(cb){run('getCentral',[{}],function(r){CT=r;ctPintar();ctRend
    com o sino do estoque, para quem chega de manhã ver sem entrar em nada */
 function ctPintar(){
 var b=$('sb-aviso-central');if(!b||!CT)return;
-b.textContent=CT.abertos||'';
-b.classList.toggle('on',CT.abertos>0);
-/* sem pulsar: são 281 pendências de cadastro, não uma urgência — piscar isso o dia inteiro vira
-   ruído. O sino do estoque pulsa porque tem prazo (tem aluno esperando na recepção). */
+/* O SELO CONTA SÓ O QUE PEDE VOCÊ (21/09): aviso de hoje (alto ou médio) e aluno em risco que ninguém
+   procurou depois que sumiu. As pendências de cadastro têm o número delas lá dentro — somadas aqui, 281
+   casos de unidade sem código escondiam o evadido que ninguém ligou. */
+var agir=CT.agir||0;
+b.textContent=agir||'';
+b.classList.toggle('on',agir>0);
 b.style.animation='none';
-b.title=CT.abertos?(CT.abertos+' pendência(s) na central de controle'):'nada pendente';
+b.title=agir?(agir+' coisa(s) para você na Central'):'nada para agir agora';
+/* o "!" do PEF sai daqui também: a Central é carregada na abertura do app, e o selo do PEF ficava
+   apagado até alguém abrir a página dele */
+var pf=$('sb-aviso-pef');
+if(pf){pf.textContent=CT.pefPendente?'!':'';pf.classList.toggle('on',!!CT.pefPendente)}
 var p=$('ct-placar');
 if(p)p.innerHTML='<span class="ct-kpi">'
- +'<span class="k-alta" title="atrapalha a operação hoje">'+CT.porGravidade.alta+' alta</span>'
- +'<span class="k-media" title="vai atrapalhar">'+CT.porGravidade.media+' média</span>'
- +'<span class="k-baixa" title="cadastro incompleto — backlog">'+CT.porGravidade.baixa+' baixa</span>'
+ +'<span class="k-alta" onclick="ctAba(\'hoje\')" title="avisos com data">'+(CT.hoje||[]).length+' hoje</span>'
+ +'<span class="k-media" onclick="ctAba(\'risco\')" title="alunos faltando">'+(CT.risco||[]).length+' em risco</span>'
+ +'<span class="k-baixa" onclick="ctAba(\'alertas\')" title="o que está incompleto no cadastro">'+CT.abertos+' pendências</span>'
  +'</span>';
 }
-function ctRecarregar(){ctCarregar(function(){msg('Sistema reverificado — '+CT.abertos+' pendência(s).')})}
-function ctVerSilenciados(){CT_VER_MUDOS=!CT_VER_MUDOS;ctRender()}
+function ctRecarregar(){ctCarregar(function(){msg('Reverificado — '+(CT.agir||0)+' para agir, '+CT.abertos+' pendência(s) de cadastro.')})}
 function ctFiltrar(a){CT_AREA=(CT_AREA===a?null:a);ctRender()}
 /* faixa EXCLUSIVA, como no Estoque e no catálogo de Estágios: abrir uma fecha a outra. Quem abre
    uma faixa aqui está lendo um problema, e quer um por vez. */
 function ctAbrir(id){CT_ABERTA=(CT_ABERTA===id?null:id);ctRender()}
 function ctRender(){
 var box=$('ct-lista');if(!box||!CT)return;
+/* as abas contam o que cada uma tem, para ele decidir onde olhar sem entrar */
+var nRe0=CT.regras.filter(function(r){return !r.abertos.length&&!r.silenciados.length}).length;
+document.querySelectorAll('#ct-abas .pg-aba').forEach(function(b){
+ var a=b.dataset.a,q=a==='hoje'?(CT.hoje||[]).length:a==='risco'?(CT.risco||[]).length
+  :a==='alertas'?CT.abertos:(a==='resolvidos'?nRe0:CT.silenciados);
+ var sp=b.querySelector('.n');if(sp)sp.textContent=q});
+$('ct-info').innerHTML=ctInfo();
+if(CT_ABA==='hoje'){$('ct-chips').innerHTML='';box.innerHTML=ctHojeHtml();return}
+if(CT_ABA==='risco'){$('ct-chips').innerHTML=ctRiscoChips();box.innerHTML=ctRiscoHtml();return}
 /* pílulas por ÁREA, com a contagem de cada uma — é o recorte que ele descreveu ("biblioteca,
    alunos e turma"), e o número ao lado diz onde está o trabalho */
 var areas=[];CT.regras.forEach(function(r){if(areas.indexOf(r.area)<0)areas.push(r.area)});
@@ -15688,11 +16845,6 @@ $('ct-chips').innerHTML='<button class="chip'+(CT_AREA?'':' on')+'" onclick="ctF
  +areas.map(function(a){
    return '<button class="chip'+(CT_AREA===a?' on':'')+'" onclick="ctFiltrar(\''+a+'\')">'
     +escBloco(a)+' <span class="n">'+(CT.porArea[a]||0)+'</span></button>'}).join('');
-/* as abas contam o que cada uma tem, para ele decidir onde olhar sem entrar */
-var nRe=CT.regras.filter(function(r){return !r.abertos.length&&!r.silenciados.length}).length;
-document.querySelectorAll('#tab-central .ct-abas .pg-aba').forEach(function(b){
- var q=b.dataset.a==='alertas'?CT.abertos:(b.dataset.a==='resolvidos'?nRe:CT.silenciados);
- var sp=b.querySelector('.n');if(sp)sp.textContent=q});
 var regras=CT.regras.filter(function(r){return !CT_AREA||r.area===CT_AREA});
 /* ===== AS TRES ABAS FILTRAM, E A ORDEM MUDA COM ELAS =====
    Alertas: so quem tem caso aberto, **do maior numero para o menor** (pedido dele: "as de maior
@@ -15771,6 +16923,81 @@ if(CT.orfaos)h+='<div class="ct-mais">'+CT.orfaos+' silêncio(s) de casos que j�
  +'<button class="es-bt" onclick="ctLimpar()">limpar</button></div>';
 box.innerHTML=h;
 }
+/* ===== AS ABAS NOVAS DA CENTRAL (2026-09-21) ===== */
+function ctInfo(){
+if(CT_ABA==='hoje')return 'O que tem <b>data</b>: retorno prometido que venceu, trancado que combinou voltar, encontro marcado para hoje e amanhã, prazo do PEF, aula observada sem feedback. Cada aviso <b>some sozinho</b> quando o fato que o criou muda: o retorno, com uma conversa nova; o trancado, quando ele volta ou a saída é registrada; o prazo, quando o mês é fechado; o feedback, quando a data dele é informada.';
+if(CT_ABA==='risco'){var g=(CT.riscoCtx||{}).regras||{};
+ return 'Todo aluno ativo que está faltando, contado em <b>aulas</b> — dia de aula dupla vale 2, como no portal do IPP. '
+  +'<b>Evadido pela régua</b>: '+g.evasao+' aulas seguidas. <b>Aluno novo</b>: nunca veio e já faltou — na 1ª falta, ligar e oferecer reposição; na 2ª, follow-up e reunião (MSA p.12). '
+  +'<b>Atenção</b>: '+g.atencao+' seguidas (a régua da casa). <b>Faltoso</b>: '+g.semestre+' faltas desde '+dataCurta((CT.riscoCtx||{}).inicioSemestre)+' — é da rotina semanal (MSA p.17), por isso fica na lista sem acender o selo. <b>Sumido</b>: '+g.sumido+' dias sem vir. '
+  +'Quem já foi contatado continua aqui, com "falado há". Nada disso é perda no IPP enquanto a saída não for registrada. As réguas ficam em Configurações › Alunos em risco.'}
+return 'Cada faixa é uma <b>pergunta que o sistema faz aos dados</b> — não um erro. Clique para abrir os casos.<br>'
+ +'Pendência que é <b>proposital</b> (o último estágio da trilha não tem próximo, a edição aposentada não tem estoque) pode ser <b>silenciada</b>: some daqui e fica registrada com o motivo, para você lembrar depois por que decidiu assim.'}
+/* HOJE: um cartão por aviso, com o botão da ação ao lado — o aviso diz o que fazer e já leva até lá */
+function ctHojeHtml(){
+var L=CT.hoje||[],h='';
+if(CT.erroHoje)h+='<div class="ct-vazio" style="color:var(--perigo)">Os avisos de hoje falharam: '+escBloco(CT.erroHoje)+'</div>';
+if(!L.length)return h+'<div class="ct-ok">'+icon('circle-check',18)+'Nada com data para hoje.</div>';
+return h+'<div class="ct-hoje">'+L.map(function(a,i){
+ var bt='';
+ if(a.acao==='contato')bt='<button type="button" class="acao" onclick="ctContatoHoje('+i+')">Registrar contato</button>'
+  +'<button type="button" class="acao sec" onclick="retIrAluno('+ctArg(a.aluno.id)+')">Abrir o aluno</button>';
+ else if(a.acao==='agendamentos')bt='<button type="button" class="acao sec" onclick="abaPor(\'agendamentos\')">Abrir Agendamentos</button>';
+ else if(a.acao==='pef')bt='<button type="button" class="acao sec" onclick="ctIrPEF(\'ipp\','+ctArg(a.mes||'')+')">Abrir o PEF</button>';
+ else if(a.acao==='pef-gest')bt='<button type="button" class="acao sec" onclick="ctIrPEF(\'gest\','+ctArg(a.mes||'')+')">Gestão pedagógica</button>';
+ else if(a.acao==='pef-obs')bt='<button type="button" class="acao sec" onclick="ctIrPEF(\'obs\','+ctArg(a.mes||'')+')">Aulas observadas</button>';
+ return '<div class="ct-av '+a.gravidade+'">'
+  +'<div class="ct-av-txt"><div class="ct-av-tit">'+escBloco(a.titulo)+'</div>'
+  +'<div class="ct-av-sub">'+(a.rotulo?'<b>'+escBloco(a.rotulo)+'</b>':'')+(a.rotulo&&a.detalhe?' · ':'')+escBloco(a.detalhe||'')+'</div></div>'
+  +'<div class="ct-av-bt">'+bt+'</div></div>'}).join('')+'</div>'}
+/* o PEF abre na aba certa: o pefAba antes da resposta chegar vale, porque o pefPintar reaplica PEF_ABA */
+/* o aviso sabe de que mês fala (o prazo, do anterior; a observação, do corrente): o PEF abre nele */
+function ctIrPEF(ab,mes){if(mes)PEF_MES=mes;PEF_ABA=ab;abaPor('pef');if(typeof pefAba==='function')pefAba(ab)}
+function ctContatoHoje(i){
+var a=(CT.hoje||[])[i];if(!a||!a.aluno)return;
+atContato({id:a.aluno.id,nome:a.aluno.nome,telefone:a.aluno.telefone||null,respTelefone:a.aluno.respTelefone||null},
+ CT.riscoCtx,{assunto:a.assunto,resumo:a.titulo+' · '+(a.detalhe||'')},function(){ctCarregar()})}
+/* ALUNOS EM RISCO: a fila que morava na Retenção, com um filtro por motivo */
+var CT_RNOMES={sem:'sem contato',evasao:'evadido pela régua',novo:'aluno novo',atencao:'atenção',faltoso:'faltoso no semestre',sumido:'sumido'};
+function ctRFiltrar(f){CT_RF=(CT_RF===f?null:f);ctRender()}
+function ctRiscoChips(){
+var R=CT.risco||[],c={sem:0,evasao:0,novo:0,atencao:0,faltoso:0,sumido:0};
+R.forEach(function(r){if(r.semContato)c.sem++;(r.motivos||[]).forEach(function(m){if(c[m]!=null)c[m]++})});
+return '<button class="chip'+(CT_RF?'':' on')+'" onclick="ctRFiltrar(null)">todos <span class="n">'+R.length+'</span></button>'
+ +Object.keys(c).filter(function(k){return c[k]||CT_RF===k}).map(function(k){
+  return '<button class="chip'+(CT_RF===k?' on':'')+'" onclick="ctRFiltrar(\''+k+'\')">'+CT_RNOMES[k]+' <span class="n">'+c[k]+'</span></button>'}).join('')}
+function ctRiscoTag(m,r){
+var g=(CT.riscoCtx||{}).regras||{};
+if(m==='evasao')return '<span class="ret-tag ev" title="'+g.evasao+' aulas seguidas com falta — a régua da rede. Só vira perda no IPP quando a saída for registrada.">evadido pela régua</span>';
+if(m==='novo')return r.seguidas<=1
+ ?'<span class="ret-tag nv" title="Ainda não veio a nenhuma aula e faltou a primeira: ligar logo e oferecer reposição (MSA p.12).">aluno novo · 1ª falta</span>'
+ :'<span class="ret-tag nv" title="Nunca veio e já faltou mais de uma vez: abrir follow-up e marcar reunião com ele ou o responsável (MSA p.12).">aluno novo · '+r.seguidas+' faltas</span>';
+if(m==='atencao')return '<span class="ret-tag at" title="'+g.atencao+' aulas seguidas com falta — a régua da casa">atenção</span>';
+if(m==='faltoso')return '<span class="ret-tag fs" title="'+r.semestre+' faltas no semestre, seguidas ou não — a rede manda investigar (MSA p.17)">faltoso no semestre</span>';
+return '<span class="ret-tag su" title="'+g.sumido+' dias ou mais sem vir, mesmo sem faltas seguidas lançadas">sumido</span>'}
+function ctRiscoHtml(){
+if(CT.erroRisco)return '<div class="ct-vazio" style="color:var(--perigo)">A fila de risco falhou: '+escBloco(CT.erroRisco)+' — não é que ninguém esteja faltando.</div>';
+var R=(CT.risco||[]).filter(function(r){return !CT_RF||(CT_RF==='sem'?r.semContato:(r.motivos||[]).indexOf(CT_RF)>=0)});
+if(!(CT.risco||[]).length)return '<div class="ct-ok">'+icon('circle-check',18)+'Ninguém faltando pelas réguas de agora. É o estado que se quer.</div>';
+if(!R.length)return '<div class="ct-vazio">Ninguém nesse filtro.</div>';
+return '<table class="ret-tab"><thead><tr><th>Aluno</th><th>Estágio</th><th class="c" title="aulas seguidas com falta">Faltas seguidas</th>'
+ +'<th class="c">Última aula</th><th class="c">Sem vir há</th><th class="c">Falado</th><th>Professor</th><th></th></tr></thead><tbody>'
+ +R.map(function(r){return '<tr class="n-'+r.nivel+'">'
+  +'<td><span class="ret-nome">'+escBloco(r.nome)+'</span> '+(r.motivos||[]).map(function(m){return ctRiscoTag(m,r)}).join('')+'</td>'
+  +'<td><span class="lc-livro">'+escBloco(r.livroNome)+'</span></td>'
+  +'<td class="c"><b>'+r.seguidas+'</b>'+(r.semestre>r.seguidas?'<span class="ct-sem" title="faltas desde o início do semestre, em aulas">'+r.semestre+' no semestre</span>':'')+'</td>'
+  +'<td class="c">'+(r.ultimaAula?dataCurta(r.ultimaAula)+(r.ultimaEmOutro?'<span class="ct-sem" title="ainda não foi a nenhuma aula deste estágio">em outro estágio</span>':''):'<span class="ret-nunca">nunca veio</span>')+'</td>'
+  +'<td class="c">'+retDias(r.dias)+'</td>'
+  +'<td class="c at-cel">'+retContatoCel(r)+'</td>'
+  +'<td>'+(r.professores&&r.professores.length?r.professores.map(function(p){return '<span class="lc-pp">'+escBloco(p)+'</span>'}).join(''):'<span class="lc-vazio-cel">—</span>')+'</td>'
+  +'<td class="c at-acoes"><button type="button" class="acao" onclick="ctContatoRisco('+ctArg(r.id)+','+ctArg(r.livro)+')">Registrar contato</button>'
+   +'<button type="button" class="acao sec" onclick="retIrAluno('+ctArg(r.id)+')">Abrir o aluno</button></td></tr>'}).join('')
+ +'</tbody></table>'}
+function ctContatoRisco(id,livro){
+var r=(CT.risco||[]).filter(function(x){return x.id===id&&x.livro===livro})[0];if(!r)return;
+atContato(r,CT.riscoCtx,{assunto:r.nivel==='novo'?'reposição':'sumiu',
+ resumo:r.nome+' · '+(r.livroNome||r.livro)+' · '+r.seguidas+' aula(s) seguida(s) com falta'+(r.ultimaAula?' · última aula '+dataCurta(r.ultimaAula)+(r.ultimaEmOutro?' (em outro estágio)':''):' · nunca veio')},
+ function(){ctCarregar()})}
 /* a chave vai como string entre aspas, e ela pode conter aspas (é `id|livro`, e livro é texto do
    usuário). `JSON.stringify` + escape do HTML é o único jeito seguro num onclick embutido. */
 function ctArg(v){return '&quot;'+escBloco(String(v)).replace(/"/g,'&quot;')+'&quot;'}

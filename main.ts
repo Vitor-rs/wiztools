@@ -1736,6 +1736,9 @@ const PARAMETROS: Parametro[] = [
   { chave: "tolerancia_duas_licoes_min", aba: "aulas", rotulo: "Folga para cumprir as lições do dia", tipo: "num", unidade: "minutos",
     padrao: "45", min: 0, max: 60, fonte: "casa", classe: "leitura",
     ajuda: "Quem tem duas aulas e sai com menos de (2 horas − esta folga) de sala é perguntado quantas lições fez." },
+  { chave: "tolerancia_atraso_min", aba: "aulas", rotulo: "Chegada conta como atraso depois de", tipo: "num", unidade: "minutos do início da aula",
+    padrao: "10", min: 1, max: 45, fonte: "calendário do hori-web (10 min)", classe: "leitura",
+    ajuda: "No Calendário do aluno, a aula em que ele entrou depois disto ganha a ponta laranja de atraso. Mais de 50 minutos de diferença deixa de ser atraso: é aula em horário diferente (ponta rosa)." },
   /* ---- Faltas e fecho do dia ---- */
   { chave: "fecho_automatico", aba: "fecho", rotulo: "Lançar falta automática no fecho do dia", tipo: "bool", padrao: "1",
     fonte: "casa", classe: "escrita",
@@ -10698,6 +10701,197 @@ const api: Record<string, (a: any) => unknown> = {
      só daquele estágio. Sem o filtro, a aba do Little Kids mostraria também as aulas de espanhol —
      que é exatamente a mistura que ele mandou desfazer. Vindo nulo, devolve o aluno inteiro, que é
      como a tela da recepção ainda usa. */
+  /* ===== O CALENDÁRIO DO ALUNO (Wiztools 16, 27/09, dele) =====
+     *"É como se fosse uma fusão do calendário letivo que já tem no sistema, mais as questões do aluno…
+     tudo que tá na ficha de frequência hierárquica tem que aparecer aqui também."* E, depois de ver a
+     investigação: *"o calendário envolve tudo… não precisa estar vinculado a um contrato"* — é do ALUNO,
+     o ano inteiro, atravessando os contratos dele.
+     ESTA ROTA NÃO TEM REGRA PRÓPRIA. Ela junta o que as outras telas já calculam, para o calendário nunca
+     discordar delas (relatório em docs_wizard/CALENDARIO_DO_ALUNO_WIZTOOLS.md):
+       · o calendário letivo é o MESMO `getCalendario` da página Calendário (marcações, cor, fecha);
+       · cada contrato aberto vem da MESMA `getFichaFrequencia` da aba Ficha — a numeração, a fila de
+         reposição, a falta do fecho, a hora da aula — e as lições futuras da projeção dela;
+       · contrato fechado (fora da projeção) e o que a projeção descarta (falta em dia fechado, falta
+         antes do início) vêm da presença crua, marcados como tais;
+       · os fatos do percurso vêm das tabelas deles, cada um num selo.
+     O que é só do calendário: as pontas de ATRASO e HORÁRIO DIFERENTE (as duas flags do original hori-web),
+     medidas pela entrada contra a hora da aula. */
+  getCalendarioAluno({ idMatricula, ano }: any) {
+    const idm = String(idMatricula ?? "").trim();
+    const aluno = G("SELECT id_matricula, nome, nascimento FROM alunos WHERE id_matricula=?", idm);
+    if (!aluno) throw new Error("Aluno não encontrado: " + idm);
+    const hoje = dataISO(new Date());
+    const y = Number(ano) || Number(hoje.slice(0, 4));
+    if (!Number.isInteger(y) || y < 2000 || y > 2099) throw new Error("Ano fora do alcance: " + ano);
+    const ini = `${y}-01-01`, fim = `${y}-12-31`;
+    const noAno = (d: any) => !!d && String(d) >= ini && String(d) <= fim;
+    const dias: Record<string, any> = {};
+    const doDia = (d: string) => (dias[d] ||= { aulas: [], selos: [] });
+    const selo = (d: any, s: any) => { if (noAno(d)) doDia(String(d).slice(0, 10)).selos.push(s); };
+    const min = (h: any) => { const m = /^(\d{1,2}):(\d{2})/.exec(String(h || "")); return m ? +m[1] * 60 + +m[2] : null; };
+    const tol = Pn("tolerancia_atraso_min");
+    /* atraso × horário diferente, pela entrada contra a hora da aula (hori-web: 10 e 50 minutos) */
+    const flagsDe = (entrada: any, hora: any) => {
+      const e = min(entrada), h = min(hora);
+      if (e == null || h == null) return [];
+      const dif = e - h;
+      if (Math.abs(dif) >= 50) return ["diferente"];
+      return dif > tol ? ["atraso"] : [];
+    };
+
+    /* ---------- 1. o calendário letivo do ano, igual à página Calendário ---------- */
+    const cal: any = (api as any).getCalendario({ ano: y });
+    const letivo: Record<string, any[]> = {};
+    for (const m of cal.meses) for (const d of m.dias) if (d.doMes && d.marcas.length) letivo[d.iso] = d.marcas;
+
+    /* ---------- 2. os contratos: a biografia (aluno_estagio) + a agenda de hoje (aluno_livro) ---------- */
+    const abertos = new Set(A("SELECT livro FROM aluno_livro WHERE id_matricula=?", idm).map((r: any) => r.livro));
+    const contratos: any[] = [];
+    const porLivro = new Map<string, any>();
+    for (const p of A(`SELECT livro, estado, data_inicio, data_fim, contrato_seq FROM aluno_estagio
+                       WHERE id_matricula=? ORDER BY COALESCE(data_inicio,'9999-12-31'), id`, idm)) {
+      const c = { livro: p.livro, nome: nomeDoLivro(p.livro), seq: p.contrato_seq ?? null, estado: p.estado,
+        inicio: p.data_inicio || null, fim: p.estado === "cursando" ? null : (p.data_fim || null),
+        fimContrato: p.data_inicio && dataPlausivel(p.data_inicio) ? maisDias(p.data_inicio, Pn("contrato_dias")) : null,
+        /* "aberto" é o critério do cartão (getMatriculasAluno): em aluno_livro E com o percurso em curso. O
+           trancado que ficou em aluno_livro tem cartão FECHADO — o popover não pode oferecer a Ficha dele */
+        termino: null as string | null, aberto: abertos.has(p.livro) && p.estado === "cursando" };
+      contratos.push(c);
+      /* o percurso ABERTO do livro manda (um livro refeito tem duas linhas; a de agora é a cursando) */
+      if (!porLivro.has(p.livro) || p.estado === "cursando") porLivro.set(p.livro, c);
+    }
+    for (const l of abertos) if (!porLivro.has(l)) {   // contrato sem biografia (dado antigo): ainda assim é dele
+      const c = { livro: l, nome: nomeDoLivro(l), seq: null, estado: "cursando", inicio: null, fim: null,
+        fimContrato: null, termino: null, aberto: true };
+      contratos.push(c); porLivro.set(l, c);
+    }
+
+    /* ---------- 3. as aulas de cada contrato aberto: a Ficha, linha a linha ---------- */
+    const cobertos = new Set<string>();   // livro|data que a Ficha já contou
+    /* o contrato aberto cuja Ficha volta SEM linhas (sem horário na agenda, estágio sem lições): as presenças
+       dele vêm da presença crua com o motivo, e não com um "antes do início" que não é verdade (revisão) */
+    const desvio = new Map<string, string>();
+    for (const livro of abertos) {
+      let f: any = null;
+      try { f = (api as any).getFichaFrequencia({ idMatricula: idm, livro }); } catch { f = null; }
+      if (!f?.ficha) desvio.set(livro, f?.semAgenda ? "contrato sem horário na agenda — a Ficha não o conta"
+        : f?.semEstrutura ? "estágio sem lições cadastradas — a Ficha não o conta"
+        : f?.precisaInicio ? "contrato sem data de início — a Ficha não o conta" : "fora da conta da Ficha");
+      const c = porLivro.get(livro);
+      if (f && c) {
+        if (f.fimContrato) c.fimContrato = f.fimContrato;
+        if (f.termino) c.termino = f.termino;
+        if (!c.inicio && f.inicio) c.inicio = f.inicio;
+      }
+      for (const l of (f?.ficha || [])) {
+        /* o feriado é o fundo do dia, e NÃO cobre a presença crua: a falta lançada nele é justamente a que a
+           projeção descartou, e ela aparece no passo 4 com "não conta" (revisão da Wiztools 16) */
+        if (l.tipo === "feriado") continue;
+        cobertos.add(livro + "|" + l.data);
+        if (!noAno(l.data)) continue;
+        const cat = l.tipo === "falta" ? (l.auto ? "faltaAuto" : "falta")
+          : l.tipo === "naoaula" ? "naoaula"
+          : l.extra === "Reposição" ? "reposicao"
+          : l.extra === "Anteposição" ? "anteposicao"
+          : l.extra ? "extra"
+          : l.tipo === "tarefa" ? "tarefa" : "veio";
+        const ref = l.reposta ? { d: l.reposta.data, t: l.reposta.adiantada ? "Adiantada em" : "Reposta em" }
+          : l.cobre ? { d: l.cobre, t: cat === "anteposicao" ? "Adianta a falta de" : "Repõe a falta de" } : null;
+        doDia(l.data).aulas.push({
+          c: cat, l: livro, s: l.seq ?? null, h: l.hora || null, e: l.entrada || null, sa: l.saida || null,
+          mi: l.minutos ?? null, n: l.aula != null ? String(l.aula) + (l.sufixo || "") : null,
+          li: l.licao || null, co: l.conteudo || null, tl: l.tipoLicao || null, x: l.extra || null,
+          ok: cat === "reposicao" || cat === "anteposicao" ? true : (l.tipo === "falta" && !!l.reposta),
+          /* a ENTRADA é uma por dia (a presença é uma linha por data): só a 1ª aula do dia se mede por ela — a
+             2ª, uma hora depois, sairia sempre "horário diferente" (revisão da Wiztools 16) */
+          f: l.tipo === "falta" || l.tipo === "naoaula" || l.segueDia ? [] : flagsDe(l.entrada, l.hora),
+          r: ref, o: l.observacao || null, p: (l.professores || []).map((x: any) => x.nome || x).filter(Boolean),
+          emp: !!l.empurrada });
+      }
+      /* as lições que ainda vão acontecer, na data que a projeção planeja — só de contrato EM CURSO (o trancado
+         não tem aula planejada), e sem as VAGAS: a folga do contrato depois da última lição não é aula */
+      if (!c || c.estado !== "cursando") continue;
+      for (const L of (f?.linhas || [])) {
+        if (L.vaga || L.dataReal || !L.dataPlan || L.dataPlan < hoje || !noAno(L.dataPlan)) continue;
+        doDia(L.dataPlan).aulas.push({ c: "planejada", l: livro, h: L.hora || null,
+          n: L.aula != null ? String(L.aula) : null, li: L.licao || null, co: L.conteudo || null,
+          tl: L.tipo || null, ad: L.adendo || 0, f: [], ok: false });
+      }
+    }
+    /* ---------- 4. o que a Ficha não conta: contrato fechado e o que a projeção descarta ---------- */
+    const avulsoDe = new Map<string, string>();
+    for (const e of A("SELECT livro, data, motivo FROM encontro_avulso WHERE id_matricula=? AND data BETWEEN ? AND ?", idm, ini, fim))
+      avulsoDe.set(e.livro + "|" + e.data, e.motivo);
+    for (const p of A(`SELECT livro, data, status, auto, entrada, saida, observacao FROM presenca
+                       WHERE id_matricula=? AND data BETWEEN ? AND ? ORDER BY data`, idm, ini, fim)) {
+      if (cobertos.has(p.livro + "|" + p.data)) continue;
+      const x = avulsoDe.get(p.livro + "|" + p.data) || null;
+      const cat = p.status === "F" ? (p.auto ? "faltaAuto" : "falta") : p.status === "N" ? "naoaula"
+        : x === "Reposição" ? "reposicao" : x === "Anteposição" ? "anteposicao" : x ? "extra" : "veio";
+      /* num contrato ABERTO, a linha que a Ficha não trouxe é a que ela descarta de propósito */
+      const nota = !abertos.has(p.livro) ? null
+        : letivo[p.data]?.some((m: any) => m.fecha) ? (p.status === "P" ? (desvio.get(p.livro) || null) : "lançada em dia sem aula — não conta")
+        : desvio.get(p.livro) || "fora da conta do contrato (antes do início)";
+      doDia(p.data).aulas.push({ c: cat, l: p.livro, e: p.entrada || null, sa: p.saida || null, x,
+        f: [], ok: false, o: p.observacao || null, nota });
+    }
+
+    /* ---------- 5. os fatos do percurso, cada um num selo ---------- */
+    for (const h of A(`SELECT h.situacao, h.data, h.livro, h.tipo_rede, h.retorno_previsto, m.nome motivo
+                       FROM aluno_situacao_historico h LEFT JOIN motivo_saida m ON m.id=h.motivo_id
+                       WHERE h.id_matricula=? ORDER BY h.data, h.id`, idm)) {
+      const saida = ["Evadido", "Cancelado", "Encerrado", "Trancado"].includes(h.situacao);
+      selo(h.data, { t: h.situacao === "Trancado" ? "trancado" : saida ? "saida" : "entrada",
+        x: h.situacao + (h.livro ? " · " + nomeDoLivro(h.livro) : ""),
+        d: [h.motivo, h.tipo_rede].filter(Boolean).join(" — ") || null });
+      if (h.retorno_previsto) selo(h.retorno_previsto, { t: "volta", x: "Volta combinada do trancamento",
+        d: h.livro ? nomeDoLivro(h.livro) : null });
+    }
+    for (const r of A("SELECT livro, antes, depois, momento FROM aluno_horario_historico WHERE id_matricula=? ORDER BY momento", idm))
+      selo(String(r.momento).slice(0, 10), { t: "horario", x: "Troca de horário · " + nomeDoLivro(r.livro),
+        d: (r.antes || "sem horário") + " → " + (r.depois || "sem horário") });
+    for (const e of A(`SELECT e.livro, e.data, COALESCE(i.descricao, e.livro) item FROM entrega_material e
+                       LEFT JOIN estoque_item i ON i.id=e.item_id WHERE e.id_matricula=? AND e.data IS NOT NULL`, idm))
+      selo(e.data, { t: "material", x: "Material entregue", d: e.item });
+    for (const e of A(`SELECT d.data, d.motivo, COALESCE(i.descricao, d.livro) item FROM devolucao_material d
+                       LEFT JOIN estoque_item i ON i.id=d.item_id WHERE d.id_matricula=?`, idm))
+      selo(e.data, { t: "material", x: "Material devolvido", d: [e.item, e.motivo].filter(Boolean).join(" — ") });
+    const desfechoNome: Record<string, string> = Object.fromEntries(DESFECHOS_ATENDIMENTO.map((x: any) => [x.id, x.nome || x.id]));
+    /* VENCIDO é a conta única da casa (`retornosVencidos`, a mesma da Central e da fila de risco) */
+    const vencidos = new Set(retornosVencidos(hoje).filter((x: any) => String(x.idMatricula) === idm).map((x: any) => x.id));
+    for (const a of A("SELECT id, data, canal, relato, desfecho, retornar_em FROM atendimento WHERE id_matricula=? ORDER BY data, id", idm)) {
+      selo(a.data, { t: "contato", x: "Contato · " + a.canal + " · " + (desfechoNome[a.desfecho] || a.desfecho), d: a.relato || null });
+      if (a.retornar_em) {
+        const feito = !!G(`SELECT 1 FROM atendimento y WHERE y.id_matricula=? AND y.desfecho='falou'
+                             AND (y.data>? OR (y.data=? AND y.id>?))`, idm, a.retornar_em, a.retornar_em, a.id);
+        selo(a.retornar_em, { t: "retorno", x: "Retornar o contato", v: vencidos.has(a.id), d: feito ? "feito" : null });
+      }
+    }
+    /* o que está MARCADO e ainda não aconteceu (o que já aconteceu é aula, na Ficha) */
+    for (const e of A(`SELECT livro, data, hora, motivo FROM encontro_avulso WHERE id_matricula=? AND data>=?`, idm, hoje))
+      if (!G("SELECT 1 FROM presenca WHERE id_matricula=? AND livro=? AND data=?", idm, e.livro, e.data))
+        selo(e.data, { t: "marcado", x: e.motivo + " marcada · " + e.hora, d: nomeDoLivro(e.livro) });
+    for (const e of A("SELECT livro, data, hora, motivo FROM encontro_avulso_desmarcado WHERE id_matricula=?", idm))
+      selo(e.data, { t: "desmarcado", x: e.motivo + " desmarcada · " + e.hora, d: nomeDoLivro(e.livro) });
+    if (aluno.nascimento && /^\d{4}-\d{2}-\d{2}$/.test(aluno.nascimento)) {
+      let md = aluno.nascimento.slice(5);
+      if (md === "02-29" && !(y % 4 === 0 && (y % 100 !== 0 || y % 400 === 0))) md = "02-28";
+      const idade = y - Number(aluno.nascimento.slice(0, 4));
+      if (idade > 0) selo(`${y}-${md}`, { t: "aniversario", x: "Aniversário · " + idade + " anos" });
+    }
+
+    /* ---------- 6. o calendário letivo entra por dia, e os anos navegáveis ---------- */
+    for (const d in letivo) doDia(d).cal = letivo[d];
+    const anosDe = [...contratos.map(c => c.inicio), ...contratos.map(c => c.fim || c.termino || c.fimContrato),
+      A("SELECT MIN(data) d FROM presenca WHERE id_matricula=?", idm)[0]?.d, hoje]
+      .filter((d: any) => d && dataPlausivel(d)).map((d: any) => Number(String(d).slice(0, 4)));
+    return {
+      idMatricula: idm, nome: aluno.nome, ano: y, hoje,
+      anos: { de: Math.min(...anosDe), ate: Math.max(...anosDe) },
+      config: { sabadoUtil: !!cal.sabadoUtil, domingoUtil: !!cal.domingoUtil, toleranciaAtraso: tol },
+      contratos, dias,
+    };
+  },
   getFrequenciaAluno({ idMatricula, livro }: any) {
     const dInfo: Record<string, any> = {}; A("SELECT * FROM dias").forEach(r => dInfo[r.nome] = r);
     /* dias regulares POR LIVRO: é contra eles que se decide se a data caiu fora do horário dele.

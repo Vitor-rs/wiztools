@@ -5261,6 +5261,86 @@ button.acao.sec.cg-ir{margin:0;padding:4px 10px;font-size:12px;white-space:nowra
 .mat-slot .ff-moldura{flex:1 1 auto;min-height:0;max-height:none;overflow:auto;
   scrollbar-gutter:stable}
 .mat-slot #ficha-corpo{max-height:none}
+/* ===== CALENDÁRIO DO ALUNO (Wiztools 16, 27/09) =====
+   O calendário anual horizontal do hori-web, trazido para dentro da página do aluno — é do ALUNO, não
+   de um contrato, então o botão mora na faixa dele, na linha dos Dados pessoais, embaixo de Excluir e
+   Limpar. Aberto, ele toma o lugar dos contratos: o trilho de estágios e o cartão saem (é o "recolher
+   o topo" que ele aprovou), e a grade calcula o próprio tamanho pelo espaço que sobrou — nada em pixel
+   fixo, nada de rolagem. Relatório: docs_wizard/CALENDARIO_DO_ALUNO_WIZTOOLS.md. */
+.al-dados{position:relative}
+/* pelo ID: `button.acao` (elemento + classe) pesa mais que uma classe só, e o botão nunca sumia sem aluno */
+#al-cal-bt{position:absolute;right:0;top:-4px;height:26px;padding:0 12px;margin:0!important;display:none;
+  align-items:center;justify-content:center;gap:6px;font-size:12px;white-space:nowrap}
+#al-cal-bt.on{display:inline-flex}
+#al-cal-bt[aria-pressed="true"]{background:var(--marca);border-color:var(--marca);color:#fff}
+#al-cal-bt svg{flex:0 0 auto}
+#tab-alunos.calx-on #al-sec-contratos,#tab-alunos.calx-on #al-mat-abas,
+#tab-alunos.calx-on #al-p-cadastro,#tab-alunos.calx-on #al-p-matriculas{display:none!important}
+#tab-alunos>.pg-corpo>#al-p-calendario{display:none}
+#tab-alunos.calx-on>.pg-corpo>#al-p-calendario{display:flex;flex:1 1 auto;min-height:0;flex-direction:column;
+  padding:10px 0 12px}
+.calx-barra{display:flex;align-items:center;gap:12px;flex-wrap:nowrap;min-height:34px;padding:0 0 8px}
+.calx-ano{display:inline-flex;align-items:center;gap:2px;border:1px solid var(--borda);border-radius:9px;
+  background:#fff;padding:2px}
+.calx-ano button{appearance:none;border:0;background:none;padding:3px 5px;border-radius:6px;cursor:pointer;
+  color:var(--tx3);display:inline-flex}
+.calx-ano button:hover:not(:disabled){background:var(--cz);color:var(--marca)}
+.calx-ano button:disabled{opacity:.35;cursor:default}
+.calx-ano b{font-size:15px;min-width:46px;text-align:center;font-variant-numeric:tabular-nums;color:var(--marca)}
+.calx-busca{display:flex;align-items:center;gap:6px;flex:0 0 auto;position:relative}
+.calx-busca svg.calx-lupa{position:absolute;left:8px;top:50%;transform:translateY(-50%);color:var(--tx3);pointer-events:none}
+.calx-busca input{width:206px;margin:0;height:29px;padding:4px 8px 4px 28px;font-size:12px}
+.calx-busca button{height:29px;padding:0 11px;margin:0;font-size:12px}
+.calx-chip{flex:1 1 auto;min-width:0;font-size:12px;color:var(--tx2);white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis}
+.calx-chip b{color:var(--marca);font-weight:700}
+.calx-chip .calx-chip-sel{background:#DBEAFE;color:#1E40AF;border-radius:20px;padding:1px 8px;margin-right:6px;font-weight:600}
+.calx-opc{display:flex;align-items:center;gap:6px;flex:0 0 auto;font-size:12px;color:var(--tx2)}
+.calx-opc label{display:inline-flex;align-items:center;gap:5px;margin:0 6px 0 0;font-size:12px;font-weight:500;
+  text-transform:none;letter-spacing:0;color:var(--tx2);cursor:pointer}
+.calx-opc input[type=checkbox]{width:auto;margin:0;accent-color:var(--marca)}
+.calx-opc .bt-ic{appearance:none;border:1px solid var(--borda);background:#fff;border-radius:8px;height:29px;
+  padding:0 9px;display:inline-flex;align-items:center;gap:5px;cursor:pointer;color:var(--tx2);font-size:12px}
+.calx-opc .bt-ic:hover{border-color:var(--azul-borda);color:var(--marca)}
+.calx-area{flex:1 1 auto;min-height:0;position:relative;background:#fff;border:1px solid var(--borda);
+  border-radius:12px;overflow:hidden}
+.calx-area>svg{position:absolute;inset:0;display:block;width:100%;height:100%;user-select:none;-webkit-user-select:none}
+.calx-vazio{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--tx3);font-size:13px}
+/* dentro do SVG */
+.calx-d{cursor:default}
+.calx-d.tem{cursor:pointer}
+.calx-d.calx-sel>.calx-c,.calx-d.calx-bus>.calx-c{fill:#BFDBFE!important;stroke:#60A5FA;stroke-width:1.2}
+.calx-d:hover>.calx-c{stroke:#3B82F6;stroke-width:2}
+.calx-rot{font-weight:700;transition:fill .15s}
+.calx-mes{font-weight:600;transition:fill .12s}
+.calx-mes.on{font-weight:900;fill:#1E3A8A}
+.calx-hoje{animation:calx-pulso 2s cubic-bezier(.4,0,.6,1) infinite}
+@keyframes calx-pulso{0%,100%{opacity:1}50%{opacity:.45}}
+.calx-fl{fill:rgba(255,255,255,.08);stroke-width:3;transform-box:fill-box;transform-origin:center;
+  animation:calx-carnaval 1.5s infinite}
+@keyframes calx-carnaval{0%{stroke:#ef4444;transform:scale(1)}25%{stroke:#f59e0b}
+  50%{stroke:#3b82f6;transform:scale(1.15)}75%{stroke:#10b981}100%{stroke:#ef4444;transform:scale(1)}}
+@media (prefers-reduced-motion:reduce){.calx-hoje,.calx-fl{animation:none}}
+/* o popover do dia é o da casa (.cal-pop), só que CLICÁVEL: ele tem botões */
+.cal-pop.calx-pop{pointer-events:auto;max-width:340px;min-width:230px;padding:9px 11px 10px}
+.calx-pop-sec{margin-top:7px;padding-top:6px;border-top:1px solid var(--borda)}
+.calx-pop-sec:first-of-type{margin-top:4px}
+.calx-pop-t2{font-size:10px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px}
+.calx-pop-aula{display:flex;gap:7px;align-items:flex-start;padding:3px 0;font-size:12px}
+.calx-pop-aula .calx-pil{width:14px;height:5px;border-radius:2px;margin-top:6px;flex:0 0 auto}
+.calx-pop-aula div{min-width:0}
+.calx-pop-aula b{color:var(--marca);font-weight:600}
+.calx-pop-aula small{display:block;color:var(--tx3);font-size:11px}
+.calx-pop-aula em{display:block;color:var(--tx2);font-size:11px}
+.calx-pop-ir{appearance:none;border:1px solid #BFDBFE;background:#EFF6FF;color:#1D4ED8;border-radius:6px;
+  font-size:11px;font-weight:600;padding:1px 7px;margin-top:3px;cursor:pointer}
+.calx-pop-ir:hover{background:#DBEAFE}
+.calx-pop-acoes{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}
+.calx-pop-acoes button{appearance:none;border:1px solid var(--borda);background:#fff;border-radius:7px;
+  font-size:11.5px;padding:3px 9px;cursor:pointer;color:var(--marca);font-weight:600}
+.calx-pop-acoes button:hover{border-color:var(--azul-borda);background:var(--azul-cl)}
+.calx-leg{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px 14px}
+.calx-leg .cal-pop-l{padding:2px 0}
 </style>
 </head>
 <body>
@@ -5431,6 +5511,10 @@ button.acao.sec.cg-ir{margin:0;padding:4px 10px;font-size:12px;white-space:nowra
      idade está sem responsável; aberta, são cinco campos que o botão Salvar da faixa grava junto. -->
 <div class="al-dados" id="al-dados">
 <button type="button" class="al-dados-bt" id="al-dados-bt" onclick="alDadosAbrir()" aria-expanded="false"><span class="al-dados-seta"></span><b>Dados pessoais</b><span id="al-dados-resumo"></span></button>
+<!-- o CALENDÁRIO DO ALUNO (Wiztools 16): embaixo de Excluir e Limpar, com a largura dos dois, no vão
+     à direita da linha dos Dados pessoais — é do aluno, não de um contrato -->
+<button type="button" class="acao sec al-cal-bt" id="al-cal-bt" onclick="calxAlternar()" aria-pressed="false"
+ title="O ano do aluno numa tela: aulas, faltas, reposições, o calendário letivo e o percurso">Calendário</button>
 <div class="al-dados-campos" id="al-dados-campos">
 <div class="al-campo"><label for="al-nasc">Nascimento</label><input id="al-nasc" type="date"></div>
 <div class="al-campo"><label for="al-tel">Telefone</label><input id="al-tel" placeholder="(67) 9 0000-0000" autocomplete="off"></div>
@@ -5459,6 +5543,9 @@ button.acao.sec.cg-ir{margin:0;padding:4px 10px;font-size:12px;white-space:nowra
 <div id="al-p-cadastro" class="al-painel">
 <div id="mat-lista"><div class="matriculas-vazio">Escolha ou cadastre um aluno para ver as matrículas.</div></div>
 </div>
+<!-- ===== O CALENDÁRIO DO ALUNO (Wiztools 16) ===== toma o lugar dos contratos enquanto está aberto;
+     `calxMontar` desenha a barra e a área na primeira vez -->
+<div id="al-p-calendario" class="al-painel"></div>
 
 <!-- ===== ABA 2 · INFORMAÇÕES: o que aconteceu com este aluno ===== -->
 <div id="al-p-matriculas" class="al-painel" style="display:none">
@@ -6379,7 +6466,7 @@ var SO_LEITURA=/^(get|listar|preview|info)/;
    `PRE_CARGA` guarda promessa em voo: pedir a mesma coisa duas vezes enquanto a primeira não
    voltou (clicar rápido entre abas) não gera dois pedidos. */
 var API_CACHE={}, API_VOO={};
-var CACHEAVEL=/^(getHistoricoAluno|getHorariosHistoricoAluno|getFrequenciaAluno|getPlanejamento|getFichaFrequencia)$/;
+var CACHEAVEL=/^(getHistoricoAluno|getHorariosHistoricoAluno|getFrequenciaAluno|getPlanejamento|getFichaFrequencia|getCalendarioAluno)$/;
 function cacheChave(fn,a){return fn+'|'+JSON.stringify(a===undefined?{}:a)}
 function cacheLimpar(){API_CACHE={};API_VOO={}}
 function run(fn,args,ok,falhou){
@@ -6792,6 +6879,9 @@ i.title=pode?'':'O estágio só pode ser vinculado depois que o aluno existir no
    A função continua existindo porque meia dúzia de lugares navega por ela (a Central, `alNovo`,
    o painel de progresso): ela virou "garanta que a página do aluno está à mostra". */
 function alAba(p){
+/* quem leva a um lugar da página do aluno (Central, Dashboard, vínculo novo) quer os contratos, não o
+   calendário por cima (Wiztools 16) */
+if(CALX_ABERTO)calxFechar();
 var c=$('al-p-cadastro');if(c)c.style.display='block';
 ['matriculas','progresso'].forEach(function(x){var e=$('al-p-'+x);if(e)e.style.display='none'});
 var f=$('al-faixa-cx');if(f)f.style.display='block';
@@ -6866,6 +6956,7 @@ run('trocarIdMatricula',[{de:de,para:novo}],function(r){
 /* os três registros deixaram de ser sanfona: nesta aba eles SÃO o conteúdo, então carregam junto
    com o aluno. São três chamadas pequenas, e só quando alguém é escolhido. */
 function alHistoricos(){
+calxAposAluno();   /* o calendário do aluno acompanha a troca (Wiztools 16) */
 if(!alSel){histFechar();hhistFechar();freqFechar();planFechar();progFechar();return}
 histCarregar();hhistCarregar();freqCarregar();
 /* o currículo NÃO entra aqui: ele é o único que calcula (800 dias de varredura mais a expansão do
@@ -8965,13 +9056,17 @@ var casa=$('al-p-matriculas'), casaP=$('al-p-progresso');
 function matSubAba(card,t){
 if(!card)return;
 var livro=card.dataset.livro||null;
+var corpo=card.querySelector(':scope > .mat-corpo'), slot=card.querySelector(':scope > .mat-slot');
+/* CONTRATO FECHADO NÃO TEM SLOT (Wiztools 16): `criarCartaoMatricula` volta antes de criá-lo, e abrir
+   o cartão na aba de sempre ("Painel") estourava em `slot.style` — o erro era engolido pelo `run`, e o
+   resto da troca de aluno (os históricos, `alHistoricos`) nunca rodava para quem só tem contrato
+   encerrado. Nele só existe o corpo: a aba é a de Horário e contrato. */
+if(!slot)t='info';
 MAT_CTX=livro;
 card.dataset.sub=t;
 card.querySelectorAll(':scope > .mat-tabs .pg-aba').forEach(function(b){b.classList.toggle('on',b.dataset.t===t)});
-var corpo=card.querySelector(':scope > .mat-corpo'), slot=card.querySelector(':scope > .mat-slot');
-corpo.style.display=(t==='info'?'':'none');
-slot.style.display=(t==='info'?'none':'');
-matEsvaziarSlot(slot);
+if(corpo)corpo.style.display=(t==='info'?'':'none');
+if(slot){slot.style.display=(t==='info'?'none':'');matEsvaziarSlot(slot)}
 if(t==='info'){
  var d=card.querySelector('.mat-duplas');
  var sit=$('al-s-situacao'), hor=$('al-s-horario');
@@ -15860,6 +15955,592 @@ else gravar()}
 /* ===== ARQUIVADOS: a base do que saiu de circulação =====
    Uma tabela só para os cinco tipos. A 1ª coluna são as AÇÕES, como ele pediu — desarquivar volta
    o registro ao lugar de origem, excluir é definitivo e mora só aqui. */
+/* ===== CALENDÁRIO DO ALUNO (Wiztools 16, 27/09) =====
+   O calendário anual horizontal do hori-web (Wiz_Tools/hori-web/.../horizontal-calendar), trazido para
+   dentro do app — fiel no desenho e no comportamento, sem as gambiarras do original. O porquê de cada
+   escolha está em docs_wizard/CALENDARIO_DO_ALUNO_WIZTOOLS.md; o resumo:
+   · UM SVG SÓ, com as seis camadas do original como grupos (bandas de fim de semana, fundo do crosshair,
+     rótulos, células, bordas do crosshair, pulso da busca). No original eram dois SVGs e quatro camadas
+     de HTML em pixel por cima — só se alinhavam porque ninguém escalava nada.
+   · NADA EM PIXEL FIXO: o passo da grade sai do espaço que a área tem (`calxDesenhar`), e um
+     ResizeObserver redesenha quando a janela muda. É isso que faz caber sem rolar — o original pedia
+     ~1.540×700 px e rolava em qualquer laptop.
+   · COLUNA = DIA DA SEMANA REPETIDO (37 = 31 dias + 6 de deslocamento; `c%7` é o dia, segunda = 0): toda
+     segunda cai numa coluna de "2ª" em qualquer mês — é o que deixa o crosshair vertical ter sentido.
+   · UM OUVINTE SÓ no SVG, que acha o dia pela posição do mouse (o original ligava quatro por célula e um
+     `mousedown` no documento inteiro, que no app limparia a seleção a cada clique em qualquer lugar).
+   Os DADOS são uma rota só, `getCalendarioAluno`, que junta o que a Ficha, a projeção e o calendário
+   letivo já calculam — o calendário nunca discorda deles. */
+var CALX=null,CALX_ANO=null,CALX_ABERTO=false,CALX_DOM=null,CALX_G=null,CALX_SEL=null,CALX_ARR=false,
+  CALX_ARRASTOU=false,CALX_BUS={flash:{},faixa:{}},CALX_FL_T=null,CALX_SEL_T=null,CALX_POP=null,
+  CALX_CRUZ={m:null,c:null},CALX_PENDENTE=null,CALX_RAF=0;
+var CALX_DOW=['2ª','3ª','4ª','5ª','6ª','Sáb','Dom'];
+var CALX_DOW_LONGO=['segunda','terça','quarta','quinta','sexta','sábado','domingo'];
+var CALX_MES_CURTO=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+/* as cores do original (hori-web, utils/logic.ts) — e elas coincidem com as da Ficha: âmbar é reposição,
+   roxo é anteposição, verde é veio */
+var CALX_CAT={
+ veio:{n:'Veio',c:'#22c55e'}, falta:{n:'Faltou',c:'#ef4444'}, faltaAuto:{n:'Falta do fecho do dia',c:'#fca5a5'},
+ reposicao:{n:'Reposição',c:'#fbbf24'}, anteposicao:{n:'Anteposição',c:'#c084fc'},
+ extra:{n:'Reforço / preparação',c:'#60a5fa'}, tarefa:{n:'Aula de tarefa',c:'#fde68a'},
+ naoaula:{n:'Não-aula',c:'#cbd5e1'}, planejada:{n:'Planejada',c:'#dcfce7',s:'#86efac'}};
+var CALX_FLAG={atraso:{n:'Atraso',c:'#f97316'},diferente:{n:'Horário diferente',c:'#ec4899'}};
+/* o SELO do canto: um fato do percurso. Com mais de um no dia, pinta o de maior prioridade (p menor) */
+var CALX_SELO={
+ saida:{n:'Saída',c:'#dc2626',p:1}, trancado:{n:'Trancamento',c:'#d97706',p:2},
+ volta:{n:'Volta combinada',c:'#f59e0b',p:3}, retorno:{n:'Retornar contato',c:'#2563eb',p:4},
+ entrada:{n:'Matrícula / rematrícula',c:'#0f766e',p:5}, contato:{n:'Contato',c:'#0ea5e9',p:6},
+ marcado:{n:'Encontro marcado',c:'#7c3aed',p:7}, horario:{n:'Troca de horário',c:'#db2777',p:8},
+ material:{n:'Material',c:'#a16207',p:9}, desmarcado:{n:'Desmarcado',c:'#94a3b8',p:10},
+ aniversario:{n:'Aniversário',c:'#e11d48',p:11}};
+var CALX_PRESENTE={veio:1,reposicao:1,anteposicao:1,extra:1,tarefa:1};
+
+/* ---------- o botão na faixa do aluno ---------- */
+function calxBotao(){
+var b=$('al-cal-bt');if(!b)return;
+if(!alSel){b.classList.remove('on');return}
+b.classList.add('on');
+b.innerHTML=icon(CALX_ABERTO?'x':'calendar-days',14)+'<span>'+(CALX_ABERTO?'Fechar calendário':'Calendário')+'</span>';
+b.setAttribute('aria-pressed',CALX_ABERTO?'true':'false');
+/* a LARGURA de Excluir + Limpar, medida (ordem dele): os dois mudam com a fonte, e o Excluir some sem aluno */
+var ex=$('al-excluir'),li=ex&&ex.nextElementSibling;
+if(ex&&li&&ex.offsetParent&&li.offsetParent){
+ var w=li.getBoundingClientRect().right-ex.getBoundingClientRect().left;
+ if(w>40)b.style.width=Math.round(w)+'px';
+}
+}
+window.addEventListener('resize',function(){if(alSel)calxBotao()});
+function calxAlternar(){if(CALX_ABERTO)calxFechar();else calxAbrir()}
+function calxAbrir(){
+if(!alSel)return;
+CALX_ABERTO=true;
+$('tab-alunos').classList.add('calx-on');
+calxMontar();
+if(!CALX_ANO)CALX_ANO=new Date().getFullYear();
+calxBotao();
+calxCarregar();
+}
+function calxFechar(){
+CALX_ABERTO=false;
+var t=$('tab-alunos');if(t)t.classList.remove('calx-on');
+calxPopFechar();
+calxBotao();
+}
+/* chamado por `alHistoricos`, que roda a cada aluno carregado, trocado ou limpo */
+function calxAposAluno(){
+/* aluno NOVO (ou nenhum): a seleção, a busca e o que estava pendente eram do anterior — nada disso passa
+   pelo Limpar para o próximo (revisão da Wiztools 16) */
+if(!alSel||(CALX&&String(CALX.idMatricula)!==String(alSel.id))){
+ calxPopFechar();CALX=null;CALX_ANO=null;CALX_SEL=null;CALX_BUS={flash:{},faixa:{}};CALX_PENDENTE=null;
+ if(CALX_SEL_T){clearTimeout(CALX_SEL_T);CALX_SEL_T=null}}
+if(!alSel){calxFechar();return}
+calxBotao();
+if(CALX_ABERTO){if(!CALX_ANO)CALX_ANO=new Date().getFullYear();calxCarregar()}
+}
+
+/* ---------- a barra e a área, montadas uma vez ---------- */
+function calxMontar(){
+var p=$('al-p-calendario');if(!p||p.dataset.montado)return;
+p.dataset.montado='1';
+p.innerHTML='<div class="calx-barra">'
+ +'<div class="calx-ano"><button type="button" id="calx-ant" title="Ano anterior">'+icon('chevron-left',16)+'</button>'
+ +'<b id="calx-ano-n"></b><button type="button" id="calx-prox" title="Próximo ano">'+icon('chevron-right',16)+'</button></div>'
+ +'<form class="calx-busca" id="calx-busca-f" autocomplete="off">'+icon('search',14).replace('<svg ','<svg class="calx-lupa" ')
+ +'<input id="calx-busca" placeholder="Buscar: 27/11, 01/05-05/05" title="Uma data (27/11), várias separadas por vírgula '
+ +'(27/11, 03/12) ou um intervalo com hífen (01/08-31/08). O ano é opcional (27/11/2025). Esc limpa.">'
+ +'<button type="submit" class="acao sec">Buscar</button></form>'
+ +'<div class="calx-chip" id="calx-chip"></div>'
+ +'<div class="calx-opc"><label title="Mostrar as colunas de domingo"><input type="checkbox" id="calx-dom"> Domingos</label>'
+ +'<button type="button" class="bt-ic" id="calx-leg">'+icon('info',14)+'Legenda</button>'
+ +'<button type="button" class="bt-ic" id="calx-rec" title="Recalcular — buscar de novo no servidor">↻</button></div>'
+ +'</div><div class="calx-area" id="calx-area"><svg id="calx-svg" xmlns="http://www.w3.org/2000/svg"></svg></div>';
+$('calx-ant').onclick=function(){calxAnoMover(-1)};
+$('calx-prox').onclick=function(){calxAnoMover(1)};
+$('calx-busca-f').onsubmit=function(ev){ev.preventDefault();calxBuscar($('calx-busca').value)};
+$('calx-busca').oninput=function(){var i=$('calx-busca');i.value=calxMascara(i.value)};
+$('calx-dom').onchange=function(){CALX_DOM=this.checked;calxDesenhar()};
+$('calx-leg').onclick=function(ev){ev.stopPropagation();calxLegenda(this)};
+$('calx-rec').onclick=function(){cacheLimpar();calxCarregar()};
+var svg=$('calx-svg');
+svg.addEventListener('mousemove',function(ev){
+ var q=calxPonto(ev);calxCruz(q.m,q.c);if(!CALX_ARR)calxHover(q.iso);
+ if(CALX_ARR&&q.iso&&CALX_SEL&&q.iso!==CALX_SEL.b){CALX_SEL.b=q.iso;CALX_ARRASTOU=true;calxPintarSel();calxResumo()}
+});
+svg.addEventListener('mouseleave',function(){calxCruz(null,null);calxHover(null)});
+svg.addEventListener('mousedown',function(ev){
+ if(ev.button!==0)return;
+ var q=calxPonto(ev);calxPopFechar();
+ if(!q.iso){if(q.m==null){CALX_SEL=null;CALX_BUS.faixa={};calxPintarSel();calxResumo()}return}
+ ev.preventDefault();
+ if(CALX_SEL_T){clearTimeout(CALX_SEL_T);CALX_SEL_T=null}
+ CALX_BUS.faixa={};CALX_ARR=true;CALX_ARRASTOU=false;CALX_SEL={a:q.iso,b:q.iso};
+ calxPintarSel();calxResumo();
+});
+svg.addEventListener('click',function(ev){
+ if(CALX_ARRASTOU){CALX_ARRASTOU=false;return}
+ var q=calxPonto(ev);
+ if(q.iso){calxPopAbrir(q.iso);return}
+ /* clique no NOME do mês: seleciona o mês inteiro, e o resumo diz o que houve nele */
+ if(q.m!=null&&q.c==null&&q.naColunaMes)calxSelMes(q.m);
+});
+/* o arraste termina onde o botão soltar, mesmo fora do calendário */
+window.addEventListener('mouseup',function(){
+ if(!CALX_ARR)return;
+ CALX_ARR=false;
+ /* solto FORA do SVG, o clique não vem — e a marca de "arrastou" engoliria o próximo clique de verdade */
+ setTimeout(function(){CALX_ARRASTOU=false},0);
+ /* dia ÚNICO se apaga sozinho em 6 s — o prazo do original (config/rules.ts) */
+ if(CALX_SEL&&CALX_SEL.a===CALX_SEL.b){
+  CALX_SEL_T=setTimeout(function(){CALX_SEL_T=null;
+   if(CALX_SEL&&CALX_SEL.a===CALX_SEL.b){CALX_SEL=null;calxPintarSel();calxResumo()}},6000)}
+});
+document.addEventListener('keydown',function(ev){
+ if(ev.key!=='Escape'||!CALX_ABERTO)return;
+ if(CALX_POP){calxPopFechar();return}
+ CALX_SEL=null;CALX_BUS={flash:{},faixa:{}};calxPintarSel();calxPintarFlash();calxResumo();
+});
+if(window.ResizeObserver)new ResizeObserver(function(){
+ if(!CALX_ABERTO||!CALX)return;
+ cancelAnimationFrame(CALX_RAF);CALX_RAF=requestAnimationFrame(function(){calxDesenhar();calxPopFechar()});
+}).observe($('calx-area'));
+}
+function calxDomingos(){return CALX_DOM!==null?CALX_DOM:!!(CALX&&CALX.config&&CALX.config.domingoUtil)}
+function calxVazio(txt){
+var s=$('calx-svg');if(s)s.innerHTML='<text x="50%" y="50%" text-anchor="middle" fill="#5F6771" font-size="13">'
+ +escBloco(txt)+'</text>';
+}
+function calxCarregar(){
+if(!alSel||!CALX_ABERTO)return;
+var id=String(alSel.id),ano=CALX_ANO;
+$('calx-ano-n').textContent=ano;
+if(!CALX||String(CALX.idMatricula)!==id||CALX.ano!==ano){CALX_G=null;calxVazio('calculando…');$('calx-chip').innerHTML=''}
+run('getCalendarioAluno',[{idMatricula:id,ano:ano}],function(r){
+ /* resposta VELHA não pinta: trocar de aluno ou de ano com o pedido anterior em voo pintaria por cima */
+ if(!CALX_ABERTO||!alSel||String(alSel.id)!==String(r.idMatricula)||r.ano!==CALX_ANO)return;
+ CALX=r;
+ $('calx-dom').checked=calxDomingos();
+ calxAnos();calxDesenhar();calxResumo();
+ if(CALX_PENDENTE){var q=CALX_PENDENTE;CALX_PENDENTE=null;calxAplicarBusca(q)}
+},function(){if(CALX_ABERTO&&alSel&&String(alSel.id)===id&&CALX_ANO===ano)calxVazio('Não deu para montar o calendário deste aluno.')});
+}
+/* o ano anda dentro da vida do aluno (da 1ª entrada ao fim do último contrato), e sempre alcança o ano de hoje */
+function calxLimites(){
+var h=new Date().getFullYear(),a=CALX&&CALX.anos||{de:h,ate:h};
+return {de:Math.min(a.de,h),ate:Math.max(a.ate,h)};
+}
+function calxAnos(){var l=calxLimites();$('calx-ant').disabled=CALX_ANO<=l.de;$('calx-prox').disabled=CALX_ANO>=l.ate}
+function calxAnoMover(d){
+var l=calxLimites(),n=CALX_ANO+d;if(n<l.de||n>l.ate)return;
+CALX_ANO=n;CALX_SEL=null;CALX_BUS={flash:{},faixa:{}};CALX_PENDENTE=null;calxPopFechar();calxCarregar();
+}
+
+/* ---------- a geometria: o passo sai do espaço, não de constante ---------- */
+function calxVis(G,c){return G.dom?c:(c%7===6?-1:c-Math.floor((c+1)/7))}
+function calxDesenhar(){
+var svg=$('calx-svg'),area=$('calx-area');if(!svg||!area||!CALX)return;
+var W=area.clientWidth,H=area.clientHeight;if(W<80||H<80)return;
+var dom=calxDomingos(),cols=dom?37:32,pad=8,cab=24;
+/* o PASSO é o menor dos dois — a célula fica quadrada, como no original, e a sobra centraliza. Abaixo de
+   25 px os meses viram abreviados, e a coluna deles devolve o espaço à grade. */
+var mesesW=66,passo=Math.min((H-cab-pad*2)/12,(W-mesesW-pad*2)/cols),curto=false;
+if(passo<25){curto=true;mesesW=36;passo=Math.min((H-cab-pad*2)/12,(W-mesesW-pad*2)/cols)}
+passo=Math.max(9,Math.min(passo,46));
+var cel=passo*0.88,vao=passo-cel,larg=mesesW+cols*passo;
+var x0=Math.max(pad,(W-larg)/2),gx=x0+mesesW,gy=pad+cab;
+var G={W:W,H:H,dom:dom,cols:cols,passo:passo,cel:cel,vao:vao,mesesW:mesesW,x0:x0,gx:gx,gy:gy,cab:cab,pad:pad,curto:curto};
+CALX_G=G;CALX_CRUZ={m:null,c:null};
+svg.setAttribute('viewBox','0 0 '+W+' '+H);
+var f=function(n){return Math.round(n*100)/100};
+var y=CALX.ano,hoje=CALX.hoje,defs=[],grad={},h=[];
+var fNum=Math.max(8,Math.min(12.5,cel*0.34)),fRot=Math.max(9,Math.min(11.5,passo*0.34)),
+  fMes=curto?Math.max(9,Math.min(11,passo*0.42)):Math.max(10,Math.min(12.5,passo*0.36));
+var cx=function(c){return gx+calxVis(G,c)*passo+vao/2},cy=function(m){return gy+m*passo+vao/2};
+var gridDir=gx+cols*passo;
+/* CAMADA 1 — as bandas de fim de semana (sábado + domingo), arredondadas no pé */
+for(var c=5;c<37;c+=7){var v=calxVis(G,c);if(v<0)continue;
+ h.push('<rect x="'+f(gx+v*passo)+'" y="'+pad+'" width="'+f(passo*(dom?2:1))+'" height="'+f(cab+12*passo+2)
+  +'" rx="8" fill="rgba(226,232,240,.5)"/>')}
+/* CAMADA 2 — o fundo do crosshair (a faixa do mês vai da coluna dos meses ao fim da grade: é a borda
+   "aberta" do original, agora de graça, porque é uma forma só) */
+h.push('<rect id="calx-cr-h" x="'+f(x0+2)+'" y="0" width="'+f(gridDir-x0-2)+'" height="'+f(passo)
+ +'" rx="6" fill="rgba(243,244,246,.9)" display="none"/>');
+h.push('<rect id="calx-cr-v" x="0" y="'+pad+'" width="'+f(passo)+'" height="'+f(cab+12*passo+4)
+ +'" rx="6" fill="rgba(243,244,246,.9)" display="none"/>');
+h.push('<rect id="calx-cr-tip" x="0" y="'+pad+'" width="'+f(passo)+'" height="'+f(cab-4)
+ +'" rx="6" fill="#2563eb" display="none"/>');
+/* CAMADA 3 — rótulos: a quina "Dias/Mês", a linha pontilhada, os dias da semana e os meses */
+if(!curto){
+ h.push('<rect x="'+f(x0)+'" y="'+pad+'" width="'+f(mesesW-6)+'" height="'+f(cab-4)+'" rx="4" fill="#f3f4f6"/>'
+  +'<line x1="'+f(x0)+'" y1="'+pad+'" x2="'+f(x0+mesesW-6)+'" y2="'+f(pad+cab-4)+'" stroke="#cbd5e1"/>'
+  +'<text x="'+f(x0+mesesW-9)+'" y="'+f(pad+8)+'" text-anchor="end" font-size="8.5" font-weight="700" fill="#6b7280">Dias</text>'
+  +'<text x="'+f(x0+3)+'" y="'+f(pad+cab-7)+'" font-size="8.5" font-weight="700" fill="#6b7280">Mês</text>');
+}
+h.push('<line x1="'+f(gx)+'" y1="'+f(gy-3)+'" x2="'+f(gridDir)+'" y2="'+f(gy-3)
+ +'" stroke="#cbd5e1" stroke-dasharray="3,3" stroke-linecap="round"/>');
+for(c=0;c<37;c++){var vv=calxVis(G,c);if(vv<0)continue;
+ h.push('<text class="calx-rot" id="calx-rot-'+c+'" x="'+f(gx+vv*passo+passo/2)+'" y="'+f(pad+cab/2+1)
+  +'" dominant-baseline="middle" text-anchor="middle" font-size="'+f(fRot)+'" fill="'+(c%7>=5?'#64748b':'#374151')+'">'
+  +CALX_DOW[c%7]+'</text>')}
+for(var m=0;m<12;m++)h.push('<text class="calx-mes" id="calx-mes-'+m+'" x="'+f(gx-8)+'" y="'+f(gy+m*passo+passo/2)
+ +'" dominant-baseline="middle" text-anchor="end" font-size="'+f(fMes)+'" fill="#1f2937" style="cursor:pointer">'
+ +(curto?CALX_MES_CURTO[m]:CAL_MESES[m])+'</text>');
+/* CAMADA 4 — as células */
+var janelas=(CALX.contratos||[]).filter(function(k){return k.inicio}).map(function(k){
+ return {ini:k.inicio,fim:k.fim||k.fimContrato||null}});
+var bordas={};  // iso -> {ini:[], fim:[], term:[]}
+(CALX.contratos||[]).forEach(function(k){
+ var p=function(iso,tipo){if(iso&&iso.slice(0,4)===String(y))((bordas[iso]=bordas[iso]||{ini:[],fim:[],term:[]})[tipo]).push(k.nome||k.livro)};
+ p(k.inicio,'ini');p(k.fim||k.fimContrato,'fim');
+ if(!k.fim&&k.termino&&k.termino!==(k.fimContrato||''))p(k.termino,'term');
+});
+var coberto=function(iso){if(!janelas.length)return true;
+ return janelas.some(function(j){return iso>=j.ini&&(!j.fim||iso<=j.fim)})};
+var gradDe=function(base,flags){
+ var at=flags.indexOf('atraso')>=0,di=flags.indexOf('diferente')>=0;if(!at&&!di)return base;
+ var k=base+(at?'a':'')+(di?'d':'');if(grad[k])return 'url(#'+grad[k]+')';
+ var id='calx-gr-'+Object.keys(grad).length;grad[k]=id;
+ var st=function(o,cor){return '<stop offset="'+o+'%" stop-color="'+cor+'"/>'};
+ var A=CALX_FLAG.atraso.c,D=CALX_FLAG.diferente.c;
+ defs.push('<linearGradient id="'+id+'">'+(at&&di?st(0,A)+st(20,A)+st(35,base)+st(65,base)+st(80,D)+st(100,D)
+  :at?st(0,A)+st(25,A)+st(40,base)+st(100,base):st(0,base)+st(60,base)+st(75,D)+st(100,D))+'</linearGradient>');
+ return 'url(#'+id+')'};
+for(m=0;m<12;m++){
+ var dim=new Date(y,m+1,0).getDate(),off=(new Date(y,m,1).getDay()+6)%7;
+ /* os dias VISÍVEIS da fileira, em ordem — é por eles que a faixa do calendário letivo decide se emenda
+    (com o domingo escondido, sábado e segunda viram vizinhos) */
+ var fila=[];
+ for(var d=1;d<=dim;d++){var col=off+d-1;if(calxVis(G,col)>=0)fila.push({d:d,c:col})}
+ var isoDe=function(d){return y+'-'+('0'+(m+1)).slice(-2)+'-'+('0'+d).slice(-2)};
+ var marcasDe=function(k){var q=fila[k]&&CALX.dias[isoDe(fila[k].d)];return q&&q.cal||[]};
+ for(var k=0;k<fila.length;k++){
+  var dd=fila[k].d,col2=fila[k].c,iso=isoDe(dd),x=cx(col2),yy=cy(m),dia=CALX.dias[iso]||null;
+  var aulas=dia?dia.aulas:[],marcas=dia&&dia.cal||[],selos=dia?dia.selos:[],fds=col2%7>=5;
+  /* A DONA DA CÉLULA, igual à grade do Calendário letivo (decisão dele, 27/09): a marcação que forma
+     faixa com o vizinho da fileira pinta o dia; isolada, é ponto; as outras viram o pingo de cima */
+  var dona=null,antes=false,depois=false;
+  marcas.forEach(function(mk){
+   var a=marcasDe(k-1).some(function(z){return z.id===mk.id}),b=marcasDe(k+1).some(function(z){return z.id===mk.id});
+   if(!dona||((a||b)&&!(antes||depois))){dona=mk;antes=a;depois=b}});
+  var fora=!coberto(iso),fill,numCor=aulas.length?'#374151':'#9ca3af',contorno='#e5e7eb',cw=0.5;
+  if(dona&&dona.fecha){fill=dona.cor||'#8A93A0';numCor=esTextoSobre(fill)}
+  else if(aulas.length)fill='#ffffff';
+  else if(fora){fill='#f1f3f5';numCor='#c0c7cf'}
+  else if(fds)fill='rgba(255,255,255,.45)';
+  else fill='#f9fafb';
+  if(dona&&!dona.fecha){contorno=dona.cor||'#8A93A0';cw=1.6}
+  var tem=aulas.length||marcas.length||selos.length;
+  var gs='<g class="calx-d'+(tem?' tem':'')+'" data-d="'+iso+'">';
+  gs+='<rect class="calx-c" x="'+f(x)+'" y="'+f(yy)+'" width="'+f(cel)+'" height="'+f(cel)+'" rx="'+f(Math.min(6,cel*0.2))
+   +'" fill="'+fill+'" stroke="'+contorno+'" stroke-width="'+cw+'"'+(aulas.length&&!(dona&&dona.fecha)?' filter="url(#calx-sombra)"':'')+'/>';
+  /* a ponte da faixa: preenche o vão até o vizinho, e a cobrinha fica contínua */
+  if(dona&&dona.fecha&&depois){var nx=cx(fila[k+1].c);
+   gs+='<rect x="'+f(x+cel-6)+'" y="'+f(yy)+'" width="'+f(nx-x-cel+12)+'" height="'+f(cel)+'" fill="'+fill+'"/>'}
+  var extras=marcas.filter(function(z){return !dona||z.id!==dona.id});
+  if(extras.length)gs+='<rect x="'+f(x+cel*0.18)+'" y="'+f(yy+1.5)+'" width="'+f(cel*0.64)+'" height="'+f(Math.max(2,cel*0.08))
+   +'" rx="1" fill="'+(extras[0].cor||'#8A93A0')+'"/>';
+  gs+='<text x="'+f(x+cel/2)+'" y="'+f(yy+(aulas.length?cel*0.42:cel/2))+'" dominant-baseline="middle" text-anchor="middle" font-size="'
+   +f(fNum)+'" fill="'+numCor+'"'+(aulas.length?' font-weight="600"':'')+' pointer-events="none">'+dd+'</text>';
+  /* as PÍLULAS: uma por aula, na ordem do dia */
+  if(aulas.length){
+   var ord=aulas.slice().sort(function(a,b){return String(a.h||'').localeCompare(String(b.h||''))||((a.s||0)-(b.s||0))}).slice(0,4);
+   var ph=Math.max(3,cel*0.13),py=yy+cel-ph-Math.max(2,cel*0.08),pw=(cel-4-(ord.length-1))/ord.length;
+   ord.forEach(function(a,i){var ct=CALX_CAT[a.c]||{c:'#9ca3af'};
+    var st=a.c==='planejada'?' stroke="'+ct.s+'" stroke-width=".8"':(a.ok?' stroke="#15803d" stroke-width=".9"':'');
+    gs+='<rect x="'+f(x+2+i*(pw+1))+'" y="'+f(py)+'" width="'+f(Math.max(pw,1))+'" height="'+f(ph)+'" rx="1.5" fill="'
+     +gradDe(ct.c,a.f||[])+'"'+st+' pointer-events="none"/>'});
+  }
+  /* os CANTOS: início (azul) e fim (laranja) de contrato; o término previsto das lições só em contorno */
+  var bd=bordas[iso],kk=Math.max(5,cel*0.34),s1=kk/14;
+  if(bd&&bd.ini.length)gs+='<path d="M 0 6 Q 0 0 6 0 L 14 0 L 0 14 Z" transform="translate('+f(x)+','+f(yy)+') scale('+f(s1)
+   +')" fill="#2563eb" pointer-events="none"/>';
+  if(bd&&(bd.fim.length||bd.term.length)){var so=bd.fim.length;
+   gs+='<path d="M 10 4 Q 10 10 4 10 L 0 10 L 10 0 Z" transform="translate('+f(x+cel-10*s1)+','+f(yy+cel-10*s1)+') scale('+f(s1)
+    +')" fill="'+(so?'#f97316':'#fff')+'" stroke="#f97316" stroke-width="'+(so?0:f(1.4/s1))+'" pointer-events="none"/>'}
+  /* o SELO: o fato de maior prioridade do dia; com mais de um, um furo branco no meio */
+  if(selos.length){
+   var top=selos.slice().sort(function(a,b){return ((CALX_SELO[a.t]||{p:99}).p)-((CALX_SELO[b.t]||{p:99}).p)})[0];
+   var cor=top.t==='retorno'&&top.v?'#dc2626':(CALX_SELO[top.t]||{c:'#64748b'}).c,r=Math.max(2.4,cel*0.1);
+   gs+='<circle cx="'+f(x+cel-r-1.4)+'" cy="'+f(yy+r+1.4)+'" r="'+f(r)+'" fill="'+cor+'" stroke="#fff" stroke-width=".8" pointer-events="none"/>';
+   if(selos.length>1)gs+='<circle cx="'+f(x+cel-r-1.4)+'" cy="'+f(yy+r+1.4)+'" r="'+f(r*0.4)+'" fill="#fff" pointer-events="none"/>';
+  }
+  if(iso===hoje)gs+='<rect class="calx-hoje" x="'+f(x)+'" y="'+f(yy)+'" width="'+f(cel)+'" height="'+f(cel)+'" rx="'
+   +f(Math.min(6,cel*0.2))+'" fill="none" stroke="#6366f1" stroke-width="2.4" pointer-events="none"/>';
+  h.push(gs+'</g>');
+ }
+}
+/* CAMADA 5 — as bordas do crosshair, por cima das células */
+h.push('<rect id="calx-cr-hb" x="'+f(x0+2)+'" y="0" width="'+f(gridDir-x0-2)+'" height="'+f(passo)
+ +'" rx="6" fill="none" stroke="#9ca3af" display="none" pointer-events="none"/>');
+h.push('<rect id="calx-cr-vb" x="0" y="'+pad+'" width="'+f(passo)+'" height="'+f(cab+12*passo+4)
+ +'" rx="6" fill="none" stroke="#9ca3af" display="none" pointer-events="none"/>');
+/* CAMADA 6 — o pulso da busca */
+h.push('<g id="calx-fl" pointer-events="none"></g>');
+svg.innerHTML='<defs><filter id="calx-sombra" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="1" '
+ +'stdDeviation="1" flood-color="#000" flood-opacity=".08"/></filter>'+defs.join('')+'</defs>'+h.join('');
+calxPintarSel();calxPintarFlash();
+}
+/* do mouse para (mês, coluna, dia) — a conta inversa da geometria, sem ouvinte por célula */
+function calxPonto(ev){
+var G=CALX_G,svg=$('calx-svg');if(!G||!svg||!CALX)return {m:null,c:null,iso:null};
+var r=svg.getBoundingClientRect(),x=ev.clientX-r.left,y=ev.clientY-r.top;
+var m=null,c=null,naColunaMes=false;
+if(y>=G.gy&&y<G.gy+12*G.passo)m=Math.floor((y-G.gy)/G.passo);
+if(x>=G.gx&&x<G.gx+G.cols*G.passo){var v=Math.floor((x-G.gx)/G.passo);c=G.dom?v:v+Math.floor(v/6)}
+if(x>=G.x0&&x<G.gx&&m!=null)naColunaMes=true;
+if(y<G.gy&&y>=G.pad&&c!=null)return {m:null,c:c,iso:null};           // rótulo do dia: só a coluna
+if(naColunaMes)return {m:m,c:null,iso:null,naColunaMes:true};           // nome do mês: só a linha
+if(m==null||c==null)return {m:null,c:null,iso:null};
+var off=(new Date(CALX.ano,m,1).getDay()+6)%7,d=c-off+1,dim=new Date(CALX.ano,m+1,0).getDate();
+var iso=(d>=1&&d<=dim)?CALX.ano+'-'+('0'+(m+1)).slice(-2)+'-'+('0'+d).slice(-2):null;
+return {m:m,c:c,iso:iso};
+}
+/* O CROSSHAIR: escrita direta de atributo, sem redesenho (o padrão do original) */
+function calxCruz(m,c){
+var G=CALX_G;if(!G)return;
+if(CALX_CRUZ.m===m&&CALX_CRUZ.c===c)return;
+var mostra=function(id,sim,at){var e=$(id);if(!e)return;e.setAttribute('display',sim?'inline':'none');
+ if(sim&&at)for(var k in at)e.setAttribute(k,at[k])};
+var yl=m!=null?G.gy+m*G.passo:0,xc=c!=null?G.gx+calxVis(G,c)*G.passo:0;
+mostra('calx-cr-h',m!=null,{y:yl});mostra('calx-cr-hb',m!=null,{y:yl});
+mostra('calx-cr-v',c!=null,{x:xc});mostra('calx-cr-vb',c!=null,{x:xc});mostra('calx-cr-tip',c!=null,{x:xc});
+if(CALX_CRUZ.m!=null){var a=$('calx-mes-'+CALX_CRUZ.m);if(a)a.classList.remove('on')}
+if(m!=null){var b=$('calx-mes-'+m);if(b)b.classList.add('on')}
+if(CALX_CRUZ.c!=null){var p=$('calx-rot-'+CALX_CRUZ.c);
+ if(p){p.setAttribute('fill',CALX_CRUZ.c%7>=5?'#64748b':'#374151');p.setAttribute('font-weight','700')}}
+if(c!=null){var n=$('calx-rot-'+c);if(n){n.setAttribute('fill','#ffffff');n.setAttribute('font-weight','900')}}
+CALX_CRUZ={m:m,c:c};
+}
+/* ---------- seleção, busca e o pulso ---------- */
+function calxSelMes(m){
+var y=CALX.ano,dim=new Date(y,m+1,0).getDate(),mm=('0'+(m+1)).slice(-2);
+CALX_BUS.faixa={};CALX_SEL={a:y+'-'+mm+'-01',b:y+'-'+mm+'-'+dim};calxPintarSel();calxResumo();
+}
+function calxPintarSel(){
+var svg=$('calx-svg');if(!svg)return;
+var a=null,b=null;
+if(CALX_SEL){a=CALX_SEL.a<CALX_SEL.b?CALX_SEL.a:CALX_SEL.b;b=CALX_SEL.a<CALX_SEL.b?CALX_SEL.b:CALX_SEL.a}
+svg.querySelectorAll('.calx-d').forEach(function(g){var d=g.getAttribute('data-d');
+ g.classList.toggle('calx-sel',!!a&&d>=a&&d<=b);g.classList.toggle('calx-bus',!!CALX_BUS.faixa[d])});
+}
+function calxPintarFlash(){
+var g=$('calx-fl'),G=CALX_G;if(!g||!G)return;
+var h='';Object.keys(CALX_BUS.flash).forEach(function(iso){
+ var q=document.querySelector('#calx-svg .calx-d[data-d="'+iso+'"] .calx-c');if(!q)return;
+ h+='<rect class="calx-fl" x="'+q.getAttribute('x')+'" y="'+q.getAttribute('y')+'" width="'+q.getAttribute('width')
+  +'" height="'+q.getAttribute('height')+'" rx="7"/>'});
+g.innerHTML=h;
+}
+function calxMascara(v){
+/* a máscara do original (CalendarHeader): só dígitos, "/", "," e "-"; 5+ dígitos viram dd/mm/aaaa */
+var raw=String(v).replace(/[^\d/,\- ]/g,'');
+return raw.split(/([,-])/).map(function(p){
+ if(p===','||p==='-')return p;
+ var pre=(p.match(/^\s*/)||[''])[0],suf=(p.match(/\s*$/)||[''])[0],dg=p.replace(/\D/g,'').slice(0,8);
+ if(!dg)return p;
+ var mk=dg.length>=5?dg.replace(/^(\d{2})(\d{2})(\d{0,4})/,'$1/$2/$3'):dg.length>=3?dg.replace(/^(\d{2})(\d{0,2})/,'$1/$2'):dg;
+ return pre+mk+suf}).join('');
+}
+function calxData(t,ano){
+var m=/^\s*(\d{1,2})\/(\d{1,2})(?:\/(\d{2}|\d{4}))?\s*$/.exec(t||'');if(!m)return null;
+var a=m[3]?(m[3].length===2?2000+Number(m[3]):Number(m[3])):ano,d=new Date(a,Number(m[2])-1,Number(m[1]),12);
+if(d.getMonth()!==Number(m[2])-1||d.getDate()!==Number(m[1]))return null;
+return {iso:isoLocal(d),temAno:!!m[3]};
+}
+function calxBuscar(q){
+if(!CALX)return;
+var ano=CALX_ANO,flash=[],faixa=[],erro=null;
+String(q||'').split(',').forEach(function(p){
+ if(erro||!p.trim())return;
+ var pt=p.split('-');
+ if(pt.length>2){erro='"'+p.trim()+'": um intervalo tem só duas pontas';return}
+ if(pt.length===2){
+  var a=calxData(pt[0],ano),b=a&&calxData(pt[1],Number(a.iso.slice(0,4)));
+  if(!a||!b){erro='"'+p.trim()+'" não é um intervalo de datas (ex.: 01/08-31/08)';return}
+  var fim=b.iso;
+  /* o intervalo que VIRA O ANO (10/12-10/01): sem ano escrito, a ponta de trás é do ano seguinte.
+     O original trocava as pontas e selecionava 10/01→10/12 do mesmo ano. */
+  if(fim<a.iso&&!b.temAno){var z=new Date(fim+'T12:00:00');z.setFullYear(z.getFullYear()+1);fim=isoLocal(z)}
+  if(fim<a.iso){erro='"'+p.trim()+'": o fim vem antes do começo';return}
+  for(var x=new Date(a.iso+'T12:00:00');isoLocal(x)<=fim;x.setDate(x.getDate()+1))faixa.push(isoLocal(x));
+ }else{
+  var d=calxData(pt[0],ano);
+  if(!d){erro='"'+p.trim()+'" não é uma data (ex.: 27/11 ou 27/11/2026)';return}
+  flash.push(d.iso);
+ }
+});
+if(erro){msg(erro,true);return}
+if(!flash.length&&!faixa.length)return;
+var alvo=Number((flash[0]||faixa[0]).slice(0,4)),q2={flash:flash,faixa:faixa};
+if(alvo!==CALX_ANO){CALX_ANO=alvo;CALX_PENDENTE=q2;CALX_SEL=null;calxCarregar();return}
+calxAplicarBusca(q2);
+}
+function calxAplicarBusca(q){
+CALX_SEL=null;CALX_BUS.faixa={};q.faixa.forEach(function(d){CALX_BUS.faixa[d]=1});
+calxPintarSel();calxResumo();
+if(CALX_FL_T){clearTimeout(CALX_FL_T);CALX_FL_T=null}
+CALX_BUS.flash={};q.flash.forEach(function(d){CALX_BUS.flash[d]=1});calxPintarFlash();
+if(q.flash.length)CALX_FL_T=setTimeout(function(){CALX_FL_T=null;CALX_BUS.flash={};calxPintarFlash()},2000);
+}
+/* ---------- o resumo: o KPI que o original prometia e nunca calculou ---------- */
+function calxResumo(){
+var el=$('calx-chip');if(!el||!CALX)return;
+var a=null,b=null;
+if(CALX_SEL){a=CALX_SEL.a<CALX_SEL.b?CALX_SEL.a:CALX_SEL.b;b=CALX_SEL.a<CALX_SEL.b?CALX_SEL.b:CALX_SEL.a}
+else{var ks=Object.keys(CALX_BUS.faixa).sort();if(ks.length){a=ks[0];b=ks[ks.length-1]}}
+var ini=a||CALX.ano+'-01-01',fim=b||CALX.ano+'-12-31';
+var n={pres:0,falta:0,rep:0,plan:0,nao:0,fechado:0};
+Object.keys(CALX.dias).forEach(function(d){
+ if(d<ini||d>fim)return;var q=CALX.dias[d];
+ if(q.cal&&q.cal.some(function(x){return x.fecha}))n.fechado++;
+ q.aulas.forEach(function(x){
+  if(x.nota)return;   // fora da conta (antes do início, dia sem aula): a Ficha também não conta
+  if(CALX_PRESENTE[x.c])n.pres++;else if(x.c==='falta'||x.c==='faltaAuto'){n.falta++;if(x.ok)n.rep++}
+  else if(x.c==='planejada')n.plan++;else if(x.c==='naoaula')n.nao++})});
+var partes=[];
+if(n.pres)partes.push('<b>'+n.pres+'</b> presença'+(n.pres>1?'s':''));
+if(n.falta)partes.push('<b>'+n.falta+'</b> falta'+(n.falta>1?'s':'')+(n.rep?' ('+n.rep+' reposta'+(n.rep>1?'s':'')+')':''));
+if(n.nao)partes.push(n.nao+' não-aula');
+if(n.plan)partes.push('<b>'+n.plan+'</b> planejada'+(n.plan>1?'s':''));
+if(n.fechado)partes.push(n.fechado+' dia'+(n.fechado>1?'s':'')+' sem aula');
+var dias=a?Math.round((new Date(fim+'T12:00:00')-new Date(ini+'T12:00:00'))/864e5)+1:0;
+el.innerHTML=(a?'<span class="calx-chip-sel">'+(a===b?esDataBR(a):esDataBR(a)+'–'+esDataBR(b)+' · '+dias+' dias')+'</span>'
+ :'<b>'+CALX.ano+'</b> · ')+(partes.length?partes.join(' · '):'nada lançado neste período');
+el.title=el.textContent;
+}
+/* ---------- o popover do dia: é a ponte para o resto do app ---------- */
+function calxPopFechar(){
+CALX_HOVER=null;
+if(CALX_POP){CALX_POP.remove();CALX_POP=null;document.removeEventListener('mousedown',calxPopFora,true)}
+}
+/* PASSAR O MOUSE num dia que só tem calendário (feriado, férias) mostra o nome na hora — era o único
+   tooltip que funcionava no original, e o do Calendário letivo faz o mesmo. Bolha leve: some ao sair,
+   e nunca passa por cima de um popover fixado pelo clique. */
+var CALX_HOVER=null;
+function calxHover(iso){
+if(CALX_POP&&!CALX_POP.dataset.hover)return;
+if(iso===CALX_HOVER)return;
+CALX_HOVER=iso;
+if(CALX_POP&&CALX_POP.dataset.hover){CALX_POP.remove();CALX_POP=null}
+if(!iso||!CALX)return;
+var d=CALX.dias[iso];if(!d||!(d.cal&&d.cal.length)||d.aulas.length||d.selos.length)return;
+var alvo=document.querySelector('#calx-svg .calx-d[data-d="'+iso+'"] .calx-c');if(!alvo)return;
+var p=document.createElement('div');p.className='cal-pop';p.dataset.hover='1';
+p.innerHTML='<div class="cal-pop-cab">'+escBloco(esDataBR(iso))+'</div>'+d.cal.map(function(x){
+ return '<div class="cal-pop-l"><span class="cal-pop-c" style="background:'+(x.cor||'#8A93A0')+'"></span><b>'+escBloco(x.nome)+'</b>'
+  +'<span class="cal-pop-a '+(x.fecha?'nao':'sim')+'">'+(x.fecha?'sem aula':'tem aula')+'</span></div>'}).join('');
+calxPopPor(p,alvo,true);
+}
+function calxPopFora(ev){
+/* o clique no próprio botão da Legenda não conta como "fora": o alvo pode ser o ícone DENTRO dele, e
+   fechar aqui fazia o clique seguinte reabrir em vez de fechar */
+if(CALX_POP&&!CALX_POP.contains(ev.target)&&!(ev.target.closest&&ev.target.closest('#calx-leg')))calxPopFechar()}
+function calxPopPor(p,alvo,soVer){
+document.body.appendChild(p);
+var r=alvo.getBoundingClientRect(),pr=p.getBoundingClientRect();
+var top=r.top-pr.height-8;if(top<8)top=r.bottom+8;
+if(top+pr.height>window.innerHeight-8)top=Math.max(8,window.innerHeight-pr.height-8);
+var left=r.left+r.width/2-pr.width/2;left=Math.max(8,Math.min(left,window.innerWidth-pr.width-8));
+p.style.top=Math.round(top)+'px';p.style.left=Math.round(left)+'px';p.classList.add('on');
+CALX_POP=p;if(!soVer)setTimeout(function(){if(CALX_POP===p)document.addEventListener('mousedown',calxPopFora,true)},0);
+}
+function calxPopAbrir(iso){
+calxPopFechar();
+var dia=CALX.dias[iso]||{aulas:[],selos:[]},alvo=document.querySelector('#calx-svg .calx-d[data-d="'+iso+'"] .calx-c');
+if(!alvo)return;
+var dt=new Date(iso+'T12:00:00'),h='<div class="cal-pop-cab">'+CALX_DOW_LONGO[(dt.getDay()+6)%7]+', '+esDataBR(iso)+'/'+iso.slice(0,4)+'</div>';
+if(dia.cal&&dia.cal.length)h+='<div class="calx-pop-sec">'+dia.cal.map(function(x){
+ return '<div class="cal-pop-l"><span class="cal-pop-c" style="background:'+(x.cor||'#8A93A0')+'"></span><b>'+escBloco(x.nome)+'</b>'
+  +'<span class="cal-pop-t">'+escBloco(calRot(CAL_TIPOS,x.tipo))+'</span><span class="cal-pop-a '+(x.fecha?'nao':'sim')+'">'
+  +(x.fecha?'sem aula':'tem aula')+'</span></div>'}).join('')+'</div>';
+var livros={};
+if(dia.aulas.length){
+ h+='<div class="calx-pop-sec"><div class="calx-pop-t2">'+(dia.aulas.length>1?dia.aulas.length+' aulas':'Aula')+'</div>';
+ dia.aulas.slice().sort(function(a,b){return String(a.h||'').localeCompare(String(b.h||''))||((a.s||0)-(b.s||0))}).forEach(function(a){
+  var ct=CALX_CAT[a.c]||{n:a.c,c:'#9ca3af'};if(a.c!=='planejada'&&!a.nota)livros[a.l]=1;
+  var t=ct.n+(a.n?' · aula '+escBloco(a.n):'')+(a.h?' · '+escBloco(a.h):'');
+  var linha2=[escBloco(nomeLivro(a.l))];if(a.li)linha2.push(escBloco(a.li)+(a.co&&a.co!==a.li?' — '+escBloco(a.co):''));
+  var extra=[];
+  if(a.e)extra.push('entrou '+escBloco(a.e)+(a.sa?', saiu '+escBloco(a.sa):''));
+  (a.f||[]).forEach(function(fl){extra.push((CALX_FLAG[fl]||{n:fl}).n.toLowerCase())});
+  if(a.emp)extra.push('empurrada pela reposição');
+  if(a.p&&a.p.length)extra.push(escBloco(a.p.join(', ')));
+  if(a.ad)extra.push('adendo '+a.ad);
+  h+='<div class="calx-pop-aula"><span class="calx-pil" style="background:'+ct.c+(a.ok?';box-shadow:0 0 0 1px #15803d':'')+'"></span><div>'
+   +'<b>'+t+'</b><small>'+linha2.join(' · ')+'</small>'
+   +(extra.length?'<small>'+extra.join(' · ')+'</small>':'')
+   +(a.nota?'<em>'+escBloco(a.nota)+'</em>':'')
+   +(a.o?'<em>“'+escBloco(a.o)+'”</em>':'')
+   +(a.r?'<button type="button" class="calx-pop-ir" data-ir="'+a.r.d+'">'+escBloco(a.r.t)+' '+esDataBR(a.r.d)+' ›</button>':'')
+   +'</div></div>'});
+ h+='</div>';
+}
+var bd=[];(CALX.contratos||[]).forEach(function(k){var nm=escBloco(k.nome||k.livro);
+ if(k.inicio===iso)bd.push(['#2563eb','Início do contrato · '+nm]);
+ if((k.fim||k.fimContrato)===iso)bd.push(['#f97316',(k.fim?'Fim do contrato · ':'Fim do contrato (vence) · ')+nm]);
+ if(!k.fim&&k.termino===iso)bd.push(['#fff','Término previsto das lições · '+nm])});
+if(dia.selos.length||bd.length){
+ h+='<div class="calx-pop-sec">'+bd.map(function(x){return '<div class="cal-pop-l"><span class="cal-pop-c" style="background:'+x[0]
+   +(x[0]==='#fff'?';box-shadow:inset 0 0 0 2px #f97316':'')+'"></span><b>'+x[1]+'</b></div>'}).join('')
+  +dia.selos.map(function(s){var sd=CALX_SELO[s.t]||{c:'#64748b'};
+   return '<div class="cal-pop-l"><span class="cal-pop-c" style="background:'+(s.t==='retorno'&&s.v?'#dc2626':sd.c)
+    +';border-radius:50%"></span><b>'+escBloco(s.x)+(s.v?' — vencido':'')+'</b>'
+    +(s.d?'<span class="cal-pop-t" style="flex-basis:100%;padding-left:18px">'+escBloco(s.d)+'</span>':'')+'</div>'}).join('')+'</div>';
+}
+if(!dia.aulas.length&&!(dia.cal&&dia.cal.length)&&!dia.selos.length&&!bd.length)
+ h+='<div class="calx-pop-sec cal-pop-t">Nada lançado neste dia.</div>';
+var abertos=Object.keys(livros).filter(function(l){return (CALX.contratos||[]).some(function(k){return k.livro===l&&k.aberto})});
+if(abertos.length)h+='<div class="calx-pop-acoes">'+abertos.map(function(l){
+ return '<button type="button" data-ficha="'+escBloco(l).replace(/"/g,'&quot;')+'">Abrir na Ficha'+(abertos.length>1?' · '+escBloco(nomeLivro(l)):'')+'</button>'}).join('')+'</div>';
+var p=document.createElement('div');p.className='cal-pop calx-pop';p.innerHTML=h;
+p.addEventListener('click',function(ev){
+ var ir=ev.target.closest('[data-ir]'),fi=ev.target.closest('[data-ficha]');
+ if(ir)calxIrPara(ir.getAttribute('data-ir'));
+ else if(fi)calxIrFicha(fi.getAttribute('data-ficha'),iso)});
+calxPopPor(p,alvo);
+}
+/* o rastreio do original ("ir para a data de referência"): a falta leva à reposição que a pagou, e a
+   reposição à falta que ela cobre — no mesmo ano ou no outro */
+function calxIrPara(iso){
+calxPopFechar();
+var q={flash:[iso],faixa:[]};
+if(Number(iso.slice(0,4))!==CALX_ANO){CALX_ANO=Number(iso.slice(0,4));CALX_PENDENTE=q;calxCarregar();return}
+calxAplicarBusca(q);
+}
+/* ABRIR NA FICHA: volta aos contratos, abre o do livro, a aba Ficha, e pisca a linha da data */
+function calxIrFicha(livro,iso){
+calxPopFechar();calxFechar();
+matAba(livro);
+var card=null;document.querySelectorAll('#mat-lista .matricula-card').forEach(function(c){if(c.dataset.livro===livro)card=c});
+if(!card)return;
+matSubAba(card,'ficha');
+var n=0;(function tenta(){
+ if(document.querySelector('.ff-tab tr[data-data="'+iso+'"]')){ffIr(iso);return}
+ if(++n<50)setTimeout(tenta,100)})();
+}
+/* ---------- a legenda: popover, para não roubar a altura que falta ---------- */
+function calxLegenda(bt){
+if(CALX_POP&&CALX_POP.dataset.leg){calxPopFechar();return}
+calxPopFechar();
+var l=function(cor,txt,estilo){return '<div class="cal-pop-l"><span class="cal-pop-c" style="background:'+cor+(estilo||'')+'"></span><b>'+txt+'</b></div>'};
+var h='<div class="cal-pop-cab">Legenda</div><div class="calx-pop-t2">Aulas (a faixa de baixo de cada dia)</div><div class="calx-leg">'
+ +Object.keys(CALX_CAT).map(function(k){var c=CALX_CAT[k];return l(c.c,c.n,c.s?';box-shadow:inset 0 0 0 1px '+c.s:'')}).join('')
+ +l('#fbbf24','Aconteceu / falta reposta',';box-shadow:inset 0 0 0 1.5px #15803d')
+ +Object.keys(CALX_FLAG).map(function(k){return l('linear-gradient(90deg,'+(k==='atraso'?CALX_FLAG[k].c+',#22c55e':'#22c55e,'+CALX_FLAG[k].c)+')',
+   CALX_FLAG[k].n+(k==='atraso'&&CALX&&CALX.config?' (+'+CALX.config.toleranciaAtraso+' min)':''))}).join('')
+ +'</div><div class="calx-pop-sec"><div class="calx-pop-t2">Contrato (cantos)</div><div class="calx-leg">'
+ +l('#2563eb','Início do contrato')+l('#f97316','Fim do contrato')+l('#fff','Término previsto',';box-shadow:inset 0 0 0 2px #f97316')
+ +l('#f1f3f5','Fora de contrato',';box-shadow:inset 0 0 0 1px #d5d9de')+'</div></div>'
+ +'<div class="calx-pop-sec"><div class="calx-pop-t2">Fatos (selo do canto)</div><div class="calx-leg">'
+ +Object.keys(CALX_SELO).map(function(k){return l(CALX_SELO[k].c,CALX_SELO[k].n,';border-radius:50%')}).join('')+'</div></div>';
+var marcas={};if(CALX)Object.keys(CALX.dias).forEach(function(d){(CALX.dias[d].cal||[]).forEach(function(x){marcas[x.nome]=x})});
+var ms=Object.keys(marcas);
+if(ms.length)h+='<div class="calx-pop-sec"><div class="calx-pop-t2">Calendário letivo de '+CALX.ano+'</div><div class="calx-leg">'
+ +ms.map(function(n){var x=marcas[n];return l(x.cor||'#8A93A0',escBloco(n)+(x.fecha?'':' <span class="cal-pop-t">(tem aula)</span>'))}).join('')+'</div></div>';
+h+='<div class="calx-pop-sec">'+l('#fff','Hoje',';box-shadow:inset 0 0 0 2px #6366f1')+'</div>';
+var p=document.createElement('div');p.className='cal-pop calx-pop';p.dataset.leg='1';p.style.maxWidth='620px';p.style.width='620px';p.innerHTML=h;
+calxPopPor(p,bt);
+}
+
 /* ===== CALENDÁRIO LETIVO (2026-08-17) =====
    Quem calcula as datas é o SERVIDOR (`getCalendario`): as três formas de repetição e a Páscoa
    moram lá, num lugar só. Aqui é desenho e edição. */

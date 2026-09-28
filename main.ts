@@ -1539,7 +1539,9 @@ function ocorrenciaDoTrecho(t: any, ancora: number): string[] {
       if (fim < ini) fim = `${ancora + 1}-${("0" + t.mes_fim).slice(-2)}-${("0" + t.dia_fim).slice(-2)}`;
     }
   } else if (t.modo === "semana") {
-    if (!t.mes || !t.sem_dow == null) return [];
+    /* `sem_dow` 0 é domingo, e vale: vazio é só nulo. Era `!t.sem_dow == null`, que o `!` tornava sempre
+       falso — um trecho sem dia da semana caía no n-ésimo domingo (Wiztools 17) */
+    if (!t.mes || t.sem_dow == null) return [];
     ini = nEsimoDow(ancora, Number(t.mes), Number(t.sem_dow), Number(t.sem_n) || 1);
     if (!ini) return [];
     if (t.mes_fim && t.sem_dow_fim != null) {
@@ -5681,11 +5683,15 @@ function gestaoPedagogica(mes: string) {
    trabalhar num facultativo, e é por isso que o planejamento se atualiza sozinho quando ele mexe. */
 /* Como `diasFechados`, mas guarda o NOME e o tipo: a ficha de frequência escreve a linha inteira
    ("FERIADO NACIONAL: CONSCIÊNCIA NEGRA"), e para isso saber que o dia fechou não basta.
-   Primeira marcação a reivindicar a data vence — duas marcações no mesmo dia é caso de calendário
-   mal cadastrado, e escolher calado é melhor que desenhar duas linhas para o mesmo dia. */
+   Primeira marcação a reivindicar a data vence — e escolher calado é melhor que desenhar duas linhas para
+   o mesmo dia. Duas no mesmo dia não é erro de cadastro: as Férias da Wizard semeadas cobrem o Natal e a
+   Confraternização. Por isso a ordem é explícita (Wiztools 17): o FERIADO dá o nome, seja qual for a ordem
+   de cadastro, e o empate vai pelo id. A grade do Calendário pinta a faixa das Férias (para ela não se
+   partir) com o Natal de pingo — é de propósito que a Ficha e o lançador digam "Natal": é o nome que
+   explica o dia. O CONJUNTO de dias fechados é o mesmo nos dois (`diasFechados`). */
 function feriadosNomeados(de: string, ate: string): Map<string, { nome: string; tipo: string }> {
   const m = new Map<string, { nome: string; tipo: string }>();
-  const marcs = A("SELECT * FROM calendario_marcacao WHERE arquivado IS NULL AND fecha=1");
+  const marcs = A("SELECT * FROM calendario_marcacao WHERE arquivado IS NULL AND fecha=1 ORDER BY (tipo<>'feriado'), id");
   for (let y = Number(de.slice(0, 4)); y <= Number(ate.slice(0, 4)); y++)
     for (const mk of marcs)
       for (const d of datasDaMarcacao(mk, y))
@@ -6714,13 +6720,36 @@ const api: Record<string, (a: any) => unknown> = {
       "aluno_livro", "aluno_horario_historico", "entrega_material", "aluno_estagio",
       /* 2026-09-13: as duas tabelas novas também são do aluno — fora desta lista, trocar o ID as
          deixaria órfãs (o registro de aula tinha nascido sem estar aqui) */
-      "aula_registro", "encontro_avulso_desmarcado", "aula_professor_vigencia", "alunos"];
+      "aula_registro", "encontro_avulso_desmarcado", "aula_professor_vigencia",
+      /* Wiztools 17: as duas do follow-up e da devolução também são do aluno, e NENHUMA FK do banco tem
+         ON UPDATE CASCADE — fora da lista, a conversa e a devolução ficavam no ID velho (a fila de risco
+         dizia "nunca procurado", o Desfazer devolução não achava a linha), e o órfão fazia qualquer
+         `reconstruirTabela` pendente dar ROLLBACK no foreign_key_check do banco inteiro */
+      "atendimento", "devolucao_material", "alunos"];
     db.exec("PRAGMA foreign_keys=OFF");
     db.exec("BEGIN");
     const movidas: Record<string, number> = {};
     try {
       for (const t of TABELAS)
         movidas[t] = R(`UPDATE ${t} SET id_matricula=? WHERE id_matricula=?`, novo, de).changes as number;
+      /* os SILÊNCIOS da Central guardam a matrícula dentro da chave (texto). Só as regras cuja chave é do
+         aluno — várias outras usam um id inteiro (aulas.id, encontro), e sem filtrar a regra trocar a 541
+         regravaria o silêncio da aula 541. Regra nova com a matrícula na chave entra nestas listas.
+         OR REPLACE (revisão da Wiztools 17): um silêncio órfão já na chave NOVA (de aluno excluído, ou de
+         uma troca de ID antiga que não levava os silêncios) batia na PK (regra, chave) e o ROLLBACK desfazia
+         a troca inteira. Como o ID novo não é aluno (conferido acima), a linha que está lá é lixo: vence a
+         do aluno que está sendo movido. */
+      movidas.aviso_silenciado =
+        (R(`UPDATE OR REPLACE aviso_silenciado SET chave=? WHERE chave=?
+              AND regra IN ('aluno_sem_matricula','aluno_sem_historico','contrato_passou_do_ano')`, novo, de).changes as number)
+        + (R(`UPDATE OR REPLACE aviso_silenciado SET chave=? || substr(chave, length(?)+1)
+              WHERE substr(chave, 1, length(?)+1) = ? || '|'
+                AND regra IN ('matricula_sem_entrega','matricula_sem_agenda','perto_de_terminar',
+                              'contrato_aberto_apos_saida','lancamento_em_dia_sem_aula','entrega_sem_data')`,
+              novo, de, de, de).changes as number)
+        + (R(`UPDATE OR REPLACE aviso_silenciado SET chave='pre|' || ? || substr(chave, length(?)+5)
+              WHERE substr(chave, 1, length(?)+5) = 'pre|' || ? || '|' AND regra='data_ano_impossivel'`,
+              novo, de, de, de).changes as number);
       db.exec("COMMIT");
     } catch (e) {
       db.exec("ROLLBACK");
@@ -7571,7 +7600,10 @@ const api: Record<string, (a: any) => unknown> = {
     const letrar = (g: any[]) => { if (g.length > 1) g.forEach((x: any, i: number) => { x.sufixo = LETRAS[i] || null; }); };
     let n: number | null = null, grupo: any[] = [], pedacos: any[] = [], anterior: any = null;
     for (const l of linhas) {
-      if (l.tipo === "feriado" || l.tipo === "falta") continue;
+      /* o "N" (não houve aula num dia letivo) também fica de fora: não é aula nem pedaço de aula. Ele caía
+         no ramo de baixo como "sem conteúdo", virava o 12ᴬ e empurrava a aula de verdade para 12ᴮ
+         (Wiztools 17) */
+      if (l.tipo === "feriado" || l.tipo === "falta" || l.tipo === "naoaula") continue;
       /* sem conteúdo (tarefa atrasada, reforço): espera a próxima aula com lição */
       if (l.tipo !== "aula" && l.parteDe == null) { pedacos.push(l); continue; }
       const licao = l.parteDe ?? l.ordem;
@@ -12227,8 +12259,10 @@ tratar = async (req: Request, info: any) => {
       const resposta = await api[fn](args);
       /* qualquer função que NÃO seja consulta mudou algo: o diário de vínculos confere se algum professor
          entrou ou saiu de um horário, e as outras estações são avisadas na hora. O diário nunca derruba
-         a resposta — a gravação que a pessoa pediu já aconteceu. */
-      if (!/^(get|preview|info)/.test(fn)) {
+         a resposta — a gravação que a pessoa pediu já aconteceu.
+         A lista é a mesma `SO_LEITURA` da tela (Wiztools 17): `listarAnexos` e as três do fim não gravam, e
+         imprimir as fichas avisava todas as máquinas — que agora limpam o cache das abas a cada aviso. */
+      if (!/^(get|listar|preview|info)|^(fichas|alunoExiste|unidadesParaEntrega)$/.test(fn)) {
         try { sincronizarVigencia(); } catch (e) { console.warn("vigência dos professores (segue o baile):", (e as Error).message); }
         avisarTodos(fn);
       }

@@ -4385,6 +4385,11 @@ body.tem-ensaio{padding-top:29px}
 .ff-tab tr.ff-feriado td.ff-fer-fim{border-right:1px solid var(--ff-fer)}
 .ff-tab tr.ff-feriado td.ff-fer-nome{font-size:10.5px;font-weight:700;color:var(--tx2);
   text-transform:uppercase;letter-spacing:.6px}
+/* o motivo do "N" (não houve aula num dia letivo) se escreve NA faixa: é o único lugar da tela que grava a
+   anotação desse dia (Wiztools 17). Letra de campo, não de rótulo: minúscula e sem negrito. */
+.ff-tab tr.ff-feriado td.ff-fer-nome input.ff-fer-obs{width:calc(100% - 118px);min-width:90px;margin-left:6px;
+  font:inherit;font-size:12px;font-weight:400;text-transform:none;letter-spacing:0;color:#1f2937;
+  background:rgba(255,255,255,.75);border:1px solid var(--borda);border-radius:4px;padding:1px 6px}
 /* ===== COMPARECIMENTO ===== bolinhas: verde veio, vermelho faltou, e o par verde+âmbar é a
    reposição — duas bolinhas porque são duas afirmações (veio E pagou). */
 .ff-pt{display:inline-block;width:9px;height:9px;border-radius:50%;margin:0 1px;vertical-align:middle}
@@ -6455,7 +6460,9 @@ CT_TIMER=setTimeout(function(){CT_TIMER=null;
    var pg=document.getElementById('tab-central');
    if(pg&&pg.classList.contains('on')&&typeof ctRender==='function')ctRender();
   }).catch(function(){/* silêncio: é atualização de fundo */})},900)}
-var SO_LEITURA=/^(get|listar|preview|info)/;
+/* as três do fim não gravam nada apesar do nome (Wiztools 17): imprimir fichas zerava o cache das abas e
+   avisava as outras máquinas. A MESMA lista está no servidor, no `avisarTodos` do tratador da API. */
+var SO_LEITURA=/^(get|listar|preview|info)|^(fichas|alunoExiste|unidadesParaEntrega)$/;
 /* ===== CACHE DAS ABAS DO CONTRATO (2026-08-24, dele) =====
    *"Tem que ter pré-carregado... senão fica lento, dá lagging, parece um front-end quebrado."*
    As quatro abas de um contrato fazem sempre as MESMAS quatro perguntas, e a mais cara delas
@@ -6465,10 +6472,17 @@ var SO_LEITURA=/^(get|listar|preview|info)/;
    invalidação fina é onde cache vira bug, e aqui o custo de recarregar é um pedido, não vinte.
    `PRE_CARGA` guarda promessa em voo: pedir a mesma coisa duas vezes enquanto a primeira não
    voltou (clicar rápido entre abas) não gera dois pedidos. */
-var API_CACHE={}, API_VOO={};
+/* ===== A GERAÇÃO DO CACHE E A FILA COM OS DOIS CALLBACKS (Wiztools 17) =====
+   `API_GER` sobe a cada limpeza: a resposta de um pedido feito ANTES de uma gravação (a daqui ou a de outra
+   máquina, que chega pelo aviso em tempo real) ainda é entregue a quem pediu, mas não entra no cache novo.
+   Antes a limpeza zerava a fila em voo, a resposta velha era guardada assim mesmo e os callbacks da fila se
+   perdiam — a aba ficava em "calculando…".
+   A fila guarda {ok, falhou} e não só `ok`: no erro, TODOS os que esperavam o mesmo pedido são avisados.
+   Antes só o primeiro era — e o primeiro costuma ser a pré-carga, que não passa `falhou`. */
+var API_CACHE={}, API_VOO={}, API_GER=0;
 var CACHEAVEL=/^(getHistoricoAluno|getHorariosHistoricoAluno|getFrequenciaAluno|getPlanejamento|getFichaFrequencia|getCalendarioAluno)$/;
 function cacheChave(fn,a){return fn+'|'+JSON.stringify(a===undefined?{}:a)}
-function cacheLimpar(){API_CACHE={};API_VOO={}}
+function cacheLimpar(){API_CACHE={};API_VOO={};API_GER++}
 function run(fn,args,ok,falhou){
 var a=(args&&args[0])!==undefined?args[0]:{};
 var podeCachear=CACHEAVEL.test(fn), k=podeCachear?cacheChave(fn,a):null;
@@ -6479,18 +6493,28 @@ if(podeCachear&&Object.prototype.hasOwnProperty.call(API_CACHE,k)){
     ~1s, e era isso que punha um piso de um segundo em toda troca de aba mesmo com o dado na mão. */
  var v=API_CACHE[k];Promise.resolve().then(function(){if(ok)ok(v)});return;
 }
-if(podeCachear&&API_VOO[k]){API_VOO[k].push(ok);return}
-if(podeCachear)API_VOO[k]=[ok];
+var ger=API_GER, fila=null;
+if(podeCachear){
+ if(API_VOO[k]){API_VOO[k].push({ok:ok,falhou:falhou});return}
+ fila=[{ok:ok,falhou:falhou}];API_VOO[k]=fila}
+var quem=function(){return fila||[{ok:ok,falhou:falhou}]};
+/* só apaga a fila se ela ainda é ESTA: depois de uma limpeza, pode já haver outra no lugar */
+var soltar=function(){if(k&&API_VOO[k]===fila)delete API_VOO[k]};
+var falhar=function(e){soltar();msg(e,true);quem().forEach(function(x){if(x.falhou)x.falhou(e)})};
 loadOn();
 fetch('/api/'+fn,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(a)})
  .then(function(r){return r.json()})
  .then(function(r){loadOff();
-  if(r&&r.erro){if(k)delete API_VOO[k];msg(r.erro,true);if(falhou)falhou(r.erro);return}
+  if(r&&r.erro){falhar(r.erro);return}
   if(!SO_LEITURA.test(fn)){cacheLimpar();propagarCentral()}
-  if(podeCachear){API_CACHE[k]=r;var fila=API_VOO[k]||[];delete API_VOO[k];
-   fila.forEach(function(f){if(f)f(r)});return}
-  if(ok)ok(r)})
- .catch(function(e){loadOff();if(k)delete API_VOO[k];msg(String(e),true);if(falhou)falhou(String(e))})}
+  soltar();
+  if(podeCachear&&ger===API_GER)API_CACHE[k]=r;
+  /* um callback que estoura não é falha do PEDIDO: avisa e segue para os outros da fila, em vez de
+     pintar "não deu para calcular" por cima de quem já pintou certo */
+  quem().forEach(function(x){if(!x.ok)return;
+   try{x.ok(r)}catch(e){console.error(e);msg(String(e&&e.message||e),true)}})},
+  function(e){loadOff();falhar(String(e&&e.message||e))})
+ .catch(function(e){console.error(e);msg(String(e&&e.message||e),true)})}
 /* PRÉ-CARGA: ao abrir um contrato, as outras três abas já vão sendo buscadas em segundo plano.
    Quando ele clicar, a resposta já está no cache e a troca é instantânea. */
 function matPreCarregar(livro){
@@ -6882,10 +6906,12 @@ function alAba(p){
 /* quem leva a um lugar da página do aluno (Central, Dashboard, vínculo novo) quer os contratos, não o
    calendário por cima (Wiztools 16) */
 if(CALX_ABERTO)calxFechar();
-var c=$('al-p-cadastro');if(c)c.style.display='block';
+/* '' e não 'block' (Wiztools 17): o inline vencia o `display:flex` da cadeia de altura (#al-p-cadastro) e,
+   depois do Limpar, todo aluno aberto ficava com o cartão cortado embaixo, sem rolagem, até recarregar */
+var c=$('al-p-cadastro');if(c)c.style.display='';
 ['matriculas','progresso'].forEach(function(x){var e=$('al-p-'+x);if(e)e.style.display='none'});
-var f=$('al-faixa-cx');if(f)f.style.display='block';
-var ma=$('al-mat-abas');if(ma)ma.style.display='block';
+var f=$('al-faixa-cx');if(f)f.style.display='';
+var ma=$('al-mat-abas');if(ma)ma.style.display='';
 }
 /* sub-abas da aba Informações. O conteúdo dos três carrega junto (são três consultas pequenas, já
    feitas ao escolher o aluno) — trocar de aba só troca o que está à vista. */
@@ -6972,12 +6998,26 @@ if(AL_INFO_ABA==='planejamento')planCarregar();
 /* de qual livro é o currículo que está na tela — a anotação precisa dele para achar a linha de
    presença, e ele vem do SERVIDOR (que escolhe o contrato atual), não de um palpite do cliente. */
 var PLAN_LIVRO=null;
-function planFechar(){PLAN_LIVRO=null;var c=$('plan-corpo');if(c)c.innerHTML='<div class="al-hist-vazio">Escolha um aluno.</div>'}
+/* ===== RESPOSTA VELHA NÃO PINTA, E A TELA SABE DE QUEM É (Wiztools 17) =====
+   `*_SEQ` sobe a cada pedido: só o último pinta. Sem isso, voltar do livro 2 para o livro 1 pintava o livro
+   1 do cache e, logo depois, a resposta atrasada do livro 2 por cima — com a aba dizendo livro 1.
+   `*_ID` é o aluno cuja tela está à vista: entre escolher outro aluno e os cartões dele chegarem, a tela do
+   anterior continua clicável, e uma gravação sairia com o `alSel` novo e o livro e a data do anterior.
+   `falhouAviso` é o que aparece no lugar do "calculando…" quando o servidor não responde. */
+function falhouAviso(c,seq,atual){return function(e){if(c&&seq===atual())c.innerHTML=planAviso('Não deu para calcular: '
+ +escBloco(e)+'. Abra a aba de novo para tentar.')}}
+function telaDoAluno(id,oque){
+if(alSel&&String(alSel.id)===String(id))return true;
+msg((oque||'Esta tela')+' não é do aluno aberto agora — abra-a de novo antes de gravar.',true);return false}
+var PLAN_SEQ=0, PLAN_ID=null;
+function planFechar(){PLAN_SEQ++;PLAN_LIVRO=null;PLAN_ID=null;var c=$('plan-corpo');if(c)c.innerHTML='<div class="al-hist-vazio">Escolha um aluno.</div>'}
 function planCarregar(livro){
 var c=$('plan-corpo');if(!c)return;
 if(!alSel){planFechar();return}
 c.innerHTML='<div class="al-hist-vazio">calculando…</div>';
-run('getPlanejamento',[{idMatricula:alSel.id,livro:livro||null}],function(r){planPintar(r)});
+var s=++PLAN_SEQ, id=alSel.id;
+run('getPlanejamento',[{idMatricula:id,livro:livro||null}],function(r){if(s!==PLAN_SEQ)return;PLAN_ID=id;planPintar(r)},
+ falhouAviso(c,s,function(){return PLAN_SEQ}));
 }
 /* recalcular DE VERDADE: o cache guarda a resposta, então limpá-lo antes é o que dá sentido ao botão */
 function planRecalcular(){cacheLimpar();planCarregar(MAT_CTX||undefined)}
@@ -7201,13 +7241,15 @@ function planAlinharSiglas(raiz){
    O QUE MUDOU: a duração é MESCLADA DE VERDADE (rowspan), não uma ilusão de borda apagada.
    O dado permitia — `presenca` é por DIA, então entrada, saída e minutos já são do dia inteiro.
    =================================================================================== */
-var FICHA_LIVRO=null;
-function fichaFechar(){FICHA_LIVRO=null;var c=$('ficha-corpo');if(c)c.innerHTML='<div class="al-hist-vazio">Escolha um aluno.</div>'}
+var FICHA_LIVRO=null, FICHA_SEQ=0, FICHA_ID=null;   // SEQ e ID: ver "resposta velha não pinta", no Planejamento
+function fichaFechar(){FICHA_SEQ++;FICHA_LIVRO=null;FICHA_ID=null;var c=$('ficha-corpo');if(c)c.innerHTML='<div class="al-hist-vazio">Escolha um aluno.</div>'}
 function fichaCarregar(livro){
 var c=$('ficha-corpo');if(!c)return;
 if(!alSel){fichaFechar();return}
 c.innerHTML='<div class="al-hist-vazio">calculando…</div>';
-run('getFichaFrequencia',[{idMatricula:alSel.id,livro:livro||null}],function(r){fichaPintar(r)});
+var s=++FICHA_SEQ, id=alSel.id;
+run('getFichaFrequencia',[{idMatricula:id,livro:livro||null}],function(r){if(s!==FICHA_SEQ)return;FICHA_ID=id;fichaPintar(r)},
+ falhouAviso(c,s,function(){return FICHA_SEQ}));
 }
 /* os quatro conceitos. 'Ó' é gravado com acento porque é assim que a escola escreve — e o CHECK
    do banco exige exatamente esse caractere. */
@@ -7322,9 +7364,17 @@ f.forEach(function(l,i){
     dele: *"não pode pegar nada da coluna do mês nem na coluna número da semana"*. A persiana
     horizontal imita linhas de tabela vazia e atravessa a faixa inteira — inclusive por trás do
     texto, porque *"não tem nenhum fundo branco"*. E o feriado NÃO é falta. */
- if(l.tipo==='feriado'){
+ /* o "N" lançado num dia LETIVO (professor faltou, evento da escola) é a mesma faixa: não é aula, e antes
+    caía no ramo comum com o ponto verde de "Veio" (Wiztools 17). O dia fechado no calendário nem chega. */
+ if(l.tipo==='feriado'||l.tipo==='naoaula'){
   var nome=(String(l.feriado&&l.feriado.tipo||'').toLowerCase()==='feriado'?'Feriado: ':'Sem aula: ')
     +(l.feriado?l.feriado.nome:'');
+  /* no "N", o motivo é CAMPO (planObs grava presenca.observacao, com o livro e o dono da Ficha): a faixa era
+     só texto e o dia perdeu a única caixa que grava a anotação dele (revisão da Wiztools 17) */
+  var celNome=l.tipo==='naoaula'
+   ?'Não houve aula:<input class="ff-fer-obs" value="'+escBloco(l.observacao||'')+'" placeholder="motivo (professor faltou, evento…)"'
+     +' onchange="planObs(&quot;'+escBloco(l.data)+'&quot;,this)">'
+   :escBloco(nome);
   /* QUANDO O FERIADO ABRE A SEMANA, o azul vence o cinza: ordem dele — *"a borda mais importante
      é a com a hierarquia maior"*. Semana e mês são calendário; o feriado é um fato dentro dele.
      Sem isso, uma semana que estreia num feriado nasceria sem marca de semana. */
@@ -7333,7 +7383,7 @@ f.forEach(function(l,i){
    +'<td class="c-dm ff-fer'+semFio+'">'+escBloco(l.dm)+'</td>'
    +'<td class="ff-fer'+semFio+'"></td><td class="ff-fer'+semFio+'"></td>'
    +'<td class="ff-fer'+semFio+'"></td><td class="ff-fer'+semFio+'"></td>'
-   +'<td class="ff-fer ff-fer-nome" colspan="2">'+escBloco(nome)+'</td>'
+   +'<td class="ff-fer ff-fer-nome" colspan="2">'+celNome+'</td>'
    +'<td class="ff-fer"></td><td class="ff-fer"></td><td class="ff-fer"></td><td class="ff-fer"></td>'
    +'<td class="ff-fer"></td><td class="ff-fer"></td><td class="ff-fer"></td><td class="ff-fer"></td>'
    +'<td class="ff-fer"></td><td class="ff-fer ff-fer-fim"></td></tr>';
@@ -7541,6 +7591,7 @@ function ffNivel(l,campo,hx){
    servidor só confirma.
    A CHAVE É A AULA — data e seq — desde 2026-09-13: a nota é do que o aluno fez naquela aula. */
 function ffGravar(el,data,seq,campo){
+ if(!telaDoAluno(FICHA_ID,'A ficha na tela'))return;
  var v=el.value;
  var cel=el.closest('label.ff-cel'), meia=el.closest('.ff-av2>span');
  if(cel){
@@ -7559,6 +7610,7 @@ function ffGravar(el,data,seq,campo){
   function(){/* gravou: a tela já está certa */});
 }
 function ffCiclar(td,data,seq){
+ if(!telaDoAluno(FICHA_ID,'A ficha na tela'))return;
  var campo=td.dataset.campo, ciclo=FF_CICLO[campo];
  var i=ciclo.indexOf(td.dataset.v||''), prox=ciclo[(i<0?0:i+1)%ciclo.length];
  td.dataset.v=prox;
@@ -7592,6 +7644,7 @@ i.onblur=function(){
  var ord=v===''?null:PLAN_ORD[v.toUpperCase()];
  if(v!==''&&ord===undefined){msg('Não achei a lição "'+v+'" na estrutura deste estágio.',true);
   td.innerHTML=antes;return}
+ if(!telaDoAluno(PLAN_ID,'O planejamento na tela')){td.innerHTML=antes;return}
  run('salvarLicaoDaAula',[{idMatricula:alSel.id,livro:PLAN_LIVRO,data:data,ordem:ord}],function(res){
   msg(res.limpou?'Marcação apagada — a posição volta a ser deduzida.':'Lição registrada.');
   /* recarrega porque afirmar a lição REANCORA a tabela inteira, para trás e para frente */
@@ -7802,13 +7855,15 @@ return s;
    régua, uma sobre a outra, porque é a DISTÂNCIA entre elas que é a informação; em barras separadas
    o olho não a enxerga.
    Reusa `getPlanejamento`, que já calcula tudo: uma chamada, não duas. */
-var PROGR=null;
-function progFechar(){PROGR=null;var c=$('prog-corpo');if(c)c.innerHTML='<div class="al-hist-vazio">Escolha um aluno.</div>'}
+var PROGR=null, PROG_SEQ=0;   // ver "resposta velha não pinta", no Planejamento
+function progFechar(){PROG_SEQ++;PROGR=null;var c=$('prog-corpo');if(c)c.innerHTML='<div class="al-hist-vazio">Escolha um aluno.</div>'}
 function progCarregar(livro){
 var c=$('prog-corpo');if(!c)return;
 if(!alSel){progFechar();return}
 c.innerHTML='<div class="al-hist-vazio">calculando…</div>';
-run('getPlanejamento',[{idMatricula:alSel.id,livro:livro||null}],function(r){PROGR=r;progPintar()});
+var s=++PROG_SEQ;
+run('getPlanejamento',[{idMatricula:alSel.id,livro:livro||null}],function(r){if(s!==PROG_SEQ)return;PROGR=r;progPintar()},
+ falhouAviso(c,s,function(){return PROG_SEQ}));
 }
 /* recalcular DE VERDADE: o cache das abas guarda a resposta, então limpar antes é o que faz o
    botão significar alguma coisa */
@@ -7819,11 +7874,14 @@ function progRecalcular(){cacheLimpar();progCarregar(MAT_CTX||undefined)}
    a FILA — cada falta com o dia em que foi reposta, ou em aberto —, à direita as anteposições, que
    ficam de fora da fila porque são pagas antes de a falta existir.
    Tudo é derivado de `presenca` + `encontro_avulso`; nada aqui é gravado. */
+var ENC_SEQ=0;   // ver "resposta velha não pinta", no Planejamento
 function encCarregar(livro){
 var c=$('enc-corpo');if(!c)return;
-if(!alSel){c.innerHTML='<div class="al-hist-vazio">Escolha um aluno.</div>';return}
+if(!alSel){ENC_SEQ++;c.innerHTML='<div class="al-hist-vazio">Escolha um aluno.</div>';return}
 c.innerHTML='<div class="al-hist-vazio">calculando…</div>';
-run('getPlanejamento',[{idMatricula:alSel.id,livro:livro||null}],function(r){encPintar(r)});
+var s=++ENC_SEQ;
+run('getPlanejamento',[{idMatricula:alSel.id,livro:livro||null}],function(r){if(s===ENC_SEQ)encPintar(r)},
+ falhouAviso(c,s,function(){return ENC_SEQ}));
 }
 /* o que aconteceu num encontro marcado, em palavra e cor (ver encontrosMarcados no servidor) */
 var ENC_RESULTADO={veio:{t:'veio',c:'r-veio'},faltou:{t:'faltou',c:'r-falta'},nao_veio:{t:'não veio',c:'r-falta'},
@@ -8244,7 +8302,8 @@ function dashProgCarregar(forcar){
 var c=$('dashprog-corpo');if(!c)return;
 if(DASHPROG&&!forcar){dashProgPintar();return}
 c.innerHTML='<div class="al-hist-vazio">calculando o progresso de todos os contratos…</div>';
-run('getProgresso',[{}],function(r){DASHPROG=r;dashProgPintar()});
+run('getProgresso',[{}],function(r){DASHPROG=r;dashProgPintar()},
+ function(e){c.innerHTML=planAviso('Não deu para calcular: '+escBloco(e)+'. Abra a aba de novo para tentar.')});
 }
 function dashProgPintar(){
 var c=$('dashprog-corpo');if(!c||!DASHPROG)return;
@@ -8302,14 +8361,28 @@ if(r.incertos)h+='<div class="al-hist-vazio">'+r.incertos+' contrato(s) estão c
 c.innerHTML=h;
 }
 /* clicar na linha leva ao planejamento DAQUELE contrato — é lá que se registra a lição */
+/* Wiztools 17: não saía do Dashboard (carregava o aluno na página escondida) e deixava a sub-aba antiga
+   "planejamento" gravada em AL_INFO_ABA — dali em diante todo aluno aberto recalculava um planejamento sem
+   livro. Agora vai à página, fecha o calendário do aluno e espera os cartões NOVOS (`MAT_ABA_DE=null` faz o
+   render tratar o aluno como recém-aberto, e só o render novo o devolve) para abrir o contrato na aba certa. */
 function dashProgAbrir(id,livro){
 var a=(ALUNOS||[]).filter(function(x){return String(x.id)===String(id)})[0];
 if(!a){msg('Aluno '+id+' não está na lista.',true);return}
+abaPor('alunos');
+if(CALX_ABERTO)calxFechar();
+MAT_ABA_DE=null;
 alCarregar(a);
-setTimeout(function(){alAba('matriculas');alInfoAba('planejamento');planCarregar(livro)},220);
+var n=0;(function tenta(){
+ var card=null;document.querySelectorAll('#mat-lista .matricula-card').forEach(function(c){if(c.dataset.livro===livro)card=c});
+ if(card&&alSel&&String(alSel.id)===String(a.id)&&String(MAT_ABA_DE)===String(a.id)){card.dataset.sub='plan';matAba(livro);return}
+ if(++n<50)setTimeout(tenta,100)})();
 }
+/* a anotação do DIA, escrita na Ficha (a única que chama isto). Gravava com `PLAN_LIVRO`, o livro do
+   PLANEJAMENTO: sem ele aberto naquele contrato, o servidor não achava o lançamento e a anotação se perdia
+   com "esta aula ainda não foi lançada" (Wiztools 17). O livro é o da Ficha que está na tela. */
 function planObs(data,el){
-run('salvarObservacaoAula',[{idMatricula:alSel.id,livro:PLAN_LIVRO,data:data,texto:el.value}],function(){
+if(!telaDoAluno(FICHA_ID,'A ficha na tela'))return;
+run('salvarObservacaoAula',[{idMatricula:alSel.id,livro:FICHA_LIVRO,data:data,texto:el.value}],function(){
  msg('Anotação salva.')})}
 /* os históricos só depois das matrículas: o dropdown de livro da situação depende delas (ver o
    comentário em recarregarMatriculas) */
@@ -8340,7 +8413,15 @@ cx.classList.toggle('aberto',abrir);bt.classList.toggle('aberto',abrir);bt.setAt
 /* aberto ou fechado é conveniência de quem olha, não da escola: fica no navegador */
 try{localStorage.setItem('al-dados-aberto',abrir?'1':'0')}catch(e){}}
 
-function alCarregar(a){dirty('al',false);AL_NOVO=false;alSel=a;$('al-nome').value=a.nome;$('al-id').value=a.id;$('al-id').disabled=true;alSitPor(a.situacao);$('al-excluir').style.display='inline-block';$('al-busca').value='';alQuem();alStatus();alTravarVinculo();$('al-aviso').innerHTML='';alDadosPor(a.dados);recarregarMatriculas(alHistoricos)}
+/* OS CARTÕES DO ALUNO ANTERIOR SAEM NA HORA (revisão da Wiztools 17): o `alSel` troca aqui, e os cartões do
+   anterior ficavam clicáveis até os do novo chegarem (dois pedidos em série). Nessa janela o Salvar do
+   cartão, a situação, o contrato e o ✕ da Frequência gravavam no aluno NOVO com os dados do anterior. As
+   seções voltam ao depósito e o miolo diz "carregando"; as travas `telaDoAluno` seguem como segunda linha. */
+function alCarregar(a){dirty('al',false);AL_NOVO=false;alSel=a;$('al-nome').value=a.nome;$('al-id').value=a.id;$('al-id').disabled=true;alSitPor(a.situacao);$('al-excluir').style.display='inline-block';$('al-busca').value='';alQuem();alStatus();alTravarVinculo();$('al-aviso').innerHTML='';alDadosPor(a.dados);
+matDevolverSecoes();histFechar();hhistFechar();freqFechar();
+var ml=$('mat-lista');if(ml)ml.innerHTML='<div class="matriculas-vazio">carregando os contratos…</div>';
+var ra=$('al-mat-abas');if(ra)ra.innerHTML='';
+recarregarMatriculas(alHistoricos)}
 function alNovo(){dirty('al',false);alSel=null;AL_NOVO=false;$('al-nome').value='';$('al-id').value='';$('al-id').disabled=false;alSitPor('');$('al-excluir').style.display='none';$('al-aviso').innerHTML='';alDadosPor(null);alTravarVinculo();alQuem();alHistoricos();alStatus();MATRICULAS=[];MATRIC_AULAS={};renderMatriculas();alAba('cadastro')}
 function alSalvar(){
 /* aluno NOVO nasce Matriculado; o de sempre não manda situação nenhuma — quem decide é o
@@ -8380,10 +8461,17 @@ run('excluirAluno',[alSel.id],function(r){msg('Aluno excluído ('+r.aulasRemovid
 /* `cb` existe por causa de uma corrida real: o dropdown de livro do histórico de situação é montado
    a partir de MATRICULAS, e `alCarregar` disparava os históricos ANTES de as matrículas chegarem —
    o campo abria só com "(sem estágio)" e a situação era gravada sem curso nenhum. */
+/* Wiztools 17 — as duas respostas conferem se o aluno ainda é o mesmo: trocar de aluno com o pedido em voo
+   misturava as matrículas de um com a agenda do outro. E a FALHA não deixa os cartões do aluno anterior na
+   tela com o `alSel` já trocado (o Salvar de um cartão velho gravaria a agenda no aluno novo): limpa e diz. */
 function recarregarMatriculas(cb){
 if(!alSel){MATRICULAS=[];MATRIC_AULAS={};renderMatriculas();if(cb)cb();return}
-run('getMatriculasAluno',[alSel.id],function(ms){MATRICULAS=ms;
-run('getAulasAluno',[alSel.id],function(aulas){var por={};aulas.forEach(function(x){(por[x.livro]=por[x.livro]||[]).push(x)});MATRIC_AULAS=por;renderMatriculas();if(cb)cb()})})}
+var id=alSel.id, meu=function(){return alSel&&String(alSel.id)===String(id)};
+var erro=function(e){if(!meu())return;MATRICULAS=[];MATRIC_AULAS={};renderMatriculas();
+ var box=$('mat-lista');if(box)box.innerHTML='<div class="matriculas-vazio">Não deu para carregar os contratos deste aluno ('
+  +escBloco(e)+'). Escolha o aluno de novo para tentar.</div>'};
+run('getMatriculasAluno',[id],function(ms){if(!meu())return;MATRICULAS=ms;
+run('getAulasAluno',[id],function(aulas){if(!meu())return;var por={};aulas.forEach(function(x){(por[x.livro]=por[x.livro]||[]).push(x)});MATRIC_AULAS=por;renderMatriculas();if(cb)cb()},erro)},erro)}
 /* ===== MATRÍCULAS EM ABAS (2026-08-16) =====
    Eram sanfonas empilhadas: com dois ou três estágios a página crescia para baixo e achar o
    horário do segundo virava rolagem. Viraram abas, uma por estágio, acumulando da esquerda para a
@@ -8552,6 +8640,11 @@ Object.keys(casa).forEach(function(id){
  if(el&&pai&&el.parentNode!==pai){el.style.display='none';pai.appendChild(el)}});
 }
 function renderMatriculas(){
+/* a sub-aba do cartão aberto mora no PRÓPRIO cartão (`dataset.sub`), e o cartão morre logo abaixo. Guardada
+   aqui, volta no cartão novo do mesmo contrato: salvar o contrato recriava o cartão aceso em "Painel" com o
+   corpo de Horário à vista e sem a 3ª coluna do histórico (Wiztools 17) */
+var velho=MAT_ABA?[].slice.call(document.querySelectorAll('#mat-lista .matricula-card')).filter(function(c){return c.dataset.livro===MAT_ABA})[0]:null;
+var subAntes=velho?velho.dataset.sub||null:null, abaAntes=MAT_ABA, deAntes=MAT_ABA_DE;
 matDevolverSecoes();
 var box=$('mat-lista');box.innerHTML='';
 /* o trilho vive no bloco FIXO da página, fora do miolo rolável — daí os dois contêineres */
@@ -8595,14 +8688,18 @@ var vazio=document.createElement('div');vazio.className='matriculas-vazio mat-es
 vazio.textContent='Escolha um estágio acima para ver e editar a matrícula.';
 vazio.style.display=MAT_ABA?'none':'block';
 box.appendChild(vazio);
+var mesmoContrato=!autoAbriu&&subAntes&&MAT_ABA===abaAntes&&String(deAntes)===String(alSel.id);
 ordem.forEach(function(m){
   var card=criarCartaoMatricula(m);
   card.dataset.livro=m.livro;
   card.style.display=(m.livro===MAT_ABA?'':'none');
+  if(mesmoContrato&&m.livro===MAT_ABA)card.dataset.sub=subAntes;
   box.appendChild(card)});
 /* depois de os cartões existirem: `matAba` é quem move as seções para dentro do contrato e arma o
-   contexto — sem esta chamada o cartão apareceria aberto mas vazio por dentro */
-if(autoAbriu)matAba(MAT_ABA);
+   contexto — sem esta chamada o cartão apareceria aberto mas vazio por dentro. Vale também para o
+   redesenho do MESMO contrato (salvar, trocar horário): antes só rodava no aberto automático, e o cartão
+   novo ficava com a aba acesa e as seções no depósito (Wiztools 17) */
+if(MAT_ABA)matAba(MAT_ABA);
 }
 function matAba(livro){
 MAT_ABA=livro;
@@ -12850,7 +12947,14 @@ try{
 LC_WS=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws');
 }catch(e){return}
 LC_WS.onopen=function(){LC_WS_ESPERA=1000};
-LC_WS.onmessage=function(){if(lcNaAbaDeLancamento())lcSincronizar()};
+/* o aviso de gravação feita em QUALQUER máquina (esta inclusive) também invalida o cache das abas do aluno
+   (Wiztools 17): antes só a tela de lançamento reagia, e a presença lançada na recepção não aparecia na
+   Ficha, no Planejamento ou no Calendário já abertos na sala até alguém gravar algo ali ou recarregar.
+   Não redesenha a aba à vista — pode haver alguém digitando nela —; a próxima abertura já vem nova. */
+LC_WS.onmessage=function(ev){
+ var evento='';try{evento=JSON.parse(ev.data).evento||''}catch(e){}
+ if(!SO_LEITURA.test(evento))cacheLimpar();
+ if(lcNaAbaDeLancamento())lcSincronizar()};
 LC_WS.onclose=function(){                                  // espera crescente até 30s, sem martelar
 LC_WS=null;setTimeout(lcConectarWS,LC_WS_ESPERA);LC_WS_ESPERA=Math.min(LC_WS_ESPERA*2,30000)};
 LC_WS.onerror=function(){try{LC_WS.close()}catch(e){}};
@@ -16218,7 +16322,10 @@ for(m=0;m<12;m++){
   /* A DONA DA CÉLULA, igual à grade do Calendário letivo (decisão dele, 27/09): a marcação que forma
      faixa com o vizinho da fileira pinta o dia; isolada, é ponto; as outras viram o pingo de cima */
   var dona=null,antes=false,depois=false;
-  marcas.forEach(function(mk){
+  /* se ALGUMA marca do dia fecha a escola, a dona sai só entre as que fecham: um evento aberto em faixa por
+     cima de um feriado pintava o dia fechado como aberto, e o servidor diz "não conta" (Wiztools 17) */
+  var cands=marcas.some(function(z){return z.fecha})?marcas.filter(function(z){return z.fecha}):marcas;
+  cands.forEach(function(mk){
    var a=marcasDe(k-1).some(function(z){return z.id===mk.id}),b=marcasDe(k+1).some(function(z){return z.id===mk.id});
    if(!dona||((a||b)&&!(antes||depois))){dona=mk;antes=a;depois=b}});
   var fora=!coberto(iso),fill,numCor=aulas.length?'#374151':'#9ca3af',contorno='#e5e7eb',cw=0.5;
@@ -17411,16 +17518,25 @@ if(!destino||!alvo){msg('Este alerta ainda não tem atalho.',true);return}
 var esperar=function(fn,ms){setTimeout(fn,ms||420)};
 if(destino==='aluno'||destino==='aluno-historico'){
  abaPor('alunos');
+ /* quem vem de um aviso quer os contratos, não o calendário do aluno por cima */
+ if(CALX_ABERTO)calxFechar();
  esperar(function(){
   var a=(ALUNOS||[]).filter(function(x){return String(x.id)===String(alvo)})[0];
   if(!a){msg('Aluno '+alvo+' não está na lista.',true);return}
+  /* histórico: espera os cartões NOVOS e abre a sub-aba Horário e contrato, que é onde o histórico de
+     situação mora. Antes `alAba/alInfoAba` mexiam nas seções do depósito escondido e o piscar acontecia
+     numa seção invisível (Wiztools 17). `MAT_ABA_DE=null`: com o aluno já aberto, os cartões velhos
+     passariam no teste e o render seguinte os destruiria. */
+  if(destino==='aluno-historico')MAT_ABA_DE=null;
   alCarregar(a);
-  esperar(function(){
-   if(destino==='aluno-historico'){alAba('matriculas');alInfoAba('situacao');
-    ctPiscar(function(){return $('hist-corpo')},2200)}
-   else ctPiscar(function(){return $('al-nome')},2200);
-   msg(rotulo||a.nome);
-  },700);
+  if(destino!=='aluno-historico'){
+   esperar(function(){ctPiscar(function(){return $('al-nome')},2200);msg(rotulo||a.nome)},700);
+   return}
+  var n=0;(function tenta(){
+   if(alSel&&String(alSel.id)===String(a.id)&&String(MAT_ABA_DE)===String(a.id)
+      &&document.querySelector('#mat-lista .matricula-card')){
+    matIrPara('info');ctPiscar(function(){return $('hist-corpo')},2200);msg(rotulo||a.nome);return}
+   if(++n<50)setTimeout(tenta,100);else msg(rotulo||a.nome)})();
  });
  return}
 if(destino==='entrega'){

@@ -1503,6 +1503,23 @@ db.exec(`CREATE TABLE IF NOT EXISTS calendario_trecho (
   off_ini INTEGER, off_fim INTEGER     -- modo 'pascoa' (dias a contar da Páscoa)
 )`);
 db.exec("CREATE INDEX IF NOT EXISTS ix_trecho_marc ON calendario_trecho(marcacao_id)");
+/* ===== A DECISÃO DE UM DIA SÓ (05/10/2026, dele) =====
+   *"A programação de datas no calendário letivo acaba sendo muito arbitrária... pode haver de abrir, pode haver
+   não de abrir, porque depende da minha patroa... o sistema tem que se adaptar de forma dinâmica sobre fechamento
+   ou não da escola, ou dias de não aula. Nunca vai ser estático."*
+   O `fecha` da marcação vale para TODAS as ocorrências (o Carnaval de todos os anos). Esta tabela guarda a exceção
+   de UMA data: "neste Carnaval a escola abriu", "nesta Quarta de Cinzas fechou", sem mexer na regra dos outros
+   anos. Sem linha aqui, vale a regra da marcação. Quem lê o `fecha` passa por `fechaNoDia` — e são só três
+   lugares (`diasFechados`, `feriadosNomeados`, `getCalendario`), porque todo o resto (projeção, travas, Ficha,
+   lançador, calendário do aluno, fecho do dia) consome um deles. */
+db.exec(`CREATE TABLE IF NOT EXISTS calendario_ocorrencia (
+  marcacao_id INTEGER NOT NULL REFERENCES calendario_marcacao(id) ON DELETE CASCADE,
+  data TEXT NOT NULL CHECK (data GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+  fecha INTEGER NOT NULL CHECK (fecha IN (0,1)),
+  observacao TEXT,
+  momento TEXT NOT NULL,
+  PRIMARY KEY (marcacao_id, data)
+)`);
 /* ===== MODO 'semana': o N-ésimo DIA DA SEMANA de um mês (2026-08-17) =====
    As férias da Wizard não são uma data, são uma REGRA: *"começamos na segunda sexta-feira de
    dezembro e voltamos na segunda segunda-feira de janeiro"*. Guardar 11/12 fixo estaria certo em
@@ -1793,6 +1810,13 @@ const PARAMETROS: Parametro[] = [
   { chave: "pef_prazo_dia", aba: "pef", rotulo: "O portal fecha no dia", tipo: "num", unidade: "do mês seguinte",
     padrao: "5", min: 1, max: 28, fonte: "rede, PEF", classe: "leitura",
     ajuda: "Depois dele o IPP do mês vale zero. É a data que a página do PEF mostra; passado o dia, o mês que não foi fechado aparece como atrasado." },
+  /* A PAUSA ENTRE LIVROS (05/10/2026, dele): *"se o aluno termina no final de junho e ele não continua o livro, depois
+     de 30 dias é considerado não rematriculado... às vezes ele demorou duas semanas de pausa porque tá viajando, mas
+     ele volta"*. Antes do prazo ele está EM PAUSA (aparece, sem botão); depois, é pendência do PEF. A perda conta no mês
+     em que o livro terminou — e, se esse mês já foi entregue, no 1º mês aberto (R1). */
+  { chave: "pef_pausa_rematricula_dias", aba: "pef", rotulo: "Vira não rematriculado depois de", tipo: "num",
+    unidade: "dias sem seguir para o próximo livro", padrao: "30", min: 7, max: 120, fonte: "casa, 05/10", classe: "leitura",
+    ajuda: "Conta a partir do fim do livro. Antes disso o aluno está em pausa (viagem, férias) e não é pendência; depois, a aba Saídas do PEF pede o registro do \"não rematriculado\". A perda conta no mês em que o livro terminou." },
   /* ---- Sistema ---- */
   { chave: "cal_sync_hora", aba: "sistema", rotulo: "Hora da sincronização dos feriados", tipo: "hora", padrao: "15:30",
     fonte: "casa", classe: "leitura", tela: "Calendário",
@@ -5324,13 +5348,23 @@ function ippDoMes(mes: string) {
      Se não rematricula e ninguém registra, fica ativo no formulário para sempre — e fora do denominador da
      rematrícula. Detectar não é carimbar: esta lista pede que alguém registre a saída (motivo "Não comprou o
      material do próximo estágio", caixa Não rematriculado) ou faça a rematrícula. */
-  const naoRematriculadosDetectados: any[] = [];
+  const naoRematriculadosDetectados: any[] = [], emPausaRematricula: any[] = [];
+  /* A PAUSA (05/10, dele): até `pef_pausa_rematricula_dias` depois do fim do livro o aluno está EM PAUSA — viagem,
+     férias, "ele volta" — e não é pendência; passado o prazo, é. O prazo conta até HOJE, que é quando o PEF está sendo
+     preenchido: é nesse momento que se sabe se ele rematriculou. */
+  const pausaDias = Pn("pef_pausa_rematricula_dias");
   for (const a of ativosFim.values()) {
     if (a.origem !== "hoje" || a.livro) continue;           // com contrato aberto não é o caso
     const ult = G(`SELECT livro, data_fim FROM aluno_estagio WHERE id_matricula=? AND estado='encerrado'
                      AND data_fim IS NOT NULL AND data_fim<=? ORDER BY data_fim DESC, id DESC LIMIT 1`, a.id, fim);
     if (!ult) continue;
     if (G("SELECT 1 FROM presenca WHERE id_matricula=? AND status='P' AND data BETWEEN ? AND ?", a.id, ini, fim)) continue;
+    const prazoPausa = maisDias(ult.data_fim, pausaDias);
+    if (prazoPausa > hoje) {
+      emPausaRematricula.push({ id: a.id, nome: a.nome, livro: ult.livro, desde: ult.data_fim, prazo: prazoPausa,
+        criterio: "terminou " + nomeDoLivro(ult.livro) + " em " + dataBR(ult.data_fim) + " — em pausa até " + dataBR(prazoPausa) });
+      continue;
+    }
     naoRematriculadosDetectados.push({ id: a.id, nome: a.nome, livro: ult.livro, desde: ult.data_fim,
       criterio: "terminou " + nomeDoLivro(ult.livro) + " em " + dataBR(ult.data_fim) + " e não seguiu",
       /* o "Encerrado" do fim do livro: a aba Saídas o COMPLETA com a caixa, em vez de gravar uma 2ª saída */
@@ -5379,7 +5413,7 @@ function ippDoMes(mes: string) {
     mes, de: ini, ate: fim, parcial: fim >= hoje,
     responsavel: coord[0] ? { nome: coord[0].nome_completo || coord[0].nome, funcao: coord[0].papel } : null,
     ativosInicio: ativosInicioN, ativosInicioDoFechamento: iniEntregue != null, ativosInicioRecalculado: ativosIni.size,
-    ativosFim: ativosFim.size, saidasRealocadas, entradasRealocadas, saidasForaDoEntregue, naoRematriculadosDetectados,
+    ativosFim: ativosFim.size, saidasRealocadas, entradasRealocadas, saidasForaDoEntregue, naoRematriculadosDetectados, emPausaRematricula,
     listaAtivosFim: [...ativosFim.values()].sort((a, b) => String(a.nome).localeCompare(String(b.nome))),
     modalidades, experiencias, saidas, linhas: IPP_LINHAS, resumoSaidas, retencao, rematricula: rem,
     matriculadosNoMes, detectados, saidaSemCaixa, saidaSemCanal, semCaixa, doisContratos,
@@ -5716,21 +5750,36 @@ function gestaoPedagogica(mes: string) {
    de cadastro, e o empate vai pelo id. A grade do Calendário pinta a faixa das Férias (para ela não se
    partir) com o Natal de pingo — é de propósito que a Ficha e o lançador digam "Natal": é o nome que
    explica o dia. O CONJUNTO de dias fechados é o mesmo nos dois (`diasFechados`). */
+/* A DECISÃO DE UM DIA vence a regra da marcação (05/10/2026 — ver `calendario_ocorrencia`). Por isso as duas
+   funções abaixo leem TODAS as marcações, e não só as `fecha=1`: um evento aberto pode ter sido fechado num dia, e um
+   feriado fechado pode ter sido aberto noutro. */
+function decisoesDoDia(de: string, ate: string): Map<string, number> {
+  const m = new Map<string, number>();
+  for (const r of A("SELECT marcacao_id, data, fecha FROM calendario_ocorrencia WHERE data BETWEEN ? AND ?", de, ate))
+    m.set(r.marcacao_id + "|" + r.data, Number(r.fecha));
+  return m;
+}
+function fechaNoDia(mk: any, d: string, dec: Map<string, number>): boolean {
+  const k = mk.id + "|" + d;
+  return (dec.has(k) ? dec.get(k) : Number(mk.fecha)) === 1;
+}
 function feriadosNomeados(de: string, ate: string): Map<string, { nome: string; tipo: string }> {
   const m = new Map<string, { nome: string; tipo: string }>();
-  const marcs = A("SELECT * FROM calendario_marcacao WHERE arquivado IS NULL AND fecha=1 ORDER BY (tipo<>'feriado'), id");
+  const marcs = A("SELECT * FROM calendario_marcacao WHERE arquivado IS NULL ORDER BY (tipo<>'feriado'), id");
+  const dec = decisoesDoDia(de, ate);
   for (let y = Number(de.slice(0, 4)); y <= Number(ate.slice(0, 4)); y++)
     for (const mk of marcs)
       for (const d of datasDaMarcacao(mk, y))
-        if (d >= de && d <= ate && !m.has(d)) m.set(d, { nome: mk.nome, tipo: mk.tipo });
+        if (d >= de && d <= ate && !m.has(d) && fechaNoDia(mk, d, dec)) m.set(d, { nome: mk.nome, tipo: mk.tipo });
   return m;
 }
 function diasFechados(de: string, ate: string): Set<string> {
   const fora = new Set<string>();
-  const marcs = A("SELECT * FROM calendario_marcacao WHERE arquivado IS NULL AND fecha=1");
+  const marcs = A("SELECT * FROM calendario_marcacao WHERE arquivado IS NULL");
+  const dec = decisoesDoDia(de, ate);
   for (let y = Number(de.slice(0, 4)); y <= Number(ate.slice(0, 4)); y++)
     for (const m of marcs)
-      for (const d of datasDaMarcacao(m, y)) if (d >= de && d <= ate) fora.add(d);
+      for (const d of datasDaMarcacao(m, y)) if (d >= de && d <= ate && fechaNoDia(m, d, dec)) fora.add(d);
   return fora;
 }
 /* ===== DIA SEM AULA NO CALENDÁRIO NÃO TEM NADA DE AULA (2026-09-19, dele) =====
@@ -9864,9 +9913,14 @@ const api: Record<string, (a: any) => unknown> = {
     /* data -> marcações daquele dia. Um dia pode ter mais de uma (feriado que cai dentro das
        férias), e a tela precisa saber de todas para o `title` contar a história inteira. */
     const porData: Record<string, any[]> = {};
+    /* a decisão de um dia (05/10/2026) vence a regra: `fecha` aqui é o EFETIVO daquele dia, `regra` é o da marcação, e
+       `decidido` diz à tela que aquele dia foge da regra. A janela vai até janeiro do ano seguinte: as férias de
+       dezembro atravessam o ano. */
+    const decCal = decisoesDoDia(`${y}-01-01`, `${y + 1}-01-31`);
     const lista = marcacoes.map(m => {
       const datas = datasDaMarcacao(m, y);
-      for (const d of datas) (porData[d] ||= []).push({ id: m.id, nome: m.nome, tipo: m.tipo, cor: m.cor, fecha: m.fecha === 1 });
+      for (const d of datas) (porData[d] ||= []).push({ id: m.id, nome: m.nome, tipo: m.tipo, cor: m.cor,
+        fecha: fechaNoDia(m, d, decCal), regra: m.fecha === 1, decidido: decCal.has(m.id + "|" + d) });
       return {
         id: m.id, nome: m.nome, tipo: m.tipo,
         tipos: String(m.tipos || m.tipo).split(",").filter(Boolean),
@@ -10034,6 +10088,44 @@ const api: Record<string, (a: any) => unknown> = {
     if (sabadoUtil !== undefined) gravarParametro("cal_sabado_util", sabadoUtil ? "1" : "0", "Calendário");
     if (domingoUtil !== undefined) gravarParametro("cal_domingo_util", domingoUtil ? "1" : "0", "Calendário");
     return { ok: true };
+  },
+  /* ===== DECIDIR UM DIA SÓ (05/10/2026, dele — "nunca vai ser estático") =====
+     `fecha` verdadeiro/falso grava a exceção daquela data (ver `calendario_ocorrencia`); nulo apaga, e o dia volta à
+     regra da marcação. Decidir o mesmo que a regra já diz também apaga: a exceção só existe quando foge da regra. */
+  decidirDiaCalendario({ marcacaoId, data, fecha, observacao }: any) {
+    const m = G("SELECT * FROM calendario_marcacao WHERE id=? AND arquivado IS NULL", Number(marcacaoId));
+    if (!m) throw new Error("Marcação não encontrada.");
+    const d = String(data || "");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) throw new Error("Data inválida.");
+    const y = Number(d.slice(0, 4));
+    /* o ano anterior também: as férias de dezembro têm dias em janeiro */
+    if (!datasDaMarcacao(m, y).includes(d) && !datasDaMarcacao(m, y - 1).includes(d))
+      throw new Error(`${dataBR(d)} não é um dia de "${m.nome}".`);
+    const quer = fecha === null || fecha === undefined ? null : (fecha ? 1 : 0);
+    if (quer === null || quer === Number(m.fecha)) {
+      R("DELETE FROM calendario_ocorrencia WHERE marcacao_id=? AND data=?", m.id, d);
+      return { ok: true, decidido: false, fecha: Number(m.fecha) === 1 };
+    }
+    R(`INSERT INTO calendario_ocorrencia (marcacao_id, data, fecha, observacao, momento) VALUES (?,?,?,?,?)
+       ON CONFLICT(marcacao_id, data) DO UPDATE SET fecha=excluded.fecha, observacao=excluded.observacao, momento=excluded.momento`,
+      m.id, d, quer, String(observacao ?? "").trim() || null, agora());
+    return { ok: true, decidido: true, fecha: quer === 1 };
+  },
+  /* "A ESCOLA ABRIU NESTE DIA" — o gesto do lançador, que é onde a recepção descobre que a patroa abriu: toda marcação
+     que fecha a data ganha a exceção ABERTA só naquele dia. Os outros anos seguem a regra. */
+  abrirDiaEscola({ data, observacao }: any) {
+    const d = String(data || "");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) throw new Error("Data inválida.");
+    const y = Number(d.slice(0, 4)), dec = decisoesDoDia(d, d), abertas: string[] = [];
+    for (const m of A("SELECT * FROM calendario_marcacao WHERE arquivado IS NULL")) {
+      if (!datasDaMarcacao(m, y).includes(d) && !datasDaMarcacao(m, y - 1).includes(d)) continue;
+      if (!fechaNoDia(m, d, dec)) continue;
+      (api as any).decidirDiaCalendario({ marcacaoId: m.id, data: d, fecha: false,
+        observacao: String(observacao ?? "").trim() || "a escola abriu (lançador)" });
+      abertas.push(m.nome);
+    }
+    if (!abertas.length) throw new Error(`${dataBR(d)} já é dia de aula no calendário letivo.`);
+    return { ok: true, abertas };
   },
   /* Salva a marcação COM OS SEUS TRECHOS. Os trechos são substituídos por inteiro a cada gravação:
      é mais simples e mais honesto que casar um a um, e a lista é curta por natureza. */

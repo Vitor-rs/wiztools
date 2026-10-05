@@ -2307,6 +2307,14 @@ th.ev.ultima .es-ev-data{background:var(--marca);color:#fff}
 .cal-pop-a{font-size:10px;font-weight:700;border-radius:20px;padding:1px 7px;margin-left:auto}
 .cal-pop-a.sim{background:var(--es-remessa-cl);color:var(--es-remessa)}
 .cal-pop-a.nao{background:var(--es-saida-cl);color:var(--es-saida)}
+/* ===== O DIA DECIDIDO À PARTE (05/10/2026) ===== a regra da marcação não vale nesta data: a borda tracejada avisa na
+   grade, o selo avisa no popover, e o diálogo do clique decide */
+.cal-pop-dec{font-size:10px;font-weight:700;border-radius:20px;padding:1px 7px;border:1px dashed var(--marca);color:var(--marca)}
+.cal-pop-dica{margin-top:5px;padding-top:4px;border-top:1px solid var(--borda);font-size:10.5px;color:var(--tx3)}
+#cal-grade td.decidido{outline:1.5px dashed var(--marca);outline-offset:-2px}
+.cal-dec-l{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:13px}
+.cal-dec-l b{flex:1 1 auto;color:var(--marca);font-weight:600}
+.cal-dec-l select{width:240px;margin:0}
 /* ===== CROSSHAIR DO "HOJE" (2026-08-17) =====
    Ao clicar em Hoje, a coluna do dia da semana e a fileira daquela semana acendem em amarelo, e o
    cruzamento em laranja — é o gesto do Kanban e da tabela do Estoque, aqui só que temporário.
@@ -14852,6 +14860,13 @@ if(nrem.length)h+='<div class="ret-pend"><div class="ret-pend-cab">'+icon('trian
   +'<span class="ret-pl-ult">terminou em '+dataCurta(x.desde)+'</span>'
   +(acao?pefSelMotivo('Não rematriculado')
   +'<button type="button" class="acao" onclick="pefRegistrarDetectado(this,\'Encerrado\')">Não rematriculou</button>':'')+abrir(x)+'</div>'}).join('')+'</div>';
+/* quem terminou o livro há pouco está EM PAUSA (05/10, dele: "às vezes ele demorou duas semanas porque tá viajando, mas
+   ele volta"): aparece, sem botão, até o prazo de Configurações › PEF — depois vira a pendência de cima */
+var pausa=i.emPausaRematricula||[];
+if(pausa.length)h+='<div class="pef-av">'+pefN(pausa.length,'pausa','Terminaram o livro e estão em pausa',
+ pausa.map(function(x){return {id:x.id,nome:x.nome,livro:x.livro,data:x.prazo,extra:'terminou em '+dataCurta(x.desde)+' · em pausa até '+dataCurta(x.prazo)}}))
+ +' aluno(s) terminaram o livro há pouco e estão <b>em pausa</b> — viram pendência se não seguirem até o prazo '
+ +'(<button type="button" class="pef-lnk" onclick="pefIrConfig()">Configurações › PEF</button>).</div>';
 /* ---------- 2. as saídas antigas por completar (de qualquer mês — a repescagem que era da Retenção) ---------- */
 var pend=PEF_RET.pendentes||{}, lp=(pend.semRegistro||[]).concat(pend.semMotivo||[]);
 if(lp.length)h+='<details class="pef-det" data-k="rep"><summary><b>'+lp.length+' saída(s) antiga(s) por completar</b> — sem data ou sem motivo, de qualquer mês</summary>'
@@ -16209,8 +16224,19 @@ msg((marcar.length?marcar.length+' dia(s) marcados como não aula. ':'')
 lcCarregar()})});
 };
 }
+/* "A ESCOLA ABRIU NESTE DIA" (05/10/2026, dele: as datas "dependem da minha patroa... nunca vai ser estático"). É aqui
+   que a recepção descobre que abriu — com alunos chegando —, então o gesto mora aqui: abre SÓ esta data no calendário
+   letivo (os outros anos seguem a regra) e o lançador destrava na hora. */
+function lcAbrirDiaEscola(c){
+dlgConfirmar({titulo:'Dia sem aula — '+c.numero,ok:'A escola abriu neste dia',
+ texto:'O calendário letivo fechou este dia ('+c.semAula.nome+'): ali não entra presença, falta nem não-aula.'
+  +'\n\nSe a escola ABRIU, confirme: só esta data passa a ter aula, e o '+c.semAula.nome+' dos outros anos continua fechado. '
+  +'Dá para desfazer no Calendário letivo, clicando no dia.'},
+ function(sim){if(!sim)return;
+  run('abrirDiaEscola',[{data:c.data}],function(r){
+   msg('Dia '+c.numero+' aberto ('+(r.abertas||[]).join(', ')+'): já dá para lançar.');lcCarregar()})})}
 function lcColunaNaoAula(b,c,card){
-if(c.semAula){dlgAviso({titulo:'Dia sem aula',texto:'O calendário letivo fechou o dia '+c.numero+' ('+c.semAula.nome+'): ali não entra presença, falta nem não-aula.\n\nSe houve aula, reabra o dia no Calendário.'});return}
+if(c.semAula){lcAbrirDiaEscola(c);return}
 var todosN=b.alunos.every(function(a){var x=a.pontos[c.data];return x&&x.status==='N'});
 var novo=todosN?null:'N';
 dlgConfirmar({titulo:todosN?'Desmarcar não aula':'Marcar dia como não aula',ok:todosN?'Desmarcar':'Marcar não aula',
@@ -17018,7 +17044,9 @@ CAL.meses.forEach(function(m){
        — e JSON é feito de aspas. Sem isto o atributo termina no primeiro `"` do JSON, o
        `JSON.parse` falha e o popover não abre (falhando em silêncio, que foi como apareceu). */
     titulo=' data-pop="'+escBloco(JSON.stringify(d.marcas.map(function(x){
-      return {n:x.nome,c:x.cor||'#8A93A0',t:x.tipo,f:x.fecha}}))).replace(/"/g,'&quot;')+'"';
+      return {id:x.id,n:x.nome,c:x.cor||'#8A93A0',t:x.tipo,f:x.fecha,r:x.regra,d:x.decidido}}))).replace(/"/g,'&quot;')+'"';
+    /* o dia que foge da regra (decidido à parte, 05/10/2026) ganha a borda tracejada: a grade avisa que este ano foi diferente */
+    if(d.marcas.some(function(x){return x.decidido}))cls.push('decidido');
     /* quem PINTA a célula: se houver uma marcação em faixa (com vizinho do mesmo lado da fileira),
        é ela — assim o intervalo não se parte quando um feriado pontual cai dentro dele. As demais
        viram um pinguinho por cima. */
@@ -17084,8 +17112,16 @@ g.addEventListener('mouseover',function(ev){
 g.addEventListener('mouseout',function(ev){
  var mk=alvoMarca(ev.target);
  if(mk&&(!ev.relatedTarget||!mk.contains(ev.relatedTarget)))calPopFechar()});
+/* CLIQUE na cor = decidir SÓ ESTE DIA (05/10/2026, dele: "o sistema tem que se adaptar de forma dinâmica"). Espera
+   um instante para não engolir o duplo clique, que continua levando à marcação na tabela. */
+var tCli=null;
+g.addEventListener('click',function(ev){
+ var mk=alvoMarca(ev.target);if(!mk)return;
+ var td=mk.closest('td[data-pop]');if(!td)return;
+ clearTimeout(tCli);tCli=setTimeout(function(){calPopFechar();calDecidirDia(td)},260)});
 /* DUPLO CLIQUE na cor leva à linha da marcação na tabela de configuração */
 g.addEventListener('dblclick',function(ev){
+ clearTimeout(tCli);
  var mk=alvoMarca(ev.target);if(!mk)return;
  var td=mk.closest('td[data-marc]');if(!td)return;
  calIrParaTabela(Number(td.dataset.marc))});
@@ -17093,6 +17129,33 @@ g.addEventListener('dblclick',function(ev){
 var rola=g.closest('.pg-rola');if(rola)rola.addEventListener('scroll',calPopFechar,{passive:true});
 }
 function calPopFechar(){if(CAL_POP){CAL_POP.remove();CAL_POP=null}}
+/* ===== DECIDIR UM DIA SÓ (05/10/2026) =====
+   Uma linha por marcação do dia, com três escolhas: a escola ABRE, FECHA, ou SEGUE A REGRA da marcação. Vale só para
+   esta data — o Carnaval do ano que vem continua seguindo a regra. Tudo o que depende do calendário (planejamento,
+   travas do lançador, Ficha, falta automática) passa a ver a decisão na hora. */
+function calDecidirDia(td){
+var lista;try{lista=JSON.parse(td.dataset.pop)}catch(e){return}
+var iso=td.dataset.iso||'';if(!lista||!lista.length||!iso)return;
+dlgAbrir({tipo:'confirmar',titulo:'Só neste dia — '+esDataBR(iso),ok:'Guardar',
+ texto:'A regra de cada marcação continua valendo nos outros anos. Aqui você decide só esta data.',
+ form:lista.map(function(x,i){
+  var atual=x.d?(x.f?'fecha':'abre'):'regra';
+  return '<div class="cal-dec-l" data-i="'+i+'"><span class="cal-pop-c" style="background:'+x.c+'"></span><b>'+escBloco(x.n)+'</b>'
+   +'<select class="cal-dec-s" aria-label="Neste dia">'
+   +'<option value="regra"'+(atual==='regra'?' selected':'')+'>segue a regra ('+(x.r?'sem aula':'tem aula')+')</option>'
+   +'<option value="abre"'+(atual==='abre'?' selected':'')+'>neste dia a escola ABRE</option>'
+   +'<option value="fecha"'+(atual==='fecha'?' selected':'')+'>neste dia a escola FECHA</option>'
+   +'</select></div>'}).join(''),
+ coletar:function(f){return [].slice.call(f.querySelectorAll('.cal-dec-l')).map(function(l){
+  return {x:lista[Number(l.dataset.i)],v:l.querySelector('.cal-dec-s').value}})},
+ cb:function(v){if(!v||typeof v!=='object')return;
+  var mudar=v.filter(function(o){var antes=o.x.d?(o.x.f?'fecha':'abre'):'regra';return o.v!==antes});
+  if(!mudar.length)return;
+  var n=0,proximo=function(){
+   if(n>=mudar.length){msg('Decidido para '+esDataBR(iso)+'.');calCarregar();return}
+   var o=mudar[n++];
+   run('decidirDiaCalendario',[{marcacaoId:o.x.id,data:iso,fecha:o.v==='regra'?null:(o.v==='fecha')}],proximo,function(){calCarregar()})};
+  proximo()}})}
 /* ===== NAVEGAÇÃO NOS DOIS SENTIDOS (2026-08-17) =====
    Pedido dele: da tabela para o calendário e do calendário para a tabela, sempre com duplo clique e
    com o destino se anunciando por um instante — *"pra eu saber onde eu tô mexendo"*.
@@ -17164,7 +17227,9 @@ p.innerHTML='<div class="cal-pop-cab">'+escBloco(esDataBR(iso))+'</div>'
    return '<div class="cal-pop-l"><span class="cal-pop-c" style="background:'+x.c+'"></span>'
     +'<b>'+escBloco(x.n)+'</b>'
     +'<span class="cal-pop-t">'+escBloco(calRot(CAL_TIPOS,x.t))+'</span>'
-    +'<span class="cal-pop-a '+(x.f?'nao':'sim')+'">'+(x.f?'sem aula':'tem aula')+'</span></div>'}).join('');
+    +'<span class="cal-pop-a '+(x.f?'nao':'sim')+'">'+(x.f?'sem aula':'tem aula')+'</span>'
+    +(x.d?'<span class="cal-pop-dec" title="a regra da marcação diz '+(x.r?'sem aula':'tem aula')+'">só neste dia</span>':'')+'</div>'}).join('')
+ +'<div class="cal-pop-dica">clique para decidir só este dia · duplo clique abre a marcação</div>';
 document.body.appendChild(p);
 var r=td.getBoundingClientRect(), pr=p.getBoundingClientRect();
 /* acima da célula por padrão; se não couber, abaixo. E encostado na janela pelas laterais. */

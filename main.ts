@@ -5118,6 +5118,26 @@ function mesDeReporteDaSaida(h: any): string {
   return m;
 }
 
+/* ===== ESTA SAÍDA FOI ENTREGUE? (revisão da Wiztools 17) =====
+   A resposta está no que foi ENTREGUE — o JSON de cada mês fechado, o mesmo razão de `ippDoMes` —, e não no mês
+   em que a saída "deveria" contar pela data: uma data corrigida depois do fechamento, ou uma saída que o IPP pulou
+   (perda já entregue, trancado vencido, 2ª saída do mês), enganam a conta pela data. JSON antigo sem `registroId`
+   casa pelo aluno e pela data. */
+function saidaEntregue(r: any): { mes: string; tipoRede: string | null } | null {
+  for (const f of A("SELECT mes, dados FROM pef_fechamento ORDER BY mes")) {
+    try {
+      const d = JSON.parse(f.dados);
+      for (const porMod of Object.values(d.saidas || {}))
+        for (const porCanal of Object.values(porMod as any)) for (const lista of Object.values(porCanal as any))
+          for (const x of (lista as any[]) || [])
+            if (x.registroId != null ? Number(x.registroId) === Number(r.id)
+                : String(x.id) === String(r.id_matricula) && String(x.data) === String(r.data))
+              return { mes: f.mes, tipoRede: x.tipoRede || null };
+    } catch { /* JSON ruim: aquele mês não responde */ }
+  }
+  return null;
+}
+
 /* ===== O IPP DE UM MÊS ===== */
 function ippDoMes(mes: string) {
   const ini = mes + "-01", fim = fimDoMes(mes), hoje = dataISO(new Date());
@@ -5294,7 +5314,10 @@ function ippDoMes(mes: string) {
     const regua = Pn("risco_evasao_aulas");
     if (f.aulas >= regua || mesSemVir)
       detectados.push({ id: a.id, nome: a.nome, livro: a.livro, faltasSeguidas: f.aulas, desde: f.desde,
-        criterio: f.aulas >= regua ? regua + "+ aulas seguidas com falta" : "o mês todo sem vir" });
+        criterio: f.aulas >= regua ? regua + "+ aulas seguidas com falta" : "o mês todo sem vir",
+        /* a data sugerida para registrar a saída na aba Saídas é a da ÚLTIMA aula, como na repescagem */
+        ultimaAula: G("SELECT MAX(data) d FROM presenca WHERE id_matricula=? AND livro=? AND status='P' AND data<=?",
+          a.id, a.livro, hoje)?.d ?? null });
   }
   /* ---------- R2 — QUEM TERMINOU O LIVRO E NÃO SEGUIU (decisão dele, 26/09; IPP p.6 item 17) ----------
      "Encerrado não desliga": quem termina o livro continua aluno da casa, entre livros, até rematricular.
@@ -5309,7 +5332,11 @@ function ippDoMes(mes: string) {
     if (!ult) continue;
     if (G("SELECT 1 FROM presenca WHERE id_matricula=? AND status='P' AND data BETWEEN ? AND ?", a.id, ini, fim)) continue;
     naoRematriculadosDetectados.push({ id: a.id, nome: a.nome, livro: ult.livro, desde: ult.data_fim,
-      criterio: "terminou " + nomeDoLivro(ult.livro) + " em " + dataBR(ult.data_fim) + " e não seguiu" });
+      criterio: "terminou " + nomeDoLivro(ult.livro) + " em " + dataBR(ult.data_fim) + " e não seguiu",
+      /* o "Encerrado" do fim do livro: a aba Saídas o COMPLETA com a caixa, em vez de gravar uma 2ª saída */
+      /* o da DATA do fim deste livro, de preferência: quem refez o mesmo livro tem mais de um Encerrado dele */
+      registroId: G(`SELECT id FROM aluno_situacao_historico WHERE id_matricula=? AND situacao='Encerrado' AND livro=?
+                     ORDER BY (data=?) DESC, data DESC, id DESC LIMIT 1`, a.id, ult.livro, ult.data_fim)?.id ?? null });
   }
   /* ---------- as contagens, na ordem do formulário ---------- */
   const conta = (o: any) => Array.isArray(o) ? o.length : 0;
@@ -6966,11 +6993,12 @@ const api: Record<string, (a: any) => unknown> = {
          aluno quase nunca sai no dia em que a escola registra: a última aula dele costuma ser semanas antes.
          Data errada é mês errado na retenção que vai para a franqueadora, e vencimento errado no contrato.
          A sugestão é a ÚLTIMA PRESENÇA daquele livro; quem encerra corrige se souber melhor. */
-      const ultima = G(`SELECT MAX(data) d FROM presenca WHERE id_matricula=? AND livro=? AND status='P'`,
-        idMatricula, livro)?.d || null;
+      const hojeC = dataISO(new Date());
+      /* só até hoje: uma presença lançada adiantada faria o campo nascer com uma data que a tela recusa */
+      const ultima = G(`SELECT MAX(data) d FROM presenca WHERE id_matricula=? AND livro=? AND status='P' AND data<=?`,
+        idMatricula, livro, hojeC)?.d || null;
       /* a sugestão não pode vir ANTES do último registro do estágio: no trancado, a última aula é anterior
          ao trancamento, e a saída datada por ela invertia a linha do tempo (auditoria de 26/09) */
-      const hojeC = dataISO(new Date());
       /* `data d`: sem o apelido o `?.d` saía sempre nulo e esta trava nunca agia (Wiztools 16) */
       const ultRegC = G(`SELECT data d FROM aluno_situacao_historico WHERE id_matricula=? AND livro=?
                          AND data<=? ORDER BY data DESC, id DESC LIMIT 1`, idMatricula, livro, hojeC)?.d || null;
@@ -6996,6 +7024,20 @@ const api: Record<string, (a: any) => unknown> = {
     if (ultReg && dia < ultReg.data)
       throw new Error(`A saída não pode vir antes do último registro deste estágio (${ultReg.situacao} em ${dataBR(ultReg.data)}): `
         + `a linha do tempo ficaria invertida. Use ${dataBR(ultReg.data)} ou uma data depois.`);
+    /* NEM ANTES DA ÚLTIMA AULA (revisão da Wiztools 17): a trava de cima olha só o histórico de situação. Uma saída
+       datada antes de uma presença daquele livro diz que ele saiu e depois veio à aula — e o caso real é pior: o
+       aluno que bateu a régua, voltou, e alguém registrou a saída pela lista do mês (a agenda de quem está em aula
+       ia embora junto). */
+    const ultP = G(`SELECT MAX(data) d FROM presenca WHERE id_matricula=? AND livro=? AND status='P'`, idMatricula, livro)?.d;
+    /* a presença lançada num dia que ainda NÃO CHEGOU (um clique numa coluna adiante do quadro da semana) travaria
+       tudo: a saída não pode vir antes dela nem cair no futuro. Diz qual é, em vez de mandar usar uma data que a
+       trava de cima recusa (verificação da Wiztools 17) */
+    if (ultP && ultP > dataISO(new Date()))
+      throw new Error(`Há uma presença lançada em ${dataBR(ultP)}, dia que ainda não chegou, em ${nomeDoLivro(livro)}. `
+        + `Apague esse lançamento (na Frequência do aluno ou no quadro da semana) e registre a saída de novo.`);
+    if (ultP && dia < ultP)
+      throw new Error(`A saída não pode vir antes da última aula dele em ${nomeDoLivro(livro)} (${dataBR(ultP)}): ele teve aula `
+        + `depois desta data. Use ${dataBR(ultP)} ou uma data depois — e, se ele voltou a vir, não é saída.`);
     const mot = motivoId ? G("SELECT * FROM motivo_saida WHERE id=?", Number(motivoId)) : null;
     if (motivoId && !mot) throw new Error("Motivo de saída não encontrado.");
     const tipo = tipoRede ? String(tipoRede) : (mot?.tipo_rede || null);
@@ -7102,6 +7144,8 @@ const api: Record<string, (a: any) => unknown> = {
       /* a lista de motivos vem junto: é ela que a repescagem oferece linha a linha, e uma segunda
          ida ao servidor só para isso deixaria a tela meio pintada por um instante */
       motivos: (api as any).getMotivosSaida().motivos,
+      /* as caixas da rede, para a aba Saídas do PEF oferecer a troca na própria linha (Wiztools 17) */
+      tiposRede: TIPOS_SAIDA_REDE,
       /* idem para o atendimento: o formulário abre no clique, e esperar o servidor para descobrir os
          assuntos deixaria o diálogo meio pintado por um instante */
       tiposAtendimento: (api as any).getTiposAtendimento().tipos,
@@ -7170,7 +7214,6 @@ const api: Record<string, (a: any) => unknown> = {
     if (registroId) {
       const r = r0;
       if (!r) throw new Error("Registro não encontrado.");
-      exigirFormadoValido(tipo, r.livro || livro || null);
       /* ===== O MOMENTO QUE CONTA É O DA CAIXA (Wiztools 16) =====
          O R1 manda a saída registrada depois do fechamento para o 1º mês aberto, e decide isso pelo
          `momento`. Só que completar a caixa de uma linha ANTIGA mantinha o momento dela: a evasão lançada
@@ -7178,10 +7221,17 @@ const api: Record<string, (a: any) => unknown> = {
          10/09 — o momento continuava 20/08, a saída ficava presa em agosto congelado e não ia para a
          franqueadora em mês nenhum. É o próprio aviso do PEF que manda completar aqui. Então: quando a
          linha passa de SEM caixa para COM caixa, o momento vira agora — é quando ela passou a contar. */
-      const passouAContar = !r.tipo_rede && !!tipo;
+      /* O QUE A TELA NÃO MANDA, FICA (Wiztools 17): a repescagem manda só data e motivo, e este UPDATE
+         apagava a observação da linha — e a caixa que ela já tinha, quando o motivo escolhido não tem caixa.
+         `undefined` é "não veio"; a caixa do motivo novo, quando ele tem uma, continua vencendo. */
+      const tipoFinal = tipo ?? (r.situacao === "Trancado" ? null : (r.tipo_rede || null));
+      const motivoFinal = motivoId === undefined ? (r.motivo_id ?? null) : (mot?.id ?? null);
+      const obsFinal = observacao === undefined ? (r.observacao ?? null) : (String(observacao ?? "").trim() || null);
+      exigirFormadoValido(tipoFinal, r.livro || livro || null);
+      const passouAContar = !r.tipo_rede && !!tipoFinal;
       R(`UPDATE aluno_situacao_historico SET data=?, motivo_id=?, tipo_rede=?, observacao=?,
            momento=? WHERE id=?`,
-        data, mot?.id ?? null, tipo, String(observacao ?? "").trim() || null,
+        data, motivoFinal, tipoFinal, obsFinal,
         passouAContar ? agora() : (r.momento || agora()), r.id);
       sincronizarPercurso(idMatricula, r.livro);
       return { ok: true, caminho: "completado", situacaoCorrente: sincronizarSituacao(idMatricula) };
@@ -7195,6 +7245,48 @@ const api: Record<string, (a: any) => unknown> = {
     const r: any = (api as any).salvarHistoricoAluno({ idMatricula, situacao: sit, data, livro: livro || null,
       motivoId, tipoRede: tipo, observacao });
     return { ...r, caminho: "registrou" };
+  },
+  /* ===== A CAIXA DA REDE DE UMA SAÍDA JÁ GRAVADA (Wiztools 17, etapa 3 da fusão dos painéis) =====
+     A aba Saídas do PEF troca a caixa na própria linha. Antes, depois de gravada, ninguém a mudava: a
+     repescagem só completa quem está sem motivo, e o PEF mandava "completar na Retenção", que não mostra
+     saída com motivo e sem caixa. Regras, cada uma com o porquê:
+     · só as caixas da rede, e "Formado" com a trava de sempre (`exigirFormadoValido`);
+     · TRANCADO de hoje NÃO LEVA CAIXA: vira perda sozinho quando a volta combinada vence (ippDoMes) — com caixa
+       contaria duas vezes (auditoria de 26/09); o trancado ANTIGO (caixa à mão, sem volta) troca, mas não perde;
+     · TIRAR a caixa de uma saída já ENTREGUE (ela está no JSON de um mês fechado — `saidaEntregue`) é recusado:
+       a perda já foi mandada à franqueadora, e a conta de ativos entre os meses ficaria vermelha. Trocar uma
+       caixa por outra passa, e a resposta diz como ela foi entregue — o número congelado não muda;
+     · de SEM caixa para COM caixa, o `momento` vira agora (a regra do R1): é quando ela passou a contar, e
+       se o mês dela já foi entregue ela entra no 1º mês aberto. */
+  corrigirCaixaSaida({ registroId, tipoRede }: any) {
+    const r = G("SELECT * FROM aluno_situacao_historico WHERE id=?", Number(registroId));
+    if (!r) throw new Error("Registro de saída não encontrado.");
+    if (!G("SELECT 1 FROM situacoes WHERE situacao=? AND ativa=0", r.situacao))
+      throw new Error("Este registro não é uma saída (" + r.situacao + ").");
+    const tipo = tipoRede ? String(tipoRede) : null;
+    if (tipo && !TIPOS_SAIDA_REDE.some((t) => t.nome === tipo)) throw new Error("Caixa da rede desconhecida: " + tipo);
+    if (tipo === (r.tipo_rede || null)) return { ok: true, mudou: false };
+    /* O TRANCAMENTO, nos dois tempos (revisão da Wiztools 17): o de hoje conta pela VOLTA COMBINADA e não leva
+       caixa; o ANTIGO — caixa dita à mão, sem volta combinada — só conta pela caixa (ippDoMes), então trocar uma
+       caixa por outra passa e tirá-la é recusado: sem caixa e sem volta ele sairia do IPP de vez. */
+    if (r.situacao === "Trancado") {
+      if (!r.tipo_rede || r.retorno_previsto) {
+        if (tipo) throw new Error("Trancamento não leva caixa: ele vira perda sozinho quando a volta combinada vence sem o aluno voltar.");
+      } else if (!tipo)
+        throw new Error("Este trancamento antigo não tem volta combinada e só conta pela caixa: sem ela, ele sai do IPP de vez. "
+          + "Troque a caixa, se for o caso, ou registre a volta combinada no histórico do aluno.");
+    }
+    exigirFormadoValido(tipo, r.livro || null);
+    const ent = saidaEntregue(r);
+    if (!tipo && ent)
+      throw new Error(`Esta saída foi entregue à franqueadora no fechamento de ${ent.mes}: tirar a caixa agora não `
+        + `a desconta do que foi mandado. Se o registro é um erro, reabra ${ent.mes} no PEF antes.`);
+    const passouAContar = !r.tipo_rede && !!tipo;
+    R("UPDATE aluno_situacao_historico SET tipo_rede=?, momento=? WHERE id=?",
+      tipo, passouAContar ? agora() : (r.momento || agora()), r.id);
+    sincronizarPercurso(r.id_matricula, r.livro);
+    return { ok: true, mudou: true, entregueComo: ent ? ent.tipoRede : null, mes: ent ? ent.mes : mesDeReporteDaSaida(r),
+      situacaoCorrente: sincronizarSituacao(r.id_matricula) };
   },
 
   /* ===== histórico de situação (linha do tempo manual: matrícula/rematrícula/etc por data) ===== */
@@ -8340,6 +8432,28 @@ const api: Record<string, (a: any) => unknown> = {
      A projeção é a mesma da tela de um aluno — o que muda é o calendário resolvido UMA VEZ para
      todos, e não 132 vezes. */
   getProgresso: () => progressoDosContratos(),
+  /* ===== A LISTA DE TRABALHO DA REMATRÍCULA (Wiztools 17, etapa 3 da fusão) =====
+     O Progresso dos contratos saiu do Dashboard e veio para a aba Rematrícula do PEF: é lá que se decide
+     com quem falar de rematrícula. É a MESMA conta (`progressoDosContratos`, memorizada até a próxima
+     gravação), só com aluno ATIVO — o painel antigo listava também o desligado com contrato aberto — e com
+     o que a conversa precisa ao lado: quem dá aula para ele e quando alguém falou com ele por último.
+     É sempre a lista de HOJE, mesmo com o mês do PEF fechado: o que congela é o número, não o trabalho. */
+  getProgressoAtivos() {
+    const p = progressoDosContratos();
+    const ativos = new Set(A("SELECT id_matricula FROM v_alunos WHERE status='Ativado'").map((x: any) => String(x.id_matricula)));
+    const linhas = p.linhas.filter((l: any) => ativos.has(String(l.id))).map((l: any) => ({ ...l,
+      professores: A(`SELECT DISTINCT f.nome FROM aulas au JOIN aula_professor ap ON ap.aula_id=au.id
+                      JOIN funcionarios f ON f.id=ap.funcionario_id WHERE au.id_matricula=? AND au.livro=?`, l.id, l.livro)
+        .map((x: any) => x.nome),
+      ultimoContato: G(`SELECT data d FROM atendimento WHERE id_matricula=? AND desfecho='falou'
+                        ORDER BY data DESC, id DESC LIMIT 1`, l.id)?.d ?? null }));
+    const perto = (l: any) => l.faltamLicoes != null && l.faltamLicoes > 0 && l.faltamBlocos <= p.limiteBlocos;
+    return { linhas, limiteBlocos: p.limiteBlocos, pertoDoFim: linhas.filter(perto).length,
+      semAfirmacao: linhas.filter((l: any) => !l.afirmada).length,
+      incertos: linhas.filter((l: any) => l.confianca === "incerta").length,
+      /* os contratos que a conta não alcança (sem estrutura, sem início, sem agenda) são da escola inteira */
+      semEstrutura: p.semEstrutura, semInicio: p.semInicio, semAgenda: p.semAgenda };
+  },
   /* a anotação de UMA aula. Só onde a aula foi lançada — ver a nota da coluna `presenca.observacao`. */
   salvarObservacaoAula({ idMatricula, livro, data, texto }: any) {
     const n = R("UPDATE presenca SET observacao=? WHERE id_matricula=? AND livro=? AND data=?",

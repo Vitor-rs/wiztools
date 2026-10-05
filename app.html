@@ -5128,6 +5128,22 @@ button.acao.sec.reg-excluir{color:var(--perigo)}
 .pef-sn button.on{background:#E8F5E9;color:#256029;font-weight:700}
 .pef-sn button.on.nao{background:#FBE9E7;color:#B03A2E}
 .pef-lnk{appearance:none;border:0;background:none;padding:0;font:inherit;font-size:11.5px;color:var(--marca);text-decoration:underline;cursor:pointer}
+/* ===== ABA SAÍDAS E LISTA DE TRABALHO (Wiztools 17, etapa 3 da fusão dos painéis) ===== */
+.pef-kpi-ir{cursor:pointer}
+.pef-kpi-ir:hover,.pef-kpi-ir:focus-visible{outline:2px solid var(--azul);outline-offset:1px}
+/* a caixa na linha: mesma largura do motivo, para as linhas pendentes alinharem */
+select.pef-cx{width:210px;margin:0;font-size:12.5px}
+.ret-tab select.pef-cx{width:190px;padding:2px 4px}
+/* as listas longas (repescagem, o ano inteiro) nascem RECOLHIDAS: são consulta, não o trabalho do mês */
+.pef-det{margin:10px 0;border:1px solid var(--borda);border-radius:8px;background:#fff}
+.pef-det>summary{cursor:pointer;padding:8px 12px;font-size:13px;color:var(--tx2)}
+.pef-det[open]>summary{border-bottom:1px solid var(--borda)}
+.pef-det>.ret-pend,.pef-det>.ret-tab,.pef-det>.ret-caixas{margin:10px 12px}
+.pef-filtro{display:inline-flex;border:1px solid var(--borda);border-radius:8px;overflow:hidden;margin-right:6px}
+.pef-filtro button{appearance:none;border:0;background:#fff;padding:3px 10px;font:inherit;font-size:12px;color:var(--tx3);cursor:pointer}
+.pef-filtro button+button{border-left:1px solid var(--borda)}
+.pef-filtro button.on{background:var(--sel);color:var(--sel-tx);font-weight:700}
+.prog-tab td.c-prof{font-size:11.5px;color:var(--tx3);white-space:nowrap}
 /* as aulas observadas */
 .pef-obs-f{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
 .pef-obs-f .ag-lb{width:150px}
@@ -5846,12 +5862,11 @@ Os horários da matriz costumam ser fixos e raramente mudam. Confirma que quer e
 <div class="pg-topo">
 <div class="pg-cab"><h2>Dashboard</h2><span class="pg-sub">gráficos e tabela de todas as matrículas</span></div>
 </div>
-<!-- DUAS ABAS (2026-08-24, dele): a tabela de progresso dos contratos nasceu na página de Alunos e
-     ele mandou mudá-la para cá — *"não faz sentido ela ficar ali... você só migra ela pra lá"*. E ele
-     tem razão: a página de Alunos é sobre UM aluno, e aquela tabela é sobre a escola inteira. -->
+<!-- O PROGRESSO DOS CONTRATOS SAIU DAQUI (Wiztools 17, etapa 3 da fusão dos painéis): virou a lista de
+     trabalho da aba Rematrícula do PEF, que é onde se decide com quem falar de rematrícula. O Dashboard
+     fica com as matrículas — "acompanhar", no plano de 21/09. -->
 <div class="pg-abas dash-abas">
 <button class="pg-aba on" data-d="geral" onclick="dashAba('geral')">Matrículas</button>
-<button class="pg-aba" data-d="progresso" onclick="dashAba('progresso')">Progresso dos contratos<span class="n" id="dash-prog-n">0</span></button>
 </div>
 <div class="pg-corpo pg-corpo-abas">
 <div class="pg-painel" id="dash-p-geral">
@@ -5861,13 +5876,6 @@ Os horários da matriz costumam ser fixos e raramente mudam. Confirma que quer e
 <div id="filtros-inicio"></div>
 </div>
 <div class="dash-grade"><div id="grade-geral"></div></div>
-</div>
-<div class="pg-painel" id="dash-p-progresso" style="display:none">
-<section class="al-hist">
-<h3>Progresso dos contratos <small>quem está mais perto de terminar o livro vem primeiro</small>
-<button type="button" class="al-hist-add" onclick="dashProgCarregar(true)" title="Recalcular">↻</button></h3>
-<div id="dashprog-corpo"><div class="al-hist-vazio">calculando…</div></div>
-</section>
 </div>
 </div>
 </div>
@@ -5999,13 +6007,21 @@ Os horários da matriz costumam ser fixos e raramente mudam. Confirma que quer e
 <div class="ret-kpis" id="pef-kpis"></div>
 </div>
 <div class="pg-abas" id="pef-abas">
-<button class="pg-aba on" type="button" data-a="ipp" onclick="pefAba('ipp')">IPP do mês</button>
+<!-- SAÍDAS PRIMEIRO (Wiztools 17, etapa 3 da fusão dos painéis): fechar o mês é resolver o que falta e só
+     depois copiar o IPP — a ordem das abas é a ordem do trabalho. O que a página Retenção fazia com as
+     saídas mora aqui agora. -->
+<button class="pg-aba on" type="button" data-a="saidas" onclick="pefAba('saidas')">Saídas<span class="n" id="pef-saidas-n">0</span></button>
+<button class="pg-aba" type="button" data-a="ipp" onclick="pefAba('ipp')">IPP do mês</button>
 <button class="pg-aba" type="button" data-a="rem" onclick="pefAba('rem')">Rematrícula</button>
 <button class="pg-aba" type="button" data-a="gest" onclick="pefAba('gest')">Gestão pedagógica</button>
 <button class="pg-aba" type="button" data-a="obs" onclick="pefAba('obs')">Aulas observadas<span class="n" id="pef-obs-n">0</span></button>
 </div>
 <div class="pg-corpo pg-corpo-abas">
-<div class="es-painel" id="pef-painel-ipp">
+<div class="es-painel" id="pef-painel-saidas">
+<div class="pg-fixo"><div class="info cad-info">O que precisa estar certo <b>antes de fechar o mês</b>: toda saída com a data, o motivo e a <b>caixa da rede</b> — é a caixa que diz em que linha do IPP ela entra, e saída sem caixa não vai para a franqueadora. Quem o sistema <b>detecta</b> (sumiu pela régua de faltas, terminou o livro e não seguiu) só vira saída quando alguém registra: o botão está na própria linha.</div></div>
+<div class="pg-rola"><div id="pef-saidas"><div class="al-hist-vazio">calculando…</div></div></div>
+</div>
+<div class="es-painel" id="pef-painel-ipp" hidden>
 <div class="pg-fixo"><div class="info cad-info">O formulário <b>Índices de Performance Pedagógica</b>, na ordem em que o portal pede. Vale <b>20 pontos</b> todo mês e alimenta outros 50, e fecha no <b id="pef-prazo-dia">dia 5</b> do mês seguinte. Clique em qualquer número para ver os alunos que o formam. <b>Fechar o mês</b> congela os números: o que foi entregue à franqueadora não muda sozinho depois.</div></div>
 <div class="pg-rola"><div id="pef-ipp"></div></div>
 </div>
@@ -8286,39 +8302,40 @@ c.innerHTML=h;
 pgHome();pgLigarGestos();
 }
 
-/* ===== PAINEL DE PROGRESSO (2026-08-24, dele) =====
-   *"A gente quer saber os alunos que estão para terminar o livro, dependendo da lição que eles
-   estejam."* A conta inteira é do servidor — a mesma projeção da aba Planejamento, rodada em todos
-   os contratos. Aqui só há apresentação e o atalho para a tabela de quem interessa. */
-var DASHPROG=null;
-/* as duas abas do Dashboard. A de Progresso só calcula quando é aberta: é 1 s de varredura, e
-   ninguém deve pagar isso ao abrir a página para ver os gráficos de matrícula. */
+/* ===== PROGRESSO DOS CONTRATOS — agora a LISTA DE TRABALHO da Rematrícula, no PEF (Wiztools 17) =====
+   Nasceu na página de Alunos, foi para o Dashboard (2026-08-24, dele: *"a página de Alunos é sobre UM
+   aluno, e aquela tabela é sobre a escola inteira"*) e, na fusão dos painéis, veio para a aba Rematrícula
+   do PEF: é lá que se decide com quem falar de rematrícula (plano de 21/09, "a Rematrícula absorve o
+   Progresso dos contratos"). A conta continua toda no servidor — a mesma projeção da aba Planejamento —,
+   agora só de aluno ATIVO e com o professor e o último contato ao lado. O Dashboard ficou com as matrículas. */
 function dashAba(d){
 document.querySelectorAll('#tab-dashboard .dash-abas .pg-aba').forEach(function(b){b.classList.toggle('on',b.dataset.d===d)});
-['geral','progresso'].forEach(function(x){var e=$('dash-p-'+x);if(e)e.style.display=(x===d?'block':'none')});
-if(d==='progresso')dashProgCarregar();
+var e=$('dash-p-geral');if(e)e.style.display='block';
 }
-function dashProgCarregar(forcar){
-var c=$('dashprog-corpo');if(!c)return;
-if(DASHPROG&&!forcar){dashProgPintar();return}
-c.innerHTML='<div class="al-hist-vazio">calculando o progresso de todos os contratos…</div>';
-run('getProgresso',[{}],function(r){DASHPROG=r;dashProgPintar()},
- function(e){c.innerHTML=planAviso('Não deu para calcular: '+escBloco(e)+'. Abra a aba de novo para tentar.')});
+function pefProgCarregar(){
+var c=$('pef-prog');if(!c)return;
+if(PEF_PROG)pefProgPintar();
+else c.innerHTML='<div class="al-hist-vazio">calculando o progresso dos contratos…</div>';
+/* sempre busca de novo: a conta é memorizada no servidor até a próxima gravação, então repetir é barato */
+run('getProgressoAtivos',[{}],function(r){PEF_PROG=r;pefProgPintar()},
+ function(e){var x=$('pef-prog');if(x)x.innerHTML=planAviso('Não deu para calcular: '+escBloco(e)+'. Abra a aba de novo para tentar.')});
 }
-function dashProgPintar(){
-var c=$('dashprog-corpo');if(!c||!DASHPROG)return;
-var r=DASHPROG, n=$('dash-prog-n');
-if(n){n.textContent=r.pertoDoFim;n.style.display=r.pertoDoFim?'inline-block':'none'}
+function pefProgFiltro(f){PEF_PROG_FILTRO=f;pefProgPintar()}
+function pefProgPintar(){
+var c=$('pef-prog');if(!c||!PEF_PROG)return;
+var r=PEF_PROG, perto=function(l){return l.faltamBlocos!=null&&l.faltamLicoes>0&&l.faltamBlocos<=r.limiteBlocos};
+var lista=PEF_PROG_FILTRO==='perto'?r.linhas.filter(perto):r.linhas;
 var cab='<div class="plan-cab">'
- +'<span class="plan-ct">'+r.linhas.length+' contratos</span>'
- +(r.pertoDoFim?'<span class="plan-i prog-perto">'+r.pertoDoFim+' a '+r.limiteBlocos
-    +(r.limiteBlocos>1?' blocos':' bloco')+' do fim</span>':'')
+ /* o filtro de 1 clique: "perto do fim" é a pergunta da rematrícula, e o resto é consulta */
+ +'<span class="pef-filtro"><button type="button" class="'+(PEF_PROG_FILTRO!=='perto'?'on':'')+'" onclick="pefProgFiltro(\'todos\')">todos · '+r.linhas.length+'</button>'
+ +'<button type="button" class="'+(PEF_PROG_FILTRO==='perto'?'on':'')+'" onclick="pefProgFiltro(\'perto\')">a '+r.limiteBlocos
+ +(r.limiteBlocos>1?' blocos':' bloco')+' do fim · '+r.pertoDoFim+'</button></span>'
  /* dizer quantos ainda dependem de palpite é o que empurra o gesto de registrar a lição */
  +(r.semAfirmacao?'<span class="plan-i">'+r.semAfirmacao+' sem lição registrada</span>':'')
  +(r.incertos?'<span class="plan-i plan-tr" title="O plano do contrato venceu antes da primeira aula lançada. Registre a lição na aba Planejamento para o sistema saber onde o aluno está.">'
     +r.incertos+' com posição a confirmar</span>':'')
- +(r.semEstrutura?'<span class="plan-i">'+r.semEstrutura+' sem estrutura</span>':'')
- +(r.semInicio?'<span class="plan-i">'+r.semInicio+' sem início</span>':'')
+ +(r.semEstrutura?'<span class="plan-i" title="contratos da escola inteira que a conta não alcança">'+r.semEstrutura+' sem estrutura</span>':'')
+ +(r.semInicio?'<span class="plan-i" title="contratos da escola inteira que a conta não alcança">'+r.semInicio+' sem início</span>':'')
  +'</div>';
 var h=cab+'<div class="plan-moldura"><table class="plan-tab prog-tab"><thead><tr>'
  +'<th class="c-al">Aluno</th>'
@@ -8329,11 +8346,14 @@ var h=cab+'<div class="plan-moldura"><table class="plan-tab prog-tab"><thead><tr
  +'<th class="c-hr">Última aula</th>'
  +'<th class="c-def" title="dias entre a data planejada e a realizada da última lição">Defasagem</th>'
  +'<th class="c-dr">Término previsto</th>'
+ +'<th class="c-dr" title="o fim do contrato: é o que o PEF pontua na rematrícula">Fim do contrato</th>'
+ +'<th class="c-dr" title="a última conversa de verdade (desfecho &quot;falei com alguém&quot;)">Último contato</th>'
+ +'<th class="c-prof">Professor(a)</th>'
  +'</tr></thead><tbody>';
-r.linhas.forEach(function(l){
- var pos=l.posicao||{}, perto=(l.faltamBlocos!=null&&l.faltamLicoes>0&&l.faltamBlocos<=r.limiteBlocos);
- var meu=(alSel&&String(alSel.id)===String(l.id));
- h+='<tr class="plan-l prog-l'+(perto?' perto':'')+(l.confianca==='incerta'?' incerta':'')+(meu?' meu':'')
+if(!lista.length)h+='<tr><td colspan="11" class="al-hist-vazio">Ninguém '+(PEF_PROG_FILTRO==='perto'?'perto do fim do livro':'com contrato aberto')+' agora.</td></tr>';
+lista.forEach(function(l){
+ var pos=l.posicao||{}, pe=perto(l);
+ h+='<tr class="plan-l prog-l'+(pe?' perto':'')+(l.confianca==='incerta'?' incerta':'')
    +'" onclick="dashProgAbrir(&quot;'+escBloco(l.id)+'&quot;,&quot;'+escBloco(l.livro)+'&quot;)"'
    +' title="abrir o planejamento deste contrato">'
   +'<td class="c-al"><b>'+escBloco(l.nome)+'</b><small>'+escBloco(l.contrato)+'</small></td>'
@@ -8348,12 +8368,14 @@ r.linhas.forEach(function(l){
   +'<td class="c-hr">'+(l.ultimaDada?dataCurta(l.ultimaDada):'<span class="plan-ro">—</span>')+'</td>'
   +'<td class="c-def">'+(l.defasagem==null?'<span class="plan-ro">—</span>'
      /* O SINAL É O DO PAINEL DO ALUNO (2026-09-14): + adiantado, − atrasado. O servidor manda os dias
-        entre a data planejada e a realizada, positivo quando atrasou — por isso aqui se inverte. Antes a
-        coluna dizia "+5 d" para quem estava 5 dias atrasado, o contrário do azulejo Defasagem. */
+        entre a data planejada e a realizada, positivo quando atrasou — por isso aqui se inverte. */
      :'<span class="prog-def '+(l.defasagem>0?'atras':(l.defasagem<0?'frente':''))+'" title="'
       +(l.defasagem>0?'atrasado '+l.defasagem+' dia(s)':l.defasagem<0?'adiantado '+Math.abs(l.defasagem)+' dia(s)':'no dia planejado')+'">'
       +(l.defasagem>0?'-':(l.defasagem<0?'+':''))+Math.abs(l.defasagem)+' d</span>')+'</td>'
-  +'<td class="c-dr">'+(l.termino?dataCurta(l.termino):'<span class="plan-ro">—</span>')+'</td></tr>'});
+  +'<td class="c-dr">'+(l.termino?dataCurta(l.termino):'<span class="plan-ro">—</span>')+'</td>'
+  +'<td class="c-dr">'+(l.fimContrato?dataCurta(l.fimContrato):'<span class="plan-ro">—</span>')+'</td>'
+  +'<td class="c-dr">'+(l.ultimoContato?dataCurta(l.ultimoContato):'<span class="ret-nunca">nunca</span>')+'</td>'
+  +'<td class="c-prof">'+escBloco((l.professores||[]).join(', '))+'</td></tr>'});
 h+='</tbody></table></div>';
 if(r.incertos)h+='<div class="al-hist-vazio">'+r.incertos+' contrato(s) estão com a posição a confirmar: '
  +'o plano deles venceu antes da primeira aula lançada, então a contagem automática não diz onde o aluno está. '
@@ -14655,12 +14677,19 @@ run('arquivarTipoAtendimento',[{id:id,arquivar:arq}],function(){
    automatizado possível."* A tela devolve os números NA ORDEM DO PORTAL, para copiar de cima para baixo,
    e cada número é um botão que mostra QUEM está nele — o portal da franqueadora não sabe dizer quem são
    os sete evadidos; o sistema sabe, e é isso que ele traz de diferente. */
-var PEF=null, PEF_MES=null, PEF_ABA='ipp', PEF_LISTAS={};
+var PEF=null, PEF_MES=null, PEF_ABA='saidas', PEF_LISTAS={};
+/* PEF_RET: as saídas do ANO e as pendências de qualquer mês (getRetencao), para a aba Saídas.
+   PEF_PROG: a lista de trabalho da Rematrícula (getProgressoAtivos), buscada só quando a aba abre. */
+var PEF_RET=null, PEF_PROG=null, PEF_PROG_FILTRO='todos';
 var PEF_MESES=['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
 function pefMesRot(m){return m?PEF_MESES[Number(m.slice(5,7))-1]+' de '+m.slice(0,4):'—'}
 function pefCarregar(mes){
 var alvo=mes||PEF_MES||undefined;
-run('getPEF',[alvo?{mes:alvo}:{}],function(r){PEF=r;PEF_MES=r.mes;pefPintar()})}
+run('getPEF',[alvo?{mes:alvo}:{}],function(r){PEF=r;PEF_MES=r.mes;pefPintar();
+ /* as saídas do ano vêm DEPOIS: o IPP pinta primeiro, e a aba Saídas completa quando elas chegam */
+ run('getRetencao',[{ano:Number(String(r.mes).slice(0,4))}],function(x){PEF_RET=x;pefSaidasPintar()},
+  function(e){var c=$('pef-saidas');if(c)c.innerHTML=planAviso('Não deu para carregar as saídas: '+escBloco(e)+'. Abra a página de novo para tentar.')})},
+ function(e){['pef-ipp','pef-saidas'].forEach(function(id){var c=$(id);if(c)c.innerHTML=planAviso('Não deu para calcular o PEF: '+escBloco(e)+'. Abra a página de novo para tentar.')})})}
 function pefMover(n){
 var m=PEF_MES||(PEF&&PEF.sugerido);if(!m)return;
 var a=Number(m.slice(0,4)),k=Number(m.slice(5,7))-1+n;
@@ -14670,7 +14699,9 @@ if(PEF&&novo>PEF.hoje.slice(0,7)){msg('Esse mês ainda não começou.',true);ret
 pefCarregar(novo)}
 function pefAba(a){PEF_ABA=a;
 document.querySelectorAll('#pef-abas .pg-aba').forEach(function(b){b.classList.toggle('on',b.dataset.a===a)});
-['ipp','rem','gest','obs'].forEach(function(x){var p=$('pef-painel-'+x);if(p)p.hidden=x!==a})}
+['saidas','ipp','rem','gest','obs'].forEach(function(x){var p=$('pef-painel-'+x);if(p)p.hidden=x!==a});
+/* a lista de trabalho da Rematrícula custa ~1 s no primeiro cálculo: só quando a aba abre */
+if(a==='rem')pefProgCarregar()}
 /* um número que abre a lista de quem o forma. `chave` guarda a lista num registro da pintura atual, para
    o botão não carregar um JSON inteiro no próprio atributo */
 function pefN(valor,chave,titulo,itens,cls){
@@ -14710,14 +14741,15 @@ $('pef-estado').innerHTML=est;
 var sb=$('sb-aviso-pef');
 if(sb){var pend=!r.sugeridoFechado;sb.textContent=pend?'!':'';sb.classList.toggle('on',pend)}
 /* ---------- os quatro números do topo ---------- */
-var pend=(ipp.detectados||[]).length+(ipp.saidaSemCaixa||[]).length;
+var pend=pefPendMes(r);
 var rp=rem.ipp||{};
 var mt=r.metas||{rematricula:80,retencao:98,prazoDia:5};
 $('pef-kpis').innerHTML=
  '<div class="ret-kpi"><b>'+(ipp.ativosFim??'—')+'</b><span>ativos no último dia</span></div>'
  +'<div class="ret-kpi'+(pend&&ipp.retencao&&ipp.retencao.Geral===100?' falta':'')+'"><b>'+(ipp.retencao&&ipp.retencao.Geral!=null?String(ipp.retencao.Geral).replace('.',',')+'%':'—')+'</b><span>retenção da unidade'+(pend&&ipp.retencao&&ipp.retencao.Geral===100?' — sem saídas registradas':'')+'</span></div>'
  +'<div class="ret-kpi'+(rp.percentual!=null&&rp.percentual<mt.rematricula?' alerta':'')+'"><b>'+(rp.percentual!=null?String(rp.percentual).replace('.',',')+'%':'—')+'</b><span>rematrícula '+escBloco((rem.ciclo&&rem.ciclo.nome)||'')+' · meta '+mt.rematricula+'%</span></div>'
- +(pend?'<div class="ret-kpi falta"><b>'+pend+'</b><span>pendências antes de mandar</span></div>':'');
+ +(pend?'<div class="ret-kpi falta pef-kpi-ir" role="button" tabindex="0" title="resolver na aba Saídas" onclick="pefAba(\'saidas\')"'
+   +' onkeydown="if(event.key===\'Enter\')pefAba(\'saidas\')"><b>'+pend+'</b><span>pendências antes de mandar</span></div>':'');
 /* o prazo e o ciclo nos textos parados das abas: vêm de Configurações › PEF, não do HTML */
 var pd=$('pef-prazo-dia');if(pd)pd.textContent='dia '+mt.prazoDia;
 var cm=rem.ciclo||{},cv=r.cicloDoMes||{};
@@ -14730,7 +14762,203 @@ $('pef-rem').innerHTML=pefRemHtml(r);
 $('pef-gest').innerHTML=pefGestHtml(r);
 $('pef-obs').innerHTML=pefObsHtml(r);
 var on=$('pef-obs-n');if(on)on.textContent=(g.observacoes||[]).length;
+pefSaidasPintar();
 pefAba(PEF_ABA)}
+
+/* ===== ABA 0: AS SAÍDAS (Wiztools 17, etapa 3 da fusão dos painéis) =====
+   O que a página Retenção fazia com as saídas, agora na ordem do fechamento: o que falta NESTE mês (saída
+   sem caixa, quem sumiu pela régua, quem terminou o livro e não seguiu), as saídas antigas por completar, as
+   saídas do mês com a caixa editável na linha e, sob um botão, o ano inteiro. A ação mora na própria linha:
+   a lista que só aponta e manda procurar o botão noutra página era o que a fusão veio resolver — o IPP
+   mandava "completar na Retenção", e a Retenção nem mostrava saída com motivo e sem caixa. */
+/* QUEM VOLTOU NÃO SAIU: num mês PASSADO, a régua acende também para quem voltou a ter aula depois — as férias
+   de julho, no banco da recepção, acendiam 23 alunos que estavam em aula em setembro. A lista de AÇÃO (e a
+   conta de pendências) fica com quem não voltou até o fim do mês; quem voltou aparece à parte, sem botão.
+   Mês fechado vem do JSON antigo, sem `ultimaAula`: aí não há como separar, e a lista fica como era. */
+function pefFimMes(m){var y=Number(String(m).slice(0,4)),k=Number(String(m).slice(5,7));
+ return y+'-'+String(k).padStart(2,'0')+'-'+String(new Date(y,k,0).getDate()).padStart(2,'0')}
+function pefDetReais(r){var i=(r&&r.ipp)||{},fim=pefFimMes(r.mes);
+ return (i.detectados||[]).filter(function(x){return !x.ultimaAula||x.ultimaAula<=fim})}
+function pefDetVoltaram(r){var i=(r&&r.ipp)||{},fim=pefFimMes(r.mes);
+ return (i.detectados||[]).filter(function(x){return x.ultimaAula&&x.ultimaAula>fim})}
+function pefPendMes(r){if(r&&r.fechado)return 0;var i=(r&&r.ipp)||{};return pefDetReais(r).length+(i.saidaSemCaixa||[]).length+(i.naoRematriculadosDetectados||[]).length}
+function pefLnkSaidas(){return '<button type="button" class="pef-lnk" onclick="pefAba(\'saidas\')">na aba Saídas</button>'}
+function pefMotivos(){return ((PEF_RET&&PEF_RET.motivos)||[]).filter(function(m){return !m.arquivado})}
+function pefCaixas(){return ((PEF_RET&&PEF_RET.tiposRede)||[]).map(function(t){return t.nome||t})}
+/* o motivo já vem escolhido pela CAIXA que o caso pede ("evadido por falta" para quem sumiu, "não
+   rematriculado" para quem terminou o livro): é sugestão, e a pessoa troca. SEM caixa sugerida (a repescagem)
+   nada vem marcado: era o "Não informado" que vinha, e um clique distraído respondia "por que perdemos aluno"
+   com "não informado" (revisão da Wiztools 17) */
+function pefSelMotivo(caixa){
+var ms=pefMotivos(), pre=caixa?(ms.filter(function(m){return m.tipoRede===caixa})[0]||{}).id:null;
+return '<select class="ret-pl-mot" aria-label="Motivo"><option value="">— motivo —</option>'
+ +ms.map(function(m){return '<option value="'+m.id+'"'+(m.id===pre?' selected':'')+'>'+escBloco(m.nome)+'</option>'}).join('')+'</select>'}
+/* a caixa na linha: um <select> quando dá para mexer, texto quando não dá (mês entregue, trancado pela data) */
+function pefSelCaixa(x,ativa){
+var v=x.tipoRede||'';
+if(!ativa||!x.registroId)return v?escBloco(v):'<span class="ret-sem">sem caixa</span>';
+return '<select class="pef-cx" aria-label="Caixa da rede" data-v="'+escBloco(v)+'" onchange="pefCaixa('+Number(x.registroId)+',this)">'
+ +'<option value="">— sem caixa —</option>'
+ +pefCaixas().map(function(c){return '<option value="'+escBloco(c)+'"'+(c===v?' selected':'')+'>'+escBloco(c)+'</option>'}).join('')+'</select>'}
+function pefSaidasPintar(){
+var c=$('pef-saidas');if(!c||!PEF)return;
+var r=PEF,i=r.ipp||{},h='',np=pefPendMes(r),mes=pefMesRot(r.mes);
+/* MÊS FECHADO É CONSULTA (revisão da Wiztools 17): as listas dele são as do JSON do fechamento, congeladas — um
+   botão nelas registraria a saída de quem já voltou (a agenda de quem está em aula ia embora) e a pendência nunca
+   sumiria. A ação mora no mês ABERTO, onde a lista é a de hoje e a saída, pelo R1, conta. */
+var acao=!r.fechado;
+var n=$('pef-saidas-n');if(n)n.textContent=np;
+if(!PEF_RET){c.innerHTML='<div class="al-hist-vazio">calculando…</div>';return}
+/* o 1º mês ABERTO depois deste: é nele que o R1 conta a saída registrada agora (verificação da Wiztools 17 — o
+   link ia ao mês do calendário, que pode estar adiante de um mês ainda aberto) */
+var fz={};(r.meses||[]).forEach(function(x){fz[x.mes]=1});
+var mesAberto=r.mes,lim=String(r.hoje||'').slice(0,7);
+while(mesAberto<lim&&fz[mesAberto]){var ya=Number(mesAberto.slice(0,4)),ka=Number(mesAberto.slice(5,7));
+ mesAberto=ka===12?(ya+1)+'-01':ya+'-'+String(ka+1).padStart(2,'0')}
+if(r.fechado)h+='<div class="pef-av">'+icon('lock',13)+' '+escBloco(mes)+' foi fechado em '+dataCurta(r.fechado.em.slice(0,10))
+ +': as listas abaixo são as do dia do fechamento, só para consulta — o que foi entregue não muda. Para registrar uma saída agora, '
+ +'<button type="button" class="pef-lnk" onclick="pefCarregar(\''+escBloco(mesAberto)+'\')">vá a '+escBloco(pefMesRot(mesAberto))+'</button>'
+ +': lá a lista é a de hoje, e a saída conta nele.</div>';
+/* ---------- 1. o que falta NESTE mês ---------- */
+var semCx=i.saidaSemCaixa||[], det=pefDetReais(r), volt=pefDetVoltaram(r), nrem=i.naoRematriculadosDetectados||[];
+if(!semCx.length&&!det.length&&!nrem.length)h+='<div class="ret-vazio">Nada pendente em '+escBloco(mes)+': toda saída do mês tem a caixa da rede, e ninguém bateu uma régua sem registro.</div>';
+var livroCel=function(l){return l?'<span class="lc-livro">'+escBloco(nomeLivro(l))+'</span>':'<span class="lc-vazio-cel">sem estágio</span>'};
+var abrir=function(x){return '<button type="button" class="acao sec" onclick="pefIrAluno(\''+escBloco(x.id)+'\')">abrir</button>'};
+if(semCx.length)h+='<div class="ret-pend"><div class="ret-pend-cab">'+icon('triangle-alert',15)
+ +'<b>'+semCx.length+' saída(s) de '+escBloco(mes)+' sem a caixa da rede</b>'
+ +'<span>sem ela o sistema não sabe em que linha do IPP a saída entra, e ela não vai para a franqueadora. Escolha na linha.</span></div>'
+ +semCx.map(function(x){return '<div class="ret-pl">'
+  +'<span class="ret-pl-nome">'+escBloco(x.nome)+'</span><span class="ret-pl-sit">'+escBloco(x.situacao)+'</span>'+livroCel(x.livro)
+  +'<span class="ret-pl-ult">saiu em '+dataCurta(x.data)+'</span>'+pefSelCaixa(x,acao)+abrir(x)+'</div>'}).join('')+'</div>';
+if(det.length)h+='<div class="ret-pend"><div class="ret-pend-cab">'+icon('triangle-alert',15)
+ +'<b>'+det.length+' aluno(s) bateram a régua de evasão por falta</b>'
+ +'<span>seguem ativos no formulário até alguém registrar a saída. A data vem sugerida pela última aula; o motivo, pela caixa "Evadido por falta".</span></div>'
+ +det.map(function(x){return '<div class="ret-pl" data-id="'+escBloco(x.id)+'" data-livro="'+escBloco(x.livro||'')+'">'
+  +'<span class="ret-pl-nome">'+escBloco(x.nome)+'</span>'+livroCel(x.livro)
+  +'<span class="ret-pl-ult">'+escBloco(x.criterio||'')+(x.desde?' · desde '+dataCurta(x.desde):'')+'</span>'
+  +(acao?'<input type="date" class="ret-pl-data" value="'+escBloco(x.ultimaAula||x.desde||'')+'" max="'+escBloco(PEF_RET.hoje)+'" aria-label="Data da saída">'
+  +pefSelMotivo('Evadido por falta')
+  +'<button type="button" class="acao" onclick="pefRegistrarDetectado(this,\'Evadido\')">Registrar saída</button>':'')+abrir(x)+'</div>'}).join('')+'</div>';
+/* quem bateu a régua no mês e voltou depois: não é saída — fica dito, sem botão, para ninguém registrar por engano */
+if(volt.length)h+='<div class="pef-av">'+pefN(volt.length,'volt','Bateram a régua em '+mes+' e voltaram a ter aula depois',
+ volt.map(function(x){return {id:x.id,nome:x.nome,livro:x.livro,data:x.ultimaAula,extra:'última aula '+dataCurta(x.ultimaAula)}}))
+ +' aluno(s) bateram a régua em '+escBloco(mes)+' mas <b>voltaram a ter aula depois</b> — não são saída.</div>';
+if(nrem.length)h+='<div class="ret-pend"><div class="ret-pend-cab">'+icon('triangle-alert',15)
+ +'<b>'+nrem.length+' aluno(s) terminaram o livro e não seguiram</b>'
+ +'<span>continuam ativos no formulário. Se não vão voltar, registre o "não rematriculado" (o fim do livro ganha a caixa); se vão, abra e rematricule.</span></div>'
+ +nrem.map(function(x){return '<div class="ret-pl" data-id="'+escBloco(x.id)+'" data-livro="'+escBloco(x.livro||'')+'"'
+  +' data-data="'+escBloco(x.desde||'')+'"'+(x.registroId?' data-reg="'+Number(x.registroId)+'"':'')+'>'
+  +'<span class="ret-pl-nome">'+escBloco(x.nome)+'</span>'+livroCel(x.livro)
+  +'<span class="ret-pl-ult">terminou em '+dataCurta(x.desde)+'</span>'
+  +(acao?pefSelMotivo('Não rematriculado')
+  +'<button type="button" class="acao" onclick="pefRegistrarDetectado(this,\'Encerrado\')">Não rematriculou</button>':'')+abrir(x)+'</div>'}).join('')+'</div>';
+/* ---------- 2. as saídas antigas por completar (de qualquer mês — a repescagem que era da Retenção) ---------- */
+var pend=PEF_RET.pendentes||{}, lp=(pend.semRegistro||[]).concat(pend.semMotivo||[]);
+if(lp.length)h+='<details class="pef-det" data-k="rep"><summary><b>'+lp.length+' saída(s) antiga(s) por completar</b> — sem data ou sem motivo, de qualquer mês</summary>'
+ +'<div class="ret-pend">'+lp.map(pefPendLinha).join('')+'</div></details>';
+/* ---------- 3. as saídas do mês, no recorte do IPP, com a caixa na linha ---------- */
+var MOD=['Kids','Teens','Ws','Outros Idiomas'], doMes=[];
+(i.linhas||[]).forEach(function(l){MOD.forEach(function(m){['Online','Presencial'].forEach(function(cn){
+ ((((i.saidas||{})[l.id]||{})[m]||{})[cn]||[]).forEach(function(x){doMes.push({x:x,linha:l.nome,mod:m})})})})});
+doMes.sort(function(a,b){return String(a.x.data).localeCompare(String(b.x.data))});
+h+='<div class="pef-bloco"><div class="pef-bt">Saídas de '+escBloco(mes)+' <small>as que entram no IPP, com a linha do formulário'
+ +(r.fechado?' — mês entregue: a caixa aqui é a que foi mandada':'')+'</small></div>';
+if(!doMes.length)h+='<div class="ret-vazio">Nenhuma saída com caixa em '+escBloco(mes)+'.</div>';
+else h+='<table class="ret-tab"><thead><tr><th>Aluno</th><th>Estágio</th><th class="c">Saiu em</th><th>Situação</th><th>Linha do IPP</th><th>Caixa da rede</th></tr></thead><tbody>'
+ +doMes.map(function(o){var x=o.x;return '<tr>'
+  +'<td><span class="ret-nome">'+escBloco(x.nome)+'</span>'+(x.extra?'<span class="at-cq">'+escBloco(x.extra)+'</span>':'')+'</td>'
+  +'<td>'+livroCel(x.livro)+'</td><td class="c">'+dataCurta(x.data)+'</td>'
+  +'<td><span class="ret-sit s-'+escBloco(x.situacao)+'">'+escBloco(x.situacao)+'</span></td>'
+  +'<td>'+escBloco(o.linha)+' <small class="pef-cd">'+escBloco(o.mod)+' · '+escBloco(x.canal||'')+'</small></td>'
+  /* o trancado da volta vencida sai da DATA, não de uma caixa gravada: não há o que trocar */
+  +'<td>'+(x.porData?'<span title="entra sozinho quando a volta combinada vence">'+escBloco(x.tipoRede||'')+' (pela data)</span>'
+     :pefSelCaixa(x,!r.fechado))+'</td></tr>'}).join('')+'</tbody></table>';
+h+='</div>';
+/* ---------- 4. o ano inteiro, a lista que era da Retenção ---------- */
+var ano=PEF_RET.saidas||[];
+h+='<details class="pef-det" data-k="ano"><summary><b>Todas as saídas de '+escBloco(String(PEF_RET.ano))+'</b> — '+ano.length+', com o motivo e a caixa</summary>';
+var tipos=Object.keys(PEF_RET.porTipo||{});
+if(tipos.length)h+='<div class="ret-caixas">'+tipos.map(function(t){
+ return '<span class="ret-caixa'+(t==='sem caixa'?' vazia':'')+'"><b>'+PEF_RET.porTipo[t]+'</b> '+escBloco(t)+'</span>'}).join('')+'</div>';
+if(ano.length)h+='<table class="ret-tab"><thead><tr><th>Aluno</th><th>Estágio</th><th class="c">Saiu em</th><th>Situação</th><th>Motivo</th><th>Caixa da rede</th></tr></thead><tbody>'
+ +ano.map(function(x){return '<tr>'
+  +'<td><span class="ret-nome">'+escBloco(x.nome)+'</span></td><td>'+(x.livroNome?'<span class="lc-livro">'+escBloco(x.livroNome)+'</span>':'<span class="lc-vazio-cel">geral</span>')+'</td>'
+  +'<td class="c">'+dataCurta(x.data)+'</td><td><span class="ret-sit s-'+escBloco(x.situacao)+'">'+escBloco(x.situacao)+'</span></td>'
+  +'<td>'+(x.motivo?escBloco(x.motivo):'<span class="ret-sem">sem motivo</span>')
+   +(x.observacao?' <span class="ret-obs" title="'+escBloco(x.observacao)+'">'+icon('info',12)+'</span>':'')+'</td>'
+  +'<td>'+(x.situacao==='Trancado'?'<span class="ret-sem" title="trancamento vira perda pela volta combinada, sem caixa">—</span>':pefSelCaixa(x,true))+'</td></tr>'}).join('')
+ +'</tbody></table>';
+h+='</details>';
+/* cada ação repinta a aba (duas vezes: no getPEF e no getRetencao). Sem isto, a lista que se estava trabalhando
+   voltava recolhida e a rolagem ia ao topo a cada registro (revisão da Wiztools 17) */
+var abertos={};c.querySelectorAll('details.pef-det[open]').forEach(function(d){abertos[d.dataset.k]=1});
+var rola=c.closest('.pg-rola'),st=rola?rola.scrollTop:0;
+c.innerHTML=h;
+c.querySelectorAll('details.pef-det').forEach(function(d){if(abertos[d.dataset.k])d.open=true});
+if(rola)rola.scrollTop=st}
+/* a repescagem, na mesma letra da linha que era da Retenção (a data já vem sugerida, o motivo é a escolha) */
+function pefPendLinha(p){
+return '<div class="ret-pl" data-id="'+escBloco(p.id)+'">'
+ +'<span class="ret-pl-nome">'+escBloco(p.nome)+'</span><span class="ret-pl-sit">'+escBloco(p.situacao)+'</span>'
+ +(p.livroNome?'<span class="lc-livro">'+escBloco(p.livroNome)+'</span>':'<span class="lc-vazio-cel">sem estágio</span>')
+ +'<span class="ret-pl-ult" title="última presença lançada">'+(p.ultimaAula?'última aula '+dataCurta(p.ultimaAula):(p.nuncaVeio?'nunca veio':'sem presença'))+'</span>'
+ +'<input type="date" class="ret-pl-data" value="'+escBloco(p.sugestao||'')+'" max="'+escBloco(PEF_RET.hoje)+'" aria-label="Data da saída">'
+ +pefSelMotivo(null)
+ +'<button type="button" class="acao" onclick="pefPendRegistrar(this)">Registrar</button></div>'}
+function pefPendRegistrar(bt){
+var l=bt.closest('.ret-pl'),id=l.dataset.id,pend=(PEF_RET&&PEF_RET.pendentes)||{};
+var p=(pend.semRegistro||[]).concat(pend.semMotivo||[]).filter(function(x){return x.id===id})[0];
+if(!p)return;
+var data=l.querySelector('.ret-pl-data').value,mot=l.querySelector('.ret-pl-mot').value;
+if(!data){msg('Diga quando ele saiu.',true);return}
+if(!mot){msg('Escolha o motivo — se ninguém souber, existe "Não informado".',true);return}
+var seguir=function(){
+ bt.disabled=true;
+ run('registrarSaidaAntiga',[{idMatricula:p.id,livro:p.livro,situacao:p.situacao,data:data,
+  motivoId:Number(mot),registroId:p.registroId||null}],function(r){
+  msg(p.nome+': saída de '+dataCurta(data)+' registrada'
+   +(r.caminho==='encerrou'&&r.aulasRemovidas?' — '+r.aulasRemovidas+' aula(s) saíram da agenda':'')+'.');
+  pefCarregar()},function(){bt.disabled=false})};
+/* quem ainda tem matrícula leva a agenda junto, e isso não pode acontecer calado (a letra do encerrar) */
+if(p.temMatricula)dlgConfirmar({titulo:'Registrar a saída de '+p.nome+'?',ok:'Registrar saída',
+ texto:'Ele ainda tem matrícula em '+(p.livroNome||p.livro)+', então a agenda deste estágio sai junto.'
+  +'\n\nA frequência, as entregas e o percurso continuam registrados.'},function(sim){if(sim)seguir()});
+else seguir()}
+/* o detectado (sumiu pela régua, ou terminou o livro e não seguiu) vira saída registrada */
+function pefRegistrarDetectado(bt,situacao){
+var l=bt.closest('.ret-pl'),id=l.dataset.id,livro=l.dataset.livro||null,reg=l.dataset.reg?Number(l.dataset.reg):null;
+var dEl=l.querySelector('.ret-pl-data'),data=dEl?dEl.value:(l.dataset.data||''),mot=l.querySelector('.ret-pl-mot').value;
+var nome=l.querySelector('.ret-pl-nome').textContent;
+if(!data){msg('Diga quando ele saiu.',true);return}
+if(!mot){msg('Escolha o motivo — se ninguém souber, existe "Não informado".',true);return}
+var args={idMatricula:id,livro:livro,situacao:situacao,data:data,motivoId:Number(mot)};
+if(reg)args.registroId=reg;
+/* a linha É o "não rematriculado": a caixa vai explícita. Pela caixa do motivo, escolher "Não informado" (sem
+   caixa) gravava só o motivo, o fim do livro continuava sem caixa e nada mudava no IPP (revisão da Wiztools 17) */
+/* ...MAS o Formado do motivo vence: quem terminou o W12 (ou o último livro de outro idioma) e escolheu "Terminou o
+   último livro" não é evadido. O servidor recusa Formado fora desses livros (verificação da Wiztools 17) */
+if(situacao==='Encerrado'){var mo=pefMotivos().filter(function(m){return Number(m.id)===Number(mot)})[0];
+ args.tipoRede=(mo&&mo.tipoRede==='Formado')?'Formado':'Não rematriculado'}
+var texto=situacao==='Evadido'
+ ?'A saída fica com a data de '+dataCurta(data)+'. Ele sai dos ativos, e a agenda de '+nomeLivro(livro)+' sai junto — o horário fica livre.'
+  +'\n\nA frequência, as entregas e o percurso continuam registrados.'
+ :'O fim do '+nomeLivro(livro)+' ('+dataCurta(data)+') passa a contar como saída, na caixa "'+args.tipoRede+'", e ele sai dos ativos. A saída fica com a data do fim do livro.';
+dlgConfirmar({titulo:'Registrar a saída de '+nome+'?',ok:'Registrar saída',texto:texto},function(sim){if(!sim)return;
+ bt.disabled=true;
+ run('registrarSaidaAntiga',[args],function(res){
+  msg(nome+': saída registrada'+(res.caminho==='encerrou'&&res.aulasRemovidas?' — '+res.aulasRemovidas+' aula(s) saíram da agenda':'')+'.');
+  pefCarregar()},function(){bt.disabled=false})})}
+/* trocar a caixa na linha: o servidor recusa o que não pode (trancado, tirar a caixa de saída já entregue) e
+   o <select> volta ao que era; o IPP inteiro é recalculado porque a caixa muda a linha em que ela conta */
+function pefCaixa(registroId,sel){
+var antes=sel.dataset.v||'',v=sel.value;
+sel.disabled=true;
+run('corrigirCaixaSaida',[{registroId:registroId,tipoRede:v||null}],function(res){
+ sel.dataset.v=v;
+ msg(res.entregueComo?'Caixa trocada. '+pefMesRot(res.mes)+' já foi entregue com "'+res.entregueComo+'": o número mandado não muda.'
+  :'Caixa gravada — o IPP foi recalculado.');
+ pefCarregar()},
+ function(){sel.value=antes;sel.disabled=false})}
 
 /* ===== ABA 1: O IPP, NA ORDEM DO PORTAL ===== */
 function pefIppHtml(r){
@@ -14738,17 +14966,18 @@ var i=r.ipp||{},h='';
 var nome=function(x){return {id:x.id,nome:x.nome,livro:x.livro,data:x.data||null,extra:x.extra||x.criterio||null}};
 /* ---------- o que precisa ser resolvido ANTES de copiar ---------- */
 var avisos=[];
-if((i.detectados||[]).length)avisos.push('<b>'+pefN(i.detectados.length,'det','Bateram a régua de evasão por falta e seguem como ativos',
- i.detectados.map(function(x){return {id:x.id,nome:x.nome,livro:x.livro,data:x.desde,extra:x.criterio}}))
- +' aluno(s) bateram a régua de evasão por falta</b> e seguem como ativos. O formulário conta a saída <i>registrada</i>: registre a saída dos que de fato saíram (Alunos › Encerrar, no estágio), senão a retenção vai para a franqueadora mais alta do que é.');
+var detR=pefDetReais(r);
+if(detR.length)avisos.push('<b>'+pefN(detR.length,'det','Bateram a régua de evasão por falta e seguem como ativos',
+ detR.map(function(x){return {id:x.id,nome:x.nome,livro:x.livro,data:x.desde,extra:x.criterio}}))
+ +' aluno(s) bateram a régua de evasão por falta</b> e seguem como ativos. O formulário conta a saída <i>registrada</i>: registre a saída dos que de fato saíram '+pefLnkSaidas()+', senão a retenção vai para a franqueadora mais alta do que é.');
 if((i.saidaSemCaixa||[]).length)avisos.push('<b>'+pefN(i.saidaSemCaixa.length,'semcx','Saídas sem a caixa da rede',i.saidaSemCaixa.map(nome))
- +' saída(s) do mês sem a caixa da rede</b> — sem ela o sistema não sabe em que linha do formulário elas entram. Complete na aba Saídas da Retenção.');
+ +' saída(s) do mês sem a caixa da rede</b> — sem ela o sistema não sabe em que linha do formulário elas entram. Escolha a caixa '+pefLnkSaidas()+'.');
 if((i.saidaSemCanal||[]).length)avisos.push(i.saidaSemCanal.length+' saída(s) registradas antes de 21/09 não guardaram se o aluno era online ou presencial — contei como <b>presencial</b>, que é o caso de quase todo mundo.');
 if((i.doisContratos||[]).length)avisos.push('<b>'+pefN(i.doisContratos.length,'dois','Alunos com dois contratos abertos',
  i.doisContratos.map(function(x){return {id:x.id,nome:x.nome,extra:x.livros}}))+' aluno(s) com dois contratos</b> contam uma vez só, pelo contrato mais recente — as modalidades precisam somar o total.');
 if((i.naoRematriculadosDetectados||[]).length)avisos.push('<b>'+pefN(i.naoRematriculadosDetectados.length,'naorem','Terminaram o livro e não seguiram',
  i.naoRematriculadosDetectados.map(function(x){return {id:x.id,nome:x.nome,livro:x.livro,data:x.desde,extra:x.criterio}}))
- +' aluno(s) terminaram o livro e não seguiram</b> — continuam ativos no formulário. Se não vão voltar, registre a saída com o motivo "Não comprou o material do próximo estágio" (caixa Não rematriculado); se vão, rematricule.');
+ +' aluno(s) terminaram o livro e não seguiram</b> — continuam ativos no formulário. Se não vão voltar, registre o "não rematriculado" '+pefLnkSaidas()+'; se vão, rematricule.');
 if((i.saidasRealocadas||[]).length)avisos.push('<b>'+pefN(i.saidasRealocadas.length,'realoc','Saídas de meses já entregues que entram neste mês',i.saidasRealocadas.map(nome))
  +' saída(s) de meses já entregues</b> foram registradas depois do fechamento e entram neste mês — a data do fato fica como está.');
 if((i.entradasRealocadas||[]).length)avisos.push('<b>'+pefN(i.entradasRealocadas.length,'entrealoc','Entradas registradas depois da entrega do mês anterior',i.entradasRealocadas.map(nome))
@@ -14793,7 +15022,7 @@ h+='<div class="pef-bloco"><div class="pef-bt">Retenção e Evasão <small>quem 
    return linhas}).join('')+'</tbody></table></div>';
 /* ---------- 5. índices de retenção: o portal calcula; aqui é conferência ---------- */
 var rt=i.retencao||{};
-var sa=(i.detectados||[]).length+(i.saidaSemCaixa||[]).length;
+var sa=pefDetReais(r).length+(i.saidaSemCaixa||[]).length;
 h+='<div class="pef-bloco"><div class="pef-bt">Índices de Retenção <small>o portal calcula sozinho — isto é a conferência · referência '+((r.metas||{}).retencao||98)+'%</small></div>'
  +(sa&&rt.Geral===100?'<div class="pef-av pef-av-nao">'+icon('triangle-alert',13)+' 100% porque <b>nenhuma saída do mês foi registrada</b> com a caixa da rede — veja as pendências acima.</div>':'')
  +'<div class="pef-grade g4">'
@@ -14844,6 +15073,12 @@ h+='<div class="pef-rem-top">'
    return '<tr><td>'+escBloco(j.rot)+'</td><td class="c">'+pefN(j.fimContrato,'jf'+j.id,'Contrato termina — '+j.rot,lf.map(function(x){var o=n(x);o.data=x.fimContrato;return o}))
     +'</td><td class="c">'+pefN(j.termino,'jt'+j.id,'Livro termina pela previsão — '+j.rot,lt.map(function(x){var o=n(x);o.data=x.termino;return o}))+'</td></tr>'}).join('')
  +'</tbody></table></div></div>';
+/* ---------- a LISTA DE TRABALHO de hoje (era o Progresso dos contratos do Dashboard — Wiztools 17) ----------
+   Os números acima seguem o mês (e congelam quando ele fecha); esta lista é sempre a de hoje. Ela chega à
+   parte (`pefProgCarregar`, quando a aba abre): esta função só deixa o lugar dela. */
+h+='<div class="pef-bloco"><div class="pef-bt">Lista de trabalho <small>os contratos de hoje, quem está mais perto do fim do livro primeiro — clique para abrir o planejamento</small>'
+ +'<button type="button" class="al-hist-add" onclick="PEF_PROG=null;pefProgCarregar()" title="Recalcular">↻</button></div>'
+ +'<div id="pef-prog"><div class="al-hist-vazio">calculando o progresso dos contratos…</div></div></div>';
 /* ---------- a lista, agrupada como na planilha: segmento → canal → experiência ---------- */
 var G=rem.grupos||{},ORD=['Kids','Outros Idiomas','Teens','Ws'];
 h+='<div class="pef-bloco"><div class="pef-bt">Os alunos <small>'+(rem.lista||[]).length+' ativos · ordem da planilha</small></div>'
@@ -14907,8 +15142,23 @@ var ms=Object.keys(g.calendario||{}).sort();if(!ms.length)return '';
 PEF_LISTAS.cal={titulo:'Quem termina livro em cada mês (a projeção do ritmo real)',itens:[]};
 ms.forEach(function(m){(g.calendario[m]||[]).forEach(function(x){PEF_LISTAS.cal.itens.push({id:x.id,nome:x.nome,livro:x.livro,data:x.termino,extra:pefMesRot(m)})})});
 return '<button type="button" class="pef-lnk" onclick="pefLista(\'cal\')">o sistema já montou: '+PEF_LISTAS.cal.itens.length+' término(s) de livro nos próximos meses</button>'}
+/* GRAVAÇÃO PINTA, NÃO REDESENHA (Wiztools 17): recarregava o getPEF inteiro — o IPP recalculado — a cada
+   valor digitado, e o redesenho tirava o foco do campo seguinte. O número digitado já está no campo; o
+   sim/não repinta só a aba da Gestão, para o botão aceso trocar de lado. */
 function pefValor(periodo,chave,valor){
-run('salvarValorPEF',[{periodo:periodo,chave:chave,valor:valor}],function(){pefCarregar()})}
+run('salvarValorPEF',[{periodo:periodo,chave:chave,valor:valor}],function(){
+ var it=(((PEF||{}).gestao||{}).itens||[]).filter(function(x){return x.periodo===periodo&&x.chave===chave})[0];
+ if(it)it.valor=valor;
+ if(it&&it.tipo==='sim'){var g=$('pef-gest');if(g)g.innerHTML=pefGestHtml(PEF)}
+ /* o único valor digitado que muda um alerta: o limite de turmas da coordenação (a mesma conta de
+    gestaoPedagogica). Só a célula da base muda — repintar a aba tiraria o foco do campo seguinte. */
+ if(it&&chave==='turmasCoordenacao'){var gg=PEF.gestao||{};
+  it.alerta=(gg.limiteTurmas!=null&&valor!==''&&valor!=null&&Number(String(valor).replace(',','.'))>gg.limiteTurmas)
+   ?'Pelo porte ('+gg.ativos+' alunos) e pela carga de '+gg.cargaCoordenador+' h, o limite de turmas do coordenador é '+gg.limiteTurmas+' (Diagnóstico, PEF p.48).':null;
+  var inp=document.querySelector('#pef-gest input.pef-in[onchange*="turmasCoordenacao"]'),base=inp&&inp.closest('tr')&&inp.closest('tr').querySelector('td.pef-base');
+  if(base){var al=base.querySelector('.pef-al');if(al)al.remove();
+   if(it.alerta)base.insertAdjacentHTML('beforeend','<div class="pef-al">'+icon('triangle-alert',12)+' '+escBloco(it.alerta)+'</div>')}}
+ msg('Guardado.')})}
 
 /* ===== ABA 4: AULAS OBSERVADAS ===== */
 function pefObsHtml(r){
@@ -14971,10 +15221,10 @@ dlgConfirmar({titulo:'Excluir esta observação?',ok:'Excluir',perigo:true,texto
 /* ===== FECHAR E REABRIR O MÊS ===== */
 function pefFechar(){
 var i=(PEF&&PEF.ipp)||{};
-var pend=(i.detectados||[]).length+(i.saidaSemCaixa||[]).length;
+var pend=pefPendMes(PEF);
 dlgAbrir({tipo:'confirmar',titulo:'Fechar '+pefMesRot(PEF.mes)+'?',ok:'Fechar o mês',
  texto:'Os números do IPP ficam congelados como estão agora — o que for entregue à franqueadora não muda depois, nem se alguém corrigir uma data de matrícula.'
-  +(pend?'\n\nAtenção: ainda há '+pend+' pendência(s) no topo da aba IPP. Fechar assim manda o número sem elas.':''),
+  +(pend?'\n\nAtenção: ainda há '+pend+' pendência(s) na aba Saídas. Fechar assim manda o número sem elas.':''),
  form:'<label class="dlg-l">Observação <span class="opc">(opcional)</span><input id="pef-fech-obs" maxlength="200" placeholder="enviado no portal em…"></label>',
  coletar:function(f){return {obs:f.querySelector('#pef-fech-obs').value}},
  cb:function(v){if(!v||typeof v!=='object')return;

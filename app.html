@@ -2307,6 +2307,8 @@ th.ev.ultima .es-ev-data{background:var(--marca);color:#fff}
 .cal-pop-a{font-size:10px;font-weight:700;border-radius:20px;padding:1px 7px;margin-left:auto}
 .cal-pop-a.sim{background:var(--es-remessa-cl);color:var(--es-remessa)}
 .cal-pop-a.nao{background:var(--es-saida-cl);color:var(--es-saida)}
+/* as sub-abas de Pendências, na barra das pílulas (05/10/2026) */
+#ct-chips .ct-sub-abas{display:inline-flex;margin:0 14px 0 0;vertical-align:middle;border-bottom:0}
 /* ===== O DIA DECIDIDO À PARTE (05/10/2026) ===== a regra da marcação não vale nesta data: a borda tracejada avisa na
    grade, o selo avisa no popover, e o diálogo do clique decide */
 .cal-pop-dec{font-size:10px;font-weight:700;border-radius:20px;padding:1px 7px;border:1px dashed var(--marca);color:var(--marca)}
@@ -5136,6 +5138,23 @@ button.acao.sec.reg-excluir{color:var(--perigo)}
 .pef-sn button.on{background:#E8F5E9;color:#256029;font-weight:700}
 .pef-sn button.on.nao{background:#FBE9E7;color:#B03A2E}
 .pef-lnk{appearance:none;border:0;background:none;padding:0;font:inherit;font-size:11.5px;color:var(--marca);text-decoration:underline;cursor:pointer}
+/* ===== INDICADORES: abas dentro de abas (05/10/2026) =====
+   A aba de cima é um `.pg-painel` dentro do miolo da página; por dentro, o cabeçalho dela (mês, números, sub-abas) não
+   rola, e o miolo interno (`.ind-sub`) repete o papel do `.pg-corpo-abas` um nível abaixo: os `.es-painel` das
+   sub-abas viram coluna, e só o `.pg-rola` de cada um rola. */
+.pg-corpo-abas>.pg-painel[hidden]{display:none}
+#ind-abas .pg-aba .n:empty{display:none}
+.ind-cab{flex:0 0 auto}
+.ind-barra{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.ind-barra .pef-mes{margin-left:0}
+.ind-cab>.ret-kpis{margin:10px 0 0}
+.ind-cab>.ret-kpis:empty{display:none}
+.ind-sub-abas{margin:12px 0 0}
+.ind-sub{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;overflow:hidden;padding-top:14px}
+.ind-sub>.es-painel{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
+.ind-bar{display:inline-block;height:8px;border-radius:4px;background:var(--azul);vertical-align:middle;margin-right:6px}
+.ind-tab td.c,.ind-tab th.c{text-align:center}
+.ind-tab tr.aberto td{color:var(--tx3)}
 /* ===== ABA SAÍDAS E LISTA DE TRABALHO (Wiztools 17, etapa 3 da fusão dos painéis) ===== */
 .pef-kpi-ir{cursor:pointer}
 .pef-kpi-ir:hover,.pef-kpi-ir:focus-visible{outline:2px solid var(--azul);outline-offset:1px}
@@ -5394,12 +5413,10 @@ button.acao.sec.cg-ir{margin:0;padding:4px 10px;font-size:12px;white-space:nowra
 
 <nav class="sb-corpo">
 <!-- PANORAMA: as três telas que respondem "como está a escola hoje" -->
-<button onclick="aba('dashboard',this)"><span class="ic"></span>Dashboard</button>
 <button onclick="aba('central',this)"><span class="ic"></span>Central<span class="sb-aviso" id="sb-aviso-central" title="pendências abertas na central de controle"></span></button>
-<!-- Retenção fica no PANORAMA e não dentro de Alunos: a rede põe "planejar ações para evitar evasão"
-     na agenda DIÁRIA do coordenador, e o que se olha todo dia não pode estar três cliques adentro. -->
-<button onclick="aba('retencao',this)"><span class="ic"></span>Retenção</button>
-<button onclick="aba('pef',this)"><span class="ic"></span>PEF<span class="sb-aviso" id="sb-aviso-pef" title="o mês a entregar ainda não foi fechado"></span></button>
+<!-- INDICADORES (05/10/2026): o PEF, a Retenção e o Dashboard numa página de abas dentro de abas. O id continua
+     `pef`, e o selo também: é o "o mês a entregar ainda não foi fechado". -->
+<button onclick="aba('pef',this)"><span class="ic"></span>Indicadores<span class="sb-aviso" id="sb-aviso-pef" title="o mês a entregar ainda não foi fechado"></span></button>
 <button onclick="aba('calendario',this)"><span class="ic"></span>Calendário</button>
 
 <div class="sb-fio"></div>
@@ -5864,30 +5881,6 @@ Os horários da matriz costumam ser fixos e raramente mudam. Confirma que quer e
 <sl-button slot="footer" onclick="document.getElementById('lc-dialog').hide()">Fechar</sl-button>
 </sl-dialog>
 
-<!-- As pizzas e as pílulas ficam no bloco PARADO: elas são o resumo que se lê enquanto se filtra a
-     grade, e rolar para ver o efeito de um filtro que ficou lá em cima era o defeito da tela. -->
-<div id="tab-dashboard" class="tab tab-fixa">
-<div class="pg-topo">
-<div class="pg-cab"><h2>Dashboard</h2><span class="pg-sub">gráficos e tabela de todas as matrículas</span></div>
-</div>
-<!-- O PROGRESSO DOS CONTRATOS SAIU DAQUI (Wiztools 17, etapa 3 da fusão dos painéis): virou a lista de
-     trabalho da aba Rematrícula do PEF, que é onde se decide com quem falar de rematrícula. O Dashboard
-     fica com as matrículas — "acompanhar", no plano de 21/09. -->
-<div class="pg-abas dash-abas">
-<button class="pg-aba on" data-d="geral" onclick="dashAba('geral')">Matrículas</button>
-</div>
-<div class="pg-corpo pg-corpo-abas">
-<div class="pg-painel" id="dash-p-geral">
-<div class="pg-fixo">
-<div id="dash" class="dash-cards"></div>
-<div class="visao-filtros">Clique nas pílulas para filtrar a tabela (contagem ao lado de cada opção); os cabeçalhos ordenam.</div>
-<div id="filtros-inicio"></div>
-</div>
-<div class="dash-grade"><div id="grade-geral"></div></div>
-</div>
-</div>
-</div>
-
 <div id="tab-professores" class="tab tab-fixa">
 <div class="pg-topo">
 <div class="pg-cab"><h2>Gerenciar professores</h2></div>
@@ -5970,41 +5963,32 @@ Os horários da matriz costumam ser fixos e raramente mudam. Confirma que quer e
 </div>
 </div>
 
-<!-- ===== RETENÇÃO (2026-09-19, módulo da semana) =====
-     Duas perguntas, duas abas: quem está indo embora (e dá para segurar) e quem já foi (e precisa estar
-     contado). A primeira é para agir hoje; a segunda é para fechar o mês com a franqueadora. -->
-<div id="tab-retencao" class="tab tab-fixa">
-<div class="pg-topo">
-<div class="pg-cab"><h2>Retenção</h2><span class="pg-sub">quem já saiu, e por quê — quem está sumindo fica na Central</span></div>
-<div class="ret-kpis" id="ret-kpis"></div>
-</div>
-<div class="pg-abas" id="ret-abas">
-<button class="pg-aba on" type="button" data-a="saidas" onclick="retAba('saidas')">Saídas<span class="n" id="ret-saidas-n">0</span></button>
-<button class="pg-aba" type="button" data-a="atend" onclick="retAba('atend')">Atendimentos<span class="n" id="ret-atend-n">0</span></button>
-</div>
-<div class="pg-corpo pg-corpo-abas">
-<!-- a aba "Em risco" foi para a Central em 21/09 (Central › Alunos em risco) -->
-<div class="es-painel" id="ret-painel-saidas">
-<div class="pg-fixo">
-<div class="info cad-info">Quem saiu, quando e por quê. A coluna <b>caixa da rede</b> é o que vai no IPP todo mês — a soma dela é a perda da escola. Saída sem data ou sem motivo aparece em cima, para ser completada: sem a data não existe taxa de evasão do mês, e sem o motivo não há por que.</div>
-</div>
-<div class="pg-rola"><div id="ret-saidas"></div></div>
-</div>
-<div class="es-painel" id="ret-painel-atend" hidden>
-<div class="pg-fixo">
-<div class="info cad-info">O que foi conversado com cada um. A rede pede por escrito: <b>"todo atendimento a pais, responsáveis e alunos deve gerar um follow-up"</b>. <b>Retorno prometido</b> que venceu sobe para o topo — é a promessa que ninguém cumpriu ainda, e ela só sai da lista quando houver conversa nova. Deixar recado não é ter falado: só <b>falei com alguém</b> tira o aluno do "sem contato" da fila de risco, na Central.</div>
-</div>
-<div class="pg-rola"><div id="ret-atend"></div></div>
-</div>
-</div>
-</div>
-
 <!-- ===== O PEF (2026-09-21) — o relatório mensal da franqueadora, montado pelo sistema =====
      Quatro abas: o IPP (o formulário oficial, na ordem do portal), a Rematrícula do ciclo (o "Relatorio PEF"
      da planilha dele), a Gestão Pedagógica (os outros itens do painel, com os pontos) e as Aulas Observadas. -->
 <div id="tab-pef" class="tab tab-fixa">
+<!-- ===== INDICADORES (05/10/2026, etapa 4 da fusão dos painéis) =====
+     Pedido dele: *"avalie qual seria a forma eficiente de unificar mais funções redundantes: estatísticas, o PEF, o
+     índice de performance pedagógica... abas dentro de abas, pra mim é mais organizado... coloca a retenção dentro de
+     PEF... aí deixa a Central menos carregada"*. Uma página, três abas:
+       · PEF DO MÊS — o relatório da franqueadora; as cinco abas de antes viraram sub-abas;
+       · RETENÇÃO   — as saídas do ano, a evasão mês a mês e o histórico de contatos (era a página Retenção);
+       · ESCOLA HOJE — o retrato de hoje (era a página Dashboard).
+     O id continua `pef` (tab-pef, sb-aviso-pef, ctIrPEF, pefAba): os atalhos e o selo não mudaram. -->
 <div class="pg-topo">
-<div class="pg-cab"><h2>PEF</h2><span class="pg-sub">o relatório mensal da franqueadora, montado com o que o sistema já sabe</span>
+<div class="pg-cab"><h2>Indicadores</h2><span class="pg-sub">o relatório da franqueadora, a retenção da escola e o retrato de hoje</span></div>
+<div class="pg-abas" id="ind-abas">
+<button class="pg-aba on" type="button" data-a="pef" onclick="indAba('pef')">PEF do mês<span class="n" id="ind-pef-n"></span></button>
+<button class="pg-aba" type="button" data-a="ret" onclick="indAba('ret')">Retenção</button>
+<button class="pg-aba" type="button" data-a="escola" onclick="indAba('escola')">Escola hoje</button>
+</div>
+</div>
+<div class="pg-corpo pg-corpo-abas">
+<!-- PEF DO MÊS: o mês, a situação e os números do topo moram aqui, e não no cabeçalho da página — eles são do
+     relatório, e a Retenção e a Escola hoje não têm mês -->
+<div class="pg-painel ind-painel" id="ind-p-pef">
+<div class="ind-cab">
+<div class="ind-barra">
 <div class="pef-mes">
 <button type="button" class="pef-mv" onclick="pefMover(-1)" title="mês anterior">&lsaquo;</button>
 <span id="pef-mes-rot">—</span>
@@ -6013,18 +5997,15 @@ Os horários da matriz costumam ser fixos e raramente mudam. Confirma que quer e
 <span id="pef-estado"></span>
 </div>
 <div class="ret-kpis" id="pef-kpis"></div>
-</div>
-<div class="pg-abas" id="pef-abas">
-<!-- SAÍDAS PRIMEIRO (Wiztools 17, etapa 3 da fusão dos painéis): fechar o mês é resolver o que falta e só
-     depois copiar o IPP — a ordem das abas é a ordem do trabalho. O que a página Retenção fazia com as
-     saídas mora aqui agora. -->
+<div class="pg-abas ind-sub-abas" id="pef-abas">
 <button class="pg-aba on" type="button" data-a="saidas" onclick="pefAba('saidas')">Saídas<span class="n" id="pef-saidas-n">0</span></button>
 <button class="pg-aba" type="button" data-a="ipp" onclick="pefAba('ipp')">IPP do mês</button>
 <button class="pg-aba" type="button" data-a="rem" onclick="pefAba('rem')">Rematrícula</button>
 <button class="pg-aba" type="button" data-a="gest" onclick="pefAba('gest')">Gestão pedagógica</button>
 <button class="pg-aba" type="button" data-a="obs" onclick="pefAba('obs')">Aulas observadas<span class="n" id="pef-obs-n">0</span></button>
 </div>
-<div class="pg-corpo pg-corpo-abas">
+</div>
+<div class="ind-sub pg-corpo-abas">
 <div class="es-painel" id="pef-painel-saidas">
 <div class="pg-fixo"><div class="info cad-info">O que precisa estar certo <b>antes de fechar o mês</b>: toda saída com a data, o motivo e a <b>caixa da rede</b> — é a caixa que diz em que linha do IPP ela entra, e saída sem caixa não vai para a franqueadora. Quem o sistema <b>detecta</b> (sumiu pela régua de faltas, terminou o livro e não seguiu) só vira saída quando alguém registra: o botão está na própria linha.</div></div>
 <div class="pg-rola"><div id="pef-saidas"><div class="al-hist-vazio">calculando…</div></div></div>
@@ -6044,6 +6025,51 @@ Os horários da matriz costumam ser fixos e raramente mudam. Confirma que quer e
 <div class="es-painel" id="pef-painel-obs" hidden>
 <div class="pg-fixo"><div class="info cad-info"><b>Aulas avaliadas pelo coordenador</b> — 10 pontos por mês. A rede pede no mínimo <b>uma aula de cada professor</b> e no máximo <b>dez</b> observações no mês, com feedback em até 48 horas. O número do mês sai daqui sozinho.</div></div>
 <div class="pg-rola"><div id="pef-obs"></div></div>
+</div>
+</div>
+</div>
+<!-- RETENÇÃO: por ANO (o PEF é por mês). Saídas do ano com a caixa na linha, a evasão mês a mês (o que foi entregue
+     e o que está aberto) e o histórico de contatos — o follow-up por escrito que a rede cobra -->
+<div class="pg-painel ind-painel" id="ind-p-ret" hidden>
+<div class="ind-cab">
+<div class="ind-barra">
+<div class="pef-mes">
+<button type="button" class="pef-mv" onclick="indRetMover(-1)" title="ano anterior">&lsaquo;</button>
+<span id="ind-ret-ano">—</span>
+<button type="button" class="pef-mv" onclick="indRetMover(1)" title="ano seguinte">&rsaquo;</button>
+</div>
+</div>
+<div class="ret-kpis" id="ind-ret-kpis"></div>
+<div class="pg-abas ind-sub-abas" id="ind-ret-abas">
+<button class="pg-aba on" type="button" data-a="saidas" onclick="indRetAba('saidas')">Saídas do ano<span class="n" id="ind-ret-saidas-n">0</span></button>
+<button class="pg-aba" type="button" data-a="evasao" onclick="indRetAba('evasao')">Evasão mês a mês</button>
+<button class="pg-aba" type="button" data-a="atend" onclick="indRetAba('atend')">Atendimentos<span class="n" id="ret-atend-n">0</span></button>
+</div>
+</div>
+<div class="ind-sub pg-corpo-abas">
+<div class="es-painel" id="ind-ret-p-saidas">
+<div class="pg-fixo"><div class="info cad-info">Quem saiu no ano, quando e por quê. A <b>caixa da rede</b> é o que vai no IPP todo mês — troque na linha, se estiver errada. O que falta completar para fechar o mês está em <b>PEF do mês › Saídas</b>.</div></div>
+<div class="pg-rola"><div id="ind-ret-saidas"><div class="al-hist-vazio">calculando…</div></div></div>
+</div>
+<div class="es-painel" id="ind-ret-p-evasao" hidden>
+<div class="pg-fixo"><div class="info cad-info">A retenção de cada mês. Mês <b>fechado</b> mostra o que foi entregue à franqueadora e não muda mais; mês <b>aberto</b> mostra as saídas registradas até agora, pela data. Embaixo, <b>por que</b> os alunos saíram no ano.</div></div>
+<div class="pg-rola"><div id="ind-ret-evasao"><div class="al-hist-vazio">calculando…</div></div></div>
+</div>
+<div class="es-painel" id="ind-ret-p-atend" hidden>
+<div class="pg-fixo"><div class="info cad-info">O que foi conversado com cada aluno ou responsável — a rede pede por escrito: <b>"todo atendimento deve gerar um follow-up"</b>. O contato se registra na <b>Central › Alunos em risco</b>; o retorno que venceu aparece na <b>Central › Hoje</b>. Aqui fica o histórico, e o excluir do registro feito por engano.</div></div>
+<div class="pg-rola"><div id="ret-atend"><div class="al-hist-vazio">calculando…</div></div></div>
+</div>
+</div>
+</div>
+<!-- ESCOLA HOJE (era o Dashboard): as pizzas e as pílulas ficam paradas — são o resumo que se lê enquanto se filtra a
+     grade — e a grade toma o resto -->
+<div class="pg-painel ind-painel" id="ind-p-escola" hidden>
+<div class="pg-fixo">
+<div id="dash" class="dash-cards"></div>
+<div class="visao-filtros">Clique nas pílulas para filtrar a tabela (contagem ao lado de cada opção); os cabeçalhos ordenam.</div>
+<div id="filtros-inicio"></div>
+</div>
+<div class="dash-grade"><div id="grade-geral"></div></div>
 </div>
 </div>
 </div>
@@ -6361,9 +6387,8 @@ Ponto facultativo entra como <b>“a escola abre”</b> — fechar em 24/12 ou 2
 <div class="pg-abas" id="ct-abas">
 <button type="button" class="pg-aba on" data-a="hoje" onclick="ctAba('hoje')">Hoje<span class="n">0</span></button>
 <button type="button" class="pg-aba" data-a="risco" onclick="ctAba('risco')">Alunos em risco<span class="n">0</span></button>
-<button type="button" class="pg-aba" data-a="alertas" onclick="ctAba('alertas')">Pendências<span class="n">0</span></button>
-<button type="button" class="pg-aba" data-a="resolvidos" onclick="ctAba('resolvidos')">Resolvidos<span class="n">0</span></button>
-<button type="button" class="pg-aba" data-a="silenciados" onclick="ctAba('silenciados')">Silenciados<span class="n">0</span></button>
+<button type="button" class="pg-aba" data-a="alertas" onclick="ctAba(CT_PEND)">Pendências<span class="n">0</span></button>
+<!-- Resolvidas e Silenciadas viraram sub-abas de Pendências (05/10/2026): a Central mostra só três abas -->
 </div>
 <div class="pg-corpo pg-corpo-abas">
 <div class="es-painel">
@@ -6673,7 +6698,7 @@ if(grupo&&!grupo.classList.contains('aberto')){grupo.classList.add('aberto');
 if(n==='horarios')run('getMatriz',[],function(m){MAT=m;matRender();dirty('mat',false);cbMontar()});
 /* Presença sempre reabre no "agora" (lcHoje zera data+hora): se a recepcionista espiou outro
    horário e trocou de aba, ao voltar ela vê de novo a turma que está em aula neste momento */
-if(n==='inicio')renderHome();if(n==='dashboard')renderDashboard();if(n==='professores')profCarregar();if(n==='backup')renderBackup();
+if(n==='inicio')renderHome();if(n==='professores')profCarregar();if(n==='backup')renderBackup();
 /* estoque recarrega a cada abertura: o saldo depende de entregas que a outra estação pode ter
    registrado, e a tela é barata (uma rota só, ~30 itens) */
 /* ENTRAR NUMA PÁGINA A DEVOLVE AO ESTADO INICIAL (regra dele, 2026-08-17): *"toda página que eu
@@ -6690,9 +6715,8 @@ if(n==='estoque'){esZerar();
   esCarregar(function(){esAba(ES_ABA);if(dEs&&dEs.itemId)esAbrirDireto(dEs.itemId)})}
 if(n==='arquivados')arqCarregar();
 if(n==='cadastros')cadCarregar();
-/* a retenção volta sempre na fila de risco: é a pergunta do dia, e a lista de saídas é consulta */
-if(n==='retencao'){retAba('saidas');retCarregar()}
-if(n==='pef'){pefCarregar()}
+/* Indicadores (o id é `pef`): volta à aba de cima em que ele estava, e o PEF recarrega — o selo depende dele */
+if(n==='pef'){indAba(IND_ABA);pefCarregar()}
 /* agendamentos: recarrega sempre, porque a recepção marca e desmarca o dia inteiro */
 if(n==='agendamentos'){agLimpar();agCarregar();if(!ALUNOS||!ALUNOS.length)run('getAlunos',[],function(x){ALUNOS=x})}
 /* a página volta à primeira aba a cada entrada, pela regra da casa */
@@ -6713,7 +6737,10 @@ if(n==='estagios'){egZerar();
 if(n==='presenca'||n==='recepcao'){LCM=(n==='recepcao'?'recep':'sala');lcAba('checkin');lcHoje()}}
 /* acha o botão pelo próprio onclick em vez de um mapa de índices — assim adicionar/reordenar abas no
    sidebar não quebra a navegação por código (o mapa fixo já saiu de sincronia uma vez) */
-function abaPor(n){var alvo=null;document.querySelectorAll('#sidebar button').forEach(function(b){if(String(b.getAttribute('onclick')).indexOf("'"+n+"'")>=0)alvo=b});if(alvo)aba(n,alvo)}
+function abaPor(n){
+/* Dashboard e Retenção viraram abas de Indicadores (05/10/2026): o nome antigo cai na aba certa, em vez de falhar calado */
+if(n==='dashboard'||n==='retencao'){IND_ABA=n==='dashboard'?'escola':'ret';n='pef'}
+var alvo=null;document.querySelectorAll('#sidebar button').forEach(function(b){if(String(b.getAttribute('onclick')).indexOf("'"+n+"'")>=0)alvo=b});if(alvo)aba(n,alvo)}
 /* seção recolhível do sidebar. Nasce ABERTA (é onde está o trabalho do dia) e a escolha fica
    gravada por grupo, para quem recolhe não ter de recolher de novo a cada abertura do app. */
 function sbGrupo(id){
@@ -6749,7 +6776,7 @@ sbIcones();
    `aba('x')` — o mesmo caminho que o `abaPor` usa para achar o botão —, então acrescentar uma
    página é acrescentar uma linha aqui, sem mexer no HTML. */
 var SB_ICONES={inicio:'house',dashboard:'layout-dashboard',central:'triangle-alert',
- retencao:'life-buoy',agendamentos:'calendar-plus',pef:'award',
+ retencao:'life-buoy',agendamentos:'calendar-plus',pef:'layout-dashboard',
  calendario:'calendar-days',recepcao:'list-checks',presenca:'clipboard-check',
  alunos:'users',turmas:'graduation-cap',horarios:'calendar-clock',professores:'presentation',
  estoque:'package',estagios:'clipboard-list',arquivados:'archive',
@@ -8316,10 +8343,6 @@ pgHome();pgLigarGestos();
    do PEF: é lá que se decide com quem falar de rematrícula (plano de 21/09, "a Rematrícula absorve o
    Progresso dos contratos"). A conta continua toda no servidor — a mesma projeção da aba Planejamento —,
    agora só de aluno ATIVO e com o professor e o último contato ao lado. O Dashboard ficou com as matrículas. */
-function dashAba(d){
-document.querySelectorAll('#tab-dashboard .dash-abas .pg-aba').forEach(function(b){b.classList.toggle('on',b.dataset.d===d)});
-var e=$('dash-p-geral');if(e)e.style.display='block';
-}
 function pefProgCarregar(){
 var c=$('pef-prog');if(!c)return;
 if(PEF_PROG)pefProgPintar();
@@ -12804,7 +12827,7 @@ var PAGINAS=[
 {aba:'calendario',ic:'calendar-clock',titulo:'Calendário letivo',desc:'Feriados, férias e o que fecha a escola'},
 {aba:'recepcao',ic:'list-checks',titulo:'Freq. Recepção',desc:'Recepção marca quem veio, quem faltou e feriado'},
 {aba:'presenca',ic:'clipboard-check',titulo:'Freq. Sala',desc:'Entrada e saída da sala, lançadas pelo professor'},
-{aba:'dashboard',ic:'layout-dashboard',titulo:'Dashboard',desc:'Gráficos e tabela de todas as matrículas'},
+{aba:'pef',ic:'layout-dashboard',titulo:'Indicadores',desc:'O PEF do mês, a retenção do ano e o retrato da escola hoje'},
 {aba:'alunos',ic:'users',titulo:'Alunos',desc:'Cadastro, matrículas em estágio e agenda'},
 {aba:'turmas',ic:'graduation-cap',titulo:'Turmas',desc:'Salas: estágio, dias, horário e professoras'},
 {aba:'horarios',ic:'calendar-clock',titulo:'Horários',desc:'Matriz de horários disponíveis'},
@@ -14381,90 +14404,10 @@ function(sim){if(!sim)return;
  /* `removerAvulso` já guarda a cópia antes de apagar: o encontro sai da grade, não da história */
  run('removerAvulso',[{id:id}],function(){msg('Encontro desmarcado.');agCarregar()})})}
 
-/* ===== RETENÇÃO (2026-09-19, módulo da semana) =====
-   *"Planejar ações para evitar evasão e assegurar a retenção"* é agenda DIÁRIA do coordenador, na letra
-   do booklet da rede. Duas abas, dois públicos: EM RISCO é para agir hoje — a lista sai da frequência que
-   já estava lá e ninguém lia; SAÍDAS é para fechar o mês, e é onde a saída antiga sem data ou sem motivo
-   vem para cima até alguém completá-la.
-   A tela NÃO carimba ninguém sozinha: ela aponta que o aluno bateu o critério, e quem decide é gente —
-   a mesma disciplina da Central de controle, e a recomendação do relatório do PEF. */
-var RET=null, RET_ABA='saidas';
-function retAba(a){RET_ABA=a;
-document.querySelectorAll('#ret-abas .pg-aba').forEach(function(b){b.classList.toggle('on',b.dataset.a===a)});
-var s=$('ret-painel-saidas'),t=$('ret-painel-atend');
-if(s)s.hidden=a!=='saidas'; if(t)t.hidden=a!=='atend';
-if(a==='atend')retAtendCarregar()}
-function retCarregar(){run('getRetencao',[{}],function(r){RET=r;retPintar()})}
+/* ===== O QUE SOBROU DA PÁGINA RETENÇÃO (05/10/2026) =====
+   A página saiu na fusão dos painéis: as saídas moram em Indicadores (PEF do mês › Saídas, Retenção › Saídas do ano)
+   e o histórico de contatos em Indicadores › Retenção › Atendimentos. Ficam aqui as peças que a Central e o PEF usam. */
 function retDias(d){return d==null?'—':(d===0?'hoje':d===1?'ontem':d+' dias')}
-function retPintar(){
-if(!RET)return;
-var saidas=RET.saidas||[],pend=RET.pendentes||{semRegistro:[],semMotivo:[]};
-var faltando=(pend.semRegistro||[]).length+(pend.semMotivo||[]).length;
-$('ret-saidas-n').textContent=saidas.length;
-/* os quatro números do topo: quantos ainda estão aqui, quantos estão indo, quantos já foram e o que
-   falta completar. É a leitura de 5 segundos que ele faz antes de decidir o que fazer da manhã. */
-$('ret-kpis').innerHTML=
- '<div class="ret-kpi"><b>'+RET.ativos+'</b><span>alunos ativos</span></div>'
- +'<div class="ret-kpi"><b>'+saidas.length+'</b><span>saídas em '+RET.ano+'</span></div>'
- +(faltando?'<div class="ret-kpi falta"><b>'+faltando+'</b><span>saídas por completar</span></div>':'');
-/* ---------- SAÍDAS ---------- */
-var s='';
-if(faltando){
- s+='<div class="ret-pend"><div class="ret-pend-cab">'+icon('triangle-alert',15)
-  +'<b>'+faltando+' saída(s) por completar</b>'
-  +'<span>sem a data não existe taxa de evasão do mês; sem o motivo não há por quê. A data vem sugerida pela última aula de cada um.</span></div>'
-  +(pend.semRegistro||[]).concat(pend.semMotivo||[]).map(retLinhaPendente).join('')+'</div>'}
-if(!saidas.length)s+='<div class="ret-vazio">Nenhuma saída registrada em '+RET.ano+'.</div>';
-else{
- var tipos=Object.keys(RET.porTipo||{});
- if(tipos.length)s+='<div class="ret-caixas">'+tipos.map(function(t){
-  return '<span class="ret-caixa'+(t==='sem caixa'?' vazia':'')+'"><b>'+RET.porTipo[t]+'</b> '+escBloco(t)+'</span>'}).join('')+'</div>';
- s+='<table class="ret-tab"><thead><tr><th>Aluno</th><th>Estágio</th><th class="c">Saiu em</th>'
-  +'<th>Situação</th><th>Motivo</th><th>Caixa da rede</th></tr></thead><tbody>'
-  +saidas.map(function(x){return '<tr>'
-   +'<td><span class="ret-nome">'+escBloco(x.nome)+'</span></td>'
-   +'<td>'+(x.livroNome?'<span class="lc-livro">'+escBloco(x.livroNome)+'</span>':'<span class="lc-vazio-cel">geral</span>')+'</td>'
-   +'<td class="c">'+dataCurta(x.data)+'</td>'
-   +'<td><span class="ret-sit s-'+escBloco(x.situacao)+'">'+escBloco(x.situacao)+'</span></td>'
-   +'<td>'+(x.motivo?escBloco(x.motivo):'<span class="ret-sem">sem motivo</span>')
-    +(x.observacao?' <span class="ret-obs" title="'+escBloco(x.observacao)+'">'+icon('info',12)+'</span>':'')+'</td>'
-   +'<td>'+(x.tipoRede?escBloco(x.tipoRede):'<span class="ret-sem">—</span>')+'</td></tr>'}).join('')
-  +'</tbody></table>'}
-$('ret-saidas').innerHTML=s;
-}
-/* uma linha por saída a completar: a data já vem sugerida e o motivo é a única escolha real.
-   Guardo o id da linha no próprio elemento — procurar por seletor depois é o que quebra em silêncio
-   quando o texto muda (lição do `esCodigoUnidade`, em 2026-08-22). */
-function retLinhaPendente(p){
-var lista=(RET.motivos||[]).filter(function(m){return !m.arquivado});
-return '<div class="ret-pl" data-id="'+escBloco(p.id)+'">'
- +'<span class="ret-pl-nome">'+escBloco(p.nome)+'</span>'
- +'<span class="ret-pl-sit">'+escBloco(p.situacao)+'</span>'
- +(p.livroNome?'<span class="lc-livro">'+escBloco(p.livroNome)+'</span>':'<span class="lc-vazio-cel">sem estágio</span>')
- +'<span class="ret-pl-ult" title="última presença lançada">'+(p.ultimaAula?'última aula '+dataCurta(p.ultimaAula):(p.nuncaVeio?'nunca veio':'sem presença'))+'</span>'
- +'<input type="date" class="ret-pl-data" value="'+escBloco(p.sugestao||'')+'" max="'+escBloco(RET.hoje)+'" aria-label="Data da saída">'
- +'<select class="ret-pl-mot" aria-label="Motivo"><option value="">— motivo —</option>'
- +lista.map(function(m){return '<option value="'+m.id+'">'+escBloco(m.nome)+'</option>'}).join('')+'</select>'
- +'<button type="button" class="acao" onclick="retRegistrar(this)">Registrar</button></div>'}
-function retRegistrar(bt){
-var l=bt.closest('.ret-pl'),id=l.dataset.id;
-var p=((RET.pendentes.semRegistro||[]).concat(RET.pendentes.semMotivo||[])).filter(function(x){return x.id===id})[0];
-if(!p)return;
-var data=l.querySelector('.ret-pl-data').value,mot=l.querySelector('.ret-pl-mot').value;
-if(!data){msg('Diga quando ele saiu.',true);return}
-if(!mot){msg('Escolha o motivo — se ninguém souber, existe "Não informado".',true);return}
-var seguir=function(){
- run('registrarSaidaAntiga',[{idMatricula:p.id,livro:p.livro,situacao:p.situacao,data:data,
-  motivoId:Number(mot),registroId:p.registroId||null}],function(r){
-  msg(p.nome+': saída de '+dataCurta(data)+' registrada'
-   +(r.caminho==='encerrou'&&r.aulasRemovidas?' — '+r.aulasRemovidas+' aula(s) saíram da agenda':'')+'.');
-  retCarregar()})};
-/* quem ainda tem matrícula leva a agenda junto ao ser encerrado, e isso não pode acontecer calado —
-   é o mesmo aviso do encerrar, na mesma letra */
-if(p.temMatricula)dlgConfirmar({titulo:'Registrar a saída de '+p.nome+'?',ok:'Registrar saída',
- texto:'Ele ainda tem matrícula em '+(p.livroNome||p.livro)+', então a agenda deste estágio sai junto.'
-  +'\n\nA frequência, as entregas e o percurso continuam registrados.'},function(sim){if(sim)seguir()});
-else seguir()}
 /* abrir o aluno é o gesto seguinte natural da fila: é lá que está a ficha, a frequência e o encerrar.
    A lista de alunos já vive em memória (`ALUNOS`); se ainda não chegou, busca e segue. */
 function retIrAluno(id){
@@ -14586,22 +14529,10 @@ dlgAbrir({tipo:'confirmar',titulo:'Contato com '+String(r.nome||'').split(' ')[0
 /* ===== A ABA ATENDIMENTOS ===== */
 function retAtendPintar(){
 if(!ATEND)return;
-var lista=ATEND.atendimentos||[], venc=ATEND.vencidos||[];
-var n=$('ret-atend-n'); if(n)n.textContent=venc.length||lista.length;
+var lista=ATEND.atendimentos||[];
+var n=$('ret-atend-n'); if(n)n.textContent=lista.length;
+/* os retornos vencidos saíram daqui (05/10/2026): quem os cobra é a Central › Hoje, que é onde se age no dia */
 var h='';
-/* os retornos vencidos vêm primeiro: é a promessa que ninguém cumpriu, e é o único item desta tela
-   que pede ação hoje. Mesmo lugar e mesma letra da faixa de repescagem das saídas. */
-if(venc.length){
- h+='<div class="ret-pend"><div class="ret-pend-cab">'+icon('triangle-alert',15)
-  +'<b>'+venc.length+' retorno(s) prometido(s) e vencido(s)</b>'
-  +'<span>alguém disse que voltaria a procurar e não voltou. Some da lista assim que houver conversa nova.</span></div>'
-  +venc.map(function(v){return '<div class="at-vl">'
-   +'<span class="ret-pl-nome">'+escBloco(v.nome)+'</span>'
-   +'<span class="at-vl-q">era para '+dataCurta(v.retornarEm)+'</span>'
-   +'<span class="at-vl-a">'+(v.atraso===0?'hoje':v.atraso+' dia(s) atrás')+'</span>'
-   +'<span class="at-vl-r" title="'+escBloco(v.relato)+'">'+escBloco(v.relato.slice(0,90))+(v.relato.length>90?'…':'')+'</span>'
-   +'<button type="button" class="acao sec" onclick="retIrAluno(\''+escBloco(v.idMatricula)+'\')">Abrir o aluno</button>'
-   +'</div>'}).join('')+'</div>'}
 if(!lista.length)h+='<div class="ret-vazio">Nenhum atendimento registrado nos últimos '+ATEND.dias+' dias. '
  +'O contato se registra na Central › Alunos em risco, pelo botão de cada linha.</div>';
 else{
@@ -14628,7 +14559,7 @@ dlgConfirmar({titulo:'Excluir este registro?',ok:'Excluir',perigo:true,
  texto:'O atendimento de '+nome+' some por completo.\n\nUse isto quando o registro foi erro. '
   +'Contato que não deu em nada NÃO se apaga: é ele que prova que a escola tentou.'},
 function(sim){if(!sim)return;
- run('excluirAtendimento',[{id:id}],function(){msg('Registro excluído.');retAtendCarregar();retCarregar()})})}
+ run('excluirAtendimento',[{id:id}],function(){msg('Registro excluído.');retAtendCarregar()})})}
 
 /* ===== CADASTRO DOS ASSUNTOS (molde de tipo_aula e motivo_saida, terceira vez) ===== */
 var CAD_ATEND=[];
@@ -14680,6 +14611,90 @@ function cadAtendMover(id,passo){run('moverTipoAtendimento',[{id:id,passo:passo}
 function cadAtendArquivar(id,arq){
 run('arquivarTipoAtendimento',[{id:id,arquivar:arq}],function(){
  msg(arq?'Assunto arquivado.':'Assunto reativado.');cadAtendCarregar()})}
+/* ===== INDICADORES: as três abas (05/10/2026, etapa 4 da fusão dos painéis) =====
+   PEF do mês · Retenção · Escola hoje. A aba de cima lembra onde ele parou, como o PEF já lembrava a sub-aba; o atalho
+   da Central (`ctIrPEF`) escolhe "PEF do mês" antes de entrar. A Retenção é por ANO e tem o próprio seletor. */
+var IND_ABA='pef', IND_RET=null, IND_RET_ANO=null, IND_RET_ABA='saidas', IND_SERIE=null;
+function indAba(a){IND_ABA=a;
+document.querySelectorAll('#ind-abas .pg-aba').forEach(function(b){b.classList.toggle('on',b.dataset.a===a)});
+['pef','ret','escola'].forEach(function(x){var p=$('ind-p-'+x);if(p)p.hidden=x!==a});
+if(a==='ret')indRetCarregar();
+/* a grade (Tabulator) mede errado montada num painel escondido: monta quando ele aparece, e redesenha */
+if(a==='escola'){renderDashboard();setTimeout(function(){if(TABELA_GERAL&&TABELA_GERAL.redraw)TABELA_GERAL.redraw(true)},80)}}
+function indRetMover(n){var hoje=new Date().getFullYear(),a=(IND_RET_ANO||hoje)+n;
+if(a>hoje){msg('Esse ano ainda não começou.',true);return}
+IND_RET_ANO=a;indRetCarregar()}
+function indRetAba(a){IND_RET_ABA=a;
+document.querySelectorAll('#ind-ret-abas .pg-aba').forEach(function(b){b.classList.toggle('on',b.dataset.a===a)});
+['saidas','evasao','atend'].forEach(function(x){var p=$('ind-ret-p-'+x);if(p)p.hidden=x!==a});
+if(a==='atend')retAtendCarregar()}
+function indRetCarregar(){
+if(!IND_RET_ANO)IND_RET_ANO=new Date().getFullYear();
+var rot=$('ind-ret-ano');if(rot)rot.textContent=IND_RET_ANO;
+run('getRetencao',[{ano:IND_RET_ANO}],function(r){IND_RET=r;indRetPintar();indRetEvasaoPintar()},
+ function(e){var c=$('ind-ret-saidas');if(c)c.innerHTML=planAviso('Não deu para carregar as saídas: '+escBloco(e)+'.')});
+run('getSerieIPP',[{ano:IND_RET_ANO}],function(s){IND_SERIE=s;indRetEvasaoPintar()},
+ function(e){var c=$('ind-ret-evasao');if(c)c.innerHTML=planAviso('Não deu para montar a série: '+escBloco(e)+'.')});
+indRetAba(IND_RET_ABA)}
+/* SAÍDAS DO ANO: a lista que era da página Retenção, com a caixa da rede trocável na linha (a mesma rota do PEF) */
+function indRetPintar(){
+var c=$('ind-ret-saidas');if(!c||!IND_RET)return;
+var r=IND_RET,ano=r.saidas||[];
+var n=$('ind-ret-saidas-n');if(n)n.textContent=ano.length;
+var comCx=ano.filter(function(x){return x.tipoRede}).length;
+var semCx=ano.filter(function(x){return !x.tipoRede&&x.situacao!=='Trancado'}).length;
+var mots=Object.keys(r.porMotivo||{}).filter(function(m){return m!=='sem motivo'}).sort(function(a,b){return r.porMotivo[b]-r.porMotivo[a]});
+$('ind-ret-kpis').innerHTML='<div class="ret-kpi"><b>'+ano.length+'</b><span>saídas em '+r.ano+'</span></div>'
+ +'<div class="ret-kpi"><b>'+comCx+'</b><span>com a caixa da rede</span></div>'
+ +(semCx?'<div class="ret-kpi falta"><b>'+semCx+'</b><span>sem caixa — não vão ao IPP</span></div>':'')
+ +(mots.length?'<div class="ret-kpi"><b>'+r.porMotivo[mots[0]]+'</b><span>'+escBloco(mots[0])+' — o motivo mais comum</span></div>':'');
+var h='';
+var tipos=Object.keys(r.porTipo||{});
+if(tipos.length)h+='<div class="ret-caixas">'+tipos.map(function(t){
+ return '<span class="ret-caixa'+(t==='sem caixa'?' vazia':'')+'"><b>'+r.porTipo[t]+'</b> '+escBloco(t)+'</span>'}).join('')+'</div>';
+if(!ano.length)h+='<div class="ret-vazio">Nenhuma saída registrada em '+r.ano+'.</div>';
+else h+='<table class="ret-tab"><thead><tr><th>Aluno</th><th>Estágio</th><th class="c">Saiu em</th><th>Situação</th><th>Motivo</th><th>Caixa da rede</th><th></th></tr></thead><tbody>'
+ +ano.map(function(x){return '<tr>'
+  +'<td><span class="ret-nome">'+escBloco(x.nome)+'</span></td><td>'+(x.livroNome?'<span class="lc-livro">'+escBloco(x.livroNome)+'</span>':'<span class="lc-vazio-cel">geral</span>')+'</td>'
+  +'<td class="c">'+dataCurta(x.data)+'</td><td><span class="ret-sit s-'+escBloco(x.situacao)+'">'+escBloco(x.situacao)+'</span></td>'
+  +'<td>'+(x.motivo?escBloco(x.motivo):'<span class="ret-sem">sem motivo</span>')
+   +(x.observacao?' <span class="ret-obs" title="'+escBloco(x.observacao)+'">'+icon('info',12)+'</span>':'')+'</td>'
+  +'<td>'+(x.situacao==='Trancado'?'<span class="ret-sem" title="trancamento vira perda pela volta combinada, sem caixa">—</span>':pefSelCaixa(x,true))+'</td>'
+  +'<td class="c"><button type="button" class="acao sec" onclick="pefIrAluno(\''+escBloco(x.id)+'\')">abrir</button></td></tr>'}).join('')
+ +'</tbody></table>';
+c.innerHTML=h}
+/* EVASÃO MÊS A MÊS: mês FECHADO mostra o que foi entregue (o JSON congelado, getSerieIPP); mês ABERTO mostra só as
+   saídas registradas até agora, pela data — o número dele ainda muda, e quem o fecha é o PEF do mês. Embaixo, o
+   "por que perdemos aluno" do ano (porMotivo), que o servidor calculava e tela nenhuma mostrava. */
+function indRetEvasaoPintar(){
+var c=$('ind-ret-evasao');if(!c||!IND_RET)return;
+var r=IND_RET,ano=r.ano,fech={};((IND_SERIE&&IND_SERIE.meses)||[]).forEach(function(m){fech[m.mes]=m});
+var hojeM=String(r.hoje||'').slice(0,7),h='<table class="ret-tab ind-tab"><thead><tr><th>Mês</th><th class="c">Ativos no início</th>'
+ +'<th class="c">Ativos no fim</th><th class="c">Perdas</th><th class="c">Formados</th><th class="c">Retenção</th><th>Situação</th></tr></thead><tbody>';
+for(var k=1;k<=12;k++){var m=ano+'-'+String(k).padStart(2,'0');if(m>hojeM)break;
+ var f=fech[m];
+ if(f)h+='<tr><td>'+escBloco(pefMesRot(m))+'</td><td class="c">'+(f.ativosInicio??'—')+'</td><td class="c">'+(f.ativosFim??'—')+'</td>'
+  +'<td class="c"><b>'+f.perdas+'</b></td><td class="c">'+f.formados+'</td>'
+  +'<td class="c">'+(f.retencao==null?'—':String(f.retencao).replace('.',',')+'%')+'</td>'
+  +'<td><span class="pef-chip ok">'+icon('lock',11)+' entregue em '+dataCurta(String(f.fechadoEm).slice(0,10))+'</span></td></tr>';
+ else h+='<tr class="aberto"><td>'+escBloco(pefMesRot(m))+'</td><td class="c">—</td><td class="c">—</td>'
+  +(function(){var dm=(r.saidas||[]).filter(function(s){return String(s.data).slice(0,7)===m});
+    /* a régua do IPP (revisão da Wiztools 17): perda é saída COM caixa e que não é Formado; o trancado vira perda só
+       quando a volta combinada vence — quem conta isso é o PEF do mês */
+    var perd=dm.filter(function(s){return s.tipoRede&&s.tipoRede!=='Formado'&&s.situacao!=='Trancado'}).length;
+    var form=dm.filter(function(s){return s.tipoRede==='Formado'}).length;
+    return '<td class="c" title="saídas com a caixa da rede registradas até agora">'+perd+'</td><td class="c">'+form+'</td><td class="c">—</td>'})()
+  +'<td>aberto — saídas registradas até agora; o número fecha no <button type="button" class="pef-lnk" onclick="PEF_ABA=\'ipp\';PEF_MES=\''+m+'\';indAba(\'pef\');pefCarregar(\''+m+'\')">PEF do mês</button></td></tr>'}
+h+='</tbody></table>';
+var mots=Object.keys(r.porMotivo||{}).sort(function(a,b){return r.porMotivo[b]-r.porMotivo[a]}),max=mots.length?r.porMotivo[mots[0]]:1;
+h+='<div class="pef-bloco"><div class="pef-bt">Por que saíram em '+ano+' <small>todas as saídas registradas no ano, pelo motivo</small></div>';
+if(!mots.length)h+='<div class="ret-vazio">Nenhuma saída registrada em '+ano+'.</div>';
+else h+='<table class="ret-tab"><tbody>'+mots.map(function(m){var v=r.porMotivo[m];
+ return '<tr><td style="width:46%">'+(m==='sem motivo'?'<span class="ret-sem">sem motivo</span>':escBloco(m))+'</td>'
+  +'<td><span class="ind-bar" style="width:'+Math.max(4,Math.round(220*v/max))+'px"></span><b>'+v+'</b></td></tr>'}).join('')+'</tbody></table>';
+h+='</div>';
+c.innerHTML=h}
+
 /* ===== O PEF (2026-09-21) =====
    *"Um relatório que eu tenho que enviar todo mês, muito chato e burocrático. Eu quero ele o mais
    automatizado possível."* A tela devolve os números NA ORDEM DO PORTAL, para copiar de cima para baixo,
@@ -14750,6 +14765,7 @@ var sb=$('sb-aviso-pef');
 if(sb){var pend=!r.sugeridoFechado;sb.textContent=pend?'!':'';sb.classList.toggle('on',pend)}
 /* ---------- os quatro números do topo ---------- */
 var pend=pefPendMes(r);
+var ipn=$('ind-pef-n');if(ipn)ipn.textContent=pend||'';
 var rp=rem.ipp||{};
 var mt=r.metas||{rematricula:80,retencao:98,prazoDia:5};
 $('pef-kpis').innerHTML=
@@ -14791,8 +14807,8 @@ function pefDetVoltaram(r){var i=(r&&r.ipp)||{},fim=pefFimMes(r.mes);
  return (i.detectados||[]).filter(function(x){return x.ultimaAula&&x.ultimaAula>fim})}
 function pefPendMes(r){if(r&&r.fechado)return 0;var i=(r&&r.ipp)||{};return pefDetReais(r).length+(i.saidaSemCaixa||[]).length+(i.naoRematriculadosDetectados||[]).length}
 function pefLnkSaidas(){return '<button type="button" class="pef-lnk" onclick="pefAba(\'saidas\')">na aba Saídas</button>'}
-function pefMotivos(){return ((PEF_RET&&PEF_RET.motivos)||[]).filter(function(m){return !m.arquivado})}
-function pefCaixas(){return ((PEF_RET&&PEF_RET.tiposRede)||[]).map(function(t){return t.nome||t})}
+function pefMotivos(){var f=PEF_RET||IND_RET;return ((f&&f.motivos)||[]).filter(function(m){return !m.arquivado})}
+function pefCaixas(){var f=PEF_RET||IND_RET;return ((f&&f.tiposRede)||[]).map(function(t){return t.nome||t})}
 /* o motivo já vem escolhido pela CAIXA que o caso pede ("evadido por falta" para quem sumiu, "não
    rematriculado" para quem terminou o livro): é sugestão, e a pessoa troca. SEM caixa sugerida (a repescagem)
    nada vem marcado: era o "Não informado" que vinha, e um clique distraído respondia "por que perdemos aluno"
@@ -14889,21 +14905,7 @@ else h+='<table class="ret-tab"><thead><tr><th>Aluno</th><th>Estágio</th><th cl
   +'<td>'+(x.porData?'<span title="entra sozinho quando a volta combinada vence">'+escBloco(x.tipoRede||'')+' (pela data)</span>'
      :pefSelCaixa(x,!r.fechado))+'</td></tr>'}).join('')+'</tbody></table>';
 h+='</div>';
-/* ---------- 4. o ano inteiro, a lista que era da Retenção ---------- */
-var ano=PEF_RET.saidas||[];
-h+='<details class="pef-det" data-k="ano"><summary><b>Todas as saídas de '+escBloco(String(PEF_RET.ano))+'</b> — '+ano.length+', com o motivo e a caixa</summary>';
-var tipos=Object.keys(PEF_RET.porTipo||{});
-if(tipos.length)h+='<div class="ret-caixas">'+tipos.map(function(t){
- return '<span class="ret-caixa'+(t==='sem caixa'?' vazia':'')+'"><b>'+PEF_RET.porTipo[t]+'</b> '+escBloco(t)+'</span>'}).join('')+'</div>';
-if(ano.length)h+='<table class="ret-tab"><thead><tr><th>Aluno</th><th>Estágio</th><th class="c">Saiu em</th><th>Situação</th><th>Motivo</th><th>Caixa da rede</th></tr></thead><tbody>'
- +ano.map(function(x){return '<tr>'
-  +'<td><span class="ret-nome">'+escBloco(x.nome)+'</span></td><td>'+(x.livroNome?'<span class="lc-livro">'+escBloco(x.livroNome)+'</span>':'<span class="lc-vazio-cel">geral</span>')+'</td>'
-  +'<td class="c">'+dataCurta(x.data)+'</td><td><span class="ret-sit s-'+escBloco(x.situacao)+'">'+escBloco(x.situacao)+'</span></td>'
-  +'<td>'+(x.motivo?escBloco(x.motivo):'<span class="ret-sem">sem motivo</span>')
-   +(x.observacao?' <span class="ret-obs" title="'+escBloco(x.observacao)+'">'+icon('info',12)+'</span>':'')+'</td>'
-  +'<td>'+(x.situacao==='Trancado'?'<span class="ret-sem" title="trancamento vira perda pela volta combinada, sem caixa">—</span>':pefSelCaixa(x,true))+'</td></tr>'}).join('')
- +'</tbody></table>';
-h+='</details>';
+/* (a lista do ano inteiro foi para Indicadores › Retenção › Saídas do ano — 05/10/2026) */
 /* cada ação repinta a aba (duas vezes: no getPEF e no getRetencao). Sem isto, a lista que se estava trabalhando
    voltava recolhida e a rolagem ia ao topo a cada registro (revisão da Wiztools 17) */
 var abertos={};c.querySelectorAll('details.pef-det[open]').forEach(function(d){abertos[d.dataset.k]=1});
@@ -14972,7 +14974,7 @@ run('corrigirCaixaSaida',[{registroId:registroId,tipoRede:v||null}],function(res
  sel.dataset.v=v;
  msg(res.entregueComo?'Caixa trocada. '+pefMesRot(res.mes)+' já foi entregue com "'+res.entregueComo+'": o número mandado não muda.'
   :'Caixa gravada — o IPP foi recalculado.');
- pefCarregar()},
+ pefCarregar();if(IND_ABA==='ret')indRetCarregar()},
  function(){sel.value=antes;sel.disabled=false})}
 
 /* ===== ABA 1: O IPP, NA ORDEM DO PORTAL ===== */
@@ -17115,10 +17117,14 @@ g.addEventListener('mouseout',function(ev){
 /* CLIQUE na cor = decidir SÓ ESTE DIA (05/10/2026, dele: "o sistema tem que se adaptar de forma dinâmica"). Espera
    um instante para não engolir o duplo clique, que continua levando à marcação na tabela. */
 var tCli=null;
+/* o 2º clique de um duplo clique (`detail>1`) cancela a decisão; e a espera é a JANELA do duplo clique do Windows
+   (500 ms): com 260 ms, um duplo clique mais lento abria o diálogo, o 2º clique caía no fundo dele e o fechava, e a
+   marcação não abria (revisão da Wiztools 17) */
 g.addEventListener('click',function(ev){
+ if(ev.detail>1){clearTimeout(tCli);tCli=null;return}
  var mk=alvoMarca(ev.target);if(!mk)return;
  var td=mk.closest('td[data-pop]');if(!td)return;
- clearTimeout(tCli);tCli=setTimeout(function(){calPopFechar();calDecidirDia(td)},260)});
+ clearTimeout(tCli);tCli=setTimeout(function(){tCli=null;calPopFechar();calDecidirDia(td)},500)});
 /* DUPLO CLIQUE na cor leva à linha da marcação na tabela de configuração */
 g.addEventListener('dblclick',function(ev){
  clearTimeout(tCli);
@@ -17793,10 +17799,15 @@ var CT=null, CT_ABERTA=null, CT_AREA=null, CT_VER_MUDOS=false;
    `alertas` (padrão) · `resolvidos` (as regras zeradas — a prova de que estão em dia) ·
    `silenciados`. O "ver silenciados" que era um botão virou aba, que é onde ele já procurava. */
 var CT_ABA='hoje', CT_RF=null;
+/* ABAS DENTRO DE ABAS (05/10/2026): no topo, Hoje · Alunos em risco · Pendências; dentro de Pendências, Abertas ·
+   Resolvidas · Silenciadas. `CT_ABA` continua guardando qual das três listas está à vista ('alertas', 'resolvidos',
+   'silenciados'), e `CT_PEND` lembra a sub-aba para o clique na aba de cima voltar a ela. */
+var CT_PEND='alertas';
 function ctAba(a){
 CT_ABA=a;CT_VER_MUDOS=(a==='silenciados');CT_ABERTA=null;
+var pend=(a==='alertas'||a==='resolvidos'||a==='silenciados');if(pend)CT_PEND=a;
 document.querySelectorAll('#ct-abas .pg-aba').forEach(function(b){
-  b.classList.toggle('on',b.dataset.a===a)});
+  b.classList.toggle('on',b.dataset.a===(pend?'alertas':a))});
 ctRender()}
 /* ===== NAVEGAÇÃO PROFUNDA (2026-08-17) =====
    *"Se eu apertar num livro aqui, ele vai me levar lá nesse material, no campo do estoque mínimo, e
@@ -17953,8 +17964,7 @@ var box=$('ct-lista');if(!box||!CT)return;
 /* as abas contam o que cada uma tem, para ele decidir onde olhar sem entrar */
 var nRe0=CT.regras.filter(function(r){return !r.abertos.length&&!r.silenciados.length}).length;
 document.querySelectorAll('#ct-abas .pg-aba').forEach(function(b){
- var a=b.dataset.a,q=a==='hoje'?(CT.hoje||[]).length:a==='risco'?(CT.risco||[]).length
-  :a==='alertas'?CT.abertos:(a==='resolvidos'?nRe0:CT.silenciados);
+ var a=b.dataset.a,q=a==='hoje'?(CT.hoje||[]).length:a==='risco'?(CT.risco||[]).length:CT.abertos;
  var sp=b.querySelector('.n');if(sp)sp.textContent=q});
 $('ct-info').innerHTML=ctInfo();
 if(CT_ABA==='hoje'){$('ct-chips').innerHTML='';box.innerHTML=ctHojeHtml();return}
@@ -17962,7 +17972,11 @@ if(CT_ABA==='risco'){$('ct-chips').innerHTML=ctRiscoChips();box.innerHTML=ctRisc
 /* pílulas por ÁREA, com a contagem de cada uma — é o recorte que ele descreveu ("biblioteca,
    alunos e turma"), e o número ao lado diz onde está o trabalho */
 var areas=[];CT.regras.forEach(function(r){if(areas.indexOf(r.area)<0)areas.push(r.area)});
-$('ct-chips').innerHTML='<button class="chip'+(CT_AREA?'':' on')+'" onclick="ctFiltrar(null)">todas '
+var sub=[['alertas','Abertas',CT.abertos],['resolvidos','Resolvidas',nRe0],['silenciados','Silenciadas',CT.silenciados]];
+$('ct-chips').innerHTML='<span class="pg-abas ct-sub-abas">'+sub.map(function(s){
+  return '<button type="button" class="pg-aba'+(CT_ABA===s[0]?' on':'')+'" onclick="ctAba(\''+s[0]+'\')">'+s[1]
+   +'<span class="n">'+s[2]+'</span></button>'}).join('')+'</span>'
+ +'<button class="chip'+(CT_AREA?'':' on')+'" onclick="ctFiltrar(null)">todas '
  +'<span class="n">'+CT.abertos+'</span></button>'
  +areas.map(function(a){
    return '<button class="chip'+(CT_AREA===a?' on':'')+'" onclick="ctFiltrar(\''+a+'\')">'
@@ -18074,7 +18088,7 @@ return h+'<div class="ct-hoje">'+L.map(function(a,i){
   +'<div class="ct-av-bt">'+bt+'</div></div>'}).join('')+'</div>'}
 /* o PEF abre na aba certa: o pefAba antes da resposta chegar vale, porque o pefPintar reaplica PEF_ABA */
 /* o aviso sabe de que mês fala (o prazo, do anterior; a observação, do corrente): o PEF abre nele */
-function ctIrPEF(ab,mes){if(mes)PEF_MES=mes;PEF_ABA=ab;abaPor('pef');if(typeof pefAba==='function')pefAba(ab)}
+function ctIrPEF(ab,mes){if(mes)PEF_MES=mes;PEF_ABA=ab;IND_ABA='pef';abaPor('pef');if(typeof pefAba==='function')pefAba(ab)}
 function ctContatoHoje(i){
 var a=(CT.hoje||[])[i];if(!a||!a.aluno)return;
 atContato({id:a.aluno.id,nome:a.aluno.nome,telefone:a.aluno.telefone||null,respTelefone:a.aluno.respTelefone||null},

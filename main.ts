@@ -1745,7 +1745,7 @@ const PARAMETROS: Parametro[] = [
     classe: "calculo", tela: "Calendário", ajuda: "Ligado, o planejamento passa a contar os domingos." },
   { chave: "limite_blocos_aviso_fim", aba: "aulas", rotulo: "Avisar quando faltarem", tipo: "num", unidade: "blocos para o fim do livro",
     padrao: "2", min: 1, max: 6, fonte: "dele, 24/08", classe: "calculo",
-    ajuda: "A partir daqui o aluno aparece em destaque no Progresso e acende aviso na Central: é a hora de falar de rematrícula e garantir o material do próximo." },
+    ajuda: "A partir daqui o aluno aparece em destaque no Progresso e entra no filtro \"a N blocos do fim\" da lista de trabalho em Indicadores › PEF do mês › Rematrícula: é a hora de falar de rematrícula e garantir o material do próximo." },
   { chave: "tarefa_encontros_atraso", aba: "aulas", rotulo: "A tarefa fica atrasada no", tipo: "num", unidade: "º encontro com lição seguinte",
     padrao: "2", min: 1, max: 5, fonte: "dele, 13/09", classe: "leitura",
     ajuda: "A tarefa de uma lição que chega neste encontro seguinte — ou depois — é atrasada; antes dele, em dia. É a regra que a Ficha e o Registro de aula aplicam sozinhos, e o professor sempre pode corrigir." },
@@ -2128,13 +2128,17 @@ function contratosEmRisco(hoje: string): any[] {
   /* "nunca veio" é do ALUNO, não do contrato: quem troca de livro e ainda não foi à primeira aula do novo
      já é aluno da casa — não é o aluno novo de que o MSA fala */
   const jaVeio = new Set(A("SELECT DISTINCT id_matricula FROM presenca WHERE status='P'").map((x: any) => x.id_matricula));
+  /* falta em dia FECHADO no calendário não entra na régua (05/10/2026 — ver `faltasSeguidasEmAulas`). Uma conta só,
+     para a fila inteira: o ano anterior cobre o semestre e qualquer sequência de faltas que ainda importe. */
+  const fechRisco = diasFechados(`${Number(hoje.slice(0, 4)) - 1}-01-01`, hoje);
   const dados = A(`SELECT al.id_matricula, al.livro, a.nome, a.telefone, a.responsavel, a.responsavel_telefone
             FROM aluno_livro al JOIN alunos a ON a.id_matricula=al.id_matricula
             JOIN v_alunos v ON v.id_matricula=al.id_matricula
             WHERE v.status='Ativado' ORDER BY a.nome`).map((c: any) => {
     const linhas = A(`SELECT data, status FROM presenca
                       WHERE id_matricula=? AND livro=? AND status IN ('P','F') AND data<=? AND data>=?
-                      ORDER BY data DESC`, c.id_matricula, c.livro, hoje, inicioDoContrato(c.id_matricula, c.livro));
+                      ORDER BY data DESC`, c.id_matricula, c.livro, hoje, inicioDoContrato(c.id_matricula, c.livro))
+      .filter((l: any) => l.status !== "F" || !fechRisco.has(l.data));
     if (!linhas.length) return null;
     const peso = pesoDasAulas(c.id_matricula, c.livro);
     let seguidas = 0, diasSeguidos = 0, semestre = 0;
@@ -2268,46 +2272,56 @@ function avisosDeHoje(hoje: string): any[] {
       titulo: (e.motivo || "Encontro") + (e.data === hoje ? " hoje" : " amanhã") + (e.hora ? " às " + e.hora : ""),
       rotulo: e.nome, detalhe: nomeDoLivro(e.livro), aluno: { id: e.id_matricula, nome: e.nome }, acao: "agendamentos" });
   }
-  /* 4) o prazo do IPP: o mês que se entrega agora (o anterior), enquanto não for fechado no sistema */
+  /* ===== O PEF NA CENTRAL: NO MÁXIMO DOIS AVISOS (05/10/2026, etapa 4 da fusão dos painéis) =====
+     Eram quatro tipos — prazo do IPP, itens semestrais, professor sem observação e UM aviso POR aula sem feedback —, e
+     o selo da Central inchava com o trabalho do relatório. A Central é para agir hoje; o detalhe mora em Indicadores.
+     Ficam dois: "entregar o PEF" (o prazo, com os semestrais dentro quando for abril/setembro) e "aulas observadas"
+     (quem ainda não foi observado + os feedbacks atrasados, numa linha). */
   const sugerido = maisMeses(hoje.slice(0, 7) + "-01", -1).slice(0, 7);
   const prazoDia = String(Pn("pef_prazo_dia")).padStart(2, "0");
-  if (!G("SELECT 1 FROM pef_fechamento WHERE mes=?", sugerido)) {
-    const prazo = maisMeses(sugerido + "-01", 1).slice(0, 8) + prazoDia, n = noDia(prazo);
-    const rot = MESES_MIN[Number(sugerido.slice(5, 7)) - 1] + " de " + sugerido.slice(0, 4);
-    out.push({ id: "ipp:" + sugerido, tipo: "prazo", gravidade: "media", quando: prazo, mes: sugerido,
-      titulo: n >= 0 ? "O IPP de " + rot + " fecha no portal em " + dataBR(prazo) : "O prazo do IPP de " + rot + " passou (" + dataBR(prazo) + ")",
-      rotulo: n > 0 ? "faltam " + n + " dia" + (n > 1 ? "s" : "") : (n === 0 ? "é hoje" : "o mês ainda não foi fechado no sistema"),
-      detalhe: n >= 0 ? "Copie os números da página do PEF para o portal e feche o mês no sistema: o que foi entregue fica congelado."
-        : "Se já foi entregue, feche o mês no sistema para guardar os números que foram mandados.",
-      acao: "pef" });
-  }
-  /* 5) os itens semestrais do PEF fecham no dia do prazo de abril e de setembro — e o aviso some quando os
-     que se digitam já estão todos preenchidos para o semestre (revisão 21/09) */
+  const rotSug = MESES_MIN[Number(sugerido.slice(5, 7)) - 1] + " de " + sugerido.slice(0, 4);
+  /* os itens semestrais fecham no prazo de abril e de setembro, e só contam enquanto falta algum que se digita */
   const mesHoje = Number(hoje.slice(5, 7));
   const digitaveis = PEF_ITENS.filter((i: any) => i.per === "semestral" && (i.como === "digita" || i.como === "semi")).map((i: any) => i.chave);
   const preenchidos = G(`SELECT COUNT(DISTINCT chave) n FROM pef_valor WHERE periodo=? AND chave IN (${digitaveis.map(() => "?").join(",")})`,
     semestrePEF(sugerido), ...digitaveis)?.n || 0;
-  if ((mesHoje === 4 || mesHoje === 9) && hoje.slice(8, 10) <= prazoDia && preenchidos < digitaveis.length)
-    out.push({ id: "semestral:" + hoje.slice(0, 7), tipo: "prazo", gravidade: "media", quando: hoje.slice(0, 8) + prazoDia, mes: sugerido,
-      titulo: "Os itens semestrais do PEF fecham em " + prazoDia + "/" + hoje.slice(5, 7),
-      rotulo: "turmas da coordenação, NPS, CSAT, WTDC, calendário de assessments",
-      detalhe: "Estão na aba Gestão pedagógica do PEF.", acao: "pef-gest" });
-  /* 6) professor sem aula observada no mês: da segunda quinzena em diante, quando ainda dá tempo */
-  if (Number(hoje.slice(8, 10)) >= 15) {
-    const sem = professoresSemObservacao(hoje.slice(0, 7));
-    if (sem.length) out.push({ id: "observacao:" + hoje.slice(0, 7), tipo: "observacao", gravidade: "media", quando: fimDoMes(hoje.slice(0, 7)), mes: hoje.slice(0, 7),
-      titulo: sem.length + " professor" + (sem.length > 1 ? "es" : "") + " sem aula observada neste mês",
-      rotulo: sem.map((p: any) => p.nome).join(", "),
+  const semestralAberto = (mesHoje === 4 || mesHoje === 9) && hoje.slice(8, 10) <= prazoDia && preenchidos < digitaveis.length;
+  const ippAberto = !G("SELECT 1 FROM pef_fechamento WHERE mes=?", sugerido);
+  if (ippAberto || semestralAberto) {
+    const prazo = maisMeses(sugerido + "-01", 1).slice(0, 8) + prazoDia, n = noDia(prazo);
+    out.push({ id: "pef:" + sugerido, tipo: "prazo", gravidade: "media", quando: prazo, mes: sugerido,
+      titulo: !ippAberto ? "Os itens semestrais do PEF fecham em " + dataBR(prazo)
+        : n >= 0 ? "Entregar o PEF de " + rotSug + " até " + dataBR(prazo) : "O prazo do PEF de " + rotSug + " passou (" + dataBR(prazo) + ")",
+      rotulo: n > 0 ? "faltam " + n + " dia" + (n > 1 ? "s" : "") : (n === 0 ? "é hoje" : "o mês ainda não foi fechado no sistema"),
+      detalhe: (ippAberto ? (n >= 0 ? "Copie os números de Indicadores › PEF do mês para o portal e feche o mês no sistema."
+          : "Se já foi entregue, feche o mês no sistema para guardar os números que foram mandados.") : "")
+        + (semestralAberto ? (ippAberto ? " " : "") + "Os itens semestrais (turmas da coordenação, NPS, CSAT, WTDC, calendário de assessments) também fecham nesse dia, na Gestão pedagógica." : ""),
+      acao: ippAberto ? "pef" : "pef-gest" });
+  }
+  /* aulas observadas: professor sem observação no mês (da 2ª quinzena em diante, quando ainda dá tempo) e feedback que
+     passou de 48 horas (só do último mês — mais velho que isso é outro assunto) */
+  const semObs = Number(hoje.slice(8, 10)) >= 15 ? professoresSemObservacao(hoje.slice(0, 7)) : [];
+  const semFeedback = A(`SELECT o.id, o.data, f.nome FROM observacao_aula o JOIN funcionarios f ON f.id=o.professor_id
+                         WHERE o.feedback_em IS NULL AND o.data<=? AND o.data>=? ORDER BY o.data`, maisDias(hoje, -2), maisDias(hoje, -30));
+  /* um aviso por MÊS: o feedback atrasado de uma observação de setembro só tem linha para ser dado no PEF de setembro
+     (a lista da aba é do mês) — abrir o mês corrente mostraria "nenhuma aula observada" (revisão da Wiztools 17) */
+  const mesHojeObs = hoje.slice(0, 7);
+  const fbPorMes = new Map<string, any[]>();
+  for (const o of semFeedback) { const m = String(o.data).slice(0, 7); if (!fbPorMes.has(m)) fbPorMes.set(m, []); fbPorMes.get(m)!.push(o); }
+  const mesesObs = [...new Set([...(semObs.length ? [mesHojeObs] : []), ...fbPorMes.keys()])].sort();
+  for (const m of mesesObs) {
+    const fb = fbPorMes.get(m) || [], so = m === mesHojeObs ? semObs : [];
+    const partes: string[] = [];
+    if (so.length) partes.push(so.length + " professor" + (so.length > 1 ? "es" : "") + " sem aula observada");
+    if (fb.length) partes.push(fb.length + " feedback" + (fb.length > 1 ? "s" : "") + " atrasado" + (fb.length > 1 ? "s" : "")
+      + (m !== mesHojeObs ? " de " + MESES_MIN[Number(m.slice(5, 7)) - 1] : ""));
+    out.push({ id: "observacao:" + m, tipo: "observacao", gravidade: "media",
+      quando: fb.length ? fb[0].data : fimDoMes(m), mes: m,
+      titulo: "Aulas observadas: " + partes.join(" e "),
+      rotulo: [...so.map((p: any) => p.nome), ...fb.map((o: any) => o.nome + " (" + dataBR(o.data) + ")")].join(", "),
       detalhe: "A rede pede pelo menos uma observação de cada professor por mês, com feedback em até 48 horas (PEF p.25).",
       acao: "pef-obs" });
   }
-  /* 7) aula observada sem feedback depois de 48 horas (só as do último mês — mais velha que isso já é
-     outro assunto) */
-  for (const o of A(`SELECT o.id, o.data, f.nome FROM observacao_aula o JOIN funcionarios f ON f.id=o.professor_id
-                     WHERE o.feedback_em IS NULL AND o.data<=? AND o.data>=? ORDER BY o.data`, maisDias(hoje, -2), maisDias(hoje, -30)))
-    out.push({ id: "feedback:" + o.id, tipo: "observacao", gravidade: "media", quando: o.data, mes: o.data.slice(0, 7),
-      titulo: "Aula observada sem feedback", rotulo: o.nome,
-      detalhe: "observada em " + dataBR(o.data) + " — a rede pede o feedback em até 48 horas.", acao: "pef-obs" });
   const peso: Record<string, number> = { alta: 0, media: 1, baixa: 2 };
   return out.sort((a, b) => peso[a.gravidade] - peso[b.gravidade] || String(a.quando).localeCompare(String(b.quando)));
 }
@@ -2379,29 +2393,11 @@ const CHECAGENS: Checagem[] = [
             AND date(ae.data_inicio, '+' || COALESCE((SELECT valor FROM config WHERE chave='contrato_dias'),
                  '${PARAM.get("contrato_dias")!.padrao}') || ' days') < date('now','localtime')
           ORDER BY ae.data_inicio` },
-  /* ===== PRESTES A TERMINAR O LIVRO (2026-08-24, dele) =====
-     *"Aí o sistema automaticamente saber quais alunos falta mais ou menos pelo menos dois blocos
-     para terminar o livro... manda lá na central de notificação."*
-     Não é defeito — é AGENDA: quem está a dois blocos do fim precisa de rematrícula conversada e de
-     material do próximo estágio na prateleira. Por isso `media` e não `alta`: não atrapalha o dia de
-     hoje, atrapalha o mês que vem se ninguém olhar.
-     Única regra da Central que não é SQL: a posição do aluno depende da projeção inteira. Ver o
-     comentário do tipo `Checagem`. */
-  { id: "perto_de_terminar", destino: "aluno", area: "Alunos", gravidade: "media", aba: "alunos",
-    titulo: "Aluno perto de terminar o livro",
-    porque: "Pelo ritmo lançado, faltam poucos blocos para o fim do estágio (quantos, é Configurações quem diz) — é hora de falar de rematrícula e de conferir o material do próximo.",
-    acao: "Abra o aluno na aba Progresso para ver a lição e o término previsto.",
-    itens: () => { const lim = Pn("limite_blocos_aviso_fim");
-      /* só aluno ativo (21/09): a projeção varre todo aluno_livro, e contrato de aluno desativado não tem
-         rematrícula a conversar */
-      const ativos = new Set(A("SELECT id_matricula FROM v_alunos WHERE status='Ativado'").map((x: any) => x.id_matricula));
-      return progressoDosContratos().linhas
-      .filter((l: any) => ativos.has(l.id) && l.faltamLicoes != null && l.faltamLicoes > 0 && l.faltamBlocos <= lim)
-      .map((l: any) => ({ k: l.id + "|" + l.livro, r: l.nome,
-        d: (l.nomeCurto || l.estagio) + " · faltam " + l.faltamLicoes + " lição(ões)"
-           + (l.termino ? ", término previsto " + l.termino.slice(8, 10) + "/" + l.termino.slice(5, 7) + "/" + l.termino.slice(0, 4) : "")
-           + (l.afirmada ? "" : " (posição deduzida — nenhuma lição foi registrada)"),
-        a: l.id })); } },
+  /* ===== "PRESTES A TERMINAR O LIVRO" SAIU DAQUI (05/10/2026, etapa 4 da fusão dos painéis) =====
+     Era a mesma conta, com o mesmo recorte de ativos e o mesmo `limite_blocos_aviso_fim`, do filtro "a N blocos do
+     fim" da lista de trabalho em Indicadores › PEF do mês › Rematrícula — o mesmo aluno em duas telas. A Central ficou
+     para o que pede ação HOJE; quem está perto do fim é trabalho da rematrícula. Os silêncios antigos dela viram
+     órfãos e saem pelo "limpar silêncios obsoletos". */
   /* A FILA DE RISCO E O RETORNO VENCIDO moravam aqui como três faixas (evadido_sem_contato,
      risco_sem_contato, retorno_vencido). Em 21/09 a Central ganhou a fila inteira (aba "Alunos em risco",
      com o Registrar contato na linha) e o bloco "Hoje" (os avisos com data) — ver `filaDeRisco` e
@@ -5111,13 +5107,21 @@ function ativosEm(D: string): Map<string, any> {
 const inicioDoContrato = (idm: string, livro: string) =>
   G(`SELECT data_inicio d FROM aluno_estagio WHERE id_matricula=? AND livro=? AND estado='cursando'
      ORDER BY id DESC LIMIT 1`, idm, livro)?.d || "0000-01-01";
-function faltasSeguidasEmAulas(idm: string, livro: string, ate: string): { aulas: number; desde: string | null } {
+function faltasSeguidasEmAulas(idm: string, livro: string, ate: string, fechPre?: Set<string>): { aulas: number; desde: string | null } {
   /* o mesmo peso da fila de risco (`pesoDasAulas`): desde 21/09 as duas contas são uma — antes a fila contava
      DIAS com falta e esta, AULAS */
   const peso = pesoDasAulas(idm, livro);
   let aulas = 0, desde: string | null = null;
+  const ini = inicioDoContrato(idm, livro);
+  /* FALTA EM DIA FECHADO NÃO CONTA (05/10/2026): com o calendário dinâmico, fechar um dia depois que a falta foi lançada
+     é o caso comum — a projeção e o atraso já a ignoravam, a régua não. A PRESENÇA em dia fechado continua contando:
+     aula que aconteceu é fato. */
+  /* `fechPre`: quem chama para a escola inteira (o IPP) resolve o calendário UMA vez — por aluno custava 1 a 2 s no
+     getPEF do mês aberto (revisão da Wiztools 17). Janela maior não muda nada: só se testam datas entre `ini` e `ate`. */
+  const fech = fechPre || diasFechados(ini > "2000-01-01" ? ini : maisDias(ate, -400), ate);
   for (const p of A(`SELECT data, status FROM presenca WHERE id_matricula=? AND livro=? AND status IN ('P','F')
-                       AND data<=? AND data>=? ORDER BY data DESC`, idm, livro, ate, inicioDoContrato(idm, livro))) {
+                       AND data<=? AND data>=? ORDER BY data DESC`, idm, livro, ate, ini)) {
+    if (p.status === "F" && fech.has(p.data)) continue;
     if (p.status === "P") break;
     aulas += peso(p.data);
     desde = p.data;
@@ -5326,10 +5330,13 @@ function ippDoMes(mes: string) {
      A régua de evasão por falta dispara sozinha, mas carimbar "evadido" é decisão de gente (a mesma
      disciplina da Central). O formulário conta o que está registrado; esta lista diz o que falta registrar
      para o número bater com a realidade antes de mandar. */
+  /* o calendário resolvido UMA vez para a régua de todos (a mesma janela da fila de risco) */
+  const ateIpp = fim < hoje ? fim : hoje;
+  const fechIpp = diasFechados(`${Number(ateIpp.slice(0, 4)) - 1}-01-01`, ateIpp);
   const detectados: any[] = [];
   for (const a of ativosFim.values()) {
     if (a.origem !== "hoje" || !a.livro) continue;
-    const f = faltasSeguidasEmAulas(a.id, a.livro, fim < hoje ? fim : hoje);
+    const f = faltasSeguidasEmAulas(a.id, a.livro, ateIpp, fechIpp);
     const noMes = G(`SELECT SUM(status='P') p, COUNT(*) n FROM presenca WHERE id_matricula=? AND livro=?
                        AND data BETWEEN ? AND ? AND status IN ('P','F')`, a.id, a.livro, ini, fim);
     /* "o mês todo sem vir" só se afirma de mês que TERMINOU: no mês corrente, uma falta no dia 1 e nada
@@ -5443,6 +5450,15 @@ function ippDoMes(mes: string) {
    até o fim do mês, o mês anterior e o mês atual.
    Lista: segmento → presencial/online → Connections/Interactive, com tipo de contrato, livro, início, fim,
    última presença e lições faltantes — as colunas da aba, na mesma ordem. */
+/* o "Rematriculado" desta linha é no MESMO livro da entrada anterior do aluno? (renovar o contrato sem trocar de livro
+   não é rematrícula — a definição dele, 05/10/2026) */
+function mesmoLivroQueAntes(idm: string, livro: string | null, data: string, hid: number): boolean {
+  if (!livro) return false;
+  const ant = G(`SELECT livro FROM aluno_situacao_historico WHERE id_matricula=?
+                   AND situacao IN ('Matriculado','Rematriculado','Retornado') AND livro IS NOT NULL
+                   AND (data < ? OR (data = ? AND id < ?)) ORDER BY data DESC, id DESC LIMIT 1`, idm, data, data, hid);
+  return !!ant && ant.livro === livro;
+}
 function rematriculaDoCiclo(mes: string) {
   const hoje = dataISO(new Date());
   /* o ciclo do mês, pelos começos de Configurações › PEF. A planilha dele usa 30/03: é o campo
@@ -5495,11 +5511,15 @@ function rematriculaDoCiclo(mes: string) {
     { id: "mesAnterior", rot: "O mês do relatório (" + dataBR(iniMes) + " a " + dataBR(fimMes) + ")", a: iniMes, b: fimMes },
     { id: "mesAtual", rot: "O mês seguinte (" + dataBR(mesSeg + "-01") + " a " + dataBR(fimSeg) + ")", a: mesSeg + "-01", b: fimSeg },
   ].map(j => ({ ...j, fimContrato: conta("fimContrato", j.a, j.b), termino: conta("termino", j.a, j.b) }));
-  /* rematriculados DO CICLO = quem renovou ou mudou de livro dentro dele (IPP p.9), cumulativo */
-  const rematriculadosCiclo = A(`SELECT DISTINCT h.id_matricula id, a.nome, h.data, h.livro
+  /* REMATRICULADOS DO CICLO (IPP p.9), cumulativo. A definição é DELE (05/10/2026): *"é quando o aluno renova/continua
+     o contrato para o próximo livro"*. Então: UMA por aluno e livro de destino (a mesma renovação lançada duas vezes,
+     em datas diferentes, contava 2×), e só quando o livro é OUTRO — o "Rematriculado" no mesmo livro (renovar o
+     contrato sem trocar de livro) não é rematrícula. Sem entrada anterior não dá para saber: conta, como antes. */
+  const rematriculadosCiclo = A(`SELECT h.id_matricula id, a.nome, MIN(h.data) data, h.livro, MIN(h.id) hid
                                  FROM aluno_situacao_historico h JOIN alunos a ON a.id_matricula=h.id_matricula
                                  WHERE h.situacao='Rematriculado' AND h.data BETWEEN ? AND ?
-                                 ORDER BY h.data`, de, ref);
+                                 GROUP BY h.id_matricula, h.livro ORDER BY data`, de, ref)
+    .filter((r: any) => !mesmoLivroQueAntes(r.id, r.livro, r.data, r.hid));
   /* A REMATRICULAR no ciclo, na régua do PEF: contrato terminando dentro do ciclo. Quem JÁ renovou tem hoje
      um contrato novo que termina no ano que vem — sem somá-lo de volta, o denominador encolheria a cada
      rematrícula e o percentual passaria de 100%. E quem saiu sem renovar continua contando (é a perda). */
@@ -5520,6 +5540,8 @@ function rematriculaDoCiclo(mes: string) {
                                       WHERE h.situacao='Rematriculado' AND h.data > ? AND h.data <= ?
                                       ORDER BY h.data, h.id`, ref, hoje)) {
     if (jaContados.has(r.id_matricula)) continue;
+    /* a mesma definição: renovar no mesmo livro não é rematrícula (05/10/2026) */
+    if (mesmoLivroQueAntes(r.id_matricula, r.livro, r.data, r.id)) continue;
     /* o contrato que esta renovação encerrou: a entrada anterior, com o início pelo percurso quando há */
     const ant = G(`SELECT data, livro FROM aluno_situacao_historico WHERE id_matricula=?
                      AND situacao IN ('Matriculado','Rematriculado','Retornado') AND (data < ? OR (data = ? AND id < ?))
@@ -8072,6 +8094,26 @@ const api: Record<string, (a: any) => unknown> = {
       ipp, gestao: gestaoPedagogica(m), meses,
       equipe: A("SELECT id, nome, papel FROM funcionarios WHERE desligamento IS NULL ORDER BY nome") };
   },
+  /* ===== A SÉRIE DO ANO (05/10/2026 — Indicadores › Retenção › Evasão mês a mês) =====
+     O que foi ENTREGUE em cada mês fechado, lido do JSON congelado (`pef_fechamento`): é a série que a rede chama de
+     Dashboard Pedagógico. Mês aberto não entra: o número dele ainda muda, e quem o mostra é o PEF do mês. Formado não
+     é perda (Booklet de Dados p.18) — vem à parte, como no IPP. */
+  getSerieIPP({ ano }: any = {}) {
+    const y = Number(ano) || Number(dataISO(new Date()).slice(0, 4));
+    const meses = A("SELECT mes, fechado_em, dados FROM pef_fechamento WHERE mes LIKE ? ORDER BY mes", y + "-%").map((f: any) => {
+      let d: any = {};
+      try { d = JSON.parse(f.dados) || {}; } catch { /* JSON ruim: o mês aparece sem números */ }
+      let perdas = 0, formados = 0;
+      for (const [linha, porMod] of Object.entries(d.saidas || {}))
+        for (const porCanal of Object.values(porMod as any)) for (const lista of Object.values(porCanal as any)) {
+          const n = ((lista as any[]) || []).length;
+          if (linha === "formados") formados += n; else perdas += n;
+        }
+      return { mes: f.mes, fechadoEm: f.fechado_em, ativosInicio: d.ativosInicio ?? null, ativosFim: d.ativosFim ?? null,
+        perdas, formados, retencao: d.retencao?.Geral ?? null };
+    });
+    return { ano: y, meses };
+  },
   /* FECHAR o mês congela o IPP como estava: o número entregue à franqueadora não muda depois, nem se
      alguém corrigir uma data de matrícula em outubro. Reabrir existe para o erro de quem fechou cedo. */
   fecharMesPEF({ mes, observacao }: any) {
@@ -9920,7 +9962,8 @@ const api: Record<string, (a: any) => unknown> = {
     const lista = marcacoes.map(m => {
       const datas = datasDaMarcacao(m, y);
       for (const d of datas) (porData[d] ||= []).push({ id: m.id, nome: m.nome, tipo: m.tipo, cor: m.cor,
-        fecha: fechaNoDia(m, d, decCal), regra: m.fecha === 1, decidido: decCal.has(m.id + "|" + d) });
+        fecha: fechaNoDia(m, d, decCal), regra: m.fecha === 1,
+        decidido: decCal.has(m.id + "|" + d) && decCal.get(m.id + "|" + d) !== Number(m.fecha) });
       return {
         id: m.id, nome: m.nome, tipo: m.tipo,
         tipos: String(m.tipos || m.tipo).split(",").filter(Boolean),
@@ -10195,7 +10238,18 @@ const api: Record<string, (a: any) => unknown> = {
          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
         id, x.ordem, x.modo, x.dataIni, x.dataFim, x.dia, x.mes, x.diaFim, x.mesFim, x.offIni, x.offFim,
         x.semN, x.semDow, x.semNFim, x.semDowFim, x.semOffFim);
-    return { ok: true, id, tipos: t.tipos, trechos: trechos.length, fechaForcado: t.fecha === true };
+    /* AS DECISÕES DE UM DIA ACOMPANHAM A REGRA (revisão da Wiztools 17): a data que saiu da marcação, ou que ficou
+       igual à regra nova, deixa de ser exceção — senão virava linha invisível que volta a valer se a data voltar.
+       Depois dos trechos: `datasDaMarcacao` lê os trechos do banco. */
+    const mkNova = G("SELECT * FROM calendario_marcacao WHERE id=?", id);
+    let descartadas = 0;
+    for (const o of A("SELECT data, fecha FROM calendario_ocorrencia WHERE marcacao_id=?", id)) {
+      const y = Number(String(o.data).slice(0, 4));
+      const pertence = datasDaMarcacao(mkNova, y).includes(o.data) || datasDaMarcacao(mkNova, y - 1).includes(o.data);
+      if (!pertence || Number(o.fecha) === Number(mkNova.fecha))
+        descartadas += Number(R("DELETE FROM calendario_ocorrencia WHERE marcacao_id=? AND data=?", id, o.data).changes);
+    }
+    return { ok: true, id, tipos: t.tipos, trechos: trechos.length, fechaForcado: t.fecha === true, decisoesDescartadas: descartadas };
   },
   excluirMarcacao: ({ id }: any) => ({ ok: R("DELETE FROM calendario_marcacao WHERE id=?", id).changes > 0 }),
   /* `conferirFeriados` SAIU em 2026-08-17, a pedido dele: *"tira esse botão que não precisa,

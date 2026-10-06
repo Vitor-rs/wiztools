@@ -8527,9 +8527,13 @@ run('salvarAluno',[a],function(r){
  dirty('al',false);
  alHistoricos();run('getAlunos',[],function(x){ALUNOS=x});recarregarMatriculas()})}
 function alExcluir(){if(!alSel)return;
+/* G5 (06/10/2026): o servidor só exclui cadastro sem fato nenhum — e diz qual fato impede, se houver */
 dlgConfirmar({titulo:'Excluir aluno',perigo:true,ok:'Excluir aluno',
- texto:'Excluir '+alSel.nome+' e TODAS as suas matrículas e aulas?'},function(sim){if(!sim)return;
-run('excluirAluno',[alSel.id],function(r){msg('Aluno excluído ('+r.aulasRemovidas+' aula(s) removida(s)).');alNovo();run('getAlunos',[],function(x){ALUNOS=x})})})}
+ texto:'Excluir '+alSel.nome+' e as suas matrículas e aulas?\n\nExcluir é para o cadastro feito por engano: '
+  +'se ele tem presença, material entregue, saída, contato ou registro de aula, o sistema recusa e diz o quê — '
+  +'quem saiu tem a saída registrada, e o cadastro fica, desativado.'},function(sim){if(!sim)return;
+run('excluirAluno',[alSel.id],function(r){msg('Aluno excluído ('+r.aulasRemovidas+' aula(s) removida(s)).');alNovo();run('getAlunos',[],function(x){ALUNOS=x})},
+ function(e){dlgAviso({titulo:'Não dá para excluir',texto:e})})})}
 
 /* ---- matrículas em livro ---- */
 /* `cb` existe por causa de uma corrida real: o dropdown de livro do histórico de situação é montado
@@ -15145,9 +15149,13 @@ h+='<div class="pef-bloco"><div class="pef-bt">Rematrícula <small>ciclo '+escBl
    /* o número é a soma das CINCO listas (aRematricular): sem estas duas a lista ficava menor que ele assim que
       alguém rematriculava (Wiztools 18) */
    .concat((rp.rematriculadosLista||[]).map(function(x){return {id:x.id,nome:x.nome,livro:x.livro,data:x.data,extra:'já rematriculado — conta nos dois números'}}))
-   .concat((rp.naoRematriculados||[]).map(function(x){return {id:x.id,nome:x.nome,livro:x.livro,data:x.data,extra:'não rematriculado (registrado)'}}))),'contrato terminando no ciclo — o denominador do percentual')
+   .concat((rp.naoRematriculados||[]).map(function(x){return {id:x.id,nome:x.nome,livro:x.livro,data:x.data,extra:'não rematriculado (registrado)'}}))),'contrato terminando no ciclo — o denominador do percentual; formandos ficam fora')
  +pefCampo('Percentual de alunos rematriculados','<span class="pef-n pct'+(rp.percentual!=null&&rp.percentual<((r.metas||{}).rematricula||80)?' baixo':'')+'">'+(rp.percentual==null?'—':String(rp.percentual).replace('.',',')+'%')+'</span>','meta: '+((r.metas||{}).rematricula||80)+'%')
  +'</div></div>';
+/* os formandos ficam FORA do "a rematricular" (06/10/2026, MSA p.25) — a lista é para conferir quem são */
+if((rp.formandos||[]).length)h+='<div class="pef-nota">'+pefN(rp.formandos.length,'rform','Formandos do ciclo — fora do "a rematricular"',
+ rp.formandos.map(function(x){return {id:x.id,nome:x.nome,livro:x.livro,data:x.fimContrato,extra:'cursa o último livro da série'}}))
+ +' formando(s) no ciclo (o W12 ou o último livro de outro idioma) ficam fora do "a rematricular", como no MSA. Confira se algum vai seguir para outro curso.</div>';
 /* ---------- as conferências que o próprio formulário impõe ---------- */
 h+='<div class="pef-bloco"><div class="pef-bt">Conferências do formulário</div>'
  +(i.conferencias||[]).map(function(c){return '<div class="pef-cf '+(c.ok?'ok':'nao')+'">'+icon(c.ok?'circle-check':'triangle-alert',14)

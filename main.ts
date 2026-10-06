@@ -5240,6 +5240,39 @@ function saidaEntregue(r: any): { mes: string; tipoRede: string | null } | null 
   return null;
 }
 
+/* ===== G5 — O QUE IMPEDE EXCLUIR UM ALUNO (decisão dele, 06/10/2026) =====
+   Os fatos que a cascata apagaria — a presença que ele teve, o material entregue, a saída, o contato, o registro de
+   aula — e o mês já entregue em que ele aparece (o JSON do PEF guarda a matrícula). Falta sozinha não conta: o cadastro
+   digitado errado com agenda leva a falta automática do fecho, e isso é efeito do erro, não história. */
+function fatosDoAluno(id: string): string[] {
+  const n = (sql: string) => Number(G(sql, id)?.n || 0);
+  const out: string[] = [];
+  const p = n("SELECT COUNT(*) n FROM presenca WHERE id_matricula=? AND status='P'");
+  if (p) out.push(p + " presença(s)");
+  const e = n("SELECT COUNT(*) n FROM entrega_material WHERE id_matricula=?");
+  if (e) out.push(e + " entrega(s) de material");
+  const s = n(`SELECT COUNT(*) n FROM aluno_situacao_historico WHERE id_matricula=?
+               AND situacao IN ('Evadido','Trancado','Cancelado','Encerrado')`);
+  if (s) out.push(s + " saída(s) no histórico");
+  /* a saída que só existe no CADASTRO (os legados sem linha no histórico — a fila da repescagem, na aba Saídas): o
+     cadastro é a única cópia desse fato, e excluí-lo some com a saída antes de ela ser registrada e contada
+     (revisão da leva 3: eram 43 cadastros assim na recepção). Cadastro novo nasce Matriculado, então o engano passa. */
+  const sc = s ? null : G(`SELECT a.situacao FROM alunos a JOIN situacoes x ON x.situacao=a.situacao AND x.ativa=0
+                            WHERE a.id_matricula=?`, id);
+  if (sc) out.push(`a saída "${sc.situacao}" no cadastro, ainda sem registro (complete pela repescagem, na aba Saídas do PEF)`);
+  const c = n("SELECT COUNT(*) n FROM atendimento WHERE id_matricula=?");
+  if (c) out.push(c + " contato(s) registrado(s)");
+  const r = n("SELECT COUNT(*) n FROM aula_registro WHERE id_matricula=?");
+  if (r) out.push(r + " registro(s) de aula");
+  const temId = (v: any): boolean => Array.isArray(v) ? v.some(temId)
+    : v && typeof v === "object" ? (String(v.id ?? "") === id || Object.values(v).some(temId)) : false;
+  const meses = A("SELECT mes, dados FROM pef_fechamento ORDER BY mes").filter((f: any) => {
+    try { return temId(JSON.parse(f.dados)); } catch { return false; }
+  }).map((f: any) => String(f.mes).slice(5, 7) + "/" + String(f.mes).slice(0, 4));
+  if (meses.length) out.push("o nome no PEF entregue de " + meses.join(", "));
+  return out;
+}
+
 /* ===== O IPP DE UM MÊS ===== */
 function ippDoMes(mes: string) {
   const ini = mes + "-01", fim = fimDoMes(mes), hoje = dataISO(new Date());
@@ -5625,8 +5658,14 @@ function rematriculaDoCiclo(mes: string) {
      rematrícula e o percentual passaria de 100%. E quem saiu sem renovar continua contando (é a perda). */
   /* um por aluno também aqui: com dois contratos terminando no ciclo, o que termina primeiro o representa */
   const pendentesPorAluno = new Map<string, any>();
+  /* FORMANDOS FICAM FORA (decisão dele, 06/10/2026 — MSA p.25; a Rematona manda "verificar se há formandos"): quem cursa
+     o W12 ou o último livro de outro idioma não é "a rematricular" nem ENQUANTO cursa. Antes entrava como pendente e só
+     saía do denominador ao terminar (`encerraramSemRenovar` já o pulava) — o mesmo aluno mudava de lado no meio do
+     ciclo. Vão para uma lista à parte, para conferir. */
+  const formandosPorAluno = new Map<string, any>();
   for (const x of lista.filter(x => noIntervalo(x.fimContrato, ciclo.de, ciclo.ate)
     && !rematriculadosCiclo.some((r: any) => r.id === x.id))) {
+    if (podeSerFormado(x.livro)) { if (!formandosPorAluno.has(x.id)) formandosPorAluno.set(x.id, x); continue; }
     const y = pendentesPorAluno.get(x.id);
     if (!y) pendentesPorAluno.set(x.id, { ...x, contratos: 1 });
     else { y.contratos++; if (x.fimContrato < y.fimContrato) pendentesPorAluno.set(x.id, { ...x, contratos: y.contratos }); }
@@ -5664,6 +5703,8 @@ function rematriculaDoCiclo(mes: string) {
     if (!dataPlausivel(ini)) continue;
     const fim = maisDias(ini, Pn("contrato_dias"));
     if (!noIntervalo(fim, ciclo.de, ciclo.ate)) continue;
+    /* na data do relatório ele cursava o último livro da série: era formando, fora do denominador (06/10/2026) */
+    if (podeSerFormado(ant.livro)) continue;
     jaContados.add(r.id_matricula);
     renovaramDepois.push({ id: r.id_matricula, nome: r.nome, livro: ant.livro || r.livro, fimContrato: fim, renovouEm: r.data });
   }
@@ -5707,6 +5748,11 @@ function rematriculaDoCiclo(mes: string) {
     jaContados.add(e.id_matricula);
     encerraramSemRenovar.push({ id: e.id_matricula, nome: e.nome, livro: e.livro, fimContrato: quando, terminouEm: e.data_fim });
   }
+  /* quem está contado no denominador por OUTRO contrato (pendente, não rematriculado, renovou depois, terminou sem
+     renovar) não é "formando a conferir" — a lista à parte é só de quem ficou fora por ser formando */
+  const contados = new Set([...pendentes, ...rematriculadosCiclo, ...naoRematriculados, ...renovaramDepois,
+    ...encerraramSemRenovar].map((x: any) => x.id));
+  const formandos = [...formandosPorAluno.values()].filter((x: any) => !contados.has(x.id));
   /* as cinco listas já não repetem aluno (cada uma pula quem uma anterior contou); a conta pelo conjunto é a garantia */
   const aRematricular = new Set([...pendentes, ...rematriculadosCiclo, ...naoRematriculados, ...renovaramDepois,
     ...encerraramSemRenovar].map((x: any) => x.id)).size;
@@ -5731,7 +5777,7 @@ function rematriculaDoCiclo(mes: string) {
     ipp: { aRematricular, rematriculados: rematriculadosCiclo.length,
       percentual: aRematricular ? Math.round(rematriculadosCiclo.length / aRematricular * 10000) / 100 : null,
       meta: Pn("pef_meta_rematricula"), pendentes, rematriculadosLista: rematriculadosCiclo, naoRematriculados,
-      renovaramDepois, encerraramSemRenovar },
+      renovaramDepois, encerraramSemRenovar, formandos },
   };
 }
 const dataBR = (iso: string | null) => iso ? iso.slice(8, 10) + "/" + iso.slice(5, 7) + "/" + iso.slice(0, 4) : "—";
@@ -6932,7 +6978,18 @@ const api: Record<string, (a: any) => unknown> = {
       situacao: G("SELECT situacao FROM alunos WHERE id_matricula=?", a.id)?.situacao,
       status: G("SELECT status FROM v_alunos WHERE id_matricula=?", a.id)?.status };
   },
-  excluirAluno: (id) => ({ ok: true, aulasRemovidas: R("DELETE FROM aulas WHERE id_matricula=?", id).changes, aluno: R("DELETE FROM alunos WHERE id_matricula=?", id).changes }),
+  /* G5 (decisão dele, 06/10/2026): excluir é para o cadastro SEM FATO NENHUM — o erro de digitação. As FKs em cascata
+     levavam junto a presença, a entrega (o livro voltava ao estoque), a saída (sumia do IPP dos meses abertos), o
+     contato e o registro de aula; e o aluno de um mês já entregue ficava no JSON do PEF sem cadastro para abrir. Com
+     qualquer fato, recusa e diz qual: quem saiu tem a saída registrada, e o cadastro fica, desativado. */
+  excluirAluno: (id) => {
+    const fatos = fatosDoAluno(String(id));
+    if (fatos.length)
+      throw new Error("Este aluno não pode ser excluído: tem " + fatos.join(", ") + ". Excluir apagaria essa história junto. "
+        + "Se ele saiu, registre a saída (Encerrar o contrato ou a situação no histórico): o cadastro fica, desativado. "
+        + "Excluir é só para o cadastro feito por engano, sem nenhum fato.");
+    return { ok: true, aulasRemovidas: R("DELETE FROM aulas WHERE id_matricula=?", id).changes, aluno: R("DELETE FROM alunos WHERE id_matricula=?", id).changes };
+  },
 
   /* TROCAR O ID DA MATRÍCULA.
      O ID é a chave do aluno e aparece em dez tabelas; as FKs são `ON DELETE CASCADE`, não

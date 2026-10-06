@@ -4487,13 +4487,20 @@ const anotar = (id_matricula: string, livro: string | null, data: string | null,
    Ordenada por dia da semana e hora — sem isso, marcar os mesmos dias em ordem diferente na tela
    pareceria troca de horário e dispararia a pergunta à toa. Usa o CÓDIGO do dia ('2ª'), que é como
    a escola escreve nas fichas. */
+/* O SEPARADOR da agenda em texto e o DIA DA SEMANA moram aqui, antes do fecho do dia (Wiztools 18): o fecho roda no
+   BOOT, no meio do arquivo, e agora pergunta a fase da agenda (`fasesDaAgenda`, `lerAgendaTexto`, `tinhaAulaNoDia`). Com
+   as duas declaradas lá embaixo, junto do planejamento, a chamada no boot cairia na zona morta do `const` — um
+   ReferenceError que o "segue o baile" engoliria, e a falta automática pararia sem ninguém ver. */
+const AGENDA_SEP = " · ";
+/* segunda=0 … domingo=6, o mesmo eixo que `dias.ordem-1` e que a grade do calendário usam */
+const diaDaSemana = (iso: string) => (new Date(iso + "T12:00:00Z").getUTCDay() + 6) % 7;
 const textoAgenda = (pares: { dia: string; hora: string }[]) => {
   const ord: Record<string, number> = {}, cod: Record<string, string> = {};
   A("SELECT nome, ordem, codigo FROM dias").forEach(d => { ord[d.nome] = d.ordem; cod[d.nome] = d.codigo; });
   return [...new Set(pares.map(p => p.dia + "|" + p.hora))]
     .map(k => { const [dia, hora] = k.split("|"); return { dia, hora }; })
     .sort((a, b) => (ord[a.dia] || 0) - (ord[b.dia] || 0) || a.hora.localeCompare(b.hora))
-    .map(p => (cod[p.dia] || p.dia) + " " + p.hora).join(" · ");
+    .map(p => (cod[p.dia] || p.dia) + " " + p.hora).join(AGENDA_SEP);
 };
 const agendaTexto = (idMatricula: string, livro: string) =>
   textoAgenda(A("SELECT dia, hora FROM aulas WHERE id_matricula=? AND livro=?", idMatricula, livro));
@@ -4652,7 +4659,7 @@ function aplicarFaltasAutomaticas() {
     /* a TROCA DE LIVRO NO DIA: o aluno veio de manhã no W4 e à tarde passou para o W5 — a agenda de hoje
        diz W5 e o fecho, que só roda no boot seguinte, via "aula de W5 sem presença". Se ele tem lançamento
        naquele dia num livro que já não tem aula nesse dia da semana, aquele lançamento É o dia dele. */
-    const faltantes = A(`SELECT DISTINCT a.id_matricula, a.livro FROM aulas a
+    const pelaAgenda = A(`SELECT DISTINCT a.id_matricula, a.livro FROM aulas a
        JOIN v_alunos v ON v.id_matricula=a.id_matricula
        WHERE a.dia=? AND v.status='Ativado' AND ${CONTRATO_VIGENTE("a")}
          AND NOT EXISTS (SELECT 1 FROM presenca p
@@ -4661,6 +4668,51 @@ function aplicarFaltasAutomaticas() {
               WHERE p2.id_matricula=a.id_matricula AND p2.data=? AND p2.livro<>a.livro
                 AND NOT EXISTS (SELECT 1 FROM aulas a2 WHERE a2.id_matricula=p2.id_matricula
                                   AND a2.livro=p2.livro AND a2.dia=?))`, nomeDia, dia, dia, dia, dia, nomeDia);
+    /* N1-B, A TROCA DE HORÁRIO NO DIA (Wiztools 18): a agenda de HOJE não é a que valia naquele dia quando o horário
+       mudou depois dele. Pela regra dele (`faseNoInstante`), a aula conta na fase que valia NA HORA dela: trocar às 19h
+       de terça de "quinta 14h" para "terça 18h" não cria a aula das 18h daquela terça (era F falsa); e a aula do
+       horário velho que já tinha passado naquele dia continua sendo dele (sem lançamento, é falta). Só se pergunta
+       isso a quem trocou de horário DEPOIS daquele dia — para os outros, a agenda de hoje é a do dia, como sempre. */
+    const trocouDepois = A(`SELECT DISTINCT id_matricula, livro FROM aluno_horario_historico WHERE momento >= ?`, dia);
+    const chaveT = new Set(trocouDepois.map((x: any) => x.id_matricula + "|" + x.livro));
+    /* AS FASES SÓ VALEM COM O HISTÓRICO EM DIA (revisão da leva 2): o "depois" da última troca tem de ser a agenda de
+       hoje daquele livro. Há caminhos que mudam a agenda SEM gravar troca — horário em lote, tirar da turma, remarcar a
+       partir da agenda vazia, os horários passados para outro livro —, e com o histórico desatualizado a fase mente: a
+       F verdadeira sumia, ou nascia F em quem veio no livro novo. Desatualizado = a regra antiga (a agenda de hoje). */
+    const fasesMemo = new Map<string, any[] | null>();
+    const fasesEmDia = (id: string, livro: string) => {
+      const k = id + "|" + livro;
+      if (!fasesMemo.has(k)) {
+        const ult = G(`SELECT depois FROM aluno_horario_historico WHERE id_matricula=? AND livro=?
+                       ORDER BY momento DESC, id DESC LIMIT 1`, id, livro);
+        fasesMemo.set(k, ult && ult.depois === agendaTexto(id, livro) ? fasesDaAgenda(id, livro) : null);
+      }
+      return fasesMemo.get(k)!;
+    };
+    const tinha = (id: string, livro: string) => {
+      if (!chaveT.has(id + "|" + livro)) return true;
+      const f = fasesEmDia(id, livro);
+      return f ? tinhaAulaNoDia(f, dia) : true;
+    };
+    const faltantes = pelaAgenda.filter((f: any) => tinha(f.id_matricula, f.livro));
+    const jaNaAgenda = new Set(pelaAgenda.map((f: any) => f.id_matricula + "|" + f.livro));
+    for (const t of trocouDepois) {
+      if (jaNaAgenda.has(t.id_matricula + "|" + t.livro)) continue;
+      /* o acréscimo só com o histórico em dia: desatualizado, a regra antiga não lançava nada aqui */
+      const f = fasesEmDia(t.id_matricula, t.livro);
+      if (!f || !tinhaAulaNoDia(f, dia)) continue;
+      /* o mesmo crivo da consulta acima, sobre o contrato (a agenda de hoje não tem mais esse dia) */
+      if (G(`SELECT 1 FROM aluno_livro a JOIN v_alunos v ON v.id_matricula=a.id_matricula
+             WHERE a.id_matricula=? AND a.livro=? AND v.status='Ativado' AND ${CONTRATO_VIGENTE("a")}
+               AND NOT EXISTS (SELECT 1 FROM presenca p
+                    WHERE p.id_matricula=a.id_matricula AND p.livro=a.livro AND p.data=?)
+               AND NOT EXISTS (SELECT 1 FROM presenca p2
+                    WHERE p2.id_matricula=a.id_matricula AND p2.data=? AND p2.livro<>a.livro
+                      AND NOT EXISTS (SELECT 1 FROM aulas a2 WHERE a2.id_matricula=p2.id_matricula
+                                        AND a2.livro=p2.livro AND a2.dia=?))`,
+             t.id_matricula, t.livro, dia, dia, dia, dia, nomeDia))
+        faltantes.push({ id_matricula: t.id_matricula, livro: t.livro });
+    }
     for (const f of faltantes) {
       R("INSERT INTO presenca (id_matricula, livro, data, status, auto) VALUES (?,?,?,'F',1)",
         f.id_matricula, f.livro, dia);
@@ -5040,10 +5092,17 @@ const ippModalidade = (livro: string | null) => livro ? categoriaLivro(String(li
    LIMITE CONHECIDO, e a tela o diz: saída sem data registrada (as 49 da repescagem, em 19/09) não tem
    "depois" para desfazer — por isso o mês FECHADO é que vale; o reconstruído é conferência. */
 const SAIDA_REAL = ["Evadido", "Trancado", "Cancelado", "Encerrado"];
-/* a última palavra até uma data tira o aluno dos ativos? Trancado, Evadido e Cancelado sempre; Encerrado
-   só quando trouxe caixa da rede (ver situacaoCorrente) */
-const ehSaidaNaData = (h: any) => ["Trancado", "Evadido", "Cancelado"].includes(h.situacao)
-  || (h.situacao === "Encerrado" && !!h.tipo_rede);
+/* a última palavra até uma data D tira o aluno dos ativos? Evadido e Cancelado sempre; Encerrado só quando trouxe
+   caixa da rede (ver situacaoCorrente).
+   O TRANCADO (R4, decisão dele, 06/10/2026): com a volta combinada ainda por vir em D, ele CONTINUA ATIVO no IPP
+   ("todos, menos os evadidos", IPP p.3); se não voltar, a perda entra no mês em que a volta cai (o laço dos trancados
+   não retornados, no ippDoMes). Antes ele saía dos ativos no trancamento e só virava perda na volta: no meio, nem ativo
+   nem saída, e a conferência da rolagem errava por 1 no mês do trancamento. O trancado ANTIGO, sem data de volta, sai
+   no trancamento, como sempre. */
+const ehSaidaNaData = (h: any, D: string) => {
+  if (h.situacao === "Trancado") return !(h.retorno_previsto && h.retorno_previsto > D);
+  return ["Evadido", "Cancelado"].includes(h.situacao) || (h.situacao === "Encerrado" && !!h.tipo_rede);
+};
 /* ===== FORMADO É QUEM TERMINOU A SÉRIE (IPP p.6, auditoria de 26/09) =====
    O W12, ou o último livro de outro idioma — o portal nem tem a célula de formados em Kids e Teens. O
    "último" é o que o MATERIAL diz (estoque_item.final, a mesma régua da Central); sem material marcado,
@@ -5072,7 +5131,19 @@ function ativosEm(D: string): Map<string, any> {
     out.set(a.id_matricula, { id: a.id_matricula, nome: a.nome, livro: c?.livro ?? null,
       canal: ippCanal(c), experiencia: ippExperiencia(c), origem: "hoje" });
   }
-  if (D >= hoje) return out;
+  /* R4: o trancado com a volta ainda por vir em D está fora do CADASTRO (desativado), mas no IPP é ativo. Livro, canal e
+     experiência são os do trancamento — o contrato dele não tem agenda. */
+  const trancadosAtivos = () => {
+    for (const a of A("SELECT id_matricula, nome FROM v_alunos WHERE status<>'Ativado'")) {
+      if (out.has(a.id_matricula)) continue;
+      const u = G(`SELECT situacao, retorno_previsto, livro, canal, experiencia FROM aluno_situacao_historico
+                   WHERE id_matricula=? AND data<=? ORDER BY data DESC, id DESC LIMIT 1`, a.id_matricula, D);
+      if (!u || u.situacao !== "Trancado" || !u.retorno_previsto || u.retorno_previsto <= D) continue;
+      out.set(a.id_matricula, { id: a.id_matricula, nome: a.nome, livro: u.livro ?? null,
+        canal: u.canal ?? null, experiencia: u.experiencia ?? null, origem: "trancado" });
+    }
+  };
+  if (D >= hoje) { trancadosAtivos(); return out; }
   /* quem só entrou depois de D ainda não era aluno */
   for (const r of A(`SELECT id_matricula, MIN(data) d FROM aluno_situacao_historico
                      WHERE situacao IN ('Matriculado','Rematriculado','Retornado')
@@ -5080,9 +5151,9 @@ function ativosEm(D: string): Map<string, any> {
     if (r.d > D) out.delete(r.id_matricula);
   /* quem está ativo hoje mas em D estava FORA (trancado ou evadido, e voltou depois) */
   for (const id of [...out.keys()]) {
-    const ult = G(`SELECT situacao, tipo_rede FROM aluno_situacao_historico WHERE id_matricula=? AND data<=?
+    const ult = G(`SELECT situacao, tipo_rede, retorno_previsto FROM aluno_situacao_historico WHERE id_matricula=? AND data<=?
                    ORDER BY data DESC, id DESC LIMIT 1`, id, D);
-    if (ult && ehSaidaNaData(ult)) out.delete(id);
+    if (ult && ehSaidaNaData(ult, D)) out.delete(id);
   }
   /* quem está fora hoje e saiu DEPOIS de D: em D ainda era aluno */
   for (const a of A("SELECT id_matricula, nome FROM v_alunos WHERE status<>'Ativado'")) {
@@ -5094,12 +5165,13 @@ function ativosEm(D: string): Map<string, any> {
                         AND situacao IN ('Matriculado','Rematriculado','Retornado')`, a.id_matricula, D);
     if (!entrou) continue;
     /* quem em D JÁ estava fora (trancou em julho e só foi encerrado em setembro) não "voltou" em D */
-    const ultD = G(`SELECT situacao, tipo_rede FROM aluno_situacao_historico WHERE id_matricula=? AND data<=?
+    const ultD = G(`SELECT situacao, tipo_rede, retorno_previsto FROM aluno_situacao_historico WHERE id_matricula=? AND data<=?
                     ORDER BY data DESC, id DESC LIMIT 1`, a.id_matricula, D);
-    if (ultD && ehSaidaNaData(ultD)) continue;
+    if (ultD && ehSaidaNaData(ultD, D)) continue;
     out.set(a.id_matricula, { id: a.id_matricula, nome: a.nome, livro: saida.livro ?? null,
       canal: saida.canal ?? null, experiencia: saida.experiencia ?? null, origem: "voltou" });
   }
+  trancadosAtivos();
   return out;
 }
 
@@ -5302,12 +5374,18 @@ function ippDoMes(mes: string) {
     saidas[linha][m][canal].push({ ...x, canal });
   }
   /* TRANCADOS NÃO RETORNADOS, pela data combinada (decisão dele, 21/09): entra no mês em que a volta
-     prevista venceu sem que ele voltasse. Não depende de alguém lembrar de registrar a saída. */
+     prevista venceu sem que ele voltasse. Não depende de alguém lembrar de registrar a saída.
+     MEDIDO NO MESMO DIA DOS ATIVOS DO FIM (`ateIpp`, revisão da leva 2 da Wiztools 18): com o R4 o trancado é ativo
+     até a volta vencer, então (1) no mês corrente a perda só entra quando a data combinada PASSA — antes, ele contava
+     nos ativos e na perda ao mesmo tempo —, e (2) quem volta DEPOIS do fim do mês da volta combinada é perda naquele
+     mês ("não retornou na data prevista combinada"): sem o limite, a volta de outubro o tirava da perda de setembro, e
+     ele sumia do dia 1 para o último sem saída nenhuma. */
+  const ateIpp = fim < hoje ? fim : hoje;
   for (const h of A(`SELECT h.*, a.nome FROM aluno_situacao_historico h JOIN alunos a ON a.id_matricula=h.id_matricula
-                     WHERE h.situacao='Trancado' AND h.retorno_previsto BETWEEN ? AND ?`, ini, fim)) {
+                     WHERE h.situacao='Trancado' AND h.retorno_previsto BETWEEN ? AND ?`, ini, ateIpp)) {
     if (vistos.has(h.id_matricula)) continue;
-    const voltou = G(`SELECT 1 FROM aluno_situacao_historico WHERE id_matricula=? AND data>=?
-                        AND situacao IN ('Retornado','Matriculado','Rematriculado')`, h.id_matricula, h.data);
+    const voltou = G(`SELECT 1 FROM aluno_situacao_historico WHERE id_matricula=? AND data>=? AND data<=?
+                        AND situacao IN ('Retornado','Matriculado','Rematriculado')`, h.id_matricula, h.data, ateIpp);
     if (voltou) continue;
     /* a perda deste aluno já foi entregue num mês fechado (o livro-razão) e ele não voltou: é a mesma */
     if (perdaJaEntregue(h.id_matricula, h.retorno_previsto)) continue;
@@ -5332,8 +5410,7 @@ function ippDoMes(mes: string) {
      A régua de evasão por falta dispara sozinha, mas carimbar "evadido" é decisão de gente (a mesma
      disciplina da Central). O formulário conta o que está registrado; esta lista diz o que falta registrar
      para o número bater com a realidade antes de mandar. */
-  /* o calendário resolvido UMA vez para a régua de todos (a mesma janela da fila de risco) */
-  const ateIpp = fim < hoje ? fim : hoje;
+  /* o calendário resolvido UMA vez para a régua de todos (a mesma janela da fila de risco; `ateIpp` vem de cima) */
   const fechIpp = diasFechados(`${Number(ateIpp.slice(0, 4)) - 1}-01-01`, ateIpp);
   const detectados: any[] = [];
   for (const a of ativosFim.values()) {
@@ -5525,19 +5602,43 @@ function rematriculaDoCiclo(mes: string) {
      o contrato para o próximo livro"*. Então: UMA por aluno e livro de destino (a mesma renovação lançada duas vezes,
      em datas diferentes, contava 2×), e só quando o livro é OUTRO — o "Rematriculado" no mesmo livro (renovar o
      contrato sem trocar de livro) não é rematrícula. Sem entrada anterior não dá para saber: conta, como antes. */
-  const rematriculadosCiclo = A(`SELECT h.id_matricula id, a.nome, MIN(h.data) data, h.livro, MIN(h.id) hid
+  /* POR ALUNO, UM POR CICLO (decisão dele, 06/10/2026 — IPP p.9, PEF p.31-32 e a Rematona contam ALUNO): quem faz
+     dois idiomas e renovou os dois é UM rematriculado, e conta assim que renova pelo menos um. Antes era uma por
+     aluno e livro, e o mesmo aluno entrava duas vezes no numerador e no denominador. Vale a 1ª renovação do ciclo;
+     os outros livros vão no `extra`. Meses já fechados não mudam (o número entregue está no JSON). */
+  const umPorAluno = (rows: any[]) => {
+    const m = new Map<string, any>();
+    for (const r of rows) {
+      const x = m.get(r.id);
+      if (!x) m.set(r.id, { ...r, livros: [r.livro] });
+      else { x.livros.push(r.livro); x.extra = "também " + x.livros.slice(1).map((l: string) => nomeDoLivro(l)).join(", "); }
+    }
+    return [...m.values()];
+  };
+  const rematriculadosCiclo = umPorAluno(A(`SELECT h.id_matricula id, a.nome, MIN(h.data) data, h.livro, MIN(h.id) hid
                                  FROM aluno_situacao_historico h JOIN alunos a ON a.id_matricula=h.id_matricula
                                  WHERE h.situacao='Rematriculado' AND h.data BETWEEN ? AND ?
-                                 GROUP BY h.id_matricula, h.livro ORDER BY data`, de, ref)
-    .filter((r: any) => !mesmoLivroQueAntes(r.id, r.livro, r.data, r.hid));
+                                 GROUP BY h.id_matricula, h.livro ORDER BY data, hid`, de, ref)
+    .filter((r: any) => !mesmoLivroQueAntes(r.id, r.livro, r.data, r.hid)));
   /* A REMATRICULAR no ciclo, na régua do PEF: contrato terminando dentro do ciclo. Quem JÁ renovou tem hoje
      um contrato novo que termina no ano que vem — sem somá-lo de volta, o denominador encolheria a cada
      rematrícula e o percentual passaria de 100%. E quem saiu sem renovar continua contando (é a perda). */
-  const pendentes = lista.filter(x => noIntervalo(x.fimContrato, ciclo.de, ciclo.ate)
-    && !rematriculadosCiclo.some((r: any) => r.id === x.id));
-  const naoRematriculados = A(`SELECT DISTINCT h.id_matricula id, a.nome, h.data, h.livro FROM aluno_situacao_historico h
+  /* um por aluno também aqui: com dois contratos terminando no ciclo, o que termina primeiro o representa */
+  const pendentesPorAluno = new Map<string, any>();
+  for (const x of lista.filter(x => noIntervalo(x.fimContrato, ciclo.de, ciclo.ate)
+    && !rematriculadosCiclo.some((r: any) => r.id === x.id))) {
+    const y = pendentesPorAluno.get(x.id);
+    if (!y) pendentesPorAluno.set(x.id, { ...x, contratos: 1 });
+    else { y.contratos++; if (x.fimContrato < y.fimContrato) pendentesPorAluno.set(x.id, { ...x, contratos: y.contratos }); }
+  }
+  const pendentes = [...pendentesPorAluno.values()];
+  /* o "não rematriculado" de um idioma não pesa em quem renovou o outro (renovou um, conta) nem em quem ainda tem
+     contrato por renovar no ciclo — aí ele já está em `pendentes` */
+  const naoRematriculados = umPorAluno(A(`SELECT h.id_matricula id, a.nome, MIN(h.data) data, h.livro FROM aluno_situacao_historico h
                                JOIN alunos a ON a.id_matricula=h.id_matricula
-                               WHERE h.tipo_rede='Não rematriculado' AND h.data BETWEEN ? AND ?`, de, ciclo.ate);
+                               WHERE h.tipo_rede='Não rematriculado' AND h.data BETWEEN ? AND ?
+                               GROUP BY h.id_matricula, h.livro ORDER BY data`, de, ciclo.ate))
+    .filter((x: any) => !rematriculadosCiclo.some((r: any) => r.id === x.id) && !pendentesPorAluno.has(x.id));
   /* QUEM RENOVOU DEPOIS da data do relatório (revisão de 21/09). Hoje o contrato dele é o NOVO, que termina
      no ano que vem — então saiu de `pendentes` —, e a renovação cai fora da janela dos rematriculados. Sumia
      dos dois lados, e o percentual subia sozinho a cada renovação posterior: o PEF de maio aberto em julho
@@ -5606,8 +5707,9 @@ function rematriculaDoCiclo(mes: string) {
     jaContados.add(e.id_matricula);
     encerraramSemRenovar.push({ id: e.id_matricula, nome: e.nome, livro: e.livro, fimContrato: quando, terminouEm: e.data_fim });
   }
-  const aRematricular = pendentes.length + rematriculadosCiclo.length + naoRematriculados.length + renovaramDepois.length
-    + encerraramSemRenovar.length;
+  /* as cinco listas já não repetem aluno (cada uma pula quem uma anterior contou); a conta pelo conjunto é a garantia */
+  const aRematricular = new Set([...pendentes, ...rematriculadosCiclo, ...naoRematriculados, ...renovaramDepois,
+    ...encerraramSemRenovar].map((x: any) => x.id)).size;
   const grupos: Record<string, Record<string, Record<string, any[]>>> = {};
   for (const x of lista) {
     const s = x.segmento || "Kids", c = x.canal || "Presencial", e = x.experiencia || "Interactive";
@@ -5883,8 +5985,8 @@ function recusarDiaSemAula(data: string) {
    inteira — só a partir de quando ele trocou."* Projetar tudo com a agenda de HOJE reescreveria o
    passado: as aulas que ele já fez aconteceram na agenda antiga.
    `aluno_horario_historico` guarda `antes`, `depois` e o `momento` do aviso — com data E HORA. É a
-   hora que resolve o caso fino que ele descreveu, e por isso ela não podia ser jogada fora. */
-const AGENDA_SEP = " · ";
+   hora que resolve o caso fino que ele descreveu, e por isso ela não podia ser jogada fora.
+   (`AGENDA_SEP` e `diaDaSemana` são declarados antes do fecho do dia — ver `textoAgenda`.) */
 /* "3ª 18:00 · 5ª 18:00" de volta para pares (dia da semana, hora). O texto é o que
    `textoAgenda` escreve; ler com o mesmo vocabulário (`dias.codigo`) é o que impede as duas
    pontas de divergirem no dia em que alguém renomear um dia. */
@@ -5925,8 +6027,14 @@ function faseNoInstante(fases: any[], dia: string, hora: string) {
   }
   return vale;
 }
-/* segunda=0 … domingo=6, o mesmo eixo que `dias.ordem-1` e que a grade do calendário usam */
-const diaDaSemana = (iso: string) => (new Date(iso + "T12:00:00Z").getUTCDay() + 6) % 7;
+/* O ALUNO TINHA AULA NAQUELE DIA, pela agenda que valia NA HORA de cada aula? (N1-B, Wiztools 18) — o fecho do dia
+   pergunta isso a quem trocou de horário depois daquele dia, porque a agenda de hoje já não é a dele. */
+function tinhaAulaNoDia(fases: any[], dia: string): boolean {
+  const dow = diaDaSemana(dia);
+  for (const f of fases) for (const s of f.agenda)
+    if (s.dow === dow && faseNoInstante(fases, dia, s.hora) === f) return true;
+  return false;
+}
 /* A SEMANA DO MÊS, pela regra dele: a semana começa na SEGUNDA e a primeira é a que contém o dia 1,
    *"nem que ela tenha um dia só"* — mês que começa no domingo tem uma semana 1 de um dia, e a
    semana 2 começa na segunda, dia 2. */

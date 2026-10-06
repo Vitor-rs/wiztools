@@ -15138,8 +15138,8 @@ h+='<div class="pef-bloco"><div class="pef-bt">Índices de Retenção <small>o p
 /* ---------- 6. rematrícula ---------- */
 var rp=(i.rematricula||{}).ipp||{};
 h+='<div class="pef-bloco"><div class="pef-bt">Rematrícula <small>ciclo '+escBloco(((i.rematricula||{}).ciclo||{}).nome||'')+'</small></div><div class="pef-grade g3">'
- +pefCampo('Total de alunos rematriculados no ciclo',pefN(rp.rematriculados,'rrem','Rematriculados no ciclo',(rp.rematriculadosLista||[]).map(nome)),'renovaram ou mudaram de livro; cresce mês a mês')
- +pefCampo('Total de alunos a rematricular no ciclo',pefN(rp.aRematricular,'rarem','A rematricular no ciclo — contrato terminando no ciclo, inclusive quem já rematriculou',(rp.pendentes||[]).map(function(x){return {id:x.id,nome:x.nome,livro:x.livro,data:x.fimContrato,extra:'contrato termina'}})
+ +pefCampo('Total de alunos rematriculados no ciclo',pefN(rp.rematriculados,'rrem','Rematriculados no ciclo',(rp.rematriculadosLista||[]).map(nome)),'mudaram de livro; um por aluno no ciclo — quem faz dois idiomas conta ao renovar um; cresce mês a mês')
+ +pefCampo('Total de alunos a rematricular no ciclo',pefN(rp.aRematricular,'rarem','A rematricular no ciclo — contrato terminando no ciclo, inclusive quem já rematriculou',(rp.pendentes||[]).map(function(x){return {id:x.id,nome:x.nome,livro:x.livro,data:x.fimContrato,extra:'contrato termina'+(x.contratos>1?' — '+x.contratos+' contratos no ciclo, conta uma vez':'')}})
    .concat((rp.renovaramDepois||[]).map(function(x){return {id:x.id,nome:x.nome,livro:x.livro,data:x.fimContrato,extra:'renovou em '+dataCurta(x.renovouEm)+', depois do mês — contrato terminava'}}))
    .concat((rp.encerraramSemRenovar||[]).map(function(x){return {id:x.id,nome:x.nome,livro:x.livro,data:x.terminouEm,extra:'terminou o livro e não renovou'}}))
    /* o número é a soma das CINCO listas (aRematricular): sem estas duas a lista ficava menor que ele assim que

@@ -5190,6 +5190,15 @@ select.pef-cx{width:210px;margin:0;font-size:12.5px}
    foi ontem sai do caminho, e quem passou de quinze dias fica âmbar. Tentativa NÃO é conversa, e por
    isso vem em letra menor ao lado, nunca no lugar dela. */
 .at-cel{white-space:nowrap}
+/* a célula vira botão (06/10/2026): abre os contatos do aluno. Sem cara de botão — é a mesma leitura de
+   meio segundo de antes, e o fundo só aparece sob o mouse */
+.at-cel-bt{background:none;border:0;margin:-2px -5px;padding:2px 5px;border-radius:7px;font:inherit;color:inherit;
+  text-align:inherit;cursor:pointer;white-space:nowrap}
+.at-cel-bt:hover{background:#EEF3F8}
+.at-cel-bt:focus-visible{outline:2px solid var(--azul,#2B6CB0);outline-offset:1px}
+/* o histórico de um aluno, na janela: o relato vem INTEIRO (é a conversa dele), e a lista rola sozinha */
+.at-hist-mold{max-height:52vh;overflow:auto;margin-right:18px}
+.at-hist .at-rel{display:block;-webkit-line-clamp:unset;max-width:none;white-space:pre-wrap}
 .at-nunca{font-size:11.5px;font-weight:600;color:#B03A2E;background:#FBE9E7;border-radius:9px;padding:1px 8px}
 .at-quando{font-size:12px;color:var(--tx2)}
 .at-quando.velho{color:#8a5a00;font-weight:600}
@@ -6614,13 +6623,21 @@ if(cb)cb(valor);
 function dlgTecla(e){
 if(!DLG||!DLG.fundo.classList.contains('on'))return;
 if(e.key==='Escape'){e.preventDefault();dlgFechar(DLG.tipo==='confirmar'?false:undefined)}
-else if(e.key==='Enter'&&DLG.tipo!=='escolher'){e.preventDefault();
+else if(e.key==='Enter'&&DLG.tipo!=='escolher'){
+  /* botão focado DENTRO da janela faz o que diz (revisão da Wiztools 18): o Enter clicava sempre o principal — no
+     "Fechar" ou na lixeira do histórico abria o Registrar, e no "Cancelar" de uma confirmação confirmava. Botão
+     fora da janela (atrás do fundo) continua sem receber o Enter. */
+  if(e.target&&e.target.tagName==='BUTTON'&&DLG.fundo.contains(e.target))return;
+  e.preventDefault();
   var b=DLG.pe.querySelector('.dlg-ok');if(b)b.click()}
 }
 document.addEventListener('keydown',dlgTecla);
 function dlgAbrir(o){
 var d=dlgMontar();
-DLG_FOCO=document.activeElement;
+/* janela aberta DE DENTRO de outra (histórico → confirmar a exclusão → histórico): quem tem o foco é um botão
+   da própria janela, que vai sumir — o foco a devolver continua sendo o de quem abriu a primeira */
+var dlgAtivo=document.activeElement;
+if(!(DLG_FOCO&&d.fundo.contains(dlgAtivo)))DLG_FOCO=dlgAtivo;
 d.tipo=o.tipo||'confirmar';d.cb=o.cb||null;
 /* a janela nasce ESTREITA sempre: quem precisa de largura (o formulário da marcação) pede depois,
    e assim nenhuma janela herda o tamanho da anterior */
@@ -6661,7 +6678,8 @@ if(o.tipo!=='escolher'){
 d.fundo.classList.add('on');
 setTimeout(function(){
   if(o.campo){d.input.focus();d.input.select()}
-  else if(o.form){var p=d.form.querySelector('input,select,textarea');if(p)p.focus()}
+  else if(o.form){var p=d.form.querySelector('input,select,textarea');
+    if(p)p.focus();else{var bp=d.pe.querySelector('.dlg-ok')||d.pe.querySelector('button');if(bp)bp.focus()}}
   else{var b=d.pe.querySelector('.dlg-ok')||d.pe.querySelector('button');if(b)b.focus()}
 },30);
 }
@@ -8405,7 +8423,8 @@ lista.forEach(function(l){
       +(l.defasagem>0?'-':(l.defasagem<0?'+':''))+Math.abs(l.defasagem)+' d</span>')+'</td>'
   +'<td class="c-dr">'+(l.termino?dataCurta(l.termino):'<span class="plan-ro">—</span>')+'</td>'
   +'<td class="c-dr">'+(l.fimContrato?dataCurta(l.fimContrato):'<span class="plan-ro">—</span>')+'</td>'
-  +'<td class="c-dr">'+(l.ultimoContato?dataCurta(l.ultimoContato):'<span class="ret-nunca">nunca</span>')+'</td>'
+  +'<td class="c-dr"><button type="button" class="at-cel-bt" data-at-hist="'+escBloco(l.id)+'" title="ver os contatos com este aluno" onclick="event.stopPropagation();pefProgHist(&quot;'+escBloco(l.id)+'&quot;)">'
+    +(l.ultimoContato?dataCurta(l.ultimoContato):'<span class="ret-nunca">nunca</span>')+'</button></td>'
   +'<td class="c-prof">'+escBloco((l.professores||[]).join(', '))+'</td></tr>'});
 h+='</tbody></table></div>';
 if(r.incertos)h+='<div class="al-hist-vazio">'+r.incertos+' contrato(s) estão com a posição a confirmar: '
@@ -8413,6 +8432,8 @@ if(r.incertos)h+='<div class="al-hist-vazio">'+r.incertos+' contrato(s) estão c
  +'Abra o Planejamento de aulas e registre a lição da última aula — o quadro inteiro se reancora por ela.</div>';
 c.innerHTML=h;
 }
+/* a célula "Último contato" abre os contatos do aluno, com o assunto Rematrícula já escolhido no registrar */
+function pefProgHist(id){atHistorico(id,{assunto:'rematr'},function(){pefProgCarregar()})}
 /* clicar na linha leva ao planejamento DAQUELE contrato — é lá que se registra a lição */
 /* Wiztools 17: não saía do Dashboard (carregava o aluno na página escondida) e deixava a sub-aba antiga
    "planejamento" gravada em AL_INFO_ABA — dali em diante todo aluno aberto recalculava um planejamento sem
@@ -14530,6 +14551,7 @@ dlgAbrir({tipo:'confirmar',titulo:'Contato com '+String(r.nome||'').split(' ')[0
 function retAtendPintar(){
 if(!ATEND)return;
 var lista=ATEND.atendimentos||[];
+var vsetA={};(ATEND.vencidos||[]).forEach(function(v){vsetA[v.id]=1});
 var n=$('ret-atend-n'); if(n)n.textContent=lista.length;
 /* os retornos vencidos saíram daqui (05/10/2026): quem os cobra é a Central › Hoje, que é onde se age no dia */
 var h='';
@@ -14546,7 +14568,7 @@ else{
     +escBloco(atendCanalCurto(x.canal))+'</span></td>'
    +'<td class="c">'+atendDesfecho(x.desfecho)+'</td>'
    +'<td><span class="at-rel" title="'+escBloco(x.relato)+'">'+escBloco(x.relato)+'</span></td>'
-   +'<td class="c">'+(x.retornarEm?'<span class="at-volta'+(x.retornarEm<=ATEND.hoje?' venceu':'')+'">'+dataCurta(x.retornarEm)+'</span>':'<span class="lc-vazio-cel">—</span>')+'</td>'
+   +'<td class="c">'+(x.retornarEm?'<span class="at-volta'+(vsetA[x.id]?' venceu':'')+'">'+dataCurta(x.retornarEm)+'</span>':'<span class="lc-vazio-cel">—</span>')+'</td>'
    +'<td class="c"><button type="button" class="acao sec ag-bt-perigo" title="Excluir o registro errado" onclick="retAtendExcluir('+x.id+')">'+icon('trash-2',14)+'</button></td>'
    +'</tr>'}).join('')
   +'</tbody></table>'}
@@ -14560,6 +14582,62 @@ dlgConfirmar({titulo:'Excluir este registro?',ok:'Excluir',perigo:true,
   +'Contato que não deu em nada NÃO se apaga: é ele que prova que a escola tentou.'},
 function(sim){if(!sim)return;
  run('excluirAtendimento',[{id:id}],function(){msg('Registro excluído.');retAtendCarregar()})})}
+
+/* ===== OS CONTATOS DE UM ALUNO (06/10/2026) =====
+   A célula "Falado" dizia só "há N dias", e a história ficava em Indicadores › Retenção — todos os alunos,
+   90 dias, sem filtro. Agora ela abre a conversa inteira DAQUELE aluno, onde se olha para ele: a fila de
+   risco da Central e a lista de trabalho da Rematrícula. A janela é ÚNICA (dlgMontar): "Registrar contato"
+   troca uma pela outra e, gravado, volta ao histórico com o novo no topo; excluir pergunta e volta também.
+   O contexto do formulário (tipos, canais, desfechos, hoje) vem da própria resposta — quem abre não
+   precisa ter carregado nada. `depois` recarrega quem chamou. */
+var AT_HIST=null;
+function atHistorico(id,opts,depois){
+opts=opts||{};
+run('getAtendimentos',[{idMatricula:id}],function(r){
+ AT_HIST={id:id,opts:opts,depois:depois,r:r};
+ var al=r.aluno||{id:id,nome:''};
+ var lista=r.atendimentos||[];
+ var venc=(r.vencidos||[])[0];
+ /* vencido é o retorno SEM conversa depois (retornosVencidos, a regra única) — não toda data que passou */
+ var vset={};(r.vencidos||[]).forEach(function(v){vset[v.id]=1});
+ var h=venc?'<div class="pef-al">'+icon('triangle-alert',12)+' O retorno combinado para '+dataCurta(venc.retornarEm)
+  +' venceu há '+venc.atraso+' dia(s) sem conversa nova.</div>':'';
+ h+=!lista.length?'<div class="ret-vazio">Nenhum contato registrado com '+escBloco(al.nome)+' ainda.</div>'
+  :'<div class="at-hist-mold"><table class="ret-tab at-tab at-hist"><thead><tr><th class="c">Quando</th><th>Assunto</th>'
+   +'<th class="c">Por onde</th><th class="c">Deu certo?</th><th>O que ficou</th><th class="c">Volta em</th><th></th></tr></thead><tbody>'
+   +lista.map(function(x){return '<tr>'
+    +'<td class="c">'+dataCurta(x.data)+(x.comQuem?'<span class="at-cq">com '+escBloco(x.comQuem)+'</span>':'')+'</td>'
+    +'<td>'+(x.tipo?'<span class="at-tipo">'+escBloco(x.tipo)+'</span>':'<span class="lc-vazio-cel">—</span>')+'</td>'
+    +'<td class="c"><span class="at-canal" title="'+escBloco(x.canal)+(x.contato?' · '+escBloco(x.contato):'')+'">'
+     +escBloco(atendCanalCurto(x.canal))+'</span></td>'
+    +'<td class="c">'+atendDesfecho(x.desfecho)+'</td>'
+    +'<td><span class="at-rel">'+escBloco(x.relato)+'</span>'+(x.quem?'<span class="at-cq">registrado por '+escBloco(x.quem)+'</span>':'')+'</td>'
+    +'<td class="c">'+(x.retornarEm?'<span class="at-volta'+(vset[x.id]?' venceu':'')+'">'+dataCurta(x.retornarEm)+'</span>':'<span class="lc-vazio-cel">—</span>')+'</td>'
+    +'<td class="c"><button type="button" class="acao sec ag-bt-perigo" title="Excluir o registro errado" onclick="atHistExcluir('+x.id+')">'+icon('trash-2',14)+'</button></td>'
+    +'</tr>'}).join('')
+   +'</tbody></table></div>';
+ dlgAbrir({tipo:'confirmar',titulo:'Contatos com '+String(al.nome||'').split(' ')[0],
+  texto:al.nome+' · '+lista.length+' contato(s) registrado(s)',ok:'Registrar contato',cancelar:'Fechar',form:h,
+  aoAbrir:function(f){var cx=f.closest('.dlg');if(cx)cx.classList.add('dlg-larga')},
+  cb:function(v){if(v!==true){atHistFoco(id);return}
+   atContato(al,r,{assunto:opts.assunto,resumo:opts.resumo},function(){if(depois)depois();atHistorico(id,opts,depois)})}})})}
+/* a célula que abriu tudo pode ter sido redesenhada (registrar/excluir recarregam a lista): o foco volta à nova,
+   e só se ninguém o levou para outro lugar */
+function atHistFoco(id){
+setTimeout(function(){
+ var a=document.activeElement;if(a&&a!==document.body&&a.isConnected)return;
+ var b=[].filter.call(document.querySelectorAll('.at-cel-bt'),function(x){return x.dataset.atHist===String(id)&&x.offsetParent!==null})[0];
+ if(b)b.focus()},60)}
+/* excluir de dentro do histórico: a confirmação ocupa a janela, e as duas respostas voltam a ele */
+function atHistExcluir(aid){
+var H=AT_HIST;if(!H)return;
+dlgConfirmar({titulo:'Excluir este registro?',ok:'Excluir',perigo:true,
+ texto:'O atendimento some por completo.\n\nUse isto quando o registro foi erro. '
+  +'Contato que não deu em nada NÃO se apaga: é ele que prova que a escola tentou.'},
+function(sim){
+ if(!sim){atHistorico(H.id,H.opts,H.depois);return}
+ run('excluirAtendimento',[{id:aid}],function(){msg('Registro excluído.');
+  if(H.depois)H.depois();atHistorico(H.id,H.opts,H.depois)})})}
 
 /* ===== CADASTRO DOS ASSUNTOS (molde de tipo_aula e motivo_saida, terceira vez) ===== */
 var CAD_ATEND=[];
@@ -14623,7 +14701,7 @@ if(a==='ret')indRetCarregar();
 if(a==='escola'){renderDashboard();setTimeout(function(){if(TABELA_GERAL&&TABELA_GERAL.redraw)TABELA_GERAL.redraw(true)},80)}}
 function indRetMover(n){var hoje=new Date().getFullYear(),a=(IND_RET_ANO||hoje)+n;
 if(a>hoje){msg('Esse ano ainda não começou.',true);return}
-IND_RET_ANO=a;indRetCarregar()}
+IND_RET_ANO=a;IND_SERIE=null;indRetCarregar()}
 function indRetAba(a){IND_RET_ABA=a;
 document.querySelectorAll('#ind-ret-abas .pg-aba').forEach(function(b){b.classList.toggle('on',b.dataset.a===a)});
 ['saidas','evasao','atend'].forEach(function(x){var p=$('ind-ret-p-'+x);if(p)p.hidden=x!==a});
@@ -14668,7 +14746,10 @@ c.innerHTML=h}
    "por que perdemos aluno" do ano (porMotivo), que o servidor calculava e tela nenhuma mostrava. */
 function indRetEvasaoPintar(){
 var c=$('ind-ret-evasao');if(!c||!IND_RET)return;
-var r=IND_RET,ano=r.ano,fech={};((IND_SERIE&&IND_SERIE.meses)||[]).forEach(function(m){fech[m.mes]=m});
+var r=IND_RET,ano=r.ano,fech={},abert={};((IND_SERIE&&IND_SERIE.meses)||[]).forEach(function(m){fech[m.mes]=m});
+/* o mês aberto depois de um fechado vem com a conta do PEF (getSerieIPP.abertos): é nele que cai a saída de mês já
+   entregue registrada depois (R1) — pela data, ela sumia de todas as linhas */
+((IND_SERIE&&IND_SERIE.abertos)||[]).forEach(function(m){abert[m.mes]=m});
 var hojeM=String(r.hoje||'').slice(0,7),h='<table class="ret-tab ind-tab"><thead><tr><th>Mês</th><th class="c">Ativos no início</th>'
  +'<th class="c">Ativos no fim</th><th class="c">Perdas</th><th class="c">Formados</th><th class="c">Retenção</th><th>Situação</th></tr></thead><tbody>';
 for(var k=1;k<=12;k++){var m=ano+'-'+String(k).padStart(2,'0');if(m>hojeM)break;
@@ -14677,6 +14758,10 @@ for(var k=1;k<=12;k++){var m=ano+'-'+String(k).padStart(2,'0');if(m>hojeM)break;
   +'<td class="c"><b>'+f.perdas+'</b></td><td class="c">'+f.formados+'</td>'
   +'<td class="c">'+(f.retencao==null?'—':String(f.retencao).replace('.',',')+'%')+'</td>'
   +'<td><span class="pef-chip ok">'+icon('lock',11)+' entregue em '+dataCurta(String(f.fechadoEm).slice(0,10))+'</span></td></tr>';
+ else if(abert[m]){var a=abert[m];h+='<tr class="aberto"><td>'+escBloco(pefMesRot(m))+'</td><td class="c">'+(a.ativosInicio??'—')+'</td><td class="c">'+(a.ativosFim??'—')+'</td>'
+  +'<td class="c" title="a conta do PEF do mês até agora — inclui a saída de mês já entregue registrada depois">'+a.perdas+'</td><td class="c">'+a.formados+'</td>'
+  +'<td class="c">'+(a.retencao==null?'—':String(a.retencao).replace('.',',')+'%')+'</td>'
+  +'<td>aberto — a conta do PEF até agora; o número fecha no <button type="button" class="pef-lnk" onclick="PEF_ABA=\'ipp\';PEF_MES=\''+m+'\';indAba(\'pef\');pefCarregar(\''+m+'\')">PEF do mês</button></td></tr>'}
  else h+='<tr class="aberto"><td>'+escBloco(pefMesRot(m))+'</td><td class="c">—</td><td class="c">—</td>'
   +(function(){var dm=(r.saidas||[]).filter(function(s){return String(s.data).slice(0,7)===m});
     /* a régua do IPP (revisão da Wiztools 17): perda é saída COM caixa e que não é Formado; o trancado vira perda só
@@ -14686,6 +14771,9 @@ for(var k=1;k<=12;k++){var m=ano+'-'+String(k).padStart(2,'0');if(m>hojeM)break;
     return '<td class="c" title="saídas com a caixa da rede registradas até agora">'+perd+'</td><td class="c">'+form+'</td><td class="c">—</td>'})()
   +'<td>aberto — saídas registradas até agora; o número fecha no <button type="button" class="pef-lnk" onclick="PEF_ABA=\'ipp\';PEF_MES=\''+m+'\';indAba(\'pef\');pefCarregar(\''+m+'\')">PEF do mês</button></td></tr>'}
 h+='</tbody></table>';
+/* sem a série DESTE ano (ela chega ~1 s depois das saídas, ou é a do ano anterior ao trocar de ano), os meses
+   cairiam todos na conta pela data — a errada que a série corrige. Espera por ela (revisão da Wiztools 18). */
+if(!IND_SERIE||Number(IND_SERIE.ano)!==Number(ano))h='<div class="ret-vazio">Montando a série de '+ano+'…</div>';
 var mots=Object.keys(r.porMotivo||{}).sort(function(a,b){return r.porMotivo[b]-r.porMotivo[a]}),max=mots.length?r.porMotivo[mots[0]]:1;
 h+='<div class="pef-bloco"><div class="pef-bt">Por que saíram em '+ano+' <small>todas as saídas registradas no ano, pelo motivo</small></div>';
 if(!mots.length)h+='<div class="ret-vazio">Nenhuma saída registrada em '+ano+'.</div>';
@@ -15051,9 +15139,13 @@ h+='<div class="pef-bloco"><div class="pef-bt">Índices de Retenção <small>o p
 var rp=(i.rematricula||{}).ipp||{};
 h+='<div class="pef-bloco"><div class="pef-bt">Rematrícula <small>ciclo '+escBloco(((i.rematricula||{}).ciclo||{}).nome||'')+'</small></div><div class="pef-grade g3">'
  +pefCampo('Total de alunos rematriculados no ciclo',pefN(rp.rematriculados,'rrem','Rematriculados no ciclo',(rp.rematriculadosLista||[]).map(nome)),'renovaram ou mudaram de livro; cresce mês a mês')
- +pefCampo('Total de alunos a rematricular no ciclo',pefN(rp.aRematricular,'rarem','Ainda a rematricular (contrato termina no ciclo)',(rp.pendentes||[]).map(function(x){return {id:x.id,nome:x.nome,livro:x.livro,data:x.fimContrato,extra:'contrato termina'}})
+ +pefCampo('Total de alunos a rematricular no ciclo',pefN(rp.aRematricular,'rarem','A rematricular no ciclo — contrato terminando no ciclo, inclusive quem já rematriculou',(rp.pendentes||[]).map(function(x){return {id:x.id,nome:x.nome,livro:x.livro,data:x.fimContrato,extra:'contrato termina'}})
    .concat((rp.renovaramDepois||[]).map(function(x){return {id:x.id,nome:x.nome,livro:x.livro,data:x.fimContrato,extra:'renovou em '+dataCurta(x.renovouEm)+', depois do mês — contrato terminava'}}))
-   .concat((rp.encerraramSemRenovar||[]).map(function(x){return {id:x.id,nome:x.nome,livro:x.livro,data:x.terminouEm,extra:'terminou o livro e não renovou'}}))),'contrato terminando no ciclo — os que ainda faltam')
+   .concat((rp.encerraramSemRenovar||[]).map(function(x){return {id:x.id,nome:x.nome,livro:x.livro,data:x.terminouEm,extra:'terminou o livro e não renovou'}}))
+   /* o número é a soma das CINCO listas (aRematricular): sem estas duas a lista ficava menor que ele assim que
+      alguém rematriculava (Wiztools 18) */
+   .concat((rp.rematriculadosLista||[]).map(function(x){return {id:x.id,nome:x.nome,livro:x.livro,data:x.data,extra:'já rematriculado — conta nos dois números'}}))
+   .concat((rp.naoRematriculados||[]).map(function(x){return {id:x.id,nome:x.nome,livro:x.livro,data:x.data,extra:'não rematriculado (registrado)'}}))),'contrato terminando no ciclo — o denominador do percentual')
  +pefCampo('Percentual de alunos rematriculados','<span class="pef-n pct'+(rp.percentual!=null&&rp.percentual<((r.metas||{}).rematricula||80)?' baixo':'')+'">'+(rp.percentual==null?'—':String(rp.percentual).replace('.',',')+'%')+'</span>','meta: '+((r.metas||{}).rematricula||80)+'%')
  +'</div></div>';
 /* ---------- as conferências que o próprio formulário impõe ---------- */
@@ -15069,11 +15161,13 @@ return '<div class="pef-campo"><div class="pef-cr">'+escBloco(rot)+'</div><div c
 /* ===== ABA 2: A REMATRÍCULA — o "Relatorio PEF" da planilha, no mesmo formato ===== */
 function pefRemHtml(r){
 var rem=(r.ipp||{}).rematricula||{},c=rem.cabecalho||{},h='';
+/* mês fechado: o cabeçalho é o congelado no JSON — "hoje" seria mentira (Wiztools 18) */
+var quando=r.fechado&&r.fechado.em?'no fechamento ('+dataCurta(String(r.fechado.em).slice(0,10))+')':'hoje';
 var ref=pefMesRot(r.mes);
 h+='<div class="pef-rem-top">'
  +'<div class="pef-bloco pef-rem-cab"><div class="pef-bt">Alunos ativos… <small>início do ciclo '+dataCurta((rem.ciclo||{}).de||'')+'</small></div>'
  +'<table class="pef-rem-t"><tbody>'
- +'<tr class="tot"><td>Contratos ativos hoje <small class="pef-cd">— o IPP conta alunos no último dia do mês; aqui é a lista de trabalho, contrato por contrato</small></td><td class="c"><b>'+(c.ativos??'—')+'</b></td></tr>'
+ +'<tr class="tot"><td>Contratos ativos '+quando+' <small class="pef-cd">— o IPP conta alunos no último dia do mês; aqui é a lista de trabalho, contrato por contrato</small></td><td class="c"><b>'+(c.ativos??'—')+'</b></td></tr>'
  +'<tr><td>…matriculados no primeiro livro, em geral</td><td class="c">'+(c.matriculados??'—')+'</td></tr>'
  +'<tr><td>…matriculados no primeiro livro durante o ciclo</td><td class="c">'+(c.matriculadosCiclo??'—')+'</td></tr>'
  +'<tr><td>…matriculados no primeiro livro no mês do relatório (novos)</td><td class="c">'+(c.matriculadosMes??'—')+'</td></tr>'
@@ -15151,8 +15245,12 @@ var grupo=function(per,titulo){
 var semN=g.semestre?(g.semestre.slice(-2)==='S1'?'1º semestre (janeiro a março, fecha em '+pefPz(r)+'/04)':'2º semestre (abril a agosto, fecha em '+pefPz(r)+'/09)'):'';
 h+=grupo('mensal','Mensal · '+pefMesRot(r.mes));
 h+=grupo('semestral','Semestral · '+semN);
-if(g.limiteTurmas!=null)h+='<div class="pef-nota">Diagnóstico, 15 pontos (PEF p.48): com '+g.ativos+' alunos e '+g.cargaCoordenador
+if(g.limiteTurmas!=null)h+='<div class="pef-nota">Diagnóstico, 15 pontos (PEF p.48): com '+g.ativos+' alunos ativos no último dia do mês (o número do IPP) e '+g.cargaCoordenador
  +' h de carga, o coordenador pode dar no máximo <b>'+g.limiteTurmas+' turma(s)</b>.</div>';
+/* G10: professores e horários são os que valeram NO MÊS, pelo diário de vigência; antes de o diário existir,
+   a melhor resposta é a agenda do dia em que ele começou — e a tela diz isso em vez de fingir */
+if(g.agendaDe)h+='<div class="pef-nota">Professores e horários da coordenação deste mês: o diário de quem dá cada aula começou em '
+ +dataCurta(g.agendaDe)+'; para os dias antes disso vale a agenda daquele dia.</div>';
 return h}
 function pefCalendarioLnk(g){
 var ms=Object.keys(g.calendario||{}).sort();if(!ms.length)return '';
@@ -18124,11 +18222,16 @@ return '<table class="ret-tab"><thead><tr><th>Aluno</th><th>Estágio</th><th cla
   +'<td class="c"><b>'+r.seguidas+'</b>'+(r.semestre>r.seguidas?'<span class="ct-sem" title="faltas desde o início do semestre, em aulas">'+r.semestre+' no semestre</span>':'')+'</td>'
   +'<td class="c">'+(r.ultimaAula?dataCurta(r.ultimaAula)+(r.ultimaEmOutro?'<span class="ct-sem" title="ainda não foi a nenhuma aula deste estágio">em outro estágio</span>':''):'<span class="ret-nunca">nunca veio</span>')+'</td>'
   +'<td class="c">'+retDias(r.dias)+'</td>'
-  +'<td class="c at-cel">'+retContatoCel(r)+'</td>'
+  +'<td class="c at-cel"><button type="button" class="at-cel-bt" data-at-hist="'+escBloco(r.id)+'" title="ver os contatos com este aluno" onclick="ctHistRisco('+ctArg(r.id)+','+ctArg(r.livro)+')">'+retContatoCel(r)+'</button></td>'
   +'<td>'+(r.professores&&r.professores.length?r.professores.map(function(p){return '<span class="lc-pp">'+escBloco(p)+'</span>'}).join(''):'<span class="lc-vazio-cel">—</span>')+'</td>'
   +'<td class="c at-acoes"><button type="button" class="acao" onclick="ctContatoRisco('+ctArg(r.id)+','+ctArg(r.livro)+')">Registrar contato</button>'
    +'<button type="button" class="acao sec" onclick="retIrAluno('+ctArg(r.id)+')">Abrir o aluno</button></td></tr>'}).join('')
  +'</tbody></table>'}
+/* a célula "Falado" abre a conversa inteira; o registrar que nasce dela leva o mesmo resumo da linha */
+function ctHistRisco(id,livro){
+var r=(CT.risco||[]).filter(function(x){return x.id===id&&x.livro===livro})[0];if(!r)return;
+atHistorico(r.id,{assunto:r.nivel==='novo'?'reposição':'sumiu',
+ resumo:r.nome+' · '+(r.livroNome||r.livro)+' · '+r.seguidas+' aula(s) seguida(s) com falta'},function(){ctCarregar()})}
 function ctContatoRisco(id,livro){
 var r=(CT.risco||[]).filter(function(x){return x.id===id&&x.livro===livro})[0];if(!r)return;
 atContato(r,CT.riscoCtx,{assunto:r.nivel==='novo'?'reposição':'sumiu',

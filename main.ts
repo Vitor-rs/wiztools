@@ -8049,6 +8049,8 @@ const api: Record<string, (a: any) => unknown> = {
         /* a anotação passa a ser da AULA quando há registro; a do dia continua aparecendo na 1ª */
         observacao: reg ? (reg.observacao ?? ((e.seq ?? 1) === 1 && pr ? pr.observacao : null))
                   : (pr && !(regs.has(e.data) && (e.seq ?? 1) > 1) ? pr.observacao : null),
+        /* ONDE A LIÇÃO PAROU (dele, Wiztools 18): vira pílula na coluna de anotações. "" = ficou pela metade sem dizer onde */
+        parouEm: reg && reg.concluida === 0 ? (reg.parou_em || "") : null,
         quitou: quitou.get(aulaDe(e.data, e.seq)) || null,
         /* quem deu ESTA aula, quando foi registrado; senão o palpite pelo horário, como antes */
         professores: reg && profReg.has(reg.id) ? profReg.get(reg.id) : profsDe(e.data, hora),

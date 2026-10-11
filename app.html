@@ -4465,6 +4465,33 @@ body.tem-ensaio{padding-top:29px}
   font-size:11.5px;color:#202124;padding:0 7px}
 .ff-tab td.c-obs input:focus{outline:0;background:var(--azul-cl)}
 .ff-tab td.c-obs .ff-ro{color:#C2C9D2;padding-left:7px;font-size:11.5px}
+/* a célula de anotações: pílula do "parou" à esquerda, o texto numa linha, o lápis no extremo direito (Wiztools 18) */
+.ff-tab td.c-obs .ff-obs{display:flex;align-items:center;gap:5px;min-height:26px;padding:0 3px 0 6px;min-width:0}
+.ff-tab td.c-obs .ff-parou{flex:0 0 auto;max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  font-size:10.5px;font-weight:700;line-height:17px;padding:0 7px;border-radius:9px;background:#FFF1DB;color:#8A5300;
+  border:1px solid #F3D9A8}
+.ff-tab td.c-obs .ff-obs-tx{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  font-size:12px;color:var(--tx2)}
+.ff-tab td.c-obs .ff-obs-tx code{font-size:11px;background:#F1F4F7;border-radius:3px;padding:0 3px}
+.ff-tab td.c-obs .ff-obs .ff-ro{flex:1 1 auto;padding-left:1px}
+.ff-tab td.c-obs .ff-obs-ed{flex:0 0 20px;width:20px;height:20px;margin-left:auto;display:inline-flex;align-items:center;
+  justify-content:center;border:1px solid var(--borda);border-radius:50%;background:#fff;color:var(--tx2);cursor:pointer;padding:0}
+.ff-tab td.c-obs .ff-obs-ed:hover{background:var(--azul-cl);color:var(--marca);border-color:#B9CBE3}
+.ff-tab td.c-obs .ff-obs-ed svg{width:11px;height:11px}
+/* EDIÇÃO DESLIGADA: a Ficha é leitura — some o menu das notas (o valor continua à vista), o clique da S.T e o lápis */
+.ff-so-ler select.ff-edit{display:none}
+.ff-so-ler .ff-clic{cursor:default}   /* o clique é barrado no ffCiclar; o title (a regra da S.T) continua aparecendo */
+.ff-so-ler .ff-tab td.c-obs .ff-obs-ed{display:none}   /* mais específica que a regra do lápis, senão ela vence */
+.ff-so-ler input.ff-fer-obs{pointer-events:none;border-color:transparent;background:transparent}
+/* o botão "Editar ficha" no cabeçalho do contrato, à esquerda do Salvar; só na aba Ficha */
+.mat-tabs .mat-ff-ed{display:none;position:absolute;right:156px;top:4px;bottom:4px;align-items:center;gap:6px;margin:0;
+  padding:0 12px;font:inherit;font-size:12px;font-weight:600;border-radius:8px;border:1px solid #C2D8EE;background:#fff;
+  color:#517099;cursor:pointer;white-space:nowrap}
+.mat-tabs .mat-ff-ed:hover{background:#EDF3FA;color:var(--marca)}
+.mat-tabs .mat-ff-ed.on{background:#E3F4E8;border-color:#9CD2AE;color:#1D6B36}
+.mat-tabs .mat-ff-ed svg{width:13px;height:13px}
+.matricula-card[data-sub="ficha"]>.mat-tabs{padding-right:300px}
+.matricula-card[data-sub="ficha"]>.mat-tabs .mat-ff-ed{display:inline-flex}
 .ff-tab td.c-obs .ff-obs-md{display:block;max-width:100%;padding:0 7px;line-height:26px;font-size:12px;color:var(--tx2);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:help}
 /* ===== AVALIAÇÕES =====
@@ -4847,7 +4874,11 @@ button.lc-cron.parado .lc-cron-n{right:-5px;bottom:-5px;min-width:12px;height:12
 .reg-tipos-campo{flex:1 1 auto;min-height:0}
 .reg-tipos-campo>span{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
 .reg-tipos-campo>span small{font-size:10.5px;font-weight:400;color:var(--tx3);text-transform:none;letter-spacing:0}
-.reg-tipos-campo .reg-tipos{flex:1 1 auto;padding:5px 0}
+/* QUEM DÁ A ALTURA É A CAIXA DAS TAREFAS (Wiztools 18, dele: "esticado até o fundo das tarefas"); os tipos ocupam
+   essa altura e, se forem mais, ROLAM na própria caixa — com o espaçamento novo, oito tipos esticavam a janela além
+   da tela do notebook (1366×768) */
+.reg-tipos-campo .reg-tipos{flex:1 1 0;min-height:124px;overflow-y:auto;padding:5px 0;scrollbar-gutter:stable}
+@media (max-width:760px){.reg-tipos-campo .reg-tipos{flex:0 0 auto;min-height:0;overflow:visible}}
 .reg-tipos .reg-tipo{padding:7px 12px}
 .reg-tipos .reg-tipos-fio{margin:5px 12px}
 /* as tarefas esticam junto: a altura da faixa de cima é a da coluna mais alta, e as duas terminam no mesmo pé */
@@ -4898,9 +4929,13 @@ button.lc-cron.parado .lc-cron-n{right:-5px;bottom:-5px;min-width:12px;height:12
 .md-bt svg{width:15px;height:15px}
 .md-sep{width:1px;height:16px;background:#DDE3EA;margin:0 3px}
 /* 52px de partida (três linhas): a 1366×768 o formulário inteiro cabe sem rolar; quem escreve mais estica pelo canto */
-.reg-campo .md-ed textarea.md-tx{border:0;border-radius:0;box-shadow:none;min-height:52px;height:56px;resize:vertical;
-  padding:8px 10px;line-height:1.45;font-size:13px;display:block}
-.reg-campo .md-ed textarea.md-tx[hidden]{display:none}
+/* sem o `.reg-campo` (revisão): o editor também mora na janela do lápis da Ficha, e lá o textarea saía cru */
+.md-ed textarea.md-tx{border:0;border-radius:0;box-shadow:none;min-height:52px;height:56px;resize:vertical;width:100%;
+  box-sizing:border-box;font:inherit;padding:8px 10px;line-height:1.45;font-size:13px;display:block;margin:0}
+.md-ed textarea.md-tx[hidden]{display:none}
+/* só a janela do lápis (o form das janelas): o Registro de aula também é um `.dlg`, e lá o editor fica baixo */
+.dlg-form .md-ed textarea.md-tx{height:180px}
+.dlg-form .md-ed .md-ver{max-height:300px}
 .md-ver{padding:8px 12px;min-height:56px;max-height:240px;overflow:auto;font-size:13px;line-height:1.5;color:#202124}
 .md-ver h4{font-size:15px}.md-ver h5{font-size:14px}.md-ver h6{font-size:13px}
 .md-ver h4,.md-ver h5,.md-ver h6{margin:4px 0 4px;color:var(--marca);font-weight:700}
@@ -4965,7 +5000,18 @@ button.lc-cron.parado .lc-cron-n{right:-5px;bottom:-5px;min-width:12px;height:12
 .reg-hora-cx small,.reg-hora-fixa small{font-size:11px;color:var(--tx3)}
 .reg-hora-fixa{font-size:13px;color:var(--tx2);font-variant-numeric:tabular-nums;display:flex;align-items:baseline;gap:6px}
 .reg-parou input{font:inherit;font-size:13px;border:1px solid var(--borda);border-radius:7px;padding:4px 7px;margin:0;width:100%}
-.reg-conc{display:flex;flex-direction:column;gap:6px}
+/* o interruptor e o "parou em" na MESMA linha, de altura fixa: nada entra nem sai empurrando o editor (Wiztools 18) */
+.reg-conc{display:flex;flex-direction:row;align-items:center;gap:18px;min-height:34px}
+.reg-conc .reg-tg-linha{flex:0 0 auto}
+.reg-conc .reg-tg-linha.reg-reserva{visibility:hidden}
+.reg-parou{flex:0 1 420px;display:flex;align-items:center;gap:8px;min-width:0}
+.reg-parou .reg-rot{flex:0 0 auto;font-size:12.5px;font-weight:600;color:var(--tx2)}
+.reg-parou.oculto{visibility:hidden}
+.reg-conc-dlg{display:flex;flex-direction:column;gap:8px}
+.reg-conc-dlg>label:not(.dlg-l){display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;margin:0;
+  text-transform:none;font-weight:400;letter-spacing:0;color:var(--tx)}
+.reg-conc-dlg input[type=radio]{width:auto;flex:0 0 auto;margin:0;padding:0}
+.reg-conc-dlg input:disabled{opacity:.45}
 .reg-tar .reg-rot{flex-wrap:wrap}
 /* ===== A LISTA DE TRANSFERÊNCIA DAS TAREFAS (2026-09-20, dele) =====
    Duas colunas estreitas e as setas no meio, no tamanho do que já existe na janela: ela não pode crescer,
@@ -6751,6 +6797,8 @@ else if(e.key==='Enter'&&DLG.tipo!=='escolher'){
      "Fechar" ou na lixeira do histórico abria o Registrar, e no "Cancelar" de uma confirmação confirmava. Botão
      fora da janela (atrás do fundo) continua sem receber o Enter. */
   if(e.target&&e.target.tagName==='BUTTON'&&DLG.fundo.contains(e.target))return;
+  /* num TEXTAREA o Enter é quebra de linha; Ctrl+Enter confirma (Wiztools 18: o editor de anotações dentro da janela) */
+  if(e.target&&e.target.tagName==='TEXTAREA'&&!(e.ctrlKey||e.metaKey))return;
   e.preventDefault();
   var b=DLG.pe.querySelector('.dlg-ok');if(b)b.click()}
 }
@@ -7492,7 +7540,8 @@ if(r.semAgenda){c.innerHTML=planAviso('Este contrato ainda não tem dias na agen
 var f=r.ficha||[];
 if(!f.length){c.innerHTML=planAviso('Nenhuma aula lançada ainda neste contrato: a ficha mostra o que aconteceu, e ainda não aconteceu nada.');return}
 
-var h='<div class="ff-moldura"><table class="ff-tab">'
+FICHA_LINHAS=f;
+var h='<div class="ff-moldura'+(FF_EDITAR?'':' ff-so-ler')+'"><table class="ff-tab">'
  /* O <colgroup> É A ORDEM DELE: *"a largura total dela é a largura fixa"*. Com table-layout:fixed
     estas larguras são lei; Lição e Observações, sem largura, dividem entre si a sobra da tela. */
  +'<colgroup>'
@@ -7566,7 +7615,8 @@ f.forEach(function(l,i){
   /* no "N", o motivo é CAMPO (planObs grava presenca.observacao, com o livro e o dono da Ficha): a faixa era
      só texto e o dia perdeu a única caixa que grava a anotação dele (revisão da Wiztools 17) */
   var celNome=l.tipo==='naoaula'
-   ?'Não houve aula:<input class="ff-fer-obs" value="'+escBloco(l.observacao||'')+'" placeholder="motivo (professor faltou, evento…)"'
+   ?'Não houve aula:<input class="ff-fer-obs" value="'+mdEsc(l.observacao||'')+'" placeholder="motivo (professor faltou, evento…)"'
+     +(FF_EDITAR?'':' readonly tabindex="-1"')
      +' onchange="planObs(&quot;'+escBloco(l.data)+'&quot;,this)">'
    :escBloco(nome);
   /* QUANDO O FERIADO ABRE A SEMANA, o azul vence o cinza: ordem dele — *"a borda mais importante
@@ -7670,12 +7720,10 @@ f.forEach(function(l,i){
    +'</td>'
   /* a anotação é do LANÇAMENTO, e o lançamento é um por dia: a 2ª lição do mesmo dia não ganha
      caixa própria, senão haveria duas caixas gravando no mesmo campo */
-  +'<td class="c-obs'+hx+'">'+(falta?''
+  +'<td class="c-obs'+hx+'" id="ff-obs-'+i+'">'+(falta?''
      /* dia com registro de aula: a anotação é de CADA aula. Sem registro, continua sendo do dia, na 1ª */
-     :l.diaComRegistro
-      ?ffObsCel(l.observacao,'ffGravar(this,&quot;'+escBloco(l.data)+'&quot;,'+l.seq+',&quot;observacao&quot;)')
-     :!l.segueDia
-      ?ffObsCel(l.observacao,'planObs(&quot;'+escBloco(l.data)+'&quot;,this)')
+     :l.diaComRegistro?ffObsCel(l,'reg',i)
+     :!l.segueDia?ffObsCel(l,'dia',i)
       :'<span class="ff-ro">—</span>')+'</td>'
   /* ===== AVALIAÇÕES ===== onde houve aula — com lição ou sem: avaliar uma falta não quer dizer nada,
      mas a aula de tarefa se avalia (a chave é a AULA, data + seq). */
@@ -7728,16 +7776,68 @@ function ffAval(l,campo,hx){
    uma linha o navegador tira as quebras: a primeira edição pela Ficha achatava tudo. Com mais de uma linha a célula só
    MOSTRA (a lista vira " · "), e edita-se no Registro de aula. E as aspas vão escapadas no value: uma anotação com "
    perdia tudo o que vinha depois delas. */
-function ffObsCel(v,onch){
- v=v||'';
+/* ===== A CÉLULA DE ANOTAÇÕES (Wiztools 18, dele) =====
+   *"O aluno parou na atividade 33 da lição X: essa atividade 33 vai estar dentro da ficha, na coluna de observações e
+   anotações, como uma pílula... alinhado à esquerda. Se eu colocar qualquer coisa no bloco de anotações do formulário,
+   vai ser texto normal, formatado em Markdown. Pra editar, um pequeno lápis bem no extremo direito da célula, que abre um
+   campo de texto na frente da tela."* A célula só MOSTRA (pílula + o texto numa linha, com o Markdown inline); quem
+   edita é a janela (ffObsEditar), com o mesmo editor do Registro de aula — e o lápis só aparece com a edição ligada. */
+function ffObsLinha(v){
+ return String(v||'').split('\n').map(function(x){
+  return x.replace(/^\s*(?:[-*+]\s+(?:\[[ xX]\]\s+)?|\d+[.)]\s+|#{1,6}\s+|>\s?)/,'').trim()})
+  .filter(Boolean).map(function(x){return mdInline(mdEsc(x))}).join(' · ')}
+function ffObsCel(l,modo,i){
  var at=function(t){return escBloco(t).replace(/"/g,'&quot;')};
- if(v.indexOf('\n')>=0){
-  /* a linha da Ficha mostra o TEXTO, sem as marcas do Markdown (**, - [ ], #, >); o title guarda o original */
-  var plano=v.split('\n').map(function(l){return l.replace(/^\s*(?:[-*+]\s+(?:\[[ xX]\]\s+)?|\d+\.\s+|#{1,6}\s+|>\s?)/,'')
-   .replace(/\*\*|__|~~|`/g,'').trim()}).filter(Boolean).join(' · ');
-  return '<span class="ff-obs-md" title="'+at(v+'\n\n(várias linhas: edite no Registro de aula)')+'">'
-   +escBloco(plano)+'</span>'}
- return '<input value="'+at(v)+'" placeholder="—" onchange="'+onch+'">'}
+ var v=l.observacao||'';
+ var pil=l.parouEm!=null
+  ?'<span class="ff-parou" title="a lição ficou pela metade'+(l.parouEm?' — parou em '+at(l.parouEm):'')+'">'
+   /* só a atividade dentro da pílula ("atividade 33", dele): a cor âmbar é o "parou"; a frase inteira fica no title */
+   +escBloco(l.parouEm||'parou no meio')+'</span>':'';
+ var tx=v?'<span class="ff-obs-tx" title="'+at(v)+'">'+ffObsLinha(v)+'</span>':(pil?'':'<span class="ff-ro">—</span>');
+ return '<div class="ff-obs">'+pil+tx
+  +'<button type="button" class="ff-obs-ed" title="Editar a anotação desta aula" aria-label="Editar a anotação"'
+  +' onclick="ffObsEditar('+i+',&quot;'+modo+'&quot;)">'+icon('pencil',11)+'</button></div>'}
+/* a janela do lápis: o editor de Markdown do Registro de aula, por cima da tela. Com registro, grava na anotação DESTA
+   aula (a mesma do formulário da Freq. Sala); sem registro, na do dia (presença). */
+function ffObsEditar(i,modo){
+ var l=(FICHA_LINHAS||[])[i];if(!l)return;
+ if(!FF_EDITAR){msg('Ligue "Editar ficha" para mudar a anotação.',true);return}
+ if(!telaDoAluno(FICHA_ID,'A ficha na tela'))return;
+ var antes=l.observacao||'';
+ dlgAbrir({tipo:'confirmar',titulo:'Anotação — '+ffData(l.data)+(l.seq>1?' · '+l.seq+'ª aula':''),ok:'Salvar',
+  form:mdEditorHtml(antes,'obs-ficha'),
+  /* os ouvintes vão no EDITOR, que nasce a cada abertura — o form da janela é o mesmo no app inteiro, e prendê-los nele
+     os empilhava: da 2ª abertura em diante o negrito, a lista e o Enter se anulavam aos pares (revisão) */
+  aoAbrir:function(f){if(DLG&&DLG.cx)DLG.cx.classList.add('dlg-larga');
+   var ed=f.querySelector('.md-ed');
+   ed.addEventListener('click',function(e){mdClique(e)});ed.addEventListener('keydown',function(e){mdTecla(e)});
+   var ta=ed.querySelector('textarea');if(ta)setTimeout(function(){ta.focus()},40)},
+  coletar:function(f){return f.querySelector('textarea.md-tx').value},
+  cb:function(v){
+   if(typeof v!=='string'||v===antes)return;
+   var feito=function(){l.observacao=v;var td=document.getElementById('ff-obs-'+i);
+    if(td)td.innerHTML=ffObsCel(l,modo,i);msg('Anotação salva.')};
+   if(modo==='reg')run('salvarAvaliacaoFicha',[{idMatricula:alSel.id,livro:FICHA_LIVRO,data:l.data,seq:l.seq,
+    campo:'observacao',valor:v,vista:antes}],feito);
+   else run('salvarObservacaoAula',[{idMatricula:alSel.id,livro:FICHA_LIVRO,data:l.data,texto:v}],feito)}})}
+/* ===== EDITAR A FICHA LIGA E DESLIGA (Wiztools 18, dele) =====
+   *"Eu posso ativar ou desativar a edição da ficha de frequência direto nela, qualquer campo editável."* Desligada, a
+   Ficha é leitura: os menus das notas, o clique da S.T, o motivo do "não aula" e o lápis das anotações saem. A escolha
+   fica guardada nesta máquina. */
+var FF_EDITAR=(function(){try{return localStorage.getItem('wiz-ff-editar')==='1'}catch(e){return false}})();
+var FICHA_LINHAS=[];
+function ffAlternarEdicao(){
+ FF_EDITAR=!FF_EDITAR;
+ try{localStorage.setItem('wiz-ff-editar',FF_EDITAR?'1':'0')}catch(e){}
+ document.querySelectorAll('.ff-moldura').forEach(function(m){m.classList.toggle('ff-so-ler',!FF_EDITAR)});
+ document.querySelectorAll('.ff-moldura input.ff-fer-obs').forEach(function(x){
+  if(FF_EDITAR){x.removeAttribute('readonly');x.removeAttribute('tabindex')}else{x.setAttribute('readonly','');x.setAttribute('tabindex','-1')}});
+ document.querySelectorAll('.mat-ff-ed').forEach(ffEdBotao);
+ msg(FF_EDITAR?'Edição da ficha ligada.':'Ficha só para leitura.')}
+function ffEdBotao(b){
+ b.classList.toggle('on',FF_EDITAR);b.setAttribute('aria-pressed',FF_EDITAR?'true':'false');
+ b.innerHTML=icon('pencil',13)+'<span>'+(FF_EDITAR?'Edição ligada':'Editar ficha')+'</span>';
+ b.title=FF_EDITAR?'Clique para voltar a ficha a só leitura':'Clique para editar as notas e as anotações direto na ficha'}
 function ffAvalDupla(l,hx){
  var e=(l.av&&l.av.escrita)||'', t=(l.av&&l.av.tarefa)||'';
  if(!ffPode(l))return '<td class="c-av2'+hx+'"></td>';
@@ -7804,6 +7904,7 @@ function ffNivel(l,campo,hx){
    servidor só confirma.
    A CHAVE É A AULA — data e seq — desde 2026-09-13: a nota é do que o aluno fez naquela aula. */
 function ffGravar(el,data,seq,campo){
+ if(!FF_EDITAR){msg('Ligue "Editar ficha" para mudar a ficha.',true);return}
  if(!telaDoAluno(FICHA_ID,'A ficha na tela'))return;
  var v=el.value;
  var cel=el.closest('label.ff-cel'), meia=el.closest('.ff-av2>span');
@@ -7834,6 +7935,7 @@ function ffGravar(el,data,seq,campo){
   function(){/* gravou: a tela já está certa */});
 }
 function ffCiclar(td,data,seq){
+ if(!FF_EDITAR)return;
  if(!telaDoAluno(FICHA_ID,'A ficha na tela'))return;
  var campo=td.dataset.campo, ciclo=FF_CICLO[campo];
  var i=ciclo.indexOf(td.dataset.v||''), prox=ciclo[(i<0?0:i+1)%ciclo.length];
@@ -8689,6 +8791,7 @@ var n=0;(function tenta(){
    PLANEJAMENTO: sem ele aberto naquele contrato, o servidor não achava o lançamento e a anotação se perdia
    com "esta aula ainda não foi lançada" (Wiztools 17). O livro é o da Ficha que está na tela. */
 function planObs(data,el){
+if(el&&el.closest&&el.closest('.ff-moldura')&&!FF_EDITAR){el.value=el.defaultValue;msg('Ligue "Editar ficha" para mudar a ficha.',true);return}
 if(!telaDoAluno(FICHA_ID,'A ficha na tela'))return;
 run('salvarObservacaoAula',[{idMatricula:alSel.id,livro:FICHA_LIVRO,data:data,texto:el.value}],function(){
  msg('Anotação salva.')})}
@@ -9391,6 +9494,10 @@ corpoIn.appendChild(previewBox);
 var salvarBtn=document.createElement('button');salvarBtn.type='button';
 salvarBtn.className='acao mat-salvar';salvarBtn.textContent='Salvar contrato';
 tabs.appendChild(salvarBtn);
+/* "Editar ficha" mora no cabeçalho do contrato, à esquerda do Salvar, e só aparece na aba Ficha (Wiztools 18, dele) */
+var ffEd=document.createElement('button');ffEd.type='button';ffEd.className='mat-ff-ed';
+ffEd.onclick=function(ev){ev.stopPropagation();ffAlternarEdicao()};ffEdBotao(ffEd);
+tabs.appendChild(ffEd);
 /* ===== O WATCHDOG DE ALTERAÇÕES =====
    *"É que nem o Excel: qualquer coisinha que mude ele fica azul escuro; se eu desfizer e o estado
    voltar ao que era, o botão volta ao normal."* Não basta um sinalizador de "mexeram" — tem de
@@ -13960,6 +14067,9 @@ document.addEventListener('keydown',function(e){
  if(!f.classList.contains('on'))return;
  /* com uma confirmação aberta por cima, é ela que responde ao teclado */
  if(typeof DLG!=='undefined'&&DLG&&DLG.fundo.classList.contains('on'))return;
+ /* a confirmação de cima JÁ respondeu a esta tecla (e fechou antes de chegar aqui): o Esc da pergunta "a lição foi
+    concluída?" fechava também o Registro inteiro, e tudo o que fora preenchido se perdia (revisão da Wiztools 18) */
+ if(e.defaultPrevented)return;
  if(e.key==='Escape'){e.preventDefault();regFechar()}
  else if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();regSalvar()}
 });
@@ -14010,7 +14120,9 @@ run('getRegistroAula',[{idMatricula:o.idMatricula,livro:o.livro,data:o.data,hora
  var lic=(g.licaoOrdem!=null?g.licaoOrdem:d.sugestao.licaoOrdem);
  REG_EST.sel={seq:d.seq,licaoOrdem:lic,aulaN:'',aulaEditada:g.aulaN!=null,
   /* o que esta aula fez da lição, e a que horas ela começou (2026-09-19) */
-  concluida:(g.concluida==null?null:!!g.concluida),parouEm:g.parouEm||'',inicio:g.inicio||'',
+  concluida:(g.concluida==null?null:!!g.concluida),parouEm:g.parouEm||'',
+  /* o que já estava gravado: um "não" que já foi respondido num salvar anterior não se pergunta de novo */
+  concOrig:(g.concluida==null?null:!!g.concluida),licOrig:(g.licaoOrdem!=null?g.licaoOrdem:null),inicio:g.inicio||'',
   profs:d.profs.slice(),tipos:d.tiposSel.slice(),
   observacao:(g.observacao!=null?g.observacao:(d.observacaoDia||'')),
   fala:g.fala||'',audicao:g.audicao||'',leitura:g.leitura||'',escrita:g.escrita||'',
@@ -14371,7 +14483,7 @@ var c=REG.corpo.querySelector('.reg-continua-l');if(c)c.innerHTML=regLicContinua
 function regConcluidaPintar(semFoco){var b=REG.corpo.querySelector('.reg-conc');if(b)b.innerHTML=regConcluidaHtml();
 /* a etiqueta do campo da lição acompanha a resposta: dizer "sim" aqui é dizer "feita" lá */
 regLicPilulasPintar();
-var i=REG.corpo.querySelector('[data-f="parouEm"]');if(i&&!semFoco)i.focus()}
+var i=REG.corpo.querySelector('[data-f="parouEm"]');if(i&&!semFoco&&REG_EST.sel.concluida===false)i.focus()}
 /* ===== UMA ETIQUETA SÓ, COLADA NA LIÇÃO ESCOLHIDA (2026-09-20, dele) =====
    *"Pega essas duas pílulas, diminui o tamanho delas... depois da lição 50, a pílula azul com o ícone de
    alvo escrito 'a fazer'. Aí, se ela fez a lição já, foi concluída, vai ser 'feita'."*
@@ -14420,22 +14532,28 @@ return '<span class="reg-continua" title="'+escBloco('Na aula anterior ela não 
    lição (main.ts, `continuaLicao`), então um "não" automático em todo registro travaria o livro na
    sugestão. Por isso: nasce desligado e apagado; o primeiro clique LIGA (concluída); daí em diante
    alterna entre concluída e "parou no meio", e só nesse caso o campo do onde-parou aparece. */
+/* ===== O "PAROU EM" MORA À DIREITA DO INTERRUPTOR (Wiztools 18, dele) =====
+   *"Ele empurra o text box de edição de Markdown pra baixo... ele deve ocupar à direita do toggle, tem um espaço vazio.
+   Quando você tem um elemento que empurra outro no formulário, isso quebra todo o layout."* A linha tem altura FIXA e o
+   campo existe sempre: com a lição concluída ele só fica invisível, sem sair do lugar. Aula sem conteúdo também guarda a
+   linha (invisível) — sumir com ela fazia o editor subir. E o padrão é "não concluída": o interruptor nasce desligado
+   e o salvar PERGUNTA (regPerguntarConclusao), para o "não" nunca ser automático (ver `continuaLicao` no servidor). */
 function regConcluidaHtml(){
 var s=REG_EST.sel;
-if(regSemConteudo())return '';
+if(regSemConteudo()||(REG_EST.dados&&REG_EST.dados.semEstrutura))return '<div class="reg-tg-linha reg-reserva" aria-hidden="true"><span class="reg-tg"></span>'
+ +'<span class="reg-tg-rot">A lição foi concluída?<small>—</small></span></div>';
 var on=s.concluida===true, disse=s.concluida!=null;
 return '<div class="reg-tg-linha">'
- +'<button type="button" class="reg-tg'+(on?' on':'')+(disse?'':' neutro')+'" role="switch"'
+ +'<button type="button" class="reg-tg'+(on?' on':'')+'" role="switch"'
  +' aria-checked="'+(on?'true':'false')+'" data-campo="concluida" data-v="alterna"'
- +' title="'+(disse?(on?'a lição foi dada inteira':'ela ficou pela metade')
-   :'ninguém respondeu ainda — clique para dizer que foi concluída')+'">'
+ +' title="'+(on?'a lição foi dada inteira — clique se ela ficou pela metade':'clique se a lição foi dada inteira')+'">'
  +'<span class="reg-tg-p"></span></button>'
  +'<span class="reg-tg-rot">A lição foi concluída?<small>'
- +(disse?(on?'sim, foi dada inteira':'não, parou no meio'):'ainda não respondido')+'</small></span>'
+ +(on?'sim, foi dada inteira':disse?'não, parou no meio':'não (você confirma ao salvar)')+'</small></span>'
  +'</div>'
- +(s.concluida===false?'<div class="reg-linha reg-parou"><span class="reg-rot">Parou em</span>'
-  +'<input data-f="parouEm" maxlength="60" value="'+escBloco(s.parouEm||'')+'"'
-  +' placeholder="atividade 4, página 32, exercise B…"></div>':'')}
+ +'<div class="reg-parou'+(on?' oculto':'')+'"'+(on?' aria-hidden="true"':'')+'><span class="reg-rot">Parou em</span>'
+ +'<input data-f="parouEm" maxlength="60" value="'+mdEsc(s.parouEm||'')+'"'+(on?' tabindex="-1"':'')
+ +' placeholder="atividade 33, página 32, exercise B…"></div>'}
 
 /* a hora desta aula: a 1ª começa na entrada do dia (só se mostra); da 2ª em diante o relógio carimbou
    sozinho quando ela foi criada, e dá para corrigir */
@@ -14532,7 +14650,8 @@ if(campo==='concluida'){
     metade. Nunca volta ao não-dito, porque a partir do momento em que ele responde, há resposta. */
  if(v==='alterna')s.concluida=(s.concluida===true)?false:true;
  else{var quer=(v==='sim');s.concluida=(s.concluida===quer)?null:quer}
- if(s.concluida!==false)s.parouEm='';
+ /* o "parou em" digitado FICA ao ligar: só não vai ao servidor com a lição concluída (regSalvar) — religar e desligar
+    não pode jogar fora o que o professor escreveu (Wiztools 18) */
  regConcluidaPintar();return}
 s[campo]=(String(s[campo])===String(v))?'':v;
 bt.closest('.reg-seg').querySelectorAll('.reg-op').forEach(function(o){
@@ -14601,11 +14720,38 @@ else s.tarEntregues=s.tarEntregues.filter(function(k){return marcadas.indexOf(k)
 regTarefaPintar()}
 function regTarefaPintar(){var b=REG.corpo.querySelector('.reg-tarefa');if(b)b.innerHTML=regTarefaHtml()}
 
+/* ===== "A LIÇÃO FOI CONCLUÍDA?" NA HORA DE SALVAR (Wiztools 18, dele) =====
+   *"Por padrão o aluno não finalizou a lição. Só que ao salvar o registro da aula, ele deve colocar um alerta: aula
+   finalizada, sim ou não."* Nasce marcado no NÃO, com o "parou em" do formulário já no campo. O que ele responder vira o
+   estado do interruptor; cancelar não salva nada. */
+function regPerguntarConclusao(depois){
+var s=REG_EST.sel,d=REG_EST.dados;
+var lic=(d.licoes||[]).filter(function(l){return l.ordem===s.licaoOrdem})[0];
+dlgAbrir({tipo:'confirmar',titulo:'A lição foi concluída?',ok:'Salvar',
+ texto:(lic?lic.licao+' — ':'')+'Se ela ficou pela metade, diga onde ele parou: vira uma pílula nas anotações da Ficha de frequência.',
+ form:'<div class="reg-conc-dlg">'
+  +'<label><input type="radio" name="reg-conc" value="sim"> Sim, foi dada inteira</label>'
+  +'<label><input type="radio" name="reg-conc" value="nao" checked> Não, parou no meio</label>'
+  +'<label class="dlg-l">Parou em<input id="reg-conc-parou" maxlength="60" value="'+mdEsc(s.parouEm||'')+'"'
+  +' placeholder="atividade 33, página 32, exercise B…"></label></div>',
+ aoAbrir:function(f){var p=f.querySelector('#reg-conc-parou');
+  var liga=function(){p.disabled=f.querySelector('input[value="sim"]').checked};
+  f.querySelectorAll('input[name="reg-conc"]').forEach(function(x){x.addEventListener('change',liga)});liga()},
+ coletar:function(f){return {sim:f.querySelector('input[value="sim"]').checked,parou:f.querySelector('#reg-conc-parou').value.trim()}},
+ cb:function(v){
+  if(!v||typeof v!=='object')return;
+  s.concluida=!!v.sim;if(!v.sim)s.parouEm=v.parou;s.concPerguntada=true;
+  regConcluidaPintar(true);depois()}})}
 function regSalvar(){
 var r=REG;if(!REG_EST||!REG_EST.dados||r.salvar.disabled)return;
 var d=REG_EST.dados,s=REG_EST.sel,o=REG_EST.o;
 var sem=regSemConteudo();
 if(!sem&&!d.semEstrutura&&s.licaoOrdem==null){r.av.textContent='Escolha a lição da aula.';return}
+/* o interruptor desligado é o padrão, e o padrão PERGUNTA (Wiztools 18, dele): "aula finalizada, sim ou não" */
+/* o "não" já gravado só dispensa a pergunta para a MESMA lição: trocar a lição é outra resposta (revisão) */
+if(!sem&&!d.semEstrutura&&s.concluida!==true&&!s.concPerguntada
+   &&!(s.concluida===false&&s.concOrig===false&&s.licaoOrdem===s.licOrig)){
+ regPerguntarConclusao(function(){regSalvar()});return}
 /* o que mudou na lista de tarefas: o que entrou é entrega desta aula, o que saiu se desfaz */
 var porK={};(d.tarefas||[]).forEach(function(x){porK[regTarKey(x)]=x});
 var entregues=s.tarEntregues.filter(function(k){return s.tarInicial.indexOf(k)<0}).map(function(k){return porK[k]});

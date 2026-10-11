@@ -631,6 +631,11 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
 .mat-duplas .al-hist h3{font-size:12px;margin-bottom:6px}
 /* rolagem interna: a coluna tem a altura da matriz de horas ao lado, e é ela que manda */
 .mat-duplas #hist-corpo,.mat-duplas #hhist-corpo{max-height:330px;overflow:auto}
+/* UMA rolagem só por coluna (auditoria da Wiztools 18): a lista de dentro herdava o teto de 300px da `.al-hist` e,
+   com o formulário "+" aberto, aparecia uma barra dentro da outra. Quem rola é o #hist-corpo. */
+.mat-duplas .freq-lista{max-height:none;overflow:visible}
+/* a prévia da turma tem teto dentro do cartão: turma grande empurrava a matriz de horas para fora da vista */
+.mat-corpo .prev-box{max-height:40vh}
 /* ===== LINHAS ESTREITAS =====
    *"Tem um espaço branco enorme entre o texto e o lapisinho... não precisa disso tudo."*
    O texto para de esticar (`space-between` jogava as ações na outra ponta da coluna) e os botões
@@ -668,7 +673,7 @@ button.acao:disabled{background:#C7CCD3;color:#454C55;cursor:not-allowed;animati
 /* O TRILHO ENCOSTA NO CONTRATO. Eram 35px de vão — 16 da margem do trilho (que `.pg-topo .pg-abas`
    vencia por especificidade) e 19 do respiro do miolo. Com eles no lugar, as abas pareciam soltas
    acima de uma caixa qualquer em vez de serem a borda de cima dela. */
-#al-mat-abas .mat-abas{margin:0}
+#al-mat-abas .mat-abas{margin:0;flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden}   /* muitos contratos: o trilho rola de lado em vez de roubar altura do cartão */
 #tab-alunos .pg-corpo{padding-top:0}
 /* o convite quando nenhuma aba está aberta — que é como o aluno abre, de propósito */
 .mat-escolha{margin:0}
@@ -1472,6 +1477,8 @@ th.ev.ultima .es-ev-data{background:var(--marca);color:#fff}
   border-radius:6px;padding:0 5px;margin-right:4px;cursor:pointer}
 .plan-lic-bt:hover{border-color:var(--borda);background:#F7F9FB}
 .plan-lic-bt.dita{color:#155724}
+/* o registro da aula diz outra lição: a linha avisa em vez de afirmar (Wiztools 18) */
+.plan-lic-bt.desloc,.pl-sig i.desloc,.ff-sig[data-desloc]{box-shadow:inset 0 0 0 1.5px #D97706;border-radius:4px}
 .plan-lic-bt.dita::after{content:"";display:inline-block;width:5px;height:5px;border-radius:50%;
   background:#2E9E5B;margin-left:5px;vertical-align:middle}
 .plan-lic-in{width:96px;padding:2px 6px;font-size:12px}
@@ -1549,6 +1556,13 @@ th.ev.ultima .es-ev-data{background:var(--marca);color:#fff}
 /* os encontros marcados (2026-09-13): uma linha por encontro, com o que aconteceu nele. O que não
    aconteceu é o que ele quer achar de relance — a linha inteira fica rosada */
 .enc-marcados{margin-top:14px}
+/* ===== ENCAMINHAMENTOS NO NOTEBOOK (Wiztools 18, dele) =====
+   *"Eu não consigo visualizar todas as filas de falta... deveria ter o seu próprio container com scrolling, assim
+   como as anteposições ou qualquer tipo de lista."* Era a única sub-aba do contrato sem regra de rolagem: o
+   `.mat-slot` é `overflow:hidden` e cortava o que passava da altura (a 1366×768, medido: 1294px de conteúdo numa
+   caixa de 376). Agora a aba inteira rola, e cada lista tem a sua caixa, com ~8 linhas e rolagem própria. */
+.matricula-card[data-sub="enc"]>.mat-slot{overflow:auto;scrollbar-gutter:stable}
+.enc-fila{max-height:260px;overflow-y:auto;scrollbar-gutter:stable;padding-right:2px}
 .enc-mk li{gap:10px}
 .enc-h{flex:0 0 auto;font-variant-numeric:tabular-nums;color:var(--tx3);font-size:11.5px}
 .enc-mot{flex:0 0 auto;font-size:11.5px;color:var(--tx2);font-weight:600;min-width:86px}
@@ -1713,6 +1727,18 @@ th.ev.ultima .es-ev-data{background:var(--marca);color:#fff}
 .prog-tab .c-lic2{width:104px}
 .prog-tab .c-lic2 i{font-style:normal;font-weight:700;color:var(--tx2)}
 .prog-tab .c-falta,.prog-tab .c-bl,.prog-tab .c-def{width:78px;font-variant-numeric:tabular-nums}
+/* tabela única da Rematrícula (Wiztools 18): os blocos sob o Faltam, o tipo sob o estágio, o selo do IPP do ciclo */
+.prog-tab .c-falta small,.prog-tab .c-est small{display:block;color:var(--tx3);font-size:10.5px;font-weight:400}
+.prog-tab .c-ipp{width:118px}
+.prog-tab th.c-ipp small{display:block;font-weight:400;text-transform:none;color:var(--tx3)}
+.prog-tab td.c-ipp .pef-chip{white-space:normal;line-height:1.25}
+/* caber em 1366 px sem rolar de lado: o cabeçalho quebra em duas linhas, e o nome da lição vem com reticências (o
+   nome inteiro fica no title) */
+.prog-tab thead th,.prog-tab thead th[class]{white-space:normal;line-height:1.15;vertical-align:bottom}
+.prog-tab .c-al{min-width:160px}
+.prog-tab td.c-lic2 i{display:block;max-width:118px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.prog-l.fora td{background:#FCFCFD}
+.prog-fora{display:inline-block;max-width:118px;font-size:11px;line-height:1.25;color:#8a5a00;background:#FFF8E1;border-radius:8px;padding:1px 7px}
 .prog-l{cursor:pointer}
 .prog-l:hover td{background:#F7F9FB}
 /* a linha de quem está a dois blocos do fim é o ponto da tela: ela se anuncia sem precisar de ícone */
@@ -4439,6 +4465,8 @@ body.tem-ensaio{padding-top:29px}
   font-size:11.5px;color:#202124;padding:0 7px}
 .ff-tab td.c-obs input:focus{outline:0;background:var(--azul-cl)}
 .ff-tab td.c-obs .ff-ro{color:#C2C9D2;padding-left:7px;font-size:11.5px}
+.ff-tab td.c-obs .ff-obs-md{display:block;max-width:100%;padding:0 7px;line-height:26px;font-size:12px;color:var(--tx2);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:help}
 /* ===== AVALIAÇÕES =====
    MESMA fonte e MESMO estilo nas oito colunas, por ordem dele — a ficha tem de parecer uma
    planilha, não oito controles diferentes lado a lado. O quadradinho preenche a célula menos o
@@ -4652,27 +4680,36 @@ button.lc-cron.parado .lc-cron-n{right:-5px;bottom:-5px;min-width:12px;height:12
    na borda de cima. Agora é a mesma aba de `.lc-aba`: nada de fundo, o realce é a COR e o traço
    embaixo — e o "+" deixou de flutuar no canto direito para virar a próxima aba da fila, que é o que
    ele é: *"coloca uma aba extra, como se fosse um botão, dependendo da quantidade de aulas."* */
-.reg-dia{display:flex;gap:2px;align-items:flex-end;padding:0 16px;border-bottom:1px solid var(--borda);
-  background:#fff;min-height:0}
-.reg-dia:empty{display:none}
-.reg-chip{appearance:none;border:0;border-bottom:2px solid transparent;background:none;border-radius:0;
-  padding:9px 14px 8px;font:inherit;font-size:12.5px;font-weight:600;color:var(--tx2);cursor:pointer;
-  display:flex;gap:7px;align-items:center;margin-bottom:-1px;transition:color .12s,border-color .12s}
-.reg-chip:hover{color:var(--marca)}
-.reg-chip.on{color:var(--marca);border-bottom-color:var(--marca)}
+/* ===== NO ESTILO DAS ABAS DO CONTRATO, COM O "+" DE NAVEGADOR (Wiztools 18, dele) =====
+   *"Eu quero que ela fique no estilo das abas lá do contrato do aluno, com um fundo levemente azulado. Aí no lado
+   dela você coloca um botão de mais, como se fosse um navegador de internet... coloco o mouse em cima, ele fica
+   redondinho, o mais fica com um círculo."* A aba é a do contrato (`.mat-abas .pg-aba`): azul-claro, cantos de
+   cima redondos, a ativa branca emendando com o formulário. O "+" vem colado à última, e o círculo só no hover. */
+.reg-dia{display:flex;gap:4px;align-items:flex-end;padding:9px 16px 0;border-bottom:1px solid var(--borda);
+  background:#F7FAFD;min-height:0}
+.reg-chip{appearance:none;font:inherit;font-size:12.5px;font-weight:600;color:var(--tx2);cursor:pointer;
+  display:flex;gap:7px;align-items:center;padding:7px 14px 8px;margin:0;background:#EDF3FA;
+  border:1px solid var(--borda);border-bottom:0;border-radius:10px 10px 0 0;transition:background .12s,color .12s}
+.reg-chip:hover{background:#E3EDF8;color:var(--marca)}
+.reg-chip.on{background:#fff;color:var(--marca);font-weight:700;position:relative;z-index:1;margin-bottom:-1px;
+  padding-bottom:9px}
 .reg-chip i{font-style:normal;font-weight:400}
 .reg-chip u{text-decoration:none;font-weight:400;font-variant-numeric:tabular-nums;color:var(--tx3)}
 .reg-chip-lic{font-weight:800;border-radius:9px;padding:0 6px;line-height:17px;font-size:11.5px;
-  background:#EEF3F8;color:var(--tx2)}
+  background:#fff;color:var(--tx2)}
 .reg-chip.on .reg-chip-lic{background:var(--marca);color:#fff}
 .reg-chip.on u{cursor:pointer;text-decoration:underline dotted;color:var(--tx2)}
 .reg-chip small{font-size:10px;font-weight:600;opacity:.85}
 /* a aba JÁ REGISTRADA ganha um ponto verde antes do texto, em vez de mudar a cor da letra inteira */
 .reg-chip.feita::before{content:'';width:5px;height:5px;border-radius:50%;background:#2d9147;flex:0 0 5px}
-/* o "+" é a aba seguinte: mesma altura, mesma linha, tracejado para dizer que ainda não existe */
-.reg-chip-mais{margin-left:0;font-weight:700;color:var(--tx3);padding:9px 13px 8px;
-  border-bottom:2px dashed transparent}
-.reg-chip-mais:hover{color:var(--marca);border-bottom-color:#C9D6E2}
+.reg-chip-mais{appearance:none;border:0;background:none;padding:0;margin:0 0 5px 2px;width:28px;height:28px;
+  flex:0 0 28px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--tx2);
+  cursor:pointer;transition:background .12s,color .12s}
+.reg-chip-mais:hover{background:#DCE7F3;color:var(--marca)}
+.reg-chip-mais:focus-visible{outline:2px solid var(--azul);outline-offset:1px}
+.reg-chip-mais svg{width:16px;height:16px}
+.reg-chip-mais.trava{opacity:.4;cursor:not-allowed}
+.reg-chip-mais.trava:hover{background:none;color:var(--tx2)}
 /* ===== TRÊS ZONAS, E A JANELA DEITADA (2026-09-20, dele) =====
    *"Eu não quero que ele seja alto, prefiro mais comprido, por causa da tela do laptop."* A janela foi
    de 880 a 1040px e os conceitos passaram a ocupar DUAS colunas lado a lado em vez de uma pilha só. */
@@ -4686,7 +4723,7 @@ button.lc-cron.parado .lc-cron-n{right:-5px;bottom:-5px;min-width:12px;height:12
    para 171px de espaço. A coluna da direita leva a diferença. */
 .reg-aval{display:grid;grid-template-columns:minmax(0,0.9fr) minmax(0,1.1fr);gap:6px 14px;align-items:start}
 .reg-fale,.reg-outras{display:flex;flex-direction:column;gap:5px;min-width:0}
-.reg-outras .reg-linha{grid-template-columns:104px minmax(0,1fr)}
+/* (a coluna do rótulo agora é a palavra-régua de cada grupo — ver "OS RÓTULOS ENCOSTAM À DIREITA") */
 /* "Checking sentences" não cabe em 104px numa linha só, e o nome é o da rede — não se abrevia. Ele
    quebra em duas, e a entrelinha apertada mantém a altura igual à das outras escalas. */
 .reg-outras .reg-rot{font-size:12px;line-height:1.14}
@@ -4780,11 +4817,16 @@ button.lc-cron.parado .lc-cron-n{right:-5px;bottom:-5px;min-width:12px;height:12
 .reg-n input{text-align:center;font-variant-numeric:tabular-nums;font-weight:700}
 .reg-campo select:disabled,.reg-campo input:disabled{background:#F6F7F9;color:var(--tx3)}
 .reg-profs{display:flex;flex-wrap:wrap;gap:5px;align-items:center;min-height:28px}
-.reg-pp{display:inline-flex;align-items:center;gap:2px;padding-right:2px}
-.reg-pp button{appearance:none;border:0;background:none;color:inherit;opacity:.55;cursor:pointer;font-size:13px;
-  line-height:1;padding:0 3px;border-radius:4px}
-.reg-pp button:hover{opacity:1;background:rgba(0,0,0,.06)}
-.reg-campo select.reg-mais{width:auto;font-size:12px;padding:3px 6px;color:var(--azul-esc);border-style:dashed}
+/* PROFESSORES: a pílula e o "+ professor" na MESMA proporção (Wiztools 18, dele: *"a pílula ficou pequena, a fonte
+   parece que ficou menor... eles têm que ser a mesma proporção"*). Os dois com 28px de altura, 12.5px de letra e
+   canto de pílula; o × virou um círculo de 20px. */
+.reg-profs .lc-pp.reg-pp{display:inline-flex;align-items:center;gap:3px;height:28px;box-sizing:border-box;margin:0;
+  padding:0 4px 0 11px;border-radius:14px;font-size:12.5px;font-weight:600;line-height:1}
+.reg-pp button{appearance:none;border:0;background:none;color:inherit;opacity:.6;cursor:pointer;font-size:15px;
+  line-height:1;width:20px;height:20px;padding:0;margin:0;border-radius:50%;display:flex;align-items:center;justify-content:center}
+.reg-pp button:hover{opacity:1;background:rgba(18,103,143,.12)}
+.reg-campo select.reg-mais{width:auto;height:28px;box-sizing:border-box;font-size:12.5px;font-weight:600;
+  padding:0 26px 0 11px;border-radius:14px;color:var(--azul-esc);border-style:dashed;line-height:1}
 /* os tipos: pilha de caixas. As duas que mexem na fila de faltas vêm em cima, separadas das outras por
    um fio fino — ordem dele: *"elas vão ficar meio fixas pra cima, aí vai ter uma linha bem fina"* */
 .reg-tipos{display:flex;flex-direction:column;border:1px solid var(--borda);border-radius:8px;padding:3px 0}
@@ -4795,6 +4837,85 @@ button.lc-cron.parado .lc-cron-n{right:-5px;bottom:-5px;min-width:12px;height:12
 .reg-tipo em{margin-left:auto;font-style:normal;font-size:10.5px;color:var(--tx3)}
 .reg-tipos-fio{height:1px;background:#E1E6EB;margin:3px 10px}
 .reg-dica{font-size:11px;color:var(--tx3);line-height:1.35}
+/* ===== O FORMULÁRIO REARRUMADO (Wiztools 18, dele) =====
+   *"Aquele container onde tem o tipo de aula... você aumenta um pouquinho a distância entre os checkboxes... e
+   faz com que esse container vá esticar para baixo até o fundo do container de entrega de tarefas... a linha
+   vertical só vai até ali, na parte inferior dos containers... o campo de observações e anotações eu quero que
+   ele vá ocupar toda a largura desse registro de aula."* Duas faixas: em cima as duas colunas (o que a aula FOI |
+   como o aluno FOI), com o fio vertical só entre elas, e os tipos esticando até o pé das tarefas; embaixo, de
+   ponta a ponta, o interruptor da lição (do jeito que estava) e as observações. */
+.reg-tipos-campo{flex:1 1 auto;min-height:0}
+.reg-tipos-campo>span{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.reg-tipos-campo>span small{font-size:10.5px;font-weight:400;color:var(--tx3);text-transform:none;letter-spacing:0}
+.reg-tipos-campo .reg-tipos{flex:1 1 auto;padding:5px 0}
+.reg-tipos .reg-tipo{padding:7px 12px}
+.reg-tipos .reg-tipos-fio{margin:5px 12px}
+/* as tarefas esticam junto: a altura da faixa de cima é a da coluna mais alta, e as duas terminam no mesmo pé */
+.reg-dir .reg-tarefa{flex:1 1 auto;display:flex;flex-direction:column;min-height:0}
+.reg-dir .reg-tar-tl{flex:1 1 auto;min-height:0}
+.reg-dir .reg-tar-col{min-height:0}
+.reg-dir .reg-tar-lst{flex:1 1 112px;min-height:0;max-height:none}
+.reg-baixo{grid-column:1/-1;display:flex;flex-direction:column;gap:8px;padding:9px 16px 11px;
+  border-top:1px solid #EEF1F4;min-width:0}
+.reg-conc:empty{display:none}
+/* o título das observações: centralizado e um ponto maior que os outros rótulos (dele) */
+.reg-baixo .reg-obs>span{text-align:center;font-size:12px}
+/* ===== OS RÓTULOS ENCOSTAM À DIREITA, OS BOTÕES À ESQUERDA (Wiztools 18, dele) =====
+   *"Você pega a maior palavra, que é a audição... fala, leitura e escrita vão ficar alinhados à direita em relação
+   à audição"* — e do outro lado a régua é a PALAVRA Engajamento, não a frase Checking sentences (que quebra em
+   duas). A coluna do rótulo tem a largura da palavra-régua, medida na tela (`regAlinharRotulos` → --rot-w), e os
+   botões começam logo depois dela. */
+.reg-fale .reg-linha,.reg-outras .reg-linha{grid-template-columns:var(--rot-w,64px) minmax(0,1fr);gap:10px}
+.reg-fale .reg-rot,.reg-outras .reg-rot{justify-content:flex-end;text-align:right}
+.reg-fale .reg-seg,.reg-outras .reg-seg{justify-content:flex-start}
+/* ===== CHECKING SENTENCES DE 1 A 5 (Wiztools 18, dele) =====
+   *"1 vai ser tipo o pior... um vermelho talvez, mais leve... até o 5, que seria verde total"* — e o traço quando
+   ainda não foi feito. A mesma cor no registro, na Ficha (número em negrito) e na pílula do Planejamento. */
+:root{--cs1:#FBE1E2;--cs1-tx:#8E1418;--cs2:#FCE5D3;--cs2-tx:#8A3B0B;--cs3:#FBF0CB;--cs3-tx:#6B5100;
+  --cs4:#DCF0D7;--cs4-tx:#2C6B22;--cs5:#2E9E57;--cs5-tx:#fff}
+.reg-op.on.cs1,.ff-eng.c1,.plan-pav.c1{background:var(--cs1);color:var(--cs1-tx)}
+.reg-op.on.cs2,.ff-eng.c2,.plan-pav.c2{background:var(--cs2);color:var(--cs2-tx)}
+.reg-op.on.cs3,.ff-eng.c3,.plan-pav.c3{background:var(--cs3);color:var(--cs3-tx)}
+.reg-op.on.cs4,.ff-eng.c4,.plan-pav.c4{background:var(--cs4);color:var(--cs4-tx)}
+.reg-op.on.cs5,.ff-eng.c5,.plan-pav.c5{background:var(--cs5);color:var(--cs5-tx)}
+.reg-op.on.cs-nd{background:#EEF1F4;color:var(--tx2)}
+.ff-eng.c1,.ff-eng.c2,.ff-eng.c3,.ff-eng.c4,.ff-eng.c5{font-weight:700;font-size:11.5px}
+/* ===== O EDITOR DE MARKDOWN DAS OBSERVAÇÕES (Wiztools 18, dele) ===== */
+.md-ed{border:1px solid var(--borda);border-radius:8px;background:#fff;overflow:hidden}
+.md-ed:focus-within{border-color:var(--azul);box-shadow:0 0 0 2px rgba(26,115,232,.12)}
+.md-barra{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:3px 6px;
+  background:#F7FAFD;border-bottom:1px solid #EEF1F4}
+.md-abas{display:flex;gap:2px}
+.md-aba{appearance:none;border:0;background:none;font:inherit;font-size:12px;font-weight:600;color:var(--tx3);
+  padding:4px 10px;border-radius:6px;cursor:pointer;margin:0}
+.md-aba:hover{color:var(--marca)}
+.md-aba.on{background:#fff;color:var(--marca);box-shadow:0 0 0 1px var(--borda)}
+.md-ferr{display:flex;gap:2px;align-items:center}
+.md-ed[data-modo="ver"] .md-ferr{visibility:hidden}
+.md-bt{appearance:none;border:0;background:none;width:28px;height:26px;border-radius:6px;color:var(--tx2);
+  cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;margin:0}
+.md-bt:hover{background:#E3EDF8;color:var(--marca)}
+.md-bt svg{width:15px;height:15px}
+.md-sep{width:1px;height:16px;background:#DDE3EA;margin:0 3px}
+/* 52px de partida (três linhas): a 1366×768 o formulário inteiro cabe sem rolar; quem escreve mais estica pelo canto */
+.reg-campo .md-ed textarea.md-tx{border:0;border-radius:0;box-shadow:none;min-height:52px;height:56px;resize:vertical;
+  padding:8px 10px;line-height:1.45;font-size:13px;display:block}
+.reg-campo .md-ed textarea.md-tx[hidden]{display:none}
+.md-ver{padding:8px 12px;min-height:56px;max-height:240px;overflow:auto;font-size:13px;line-height:1.5;color:#202124}
+.md-ver h4{font-size:15px}.md-ver h5{font-size:14px}.md-ver h6{font-size:13px}
+.md-ver h4,.md-ver h5,.md-ver h6{margin:4px 0 4px;color:var(--marca);font-weight:700}
+.md-ver p{margin:0 0 6px}
+.md-ver ul,.md-ver ol{margin:0 0 6px;padding-left:22px}
+.md-ver li{margin:1px 0}
+.md-ver ul.md-task{list-style:none;padding-left:4px}
+.md-ck{display:inline-block;width:12px;height:12px;border:1.5px solid #9AA5B1;border-radius:3px;margin-right:7px;
+  vertical-align:-1px;box-sizing:border-box}
+.md-ck.on{background:#2d9147;border-color:#2d9147}
+.md-ver code{background:#F1F3F5;border-radius:4px;padding:0 4px;font-size:12px}
+.md-ver blockquote{margin:0 0 6px;padding:2px 10px;border-left:3px solid #C9D6E2;color:var(--tx2)}
+.md-ver hr{border:0;border-top:1px solid #E1E6EB;margin:8px 0}
+.md-ver a{color:var(--azul-esc)}
+.md-vazio{color:var(--tx3);font-style:italic}
 .reg-vazio{font-size:12px;color:var(--tx3)}
 /* uma habilidade por linha: rótulo à esquerda, os botões à direita */
 .reg-rot{font-size:12.5px;font-weight:600;color:var(--tx2);display:flex;align-items:center;gap:5px;min-width:0}
@@ -5072,6 +5193,8 @@ button.acao.sec.reg-excluir{color:var(--perigo)}
 .pef-chip.ok{background:#E8F5E9;color:#256029}
 .pef-chip.meio{background:#FFF8E1;color:#8a5a00}
 .pef-chip.nao{background:#FBE9E7;color:#B03A2E}
+.pef-chip.pend{background:#E4F2FB;color:#12678F}
+.pef-chip.fora{background:#F1F3F5;color:var(--tx3)}
 .pef-bloco{background:#fff;border:1px solid var(--borda);border-radius:10px;padding:11px 13px;margin:0 0 12px}
 .pef-bt{font-size:12px;font-weight:700;color:var(--marca);text-transform:uppercase;letter-spacing:.03em;margin:0 0 9px}
 .pef-bt small{font-weight:400;text-transform:none;letter-spacing:0;color:var(--tx3);font-size:11.5px;margin-left:6px}
@@ -5558,7 +5681,7 @@ button.acao.sec.cg-ir{margin:0;padding:4px 10px;font-size:12px;white-space:nowra
 <div class="al-acoes">
 <button class="acao" id="al-salvar" data-off="Salvar" data-on="Salvar alterações" onclick="alSalvar()"><span class="btn-ic"></span><span class="btn-txt">Salvar</span></button>
 <button class="acao perigo" id="al-excluir" style="display:none" onclick="alExcluir()">Excluir</button>
-<button class="acao sec" onclick="alNovo()">Limpar</button>
+<button class="acao sec" onclick="matDescartar(alNovo,true)">Limpar</button>
 </div>
 </div>
 <!-- ===== OS DADOS PESSOAIS (2026-09-13, dele: "gordurinha necessária") =====
@@ -6872,7 +6995,7 @@ var hi=$('tu-hini'),hf=$('tu-hfim');hi.innerHTML='';hf.innerHTML='';for(var h=7;
 }
 function bindBuscas(){ // vinculadas SEMPRE, mesmo se os domínios falharem (fontes com guarda)
 tuTags=tagWidget('tu-profs',tuPreview);
-sugerir('al-busca','al-sug',function(){return ALUNOS},function(a){return a.nome+' ('+a.id+') — '+a.situacao},alCarregar,function(ul,txt,itens){if(txt&&!itens.length){var d=document.createElement('div');d.textContent='➕ Cadastrar novo aluno: "'+txt+'"';d.onmousedown=function(ev){ev.preventDefault();alNovo();$('al-nome').value=txt;ul.style.display='none'};ul.appendChild(d)}});
+sugerir('al-busca','al-sug',function(){return ALUNOS},function(a){return a.nome+' ('+a.id+') — '+a.situacao},alCarregar,function(ul,txt,itens){if(txt&&!itens.length){var d=document.createElement('div');d.textContent='➕ Cadastrar novo aluno: "'+txt+'"';d.onmousedown=function(ev){ev.preventDefault();ul.style.display='none';matDescartar(function(){alNovo();$('al-nome').value=txt},true)};ul.appendChild(d)}});
 /* A LINHA DA SUGESTÃO virou nome à esquerda e ESTOQUE à direita, no desenho de tabela que ele
    pediu: matricular alguém num estágio sem unidade na prateleira é uma decisão diferente de
    matricular num que tem, e o número precisa estar à vista ANTES do clique, não depois. */
@@ -7190,12 +7313,14 @@ var mesAnt=null, ROT={P:'Presente',F:'Falta',N:'Não aula'};
      que ele tá fazendo"*. Só onde houve aula — afirmar a lição de um dia que não aconteceu não quer
      dizer nada — e só na 1ª lição do dia, porque a marca mora na presença, que é uma por data. */
   +'<td class="c-lic">'+(l.dataReal&&l.ultimoDoDia
-     ?'<span class="pl-sig"><button type="button" class="plan-lic-bt'+(l.afirmada?' dita':'')+'" data-ord="'+l.ordem+'"'
-      +' title="'+(l.afirmada?'lição registrada por você — clique para trocar ou apagar'
+     ?'<span class="pl-sig"><button type="button" class="plan-lic-bt'+(l.afirmada?' dita':'')+(l.registroDeslocado?' desloc':'')+'" data-ord="'+l.ordem+'"'
+      +' title="'+(l.registroDeslocado?planDeslocTexto(l)+' — clique e confirme '+escBloco(l.licao||'')+' para alinhar, ou escolha outra'
+                 :l.afirmada?'lição registrada por você — clique para trocar ou apagar'
                             :'clique para dizer qual lição foi dada nesta aula')+'"'
-      +' onclick="planLicaoEditar(this,&quot;'+escBloco(l.dataReal)+'&quot;)">'
+      +' onclick="planLicaoEditar(this,&quot;'+escBloco(l.dataReal)+'&quot;,'+(l.seqReal||'null')+')">'
       +escBloco(l.licao||'?')+'</button></span><span class="pl-sep">–</span>'
-     :(l.licao?'<span class="pl-sig"><i>'+escBloco(l.licao)+'</i></span><span class="pl-sep">–</span>':''))
+     :(l.licao?'<span class="pl-sig"><i'+(l.registroDeslocado?' class="desloc" title="'+planDeslocTexto(l)+'"':'')+'>'
+       +escBloco(l.licao)+'</i></span><span class="pl-sep">–</span>':''))
    +escBloco(l.conteudo||'')+'</td>'
   /* ===== AS AVALIAÇÕES, EM PÍLULAS NUMA CÉLULA SÓ (2026-09-01, dele) =====
      *"Em vez de fazer oito colunas, você pega todas elas e coloca uma pílula pra cada uma, que
@@ -7274,10 +7399,10 @@ function planAvaliacoes(av){
     +(v==='Em dia'?'em dia':'atrasada')+(auto?' — pela regra':'')+'"><b>S.T:</b> '+(v==='Em dia'?'E':'A')+'</span>';
    return;
   }
+  /* checking sentences de 1 a 5 desde 06/10/2026: o número na cor da escala, como na Ficha */
   if(c[0]==='checking_sentences'){
-   var ok=(v==='Ok');
-   h+='<span class="plan-pav'+(ok?'':' alerta')+'" title="'+escBloco(c[1]+': '+v)+'"><b>'+c[1]+':</b> '
-    +(ok?'<span class="pt '+(c[0]==='app'?'app':'cs')+'"></span>':'▲')+'</span>';
+   h+='<span class="plan-pav c'+escBloco(String(v))+'" title="Checking sentences: '+escBloco(String(v))+' de 5"><b>'+c[1]+':</b> '
+    +escBloco(String(v))+'</span>';
    return;
   }
   /* as três notas e o engajamento vestem a cor da própria escala */
@@ -7535,7 +7660,9 @@ f.forEach(function(l,i){
      Planejamento, e aqui competia com a anotação pelo mesmo espaço. */
   +'<td class="c-lic'+hx+'">'+(l.licao
      ?'<span class="ff-sig t-'+(l.tipoLicao||'none')+'"'
+       +(l.registroDeslocado?' data-desloc="1"':'')
        +(l.tipo==='tarefa'?' title="pedaço desta lição: ela continuou em outra aula"'
+         :l.registroDeslocado?' title="'+planDeslocTexto(l)+'"'
          :(l.afirmada?' title="lição registrada à mão nesta data"':''))+'>'+escBloco(l.licao)+'</span>'
      /* aula sem conteúdo: o nome do tipo que o professor marcou (reforço, extra activity…), ou "tarefa" */
      :(l.tipo==='tarefa'?'<span class="ff-sig t-none" title="aula que aconteceu sem conteúdo: não consome lição">'
@@ -7546,15 +7673,15 @@ f.forEach(function(l,i){
   +'<td class="c-obs'+hx+'">'+(falta?''
      /* dia com registro de aula: a anotação é de CADA aula. Sem registro, continua sendo do dia, na 1ª */
      :l.diaComRegistro
-      ?'<input value="'+escBloco(l.observacao||'')+'" placeholder="—" onchange="ffGravar(this,&quot;'+escBloco(l.data)+'&quot;,'+l.seq+',&quot;observacao&quot;)">'
+      ?ffObsCel(l.observacao,'ffGravar(this,&quot;'+escBloco(l.data)+'&quot;,'+l.seq+',&quot;observacao&quot;)')
      :!l.segueDia
-      ?'<input value="'+escBloco(l.observacao||'')+'" placeholder="—" onchange="planObs(&quot;'+escBloco(l.data)+'&quot;,this)">'
+      ?ffObsCel(l.observacao,'planObs(&quot;'+escBloco(l.data)+'&quot;,this)')
       :'<span class="ff-ro">—</span>')+'</td>'
   /* ===== AVALIAÇÕES ===== onde houve aula — com lição ou sem: avaliar uma falta não quer dizer nada,
      mas a aula de tarefa se avalia (a chave é a AULA, data + seq). */
   +ffAval(l,'fala',hx)+ffAval(l,'audicao',hx)+ffAval(l,'leitura',hx)
   +ffAvalDupla(l,hx)
-  +ffCiclo(l,'situacao_tarefa',hx)+ffCiclo(l,'checking_sentences',hx)+ffNivel(l,'app',hx)
+  +ffCiclo(l,'situacao_tarefa',hx)+ffNivel(l,'checking_sentences',hx)+ffNivel(l,'app',hx)
   +ffNivel(l,'engajamento',hx)
   /* ===== PROFESSOR ===== a pílula da casa. Na falta não entra ninguém: não houve aula. Vazio
      numa aula dada não é "não teve professor", é "o banco não sabe" — `aula_professor` está
@@ -7597,6 +7724,20 @@ function ffAval(l,campo,hx){
    — dois pontos e o navegador mistura no meio. Ele foi específico: *"não fica duas cores
    separadas, tem que ser um degradê"*. As duas letras dividem a caixa em metades iguais e ficam
    na mesma linha de base. */
+/* A ANOTAÇÃO NA FICHA (auditoria da Wiztools 18). A do Registro de aula virou Markdown de várias linhas, e numa caixa de
+   uma linha o navegador tira as quebras: a primeira edição pela Ficha achatava tudo. Com mais de uma linha a célula só
+   MOSTRA (a lista vira " · "), e edita-se no Registro de aula. E as aspas vão escapadas no value: uma anotação com "
+   perdia tudo o que vinha depois delas. */
+function ffObsCel(v,onch){
+ v=v||'';
+ var at=function(t){return escBloco(t).replace(/"/g,'&quot;')};
+ if(v.indexOf('\n')>=0){
+  /* a linha da Ficha mostra o TEXTO, sem as marcas do Markdown (**, - [ ], #, >); o title guarda o original */
+  var plano=v.split('\n').map(function(l){return l.replace(/^\s*(?:[-*+]\s+(?:\[[ xX]\]\s+)?|\d+\.\s+|#{1,6}\s+|>\s?)/,'')
+   .replace(/\*\*|__|~~|`/g,'').trim()}).filter(Boolean).join(' · ');
+  return '<span class="ff-obs-md" title="'+at(v+'\n\n(várias linhas: edite no Registro de aula)')+'">'
+   +escBloco(plano)+'</span>'}
+ return '<input value="'+at(v)+'" placeholder="—" onchange="'+onch+'">'}
 function ffAvalDupla(l,hx){
  var e=(l.av&&l.av.escrita)||'', t=(l.av&&l.av.tarefa)||'';
  if(!ffPode(l))return '<td class="c-av2'+hx+'"></td>';
@@ -7609,7 +7750,7 @@ function ffAvalDupla(l,hx){
  return '<td class="c-av2'+hx+'"><div class="ff-av2" style="background-image:'+ffGrad(e,t)+'">'
   +'<span><b>'+escBloco(e)+'</b>'+ffSel(l,'escrita',e,FF_NOTAS)+'</span>'
   +'<i class="ff-bar">/</i>'
-  +'<span'+(pend?' class="ff-trf-pend" title="'+escBloco('Tarefa entregue em '+ffData(l.av.tarefaEm)
+  +'<span data-em="'+escBloco((l.av&&l.av.tarefaEm)||'')+'"'+(pend?' class="ff-trf-pend" title="'+escBloco('Tarefa entregue em '+ffData(l.av.tarefaEm)
      +' e ainda sem nota — escolha aqui o conceito.')+'"':'')+'>'
   +(pend?'<b class="ff-aval-ja">'+icon('triangle-alert',12)+'</b>':'<b>'+escBloco(t)+'</b>')
   +ffSel(l,'tarefa',t,FF_NOTAS)+'</span>'
@@ -7622,7 +7763,7 @@ function ffGrad(e,t){
 /* S.T e CS são de três estados e ciclam no clique — dropdown de três itens para uma marca que é
    sim/atenção/nada seria três cliques onde cabe um. O APP saiu daqui em 2026-09-13: virou nível de 0 a
    4, por ordem dele — *"você coloca o tanto que ele fez"*. */
-var FF_CICLO={situacao_tarefa:['','Em dia','Atrasado'],checking_sentences:['','Ok','Atenção']};
+var FF_CICLO={situacao_tarefa:['','Em dia','Atrasado']};
 /* `auto` = a situação da tarefa que a REGRA decidiu e ninguém marcou: mesma letra, borda tracejada */
 function ffMarca(campo,v,auto){
  if(campo==='situacao_tarefa')
@@ -7645,7 +7786,10 @@ function ffCiclo(l,campo,hx){
 /* ENGAJAMENTO (1 a 4) e APP (0 a 4): o número na cor da escala, com o menu nativo por cima.
    Engajamento: 1 desengajado · 2 pouco engajado · 3 engajado · 4 muito engajado (Booklet Adm. p.14).
    APP: 0 não fez nada · 1 muito pouco · 2 mais ou menos · 3 satisfatório · 4 fez tudo (dele). */
-var FF_NIVEL={engajamento:{p:'n',ops:['','1','2','3','4']},app:{p:'a',ops:['','0','1','2','3','4']}};
+/* CHECKING SENTENCES de 1 a 5 desde 06/10/2026 (dele): *"bom deixar por número... coloca por cor, 1 o pior,
+   um vermelho mais leve, até o 5, verde total... e um negrito no número"*. Saiu do ciclo de cliques e entrou aqui. */
+var FF_NIVEL={engajamento:{p:'n',ops:['','1','2','3','4']},app:{p:'a',ops:['','0','1','2','3','4']},
+ checking_sentences:{p:'c',ops:['','1','2','3','4','5']}};
 function ffNivel(l,campo,hx){
  var n=FF_NIVEL[campo], v=(l.av&&l.av[campo]!=null)?String(l.av[campo]):'';
  return '<td class="c-av'+hx+'">'+(ffPode(l)
@@ -7671,11 +7815,22 @@ function ffGravar(el,data,seq,campo){
    else cx.className='ff-av '+ffCls(v);
   }
  }else if(meia){
-  var b=meia.querySelector('b'); if(b)b.textContent=v;
+  var b=meia.querySelector('b');
+  /* a metade da TAREFA (Wiztools 18): com a nota, o triângulo de "entregue, sem nota" sai — antes só o texto
+     mudava e o MB ficava âmbar e piscando até recarregar; sem a nota, e com a entrega, ele volta */
+  if(campo==='tarefa'){
+   var em=meia.dataset.em||'';
+   if(!v&&em){meia.classList.add('ff-trf-pend');
+    meia.title='Tarefa entregue em '+ffData(em)+' e ainda sem nota — escolha aqui o conceito.';
+    if(b){b.className='ff-aval-ja';b.innerHTML=icon('triangle-alert',12)}}
+   else{meia.classList.remove('ff-trf-pend');meia.removeAttribute('title');if(b){b.className='';b.textContent=v}}
+  }else if(b)b.textContent=v;
   var cont=meia.parentNode, dois=cont.querySelectorAll(':scope > span > b');
   cont.style.backgroundImage=ffGrad(dois[0]?dois[0].textContent:'',dois[1]?dois[1].textContent:'');
  }
- run('salvarAvaliacaoFicha',[{idMatricula:alSel.id,livro:FICHA_LIVRO,data:data,seq:seq,campo:campo,valor:v}],
+ /* `vista`: a anotação que a célula mostrava — só ela sai da presença ao mudar de casa (revisão da Wiztools 18) */
+ run('salvarAvaliacaoFicha',[{idMatricula:alSel.id,livro:FICHA_LIVRO,data:data,seq:seq,campo:campo,valor:v,
+  vista:(campo==='observacao'?el.defaultValue:undefined)}],
   function(){/* gravou: a tela já está certa */});
 }
 function ffCiclar(td,data,seq){
@@ -7692,7 +7847,17 @@ function ffCiclar(td,data,seq){
 var PLAN_ORD={};
 /* troca o botão por um campo com autocompletar. Enter/sair grava, Esc desiste — o mesmo par de
    gestos das outras edições em linha da casa. */
-function planLicaoEditar(bt,data){
+/* O TEXTO DA LINHA DESLOCADA diz quem afirmou a lição que não coube ali (revisão da Wiztools 18): o professor no
+   Registro de aula, a coordenação aqui no Planejamento, ou a própria âncora que não cabe na contagem */
+function planDeslocTexto(l){
+if(!l.registroDeslocado)return '';
+var x=escBloco(l.registroDeslocado);
+return l.deslocOrigem==='curta'
+ ?'a lição '+x+' foi afirmada nesta aula, mas há mais aulas lançadas até aqui do que lições até ela — a tabela não comporta'
+ :l.deslocOrigem==='registro'
+ ?'o registro desta aula diz '+x+', mas a lição afirmada depois a trouxe para cá'
+ :'você marcou '+x+' nesta aula, mas a lição afirmada depois a trouxe para cá'}
+function planLicaoEditar(bt,data,seq){
 /* `closest('td')` e não `parentNode`: desde que a sigla passou a morar dentro da caixa de largura
    fixa (`.pl-sig`), o pai do botão é a caixa, não a célula. Com `parentNode` o campo de edição
    nasceria DENTRO da caixa — que tem largura travada em ~3 caracteres — e o `input` de 96px
@@ -7708,13 +7873,15 @@ i.onkeydown=function(e){if(e.key==='Escape'){e.preventDefault();desiste()}
 i.onblur=function(){
  if(pronto)return;
  var v=i.value.trim();
- if(v===(atual==='?'?'':atual)){desiste();return}
+ /* na linha DESLOCADA, confirmar a lição que ela mostra é o gesto de alinhar — não é desistir (revisão da Wiztools 18) */
+ if(v===(atual==='?'?'':atual)&&!bt.classList.contains('desloc')){desiste();return}
  pronto=true;
  var ord=v===''?null:PLAN_ORD[v.toUpperCase()];
  if(v!==''&&ord===undefined){msg('Não achei a lição "'+v+'" na estrutura deste estágio.',true);
   td.innerHTML=antes;return}
  if(!telaDoAluno(PLAN_ID,'O planejamento na tela')){td.innerHTML=antes;return}
- run('salvarLicaoDaAula',[{idMatricula:alSel.id,livro:PLAN_LIVRO,data:data,ordem:ord}],function(res){
+ /* `seq`: a aula desta linha — sem ela o servidor gravava no registro de outra aula do mesmo dia (Wiztools 18) */
+ run('salvarLicaoDaAula',[{idMatricula:alSel.id,livro:PLAN_LIVRO,data:data,ordem:ord,seq:seq}],function(res){
   msg(res.limpou?'Marcação apagada — a posição volta a ser deduzida.':'Lição registrada.');
   /* recarrega porque afirmar a lição REANCORA a tabela inteira, para trás e para frente */
   planCarregar(PLAN_LIVRO)})};
@@ -7735,8 +7902,16 @@ i.onblur=function(){
    Duas barras ainda não têm dado: entrega de tarefas e atividades do app. Ele mesmo disse que isso
    é outro módulo, que ainda vai fazer. Desenho o lugar delas e digo que está esperando — inventar
    pendência seria pior que a lacuna. */
-var PROG_LOC='';
-function progLocalizar(v){PROG_LOC=String(v||'');progPintar()}
+var PROG_LOC='', PROG_LOC_DE='';
+/* LOCALIZAR TROCA SÓ O DESENHO (auditoria da Wiztools 18): repintar o painel inteiro destruía o próprio campo a cada
+   tecla (o "2" de "29" entrava e o campo voltava sem foco, o "9" se perdia) e devolvia o zoom à vista padrão. Agora
+   só os <svg> são trocados — o do painel e, se aberta, o da tela cheia — e a vista em que ele estava continua. */
+function progLocalizar(v){PROG_LOC=String(v||'');
+var novo=PROGR?progSvg(PROGR):'', velhos=pgSvgs();
+if(!novo||!velhos.length){progPintar();return}
+velhos.forEach(function(el){var t=document.createElement('div');t.innerHTML=novo;
+ var n=t.firstElementChild;if(n)el.parentNode.replaceChild(n,el)});
+pgAplicar();pgLigarGestos()}
 /* "29" → uma lição · "11 - 21" ou "11-21" → intervalo · vazio → nada */
 function progAlvo(total){
 var t=PROG_LOC.replace(/\s+/g,'');
@@ -7925,10 +8100,12 @@ return s;
    o olho não a enxerga.
    Reusa `getPlanejamento`, que já calcula tudo: uma chamada, não duas. */
 var PROGR=null, PROG_SEQ=0;   // ver "resposta velha não pinta", no Planejamento
-function progFechar(){PROG_SEQ++;PROGR=null;var c=$('prog-corpo');if(c)c.innerHTML='<div class="al-hist-vazio">Escolha um aluno.</div>'}
+function progFechar(){PROG_SEQ++;PROGR=null;PROG_LOC='';PROG_LOC_DE='';var c=$('prog-corpo');if(c)c.innerHTML='<div class="al-hist-vazio">Escolha um aluno.</div>'}
 function progCarregar(livro){
 var c=$('prog-corpo');if(!c)return;
 if(!alSel){progFechar();return}
+/* a lição procurada é DESTE aluno e deste contrato: trocar de um para outro não a leva junto */
+var locK=alSel.id+'|'+(livro||'');if(locK!==PROG_LOC_DE){PROG_LOC='';PROG_LOC_DE=locK}
 c.innerHTML='<div class="al-hist-vazio">calculando…</div>';
 var s=++PROG_SEQ;
 run('getPlanejamento',[{idMatricula:alSel.id,livro:livro||null}],function(r){if(s!==PROG_SEQ)return;PROGR=r;progPintar()},
@@ -7977,7 +8154,7 @@ function encAtraso(r){
   ['dias sem aula (N)',T.naoAula,'a aula não aconteceu e foi lançada como “não aula”',0],
   ['horários sem lançamento',T.semLancamento,'a agenda previa aula e não há presença nem falta lançada',0],
   ['antes do primeiro lançamento',T.antesDoSistema,'horários da agenda antes do primeiro lançamento, menos as lições que ele já tinha feito até ali',0],
-  ['aulas a mais que adiantaram',-T.aMais,'reposição sem falta, anteposição que ainda não cobriu falta, hora a mais, aula fora da agenda',0],
+  ['aulas a mais que adiantaram',-T.aMais,'anteposição que ainda não cobriu falta, hora a mais, aula fora da agenda — e a reposição sem falta, que é lançamento a corrigir',0],
   ['faltas em dia fora da agenda',-T.faltasSemHorario,'lançadas num dia que não é da agenda dele: não custaram horário nenhum (a de dia fechado no calendário nem entra na conta)',0],
   ['outros acertos de lançamento',T.outros,'o que não se encaixa em motivo nenhum — vale conferir os lançamentos',0]];
  var h='<div class="enc-atraso"><div class="enc-atr-cab">'+cab
@@ -8029,7 +8206,8 @@ else{
    +'<span class="enc-n">'+(f.sobra?'+':(i+1))+'</span>'
    +'<span class="enc-d">'+(f.data?dataCurta(f.data):'—')+'</span>'
    +(f.sobra
-     ?'<span class="enc-st">reposição sem falta correspondente — reforço ou aula a mais, em '+dataCurta(f.paga)+'</span>'
+     ?'<span class="enc-st">reposição sem falta correspondente em '+dataCurta(f.paga)+' — '
+       +(f.doRegistro?'corrigir o tipo no Registro de aula':'corrigir o encontro marcado em Agendamentos (o motivo, ou desmarcar)')+'</span>'
      :(f.paga
        ?'<span class="enc-st ok">reposta em '+dataCurta(f.paga)+(f.licao?' · '+escBloco(f.licao):'')+'</span>'
        :f.adiantada
@@ -8079,7 +8257,8 @@ else{
 }
 h+='</div>';
 if(e.semFalta)h+='<div class="al-hist-vazio">'+e.semFalta+' reposição(ões) lançada(s) sem falta correspondente. '
- +'Não é erro: costuma ser reforço ou aula a mais — mas fica dito, porque a conta não fecha sozinha.</div>';
+ +'É lançamento a corrigir: se a reposição veio do encontro marcado, corrija o motivo dele em Agendamentos; se veio do '
+ +'Registro de aula, troque o tipo lá — reposição paga uma falta, e sem falta a conta não fecha.</div>';
 c.innerHTML=h;
 }
 
@@ -8369,63 +8548,119 @@ else c.innerHTML='<div class="al-hist-vazio">calculando o progresso dos contrato
 run('getProgressoAtivos',[{}],function(r){PEF_PROG=r;pefProgPintar()},
  function(e){var x=$('pef-prog');if(x)x.innerHTML=planAviso('Não deu para calcular: '+escBloco(e)+'. Abra a aba de novo para tentar.')});
 }
+/* ===== A REMATRÍCULA NUMA TABELA SÓ (Wiztools 18, pedido dele) =====
+   Eram três listas da mesma gente: a de trabalho (hoje), "Os alunos" agrupados como na planilha e o clique dos números
+   do IPP. Agora é uma: os contratos de hoje — quem está mais perto do fim do livro primeiro —, com a coluna "IPP do
+   ciclo", que diz como cada aluno conta no relatório do mês (o congelado, se o mês foi fechado); no fim, os contratos
+   que a projeção não alcança e quem o IPP conta sem contrato aberto. O agrupamento da planilha virou pílula de filtro;
+   Blocos virou detalhe de Faltam e a coluna Professor saiu (decisões dele, 06/10/2026). */
+var PEF_PROG_DIM={seg:null,canal:null,exp:null};
 function pefProgFiltro(f){PEF_PROG_FILTRO=f;pefProgPintar()}
+function pefProgDim(q,v){PEF_PROG_DIM[q]=PEF_PROG_DIM[q]===v?null:v;pefProgPintar()}
+/* o selo de cada aluno no IPP do ciclo, pelas listas do relatório do mês (uma por aluno desde 06/10/2026). A ordem
+   é a precedência do servidor: quem já está numa lista não entra na seguinte. Formando tem selo, mas não conta. */
+function pefProgSelos(){
+var rp=(((PEF||{}).ipp||{}).rematricula||{}).ipp||{},s={},ipp={};
+var por=function(lista,conta,f){(lista||[]).forEach(function(x){var k=String(x.id);if(s[k])return;
+ s[k]=f(x);s[k].x=x;if(conta)ipp[k]=1})};
+por(rp.rematriculadosLista,1,function(x){return {cls:'ok',t:'rematriculado'+(x.data?' '+dataCurta(x.data):'')}});
+por(rp.renovaramDepois,1,function(x){return {cls:'meio',t:'renovou '+dataCurta(x.renovouEm)+', depois do mês'}});
+por(rp.pendentes,1,function(x){return {cls:'pend',t:'a rematricular'}});
+por(rp.naoRematriculados,1,function(x){return {cls:'nao',t:'não rematriculado'}});
+por(rp.encerraramSemRenovar,1,function(x){return {cls:'nao',t:'terminou e não renovou'}});
+por(rp.formandos,0,function(x){return {cls:'fora',t:'formando — fora do IPP'}});
+return {s:s,ipp:ipp,rp:rp}}
+/* o aluno conta UMA vez (06/10/2026): com dois contratos, o selo cheio fica no contrato que o relatório usou, e o
+   outro diz por qual ele conta */
+function pefProgSeloHtml(sel,l,livrosDoAluno){
+if(!sel)return '<span class="plan-ro" title="o contrato não termina no ciclo: fora do relatório">—</span>';
+var x=sel.x||{},livros=(x.livros||[]).concat(x.livro?[x.livro]:[]).filter(Boolean);
+/* revisão da leva 4: o selo cheio some só quando OUTRA linha do aluno é a do relatório. Se nenhuma bate (renovou
+   depois para outro livro, livro nulo no histórico, terminou um livro e abriu outro), o status dele fica aqui */
+var outra=livros.filter(function(v){return v!==l.livro&&(livrosDoAluno||[]).indexOf(v)>=0})[0];
+if(outra&&livros.indexOf(l.livro)<0)
+ return '<span class="pef-chip fora" title="o aluno conta uma vez no IPP do ciclo">conta pelo '+escBloco(nomeLivro(outra))+'</span>';
+return '<span class="pef-chip '+sel.cls+'">'+escBloco(sel.t)+'</span>'}
 function pefProgPintar(){
 var c=$('pef-prog');if(!c||!PEF_PROG)return;
 var r=PEF_PROG, perto=function(l){return l.faltamBlocos!=null&&l.faltamLicoes>0&&l.faltamBlocos<=r.limiteBlocos};
-var lista=PEF_PROG_FILTRO==='perto'?r.linhas.filter(perto):r.linhas;
+var S=pefProgSelos(), fech=!!(PEF&&PEF.fechado);
+/* as linhas: os contratos de hoje, os que a conta não alcança, e quem o IPP conta sem contrato aberto */
+var todas=(r.linhas||[]).concat(r.fora||[]), tem={}, livrosDe={};
+todas.forEach(function(l){var k=String(l.id);tem[k]=1;(livrosDe[k]=livrosDe[k]||[]).push(l.livro)});
+Object.keys(S.ipp).forEach(function(k){if(tem[k])return;var x=S.s[k].x;
+ todas.push({id:x.id,nome:x.nome,livro:x.livro,nomeCurto:nomeLivro(x.livro),soIpp:true,
+  fimContrato:x.fimContrato||null,ultimoContato:null})});
+/* as dimensões da planilha viram pílulas — os valores saem dos próprios dados */
+var vals=function(campo){var v={};todas.forEach(function(l){if(l[campo])v[l[campo]]=1});return Object.keys(v).sort()};
+var dim=function(l){return (!PEF_PROG_DIM.seg||l.segmento===PEF_PROG_DIM.seg)&&(!PEF_PROG_DIM.canal||l.canal===PEF_PROG_DIM.canal)
+ &&(!PEF_PROG_DIM.exp||l.experiencia===PEF_PROG_DIM.exp)};
+var base=todas.filter(dim);
+var noIpp=function(l){return !!S.ipp[String(l.id)]};
+var idsIpp={};base.filter(noIpp).forEach(function(l){idsIpp[String(l.id)]=1});
+var nIpp=Object.keys(idsIpp).length, nPerto=base.filter(perto).length;
+var lista=PEF_PROG_FILTRO==='perto'?base.filter(perto):PEF_PROG_FILTRO==='ipp'?base.filter(noIpp):base;
+var semDim=!PEF_PROG_DIM.seg&&!PEF_PROG_DIM.canal&&!PEF_PROG_DIM.exp;
+var bt=function(on,click,txt,tit){return '<button type="button" class="'+(on?'on':'')+'"'+(tit?' title="'+escBloco(tit)+'"':'')
+ +' onclick="'+click+'">'+txt+'</button>'};
+var grupo=function(q,campo){var vs=vals(campo);if(vs.length<2)return '';
+ return '<span class="pef-filtro">'+vs.map(function(v){return bt(PEF_PROG_DIM[q]===v,'pefProgDim(&quot;'+q+'&quot;,&quot;'+escBloco(v)+'&quot;)',escBloco(v))}).join('')+'</span>'};
 var cab='<div class="plan-cab">'
- /* o filtro de 1 clique: "perto do fim" é a pergunta da rematrícula, e o resto é consulta */
- +'<span class="pef-filtro"><button type="button" class="'+(PEF_PROG_FILTRO!=='perto'?'on':'')+'" onclick="pefProgFiltro(\'todos\')">todos · '+r.linhas.length+'</button>'
- +'<button type="button" class="'+(PEF_PROG_FILTRO==='perto'?'on':'')+'" onclick="pefProgFiltro(\'perto\')">a '+r.limiteBlocos
- +(r.limiteBlocos>1?' blocos':' bloco')+' do fim · '+r.pertoDoFim+'</button></span>'
+ +'<span class="pef-filtro">'
+ +bt(PEF_PROG_FILTRO!=='perto'&&PEF_PROG_FILTRO!=='ipp','pefProgFiltro(&quot;todos&quot;)','todos · '+base.length)
+ +bt(PEF_PROG_FILTRO==='perto','pefProgFiltro(&quot;perto&quot;)','a '+r.limiteBlocos+(r.limiteBlocos>1?' blocos':' bloco')+' do fim · '+nPerto)
+ +bt(PEF_PROG_FILTRO==='ipp','pefProgFiltro(&quot;ipp&quot;)','no IPP do ciclo · '+nIpp,'os alunos que o relatório de '+pefMesRot(PEF&&PEF.mes)+' conta em "a rematricular" (um por aluno)')
+ +'</span>'
+ +grupo('seg','segmento')+grupo('canal','canal')+grupo('exp','experiencia')
  /* dizer quantos ainda dependem de palpite é o que empurra o gesto de registrar a lição */
  +(r.semAfirmacao?'<span class="plan-i">'+r.semAfirmacao+' sem lição registrada</span>':'')
  +(r.incertos?'<span class="plan-i plan-tr" title="O plano do contrato venceu antes da primeira aula lançada. Registre a lição na aba Planejamento para o sistema saber onde o aluno está.">'
     +r.incertos+' com posição a confirmar</span>':'')
- +(r.semEstrutura?'<span class="plan-i" title="contratos da escola inteira que a conta não alcança">'+r.semEstrutura+' sem estrutura</span>':'')
- +(r.semInicio?'<span class="plan-i" title="contratos da escola inteira que a conta não alcança">'+r.semInicio+' sem início</span>':'')
  +'</div>';
 var h=cab+'<div class="plan-moldura"><table class="plan-tab prog-tab"><thead><tr>'
  +'<th class="c-al">Aluno</th>'
  +'<th class="c-est">Estágio</th>'
+ +'<th class="c-dr" title="o início do contrato: a entrega do material, ou a entrada">Início</th>'
  +'<th class="c-lic2" title="a última lição que ele fez — registrada por você, ou deduzida da contagem de aulas">Última lição</th>'
- +'<th class="c-falta" title="lições que faltam para o fim do estágio">Faltam</th>'
- +'<th class="c-bl" title="blocos que faltam, contando o que está em curso">Blocos</th>'
+ +'<th class="c-falta" title="lições que faltam para o fim do estágio; embaixo, os blocos">Faltam</th>'
  +'<th class="c-hr">Última aula</th>'
  +'<th class="c-def" title="dias entre a data planejada e a realizada da última lição">Defasagem</th>'
  +'<th class="c-dr">Término previsto</th>'
  +'<th class="c-dr" title="o fim do contrato: é o que o PEF pontua na rematrícula">Fim do contrato</th>'
+ +'<th class="c-ipp" title="como o aluno conta no relatório de '+escBloco(pefMesRot(PEF&&PEF.mes))+(fech?' — o número congelado no fechamento':'')+'">IPP do ciclo'+(fech?' <small>no fechamento</small>':'')+'</th>'
  +'<th class="c-dr" title="a última conversa de verdade (desfecho &quot;falei com alguém&quot;)">Último contato</th>'
- +'<th class="c-prof">Professor(a)</th>'
  +'</tr></thead><tbody>';
-if(!lista.length)h+='<tr><td colspan="11" class="al-hist-vazio">Ninguém '+(PEF_PROG_FILTRO==='perto'?'perto do fim do livro':'com contrato aberto')+' agora.</td></tr>';
+if(!lista.length)h+='<tr><td colspan="11" class="al-hist-vazio">Ninguém '+(PEF_PROG_FILTRO==='perto'?'perto do fim do livro':PEF_PROG_FILTRO==='ipp'?'no IPP do ciclo':'com contrato aberto')+(semDim?'':' nesse filtro')+' agora.</td></tr>';
+var vazio='<span class="plan-ro">—</span>';
 lista.forEach(function(l){
- var pos=l.posicao||{}, pe=perto(l);
- h+='<tr class="plan-l prog-l'+(pe?' perto':'')+(l.confianca==='incerta'?' incerta':'')
-   +'" onclick="dashProgAbrir(&quot;'+escBloco(l.id)+'&quot;,&quot;'+escBloco(l.livro)+'&quot;)"'
-   +' title="abrir o planejamento deste contrato">'
-  +'<td class="c-al"><b>'+escBloco(l.nome)+'</b><small>'+escBloco(l.contrato)+'</small></td>'
-  +'<td class="c-est">'+escBloco(l.nomeCurto||l.estagio)+'</td>'
-  +'<td class="c-lic2">'+(pos.licao?'<i>'+escBloco(pos.licao)+'</i>':'<span class="plan-ro">—</span>')
-    +(l.afirmada?'<span class="prog-dita" title="lição registrada por você"></span>':'')
-    +(pos.bloco!=null?'<small>bloco '+pos.bloco+'</small>':'')+'</td>'
-  +'<td class="c-falta">'+(l.faltamLicoes!=null?l.faltamLicoes:'<span class="plan-ro">?</span>')+'</td>'
-  +'<td class="c-bl">'+(l.faltamBlocos!=null
-     ?'<span class="prog-bl">'+l.faltamBlocos+'<small>/'+l.totalBlocos+'</small></span>'
-     :'<span class="plan-ro">?</span>')+'</td>'
-  +'<td class="c-hr">'+(l.ultimaDada?dataCurta(l.ultimaDada):'<span class="plan-ro">—</span>')+'</td>'
-  +'<td class="c-def">'+(l.defasagem==null?'<span class="plan-ro">—</span>'
+ var pos=l.posicao||{}, pe=perto(l), sel=S.s[String(l.id)];
+ var abrir=l.soIpp?'pefIrAluno(&quot;'+escBloco(l.id)+'&quot;)':'dashProgAbrir(&quot;'+escBloco(l.id)+'&quot;,&quot;'+escBloco(l.livro)+'&quot;)';
+ h+='<tr class="plan-l prog-l'+(pe?' perto':'')+(l.confianca==='incerta'?' incerta':'')+(l.soIpp||l.foraDaConta?' fora':'')
+   +'" onclick="'+abrir+'" title="'+(l.soIpp?'sem contrato aberto — abrir o aluno':'abrir o planejamento deste contrato')+'">'
+  +'<td class="c-al"><b>'+escBloco(l.nome)+'</b>'+(l.contrato?'<small>'+escBloco(l.contrato)+'</small>':'')+'</td>'
+  +'<td class="c-est">'+escBloco(l.nomeCurto||l.estagio||nomeLivro(l.livro))
+    +(l.tipo?'<small>'+(l.tipo==='Matrícula'?'1º livro':'rematrícula')+'</small>':'')+'</td>'
+  +'<td class="c-dr">'+(l.inicio?dataCurta(l.inicio):vazio)+'</td>'
+  +'<td class="c-lic2">'+(l.foraDaConta?'<span class="prog-fora">'+escBloco(l.motivo||'fora da conta')+'</span>'
+     :l.soIpp?'<span class="prog-fora">sem contrato aberto</span>'
+     :(pos.licao?'<i title="'+escBloco(pos.licao)+'">'+escBloco(pos.licao)+'</i>':vazio)
+      +(l.afirmada?'<span class="prog-dita" title="lição registrada por você"></span>':'')
+      +(pos.bloco!=null?'<small>bloco '+pos.bloco+'</small>':''))+'</td>'
+  +'<td class="c-falta">'+(l.faltamLicoes!=null?'<b>'+l.faltamLicoes+'</b>':(l.soIpp||l.foraDaConta?vazio:'<span class="plan-ro">?</span>'))
+    +(l.faltamBlocos!=null?'<small>'+l.faltamBlocos+'/'+l.totalBlocos+' blocos</small>':'')+'</td>'
+  +'<td class="c-hr">'+(l.ultimaDada?dataCurta(l.ultimaDada)
+     :l.ultimaPresenca?'<span title="a última presença: a projeção não alcança este contrato">'+dataCurta(String(l.ultimaPresenca).slice(0,10))+'</span>':vazio)+'</td>'
+  +'<td class="c-def">'+(l.defasagem==null?vazio
      /* O SINAL É O DO PAINEL DO ALUNO (2026-09-14): + adiantado, − atrasado. O servidor manda os dias
         entre a data planejada e a realizada, positivo quando atrasou — por isso aqui se inverte. */
      :'<span class="prog-def '+(l.defasagem>0?'atras':(l.defasagem<0?'frente':''))+'" title="'
       +(l.defasagem>0?'atrasado '+l.defasagem+' dia(s)':l.defasagem<0?'adiantado '+Math.abs(l.defasagem)+' dia(s)':'no dia planejado')+'">'
       +(l.defasagem>0?'-':(l.defasagem<0?'+':''))+Math.abs(l.defasagem)+' d</span>')+'</td>'
-  +'<td class="c-dr">'+(l.termino?dataCurta(l.termino):'<span class="plan-ro">—</span>')+'</td>'
-  +'<td class="c-dr">'+(l.fimContrato?dataCurta(l.fimContrato):'<span class="plan-ro">—</span>')+'</td>'
+  +'<td class="c-dr">'+(l.termino?dataCurta(l.termino):vazio)+'</td>'
+  +'<td class="c-dr">'+(l.fimContrato?dataCurta(l.fimContrato):vazio)+'</td>'
+  +'<td class="c-ipp">'+pefProgSeloHtml(sel,l,livrosDe[String(l.id)])+'</td>'
   +'<td class="c-dr"><button type="button" class="at-cel-bt" data-at-hist="'+escBloco(l.id)+'" title="ver os contatos com este aluno" onclick="event.stopPropagation();pefProgHist(&quot;'+escBloco(l.id)+'&quot;)">'
-    +(l.ultimoContato?dataCurta(l.ultimoContato):'<span class="ret-nunca">nunca</span>')+'</button></td>'
-  +'<td class="c-prof">'+escBloco((l.professores||[]).join(', '))+'</td></tr>'});
+    +(l.ultimoContato?dataCurta(l.ultimoContato):l.soIpp?'<span class="plan-ro">ver contatos</span>':'<span class="ret-nunca">nunca</span>')+'</button></td></tr>'});
 h+='</tbody></table></div>';
 if(r.incertos)h+='<div class="al-hist-vazio">'+r.incertos+' contrato(s) estão com a posição a confirmar: '
  +'o plano deles venceu antes da primeira aula lançada, então a contagem automática não diz onde o aluno está. '
@@ -8444,12 +8679,11 @@ var a=(ALUNOS||[]).filter(function(x){return String(x.id)===String(id)})[0];
 if(!a){msg('Aluno '+id+' não está na lista.',true);return}
 abaPor('alunos');
 if(CALX_ABERTO)calxFechar();
-MAT_ABA_DE=null;
-alCarregar(a);
+alCarregar(a,function(){
 var n=0;(function tenta(){
  var card=null;document.querySelectorAll('#mat-lista .matricula-card').forEach(function(c){if(c.dataset.livro===livro)card=c});
  if(card&&alSel&&String(alSel.id)===String(a.id)&&String(MAT_ABA_DE)===String(a.id)){card.dataset.sub='plan';matAba(livro);return}
- if(++n<50)setTimeout(tenta,100)})();
+ if(++n<50)setTimeout(tenta,100)})()},function(){MAT_ABA_DE=null});
 }
 /* a anotação do DIA, escrita na Ficha (a única que chama isto). Gravava com `PLAN_LIVRO`, o livro do
    PLANEJAMENTO: sem ele aberto naquele contrato, o servidor não achava o lançamento e a anotação se perdia
@@ -8491,7 +8725,15 @@ try{localStorage.setItem('al-dados-aberto',abrir?'1':'0')}catch(e){}}
    anterior ficavam clicáveis até os do novo chegarem (dois pedidos em série). Nessa janela o Salvar do
    cartão, a situação, o contrato e o ✕ da Frequência gravavam no aluno NOVO com os dados do anterior. As
    seções voltam ao depósito e o miolo diz "carregando"; as travas `telaDoAluno` seguem como segunda linha. */
-function alCarregar(a){dirty('al',false);AL_NOVO=false;alSel=a;$('al-nome').value=a.nome;$('al-id').value=a.id;$('al-id').disabled=true;alSitPor(a.situacao);$('al-excluir').style.display='inline-block';$('al-busca').value='';alQuem();alStatus();alTravarVinculo();$('al-aviso').innerHTML='';alDadosPor(a.dados);
+/* trocar de aluno com contrato editado e não salvo pergunta antes (auditoria da Wiztools 18); o mesmo aluno não */
+/* `antes`/`depois` (revisão): o que o chamador faz em volta da troca (zerar MAT_ABA_DE, abrir a aba certa, piscar) só
+   roda se ela de fato acontecer — cancelar o "descartar?" deixava a tela do aluno antigo com o estado do novo. Reabrir o
+   MESMO aluno também refaz os cartões, então também pergunta (sem contar o estágio novo, que sobrevive ao recarregar). */
+function alCarregar(a,depois,antes){
+var go=function(){if(antes)antes();alCarregarJa(a);if(depois)depois()};
+if(alSel&&a){matDescartar(go,String(a.id)!==String(alSel.id));return}
+go()}
+function alCarregarJa(a){dirty('al',false);AL_NOVO=false;alSel=a;$('al-nome').value=a.nome;$('al-id').value=a.id;$('al-id').disabled=true;alSitPor(a.situacao);$('al-excluir').style.display='inline-block';$('al-busca').value='';alQuem();alStatus();alTravarVinculo();$('al-aviso').innerHTML='';alDadosPor(a.dados);
 matDevolverSecoes();histFechar();hhistFechar();freqFechar();
 var ml=$('mat-lista');if(ml)ml.innerHTML='<div class="matriculas-vazio">carregando os contratos…</div>';
 var ra=$('al-mat-abas');if(ra)ra.innerHTML='';
@@ -8525,7 +8767,8 @@ run('salvarAluno',[a],function(r){
  $('al-aviso').innerHTML='';
  alTravarVinculo();
  dirty('al',false);
- alHistoricos();run('getAlunos',[],function(x){ALUNOS=x});recarregarMatriculas()})}
+ /* com contrato editado e não salvo, os cartões ficam: o próximo Salvar do contrato os refaz (Wiztools 18) */
+ alHistoricos();run('getAlunos',[],function(x){ALUNOS=x});if(!matHaPendencia())recarregarMatriculas()})}
 function alExcluir(){if(!alSel)return;
 /* G5 (06/10/2026): o servidor só exclui cadastro sem fato nenhum — e diz qual fato impede, se houver */
 dlgConfirmar({titulo:'Excluir aluno',perigo:true,ok:'Excluir aluno',
@@ -8548,8 +8791,29 @@ var id=alSel.id, meu=function(){return alSel&&String(alSel.id)===String(id)};
 var erro=function(e){if(!meu())return;MATRICULAS=[];MATRIC_AULAS={};renderMatriculas();
  var box=$('mat-lista');if(box)box.innerHTML='<div class="matriculas-vazio">Não deu para carregar os contratos deste aluno ('
   +escBloco(e)+'). Escolha o aluno de novo para tentar.</div>'};
-run('getMatriculasAluno',[id],function(ms){if(!meu())return;MATRICULAS=ms;
-run('getAulasAluno',[id],function(aulas){if(!meu())return;var por={};aulas.forEach(function(x){(por[x.livro]=por[x.livro]||[]).push(x)});MATRIC_AULAS=por;renderMatriculas();if(cb)cb()},erro)},erro)}
+/* O ESTÁGIO NOVO AINDA NÃO GRAVADO SOBREVIVE AO RECARREGAR (auditoria da Wiztools 18): ele só existia em MATRICULAS,
+   e qualquer gesto que refaz os cartões (o professor aplicado à turma, o seletor de situação de outro contrato) o
+   apagava sem aviso. Fica enquanto o servidor não o devolver — e é do MESMO aluno, pela marca `_local`. */
+run('getMatriculasAluno',[id],function(ms){if(!meu())return;
+var locais=(MATRICULAS||[]).filter(function(x){return x._local&&String(x._local)===String(id)
+ &&!ms.some(function(y){return y.livro===x.livro})});
+MATRICULAS=ms.concat(locais);
+run('getAulasAluno',[id],function(aulas){if(!meu())return;var por={};aulas.forEach(function(x){(por[x.livro]=por[x.livro]||[]).push(x)});
+locais.forEach(function(x){por[x.livro]=por[x.livro]||[]});MATRIC_AULAS=por;renderMatriculas();if(cb)cb()},erro)},erro)}
+/* ===== EDIÇÃO NÃO SALVA DO CONTRATO (auditoria da Wiztools 18) =====
+   Refazer os cartões a partir do banco jogava fora, sem aviso, o que estava editado e não salvo. A pergunta fica nos
+   GESTOS que refazem os cartões (o seletor de situação, o encerrar, o trancar, o número do contrato, trocar ou
+   remover estágio, trocar de aluno) — e não dentro do recarregar, que também roda depois de cada Salvar bem-sucedido
+   e perguntaria a cada salvamento. `comLocais`: só a troca de aluno perde o estágio novo ainda não gravado. */
+function matHaPendencia(comLocais){
+return !!document.querySelector('#mat-lista .mat-salvar.sujo')
+ ||(!!comLocais&&(MATRICULAS||[]).some(function(x){return !!x._local}))}
+function matDescartar(fn,comLocais){
+if(!matHaPendencia(comLocais)){fn();return}
+dlgConfirmar({titulo:'Descartar o que não foi salvo?',perigo:true,ok:'Descartar e continuar',
+ texto:'Há contrato deste aluno com alteração ainda não salva'+(comLocais?' (ou um estágio novo que ainda não foi gravado)':'')
+  +'. Continuar refaz os cartões a partir do banco, e essa alteração se perde.\n\nPara guardá-la, cancele e clique em "Salvar contrato" antes.'},
+ function(sim){if(sim)fn()})}
 /* ===== MATRÍCULAS EM ABAS (2026-08-16) =====
    Eram sanfonas empilhadas: com dois ou três estágios a página crescia para baixo e achar o
    horário do segundo virava rolagem. Viraram abas, uma por estágio, acumulando da esquerda para a
@@ -8602,8 +8866,9 @@ return '<label class="dlg-l">Quando ele saiu'
  +'<div class="dlg-dica" id="msai-rede-dica">O motivo escolhe esta caixa sozinho. Ela é o que vai no relatório do mês.</div>'
  +'<label class="dlg-l">Observação <span class="opc">(opcional)</span>'
  +'<input id="msai-obs" maxlength="140" placeholder="o que ele disse, o que ficou combinado"></label>'}
-function matEncerrar(livro,estado){
+function matEncerrar(livro,estado,descartou){
 if(!alSel)return;
+if(!descartou){matDescartar(function(){matEncerrar(livro,estado,true)});return}
 var arg={idMatricula:alSel.id,livro:livro};
 if(estado)arg.estado=estado;
 run('encerrarLivro',[arg],function(r){
@@ -8667,18 +8932,21 @@ if(nova===antes)return;
 var saida=MAT_SIT_SAIDA[nova];
 if(saida){sel.value=antes;matEncerrar(livro,saida);return}
 if(nova==='Trancado'){sel.value=antes;matTrancar(livro);return}
+sel.value=antes;
+matDescartar(function(){sel.value=nova;
 run('salvarHistoricoAluno',[{idMatricula:alSel.id,situacao:nova,data:isoLocal(new Date()),livro:livro}],
 function(r){
  msg(livro+': '+nova+(r.resolvido?' — registrado; a situação corrente ficou '+r.resolvido:'')+'.');
  if(r.situacaoCorrente)alSitPor(r.situacaoCorrente);
- recarregarMatriculas()})}
+ recarregarMatriculas()},function(){sel.value=antes})})}
 /* ===== TRANCAR PERGUNTA QUANDO ELE VOLTA (2026-09-21, decisão dele) =====
    *"A escola combina uma data de volta."* No PEF, "trancado não-retornado" é quem passou DESSA data sem
    voltar — e sem ela a caixa é indecidível. Antes o seletor gravava "Trancado · hoje" direto, sem perguntar
    nada; agora pergunta o dia do trancamento (sugerido hoje) e o dia combinado para a volta. O horário dele
    continua reservado: trancar não passa pelo encerrar, porque ele volta ao MESMO estágio. */
-function matTrancar(livro){
+function matTrancar(livro,descartou){
 if(!alSel)return;
+if(!descartou){matDescartar(function(){matTrancar(livro,true)});return}
 var hoje=isoLocal(new Date());
 dlgAbrir({tipo:'confirmar',titulo:'Trancar '+livro+'?',ok:'Trancar',
  texto:'O horário dele continua reservado neste estágio. Se ele não voltar na data combinada, entra no IPP como "trancado não retornado" e acende na Central.',
@@ -8853,6 +9121,7 @@ return grid;
 function lerItensEditor(editorEl){var out=[];editorEl.querySelectorAll('.chip-hora.on').forEach(function(c){out.push({dia:c.dataset.dia,horario:c.dataset.hora})});return out}
 function criarCartaoMatricula(m){
 var card=document.createElement('div');card.className='matricula-card';
+card.dataset.naMatricula=m.naMatricula?'1':'';
 
 /* ---- cabeçalho: é o que sobra quando o cartão está recolhido ---- */
 /* A SETA SAIU com a sanfona: quem escolhe a matrícula é o trilho de abas acima, e o cabeçalho
@@ -8888,13 +9157,13 @@ var head=document.createElement('div');head.className='mat-cab';
 var ctrBt=document.createElement('button');ctrBt.type='button';ctrBt.className='btn-link mat-ctr-bt';
 ctrBt.textContent='contrato '+(m.contrato||(alSel.id+'/—'));
 ctrBt.title='Editar o número deste contrato';
-ctrBt.onclick=function(ev){ev.stopPropagation();
+ctrBt.onclick=function(ev){ev.stopPropagation();matDescartar(function(){
  dlgTexto({titulo:'Número do contrato',
   texto:'O contrato é '+alSel.id+'/N, e N é a ordem em que este vínculo foi criado. '
    +'O primeiro estágio do aluno é /1, o seguinte /2, e assim por diante — independente de estágio ou idioma.',
   label:'Número (a parte depois da barra)',valor:m.contratoSeq||'',tipoCampo:'number',ok:'Salvar'},
  function(v){run('salvarContrato',[{idMatricula:alSel.id,livro:m.livro,seq:v}],function(r){
-   msg('Contrato '+r.contrato+' salvo.');recarregarMatriculas()})})};
+   msg('Contrato '+r.contrato+' salvo.');recarregarMatriculas()})})})};
 /* ===== A SITUAÇÃO É DO ESTÁGIO, NÃO DO ALUNO (2026-08-22) =====
    Pedido dele: *"a situação deveria ser vinculada ao módulo dele, ao livro em si, não ao cadastro
    do aluno em geral, porque o cadastro dele pode ser ativo ou desativado"*. O dropdown saiu do
@@ -8926,7 +9195,9 @@ if(m.fechado){
  /* contrato encerrado: mostra a situação, não oferece trocá-la. Reabrir um estágio fechado é gesto
     grande demais para um dropdown — se for preciso, o caminho é lançar no histórico. */
  selSitM.disabled=true;
- selSitM.title='Estágio encerrado. Para reabrir, lance a situação no histórico.';
+ selSitM.title=((m.percurso&&m.percurso.estado)==='trancado')
+  ?'Estágio trancado. A volta se registra no histórico (Retornado).'
+  :'Estágio encerrado. Para reabrir, lance a situação no histórico.';
 }else{
  selSitM.onchange=function(ev){ev.stopPropagation();matTrocarSituacao(m.livro,this)};
  selSitM.onclick=function(ev){ev.stopPropagation()};
@@ -8972,6 +9243,15 @@ frase.textContent=fp.length?'Contrato '+fp.join(' · '):'Contrato';
 hEsq.appendChild(frase);
 /* encerrar, trocar e arquivar só existem enquanto o contrato está de pé */
 if(!m.fechado){acoesHead.appendChild(encerrarBtn);acoesHead.appendChild(trocarBtn);acoesHead.appendChild(rm)}
+/* a saída foi gravada por fora do encerrar e o horário ficou de pé (Wiztools 18; 6 contratos assim na recepção): o
+   botão completa a MESMA saída — o encerrarLivro reconhece a linha que já existe — e libera o horário. O trancado fica
+   de fora: ele mantém a matrícula de propósito. */
+else if(m.naMatricula&&m.percurso&&m.percurso.estado&&m.percurso.estado!=='trancado'){
+ var libBtn=document.createElement('button');libBtn.type='button';libBtn.className='acao sec mat-liberar';
+ libBtn.textContent='liberar o horário';
+ libBtn.title='O contrato já está '+m.percurso.estado+', mas o horário ficou de pé. Isto completa a saída (motivo e caixa) e tira o horário.';
+ libBtn.onclick=function(ev){ev.stopPropagation();matEncerrar(m.livro,m.percurso.estado)};
+ acoesHead.appendChild(libBtn)}
 hDir.appendChild(acoesHead);card.appendChild(head);
 
 /* ---- corpo ----
@@ -9014,8 +9294,19 @@ corpoIn.appendChild(resumo);
    editar: a agenda saiu quando o contrato fechou, e a modalidade era do vínculo que terminou. */
 if(m.fechado){
  var enc=document.createElement('div');enc.className='mat-fechado';
- enc.innerHTML='<b>Estágio encerrado.</b> Fica aqui para a trilha do aluno ficar visível. '
-  +'A agenda saiu quando o contrato foi fechado; a frequência, as entregas e o histórico continuam.';
+ /* o texto diz o que de fato aconteceu com a agenda (Wiztools 18): no trancado e na saída gravada por fora do
+    encerrar a matrícula continua de pé, e "a agenda saiu" era mentira justamente nos dois casos que pedem ação */
+ var estF=(m.percurso&&m.percurso.estado)||'encerrado';
+ enc.innerHTML=(m.naMatricula&&estF==='trancado')
+  ?'<b>Estágio trancado.</b> O horário dele continua reservado neste estágio'
+   +(m.retornoPrevisto?' até a volta combinada, '+dataCurta(m.retornoPrevisto)+'; '
+     :'; <b>não há volta combinada registrada</b> — lance-a pelo "+" do histórico (Trancado). ')
+   +'A frequência, as entregas e o histórico continuam.'
+  :m.naMatricula
+  ?'<b>Saída registrada, horário de pé.</b> O contrato já está '+escBloco(estF)+', mas a agenda não saiu: '
+   +'"liberar o horário", acima, completa a saída (motivo e caixa da rede) e tira o horário.'
+  :'<b>Estágio encerrado.</b> Fica aqui para a trilha do aluno ficar visível. '
+   +'A agenda saiu quando o contrato foi fechado; a frequência, as entregas e o histórico continuam.';
  corpoIn.appendChild(enc);
  return card}
 
@@ -9032,7 +9323,8 @@ trocarBtn.onclick=function(ev){ev.stopPropagation();
 function renderTroca(){var q=norm(trocaInp.value);var itens=(DOM.livros||[]).filter(function(l){return l.nome!==m.livro&&!MATRICULAS.some(function(x){return x.livro===l.nome})&&(q===''||norm(nomeLivro(l.nome)+' '+l.nome).indexOf(q)>=0)}).slice(0,8);
 trocaLista.innerHTML='';itens.forEach(function(l){var d=document.createElement('div');d.textContent=nomeLivro(l.nome)+' — padrão '+l.tipoPadrao+(l.kids?' Kids':'');
 d.onmousedown=function(ev){ev.preventDefault();trocaLista.style.display='none';trocaBox.style.display='none';
-run('trocarLivroAluno',[{idMatricula:alSel.id,livroAntigo:m.livro,livroNovo:l.nome}],function(r){msg('Estágio trocado para '+nomeLivro(l.nome)+' ('+r.aulasMovidas+' aula(s) movida(s)).');recarregarMatriculas()})};
+matDescartar(function(){
+run('trocarLivroAluno',[{idMatricula:alSel.id,livroAntigo:m.livro,livroNovo:l.nome}],function(r){msg('Estágio trocado para '+nomeLivro(l.nome)+' ('+r.aulasMovidas+' aula(s) movida(s)).');recarregarMatriculas()})})};
 trocaLista.appendChild(d)});
 trocaLista.style.display=itens.length?'block':'none'}
 trocaInp.addEventListener('input',renderTroca);trocaInp.addEventListener('focus',renderTroca);
@@ -9111,7 +9403,9 @@ function matAssinatura(){
    mod:selMod?selMod.value:null, tipo:selTipo?selTipo.value:null,
    vip:vipChk?!!vipChk.checked:null,
    profs:profsWidget?profsWidget.get().slice().sort():null,
-   agenda:lerItensEditor(editor).map(function(x){return x.dia+' '+x.hora}).sort()
+   /* `horario`, não `hora` (auditoria da Wiztools 18): com `x.hora` a agenda virava "Seg undefined" e trocar 14:00
+      por 15:00 no mesmo dia não acendia o botão */
+   agenda:lerItensEditor(editor).map(function(x){return x.dia+' '+x.horario}).sort()
   });
  }catch(e){return null}
 }
@@ -9162,14 +9456,24 @@ gravarMatricula(false)};
    matrículas do aluno. Ele devolve `precisaConfirmar` sem gravar — mesmo padrão da troca de horário
    e do ponto. A janela NOMEIA o curso que já está em andamento, porque a saída certa quase sempre é
    encerrar aquele, não abrir mais um. */
-function gravarMatricula(confirmado){
+/* CONTRATO QUE JÁ EXISTE: a troca de horário é perguntada ANTES de gravar qualquer coisa (auditoria da Wiztools 18).
+   Antes `salvarMatricula` gravava modalidade, VIP e tipo, e só depois vinha a pergunta da troca — cancelá-la deixava
+   metade gravada e o botão sujo. Contrato novo não tem troca (não havia horário), e segue a ordem de sempre. */
+function gravarMatricula(confirmado,trocaVista){
+var itensG=lerItensEditor(editor),profsG=profsWidget.get();
+if(m.naMatricula&&!trocaVista){
+ run('getConferirTroca',[{idMatricula:alSel.id,livro:m.livro,professores:profsG,itens:itensG}],function(c){
+  if(c.precisaTroca){TROCA={livro:m.livro,itens:itensG,profs:profsG,depois:function(){gravarMatricula(confirmado,true)}};
+   trocaAbrir(c);return}
+  gravarMatricula(confirmado,true)});
+ return}
 run('salvarMatricula',[{idMatricula:alSel.id,livro:m.livro,modalidade:selMod.value,
  vip:vipChk.checked,tipoEncontro:selTipo.value,confirmado:!!confirmado}],function(r){
 if(r&&r.precisaConfirmar){
  dlgConfirmar({titulo:'Dois estágios do mesmo idioma?',perigo:true,ok:'Matricular assim mesmo',
   texto:r.texto+'\n\nSe ele realmente trocou de estágio, o certo é encerrar '+r.livroEmCurso
    +' primeiro — assim o percurso guarda a passagem por ele.'},
- function(sim){if(sim)gravarMatricula(true)});
+ function(sim){if(sim)gravarMatricula(true,trocaVista)});
  return}
 /* `salvarMatricula` GRAVA SOZINHO no histórico de situação — "Matriculado" no 1º contrato do aluno,
    "Rematriculado" do 2º em diante — e mexe na situação corrente dele. A tela não sabia disso: só a
@@ -9177,7 +9481,8 @@ if(r&&r.precisaConfirmar){
    O que veio do servidor fica guardado aqui e é aplicado quando a agenda termina de gravar (a troca
    de horário pode abrir uma janela no meio do caminho, e o valor tem de sobreviver a ela). */
 SIT_APOS_MATRICULA=(r&&r.criado&&r.registrada)?{situacao:r.situacao,livro:m.livro}:null;
-gravarAgenda(m.livro,lerItensEditor(editor),profsWidget.get(),false)})}
+/* com a troca já vista (e aceita), a agenda grava sem perguntar de novo */
+gravarAgenda(m.livro,itensG,profsG,!!trocaVista)})}
 
 /* a prévia de cada cartão é uma closure própria (cada um tem o seu `meuSeq`, para dois estágios não
    descartarem a resposta um do outro). `matAba` precisa alcançá-la quando a aba abre, então ela
@@ -9308,6 +9613,7 @@ else dlgConfirmar({titulo:'Trocar o horário do aluno?',ok:'Trocar horário',
 function trocaConfirmar(){
 var d=$('troca-dialog');if(d&&d.hide)d.hide();
 if(!TROCA)return;var t=TROCA;TROCA=null;
+if(t.depois){t.depois();return}   /* veio do Salvar do contrato: agora grava tudo, na ordem */
 gravarAgenda(t.livro,t.itens,t.profs,true);
 }
 
@@ -9339,8 +9645,11 @@ box.appendChild(lista);
 }
 
 function novaMatriculaEscolhida(l){if(!alSel){msg('Salve o cadastro do aluno primeiro.',true);return}
-function segue(){
- MATRICULAS.push({livro:l.nome,modalidade:l.tipoPadrao,vip:false,tipoEncontro:'Presencial'});
+/* o cartão novo refaz os outros (renderMatriculas): pergunta pelo que se perderia (revisão da Wiztools 18) */
+function segue(){matDescartar(segueJa)}
+function segueJa(){
+ /* `_local`: o contrato só existe na tela até o Salvar; o recarregar o preserva (ver recarregarMatriculas) */
+ MATRICULAS.push({livro:l.nome,modalidade:l.tipoPadrao,vip:false,tipoEncontro:'Presencial',_local:alSel.id});
  /* `'cadastro'` e NÃO `'matriculas'`. Este era o bug: em 11/08 as duas abas trocaram de papel e de
     nome — os cartões de matrícula foram para a que hoje se chama **Cadastro**, e a antiga
     "Matrículas" virou **Informações** (os três históricos). A chamada aqui ficou apontando para o
@@ -9360,10 +9669,15 @@ if(l.saldo===0){
  return}
 segue()}
 function matriculaExcluir(livro){if(!alSel)return;
+/* o estágio novo que nunca foi gravado sai só da tela: agora que o recarregar o preserva, mandá-lo ao servidor
+   não o tiraria de lá */
+var local=(MATRICULAS||[]).filter(function(x){return x._local&&x.livro===livro})[0];
+if(local){matDescartar(function(){MATRICULAS=MATRICULAS.filter(function(x){return x!==local});delete MATRIC_AULAS[livro];renderMatriculas()});return}
+matDescartar(function(){
 dlgConfirmar({titulo:'Remover matrícula',perigo:true,ok:'Remover',
  texto:'Remover a matrícula de '+livro+'?\n\nIsso apaga também as aulas desse estágio.'},function(sim){
 if(!sim)return;
-run('excluirMatricula',[{idMatricula:alSel.id,livro:livro}],function(r){msg('Matrícula removida ('+r.aulasRemovidas+' aula(s)).');recarregarMatriculas()})})}
+run('excluirMatricula',[{idMatricula:alSel.id,livro:livro}],function(r){msg('Matrícula removida ('+r.aulasRemovidas+' aula(s)).');recarregarMatriculas()})})})}
 
 /* ---- histórico de situação: a jornada do aluno, estágio por estágio ---- */
 /* id do registro em edição inline — um por vez */
@@ -9401,8 +9715,20 @@ var vistos={};
 hs.forEach(function(h){if(h.livro)vistos[h.livro]=1});
 var inpData=document.createElement('input');inpData.type='date';
 var addBtn=document.createElement('button');addBtn.type='button';addBtn.className='acao';addBtn.style.cssText='padding:6px 10px;margin:0';addBtn.textContent='+';
-addBtn.onclick=function(){if(!inpData.value){msg('Escolha uma data.',true);return}
-run('salvarHistoricoAluno',[{idMatricula:alSel.id,situacao:selSit.value,data:inpData.value,livro:MAT_CTX||null}],function(r){
+addBtn.onclick=function(){
+/* AS SAÍDAS VÃO PELO CAMINHO DE VERDADE (auditoria da Wiztools 18): lançadas aqui, ficavam sem motivo nem caixa e com o
+   horário de pé. Encerrado/Evadido/Cancelado abrem o "encerrar estágio"; Trancado, o diálogo de trancar (que pergunta
+   a volta). O resto (entradas, Retornado) segue direto. */
+var sv=selSit.value;
+/* só no contrato DE PÉ (a linha de matrícula existe): no já fechado o "+" corrige a história direto, como antes */
+var cardCtx=MAT_CTX?[].slice.call(document.querySelectorAll('#mat-lista .matricula-card'))
+ .filter(function(c){return c.dataset.livro===MAT_CTX})[0]:null;
+var dePe=!!(cardCtx&&cardCtx.dataset.naMatricula);
+/* `histCarregar()` fecha o formulário na tela: só zerar HIST_ADD o deixava aberto se o diálogo fosse cancelado (revisão) */
+if(MAT_SIT_SAIDA[sv]&&dePe){HIST_ADD=false;histCarregar();matEncerrar(MAT_CTX,MAT_SIT_SAIDA[sv]);return}
+if(sv==='Trancado'&&dePe){HIST_ADD=false;histCarregar();matTrancar(MAT_CTX);return}
+if(!inpData.value){msg('Escolha uma data.',true);return}
+run('salvarHistoricoAluno',[{idMatricula:alSel.id,situacao:sv,data:inpData.value,livro:MAT_CTX||null}],function(r){
  inpData.value='';HIST_ADD=false;   /* lançou, fecha: o gesto acabou */
  histDepois(r)})};
 addRow.appendChild(selSit);addRow.appendChild(inpData);addRow.appendChild(addBtn);
@@ -9413,9 +9739,10 @@ if(!HIST_ADD)addRow.style.display='none';
 box.appendChild(addRow);
 box.appendChild(Object.assign(document.createElement('hr'),{className:'hist-fio'}));
 var bt=$('hist-add-bt');if(bt)bt.classList.toggle('on',!!HIST_ADD);
-if(!hs.length){var v=document.createElement('div');v.style.cssText='color:var(--tx3);font-size:12px;padding:4px 0';v.textContent='Nenhum registro ainda.';box.appendChild(v);return}
+/* o contador ANTES do "nenhum registro": com a lista vazia ele ficava com o número do contrato anterior */
 var tgS=$('hist-n');
 if(tgS){tgS.textContent=hs.length;tgS.style.display=hs.length?'inline-flex':'none'}
+if(!hs.length){var v=document.createElement('div');v.style.cssText='color:var(--tx3);font-size:12px;padding:4px 0';v.textContent='Nenhum registro ainda.';box.appendChild(v);return}
 var lista=document.createElement('div');lista.className='freq-lista';
 hs.forEach(function(h){var row=document.createElement('div');row.className='hist-linha';
 /* ---- linha em EDIÇÃO: vira os mesmos três campos do formulário de lançar ----
@@ -9424,7 +9751,11 @@ hs.forEach(function(h){var row=document.createElement('div');row.className='hist
 if(HIST_EDIT===h.id){
  row.className='hist-linha hist-editando';
  var eSit=document.createElement('select');
- (DOM.situacoes||[]).forEach(function(s){var o=document.createElement('option');o.textContent=s.situacao;
+ /* só a mesma FAMÍLIA (Wiztools 18): virar uma entrada em saída pelo lápis era o mesmo atalho do "+" — a saída sem
+    motivo, sem caixa e com o horário de pé. Trocar Evadido por Cancelado, ou Matriculado por Rematriculado, continua */
+ var famH=((DOM.situacoes||[]).filter(function(s){return s.situacao===h.situacao})[0]||{}).ativa;
+ (DOM.situacoes||[]).filter(function(s){return famH===undefined||s.ativa===famH}).forEach(function(s){
+   var o=document.createElement('option');o.textContent=s.situacao;
    if(s.situacao===h.situacao)o.selected=true;eSit.appendChild(o)});
  /* sem dropdown de estágio na edição, pela mesma razão do formulário de lançar: a linha é deste
     contrato e continua dele. O valor gravado viaja intacto em `h.livro`. */
@@ -9481,7 +9812,10 @@ function histDepois(r){
 if(r&&r.resolvido)msg('Retornado registrado — o aluno volta a '+r.resolvido+'.');
 if(r&&r.situacaoCorrente)alSitPor(r.situacaoCorrente);
 if(alSel&&r&&r.situacaoCorrente)alSel.situacao=r.situacaoCorrente;
-run('getHistoricoAluno',[alSel.id],function(hs2){histRender(hs2)});
+/* a lista DESTE contrato (histCarregar filtra pelo MAT_CTX): a chamada crua trazia a linha do tempo do aluno inteiro,
+   e o ✕ numa linha de outro contrato apagava daqui (auditoria da Wiztools 18). E o cartão acompanha a situação. */
+histCarregar();
+if(!matHaPendencia())recarregarMatriculas();   /* com contrato editado, o próximo Salvar refaz o cartão */
 run('getAlunos',[],function(x){ALUNOS=x});
 }
 
@@ -9509,10 +9843,12 @@ var row=document.createElement('div');row.className='hist-linha';
 var tx=document.createElement('span');
 /* dia que não é o do horário fixo do aluno: um sinalzinho na linha, e não uma seção à parte.
    O motivo do encontro (reposição, reforço...) vai no title — a linha tem de continuar curta. */
+/* TODOS os encontros do dia (Wiztools 18): dois no mesmo dia (reforço e reposição) apareciam como um só */
+var avs=l.avulsos||(l.avulso?[l.avulso]:[]);
 var alerta=l.foraDoHorario
- ? '<span class="freq-fora" title="'+escBloco(l.avulso
-     ? l.avulso.motivo+' às '+l.avulso.hora+(l.avulso.observacao?' — '+l.avulso.observacao:'')
-     : 'Este dia não é o do horário fixo do aluno neste estágio.')+'">'+icon('triangle-alert',13)+'</span> '
+ ? '<span class="freq-fora" title="'+escBloco(avs.length
+     ? avs.map(function(a){return a.motivo+' às '+a.hora+(a.observacao?' — '+a.observacao:'')}).join(' · ')
+     : 'Pela agenda daquela época, este não era um dia de aula dele neste estágio.')+'">'+icon('triangle-alert',13)+'</span> '
  : '';
 /* encontro marcado cuja data já passou sem lançamento nenhum: não é mais "previsto", é "não veio" */
 var passou=l.status===null&&l.data<isoLocal(new Date());
@@ -9522,7 +9858,10 @@ var marca=l.status===null
  : '<span class="st '+l.status+'">'+(l.status==='P'?'P':l.status==='F'?'F':'—')+'</span> ';
 tx.innerHTML=marca+alerta
 +'<b>'+l.numero+'</b> '+escBloco(l.diaCurto)+' · '+escBloco(l.mes.slice(0,3))+' <small style="color:var(--tx3)">'+escBloco(nomeLivro(l.livro))+'</small>'
-+(l.avulso?' <span class="av-motivo">'+escBloco(l.avulso.motivo)+'</span>':'')
++(avs.length?' <span class="av-motivo">'+escBloco(avs.map(function(a){return a.motivo}).join(' + '))+'</span>':'')
+/* falta ou não-aula de ANTES do início do contrato: a projeção a descarta, e o resumo daqui também (Wiztools 18) */
++(l.antesDoInicio&&l.status&&l.status!=='P'?' <span class="freq-sem-aula" title="Antes do início deste contrato: não conta '
+  +'na fila de reposição, no atraso nem no resumo acima. Pode apagar este lançamento.">antes do início</span>':'')
 +(l.minutos!=null?' <span class="lc-dur'+(l.minutos<20?' curta':'')+'">'+escBloco(fmtDur(l.minutos))+'</span>':'')
 +(l.auto?' <span class="badge b-off" title="Falta lançada pelo fecho do dia, não por alguém">auto</span>':'')
 /* dia que o calendário letivo fechou (2026-09-19): o lançamento existe, mas falta e não-aula ali não contam */
@@ -9534,14 +9873,22 @@ del.title=l.status===null?'Desmarcar este encontro (fica no histórico)':'Remove
 del.onclick=function(){
 /* linha sem status é só o encontro previsto: remover ali apaga o encontro, não a presença */
 if(l.status===null){
+  var desmarca=function(id){run('removerAvulso',[{id:id}],function(){msg('Encontro desmarcado — fica no histórico do aluno.');freqCarregar()})};
+  if(avs.length>1){
+   /* dois encontros no dia: escolhe-se QUAL sai */
+   dlgAbrir({tipo:'confirmar',titulo:'Desmarcar encontro',ok:'Desmarcar',
+    texto:'Há '+avs.length+' encontros marcados em '+l.numero+'/'+l.data.slice(5,7)+'. O escolhido sai da grade e fica no histórico do aluno, em Encaminhamentos, como desmarcado.',
+    form:'<label class="dlg-l">Qual<select id="dsm-av">'+avs.map(function(a){return '<option value="'+a.id+'">'+escBloco(a.hora+' — '+a.motivo)+'</option>'}).join('')+'</select></label>',
+    coletar:function(f){return Number(f.querySelector('#dsm-av').value)||null},
+    cb:function(id){if(id&&typeof id==='number')desmarca(id)}});
+   return}
   dlgConfirmar({titulo:'Desmarcar encontro',ok:'Desmarcar',
-   texto:'Desmarcar o encontro de '+l.numero+'/'+l.data.slice(5,7)+' às '+l.avulso.hora+' ('+l.avulso.motivo+')?\n\nEle sai da grade e fica no histórico do aluno, em Encaminhamentos, como desmarcado.'},
-  function(sim){if(!sim)return;
-   run('removerAvulso',[{id:l.avulso.id}],function(){msg('Encontro desmarcado — fica no histórico do aluno.');freqCarregar()})});return}
+   texto:'Desmarcar o encontro de '+l.numero+'/'+l.data.slice(5,7)+' às '+avs[0].hora+' ('+avs[0].motivo+')?\n\nEle sai da grade e fica no histórico do aluno, em Encaminhamentos, como desmarcado.'},
+  function(sim){if(sim)desmarca(avs[0].id)});return}
 dlgConfirmar({titulo:'Remover lançamento',perigo:true,ok:'Remover',
  texto:'Remover o lançamento de '+l.numero+'/'+l.data.slice(5,7)+' ('+nomeLivro(l.livro)+')?'},function(sim){
 if(!sim)return;
-run('lancarPresenca',[{idMatricula:alSel.id,livro:l.livro,data:l.data,status:null}],function(){msg('Lançamento removido.');freqCarregar()})})};
+apagarDia(alSel.id,l.livro,l.data,alSel.nome,function(ok){if(ok)msg('Lançamento removido.');freqCarregar()})})};
 row.appendChild(tx);row.appendChild(del);lista.appendChild(row)});
 box.appendChild(lista);
 }
@@ -9645,14 +9992,29 @@ run('excluirTurma',[tuSel.id],function(){msg('Turma excluída.');run('getTurmas'
    é 10h às 12h, ou seja DUAS aulas por aluno. Monta-se o horário de um e replica para o bloco.
    Mesma filosofia do lote de professores: nunca aplica sozinho, sempre por escolha explícita. */
 var HLOTE={itens:[],colegas:[]};
-function horaLoteAbrir(m,editor){
+/* ===== OS LOTES TAMBÉM PERGUNTAM (revisão da Wiztools 18) =====
+   "Aplicar à turma" refaz os cartões a partir do banco. No lote de HORÁRIO, o horário mudado do próprio cartão é o assunto
+   do lote (não conta); no de PROFESSOR conta, porque o lote não grava a agenda dele. Outro cartão sujo conta sempre. */
+function matLoteDescartar(livro,editor,contaAgenda,fn){
+var outros=[].slice.call(document.querySelectorAll('#mat-lista .matricula-card')).some(function(c){
+ return c.dataset.livro!==livro&&!!c.querySelector('.mat-salvar.sujo')});
+var ag=function(xs){return (xs||[]).map(function(x){return x.dia+' '+(x.horario||x.hora)}).sort().join('|')};
+var meu=!!contaAgenda&&ag(lerItensEditor(editor))!==ag(MATRIC_AULAS[livro]);
+if(!outros&&!meu){fn();return}
+dlgConfirmar({titulo:'Descartar o que não foi salvo?',perigo:true,ok:'Descartar e continuar',
+ texto:(meu?'O horário deste contrato mudou e não foi salvo. ':'')+(outros?'Há outro contrato deste aluno com alteração não salva. ':'')
+  +'Aplicar à turma refaz os cartões a partir do banco, e essa alteração se perde.\n\nPara guardá-la, cancele e clique em "Salvar contrato" antes.'},
+ function(sim){if(sim)fn()})}
+function horaLoteAbrir(m,editor,ok){
 if(!alSel){msg('Escolha um aluno primeiro.',true);return}
 var itens=lerItensEditor(editor);
 if(!itens.length){msg('Marque ao menos um dia/horário antes de aplicar à turma.',true);return}
+if(!ok){matLoteDescartar(m.livro,editor,false,function(){horaLoteAbrir(m,editor,true)});return}
 HLOTE={itens:itens,colegas:[],livro:m.livro};
 $('hlote-corpo').innerHTML='<div style="color:var(--tx2);font-size:12px">Procurando colegas deste horário...</div>';
 $('hlote-dialog').show();
-run('getColegasDeHorario',[{idMatricula:alSel.id,itens:itens}],function(cs){HLOTE.colegas=cs;horaLoteRender()})}
+/* o livro do CARTÃO vai junto: sem ele o servidor deduzia o contrato do aluno e, em quem faz dois cursos, gravava no outro */
+run('getColegasDeHorario',[{idMatricula:alSel.id,itens:itens,livro:m.livro}],function(cs){HLOTE.colegas=cs;horaLoteRender()})}
 function horaLoteRender(){
 var alvo=HLOTE.itens.map(function(i){return i.dia.slice(0,3)+' '+i.horario}).join(', ');
 var h='<div class="info" style="margin:0 0 10px">Aplicando o horário <b>'+escBloco(alvo)+'</b> ('+HLOTE.itens.length+' aula(s) por aluno) aos marcados.'
@@ -9675,7 +10037,7 @@ $('hlote-corpo').innerHTML=h+'</div>';
 function horaLoteAplicar(){
 var alunos=[];
 $('hlote-corpo').querySelectorAll('input[type=checkbox]:checked').forEach(function(cb){
-var c=HLOTE.colegas[+cb.dataset.i];alunos.push({id:c.id,livro:c.livro,nome:c.nome})});
+var c=HLOTE.colegas[+cb.dataset.i];alunos.push({id:c.id,livro:c.ehOAluno?HLOTE.livro:c.livro,nome:c.nome})});
 if(!alunos.length){msg('Marque ao menos um aluno.',true);return}
 run('aplicarHorarioEmLote',[{itens:HLOTE.itens,alunos:alunos}],function(r){
 $('hlote-dialog').hide();
@@ -9688,11 +10050,12 @@ recarregarMatriculas()})}
    individual existe). Então nunca aplicamos em cascata sozinhos: mostramos os colegas do slot,
    já marcados, e a recepção decide quem entra. */
 var LOTE={profs:[],slots:[]};
-function loteAbrir(m,profs,editor){
+function loteAbrir(m,profs,editor,ok){
 if(!alSel){msg('Escolha um aluno primeiro.',true);return}
 if(!profs.length){msg('Escolha ao menos um professor antes de aplicar à turma.',true);return}
 var itens=lerItensEditor(editor);
 if(!itens.length){msg('Marque ao menos um dia/horário no editor acima.',true);return}
+if(!ok){matLoteDescartar(m.livro,editor,true,function(){loteAbrir(m,profs,editor,true)});return}
 LOTE={profs:profs,slots:[],livro:m.livro};
 var pend=itens.length;
 $('lote-corpo').innerHTML='<div style="color:var(--tx2);font-size:12px">Carregando colegas...</div>';
@@ -13476,7 +13839,8 @@ var REG_EST=null;   // o que está aberto: {o, dados, sel}
 var REG_NOTAS=[['R','Regular'],['B','Bom'],['MB','Muito bom'],['Ó','Ótimo']];
 var REG_ENG=[['1','Desengajado'],['2','Pouco engajado'],['3','Engajado'],['4','Muito engajado']];
 var REG_APP=[['0','Não fez nada'],['1','Fez muito pouco'],['2','Fez mais ou menos'],['3','Fez de forma satisfatória'],['4','Fez tudo']];
-var REG_CS=[['Ok','Ok'],['Atenção','Atenção']];
+/* checking sentences de 1 a 5 desde 06/10/2026 (dele); o traço é "ainda não feito" e nasce marcado */
+var REG_CS=[['','Ainda não feito','—'],['1','1 — o pior'],['2','2'],['3','3'],['4','4'],['5','5 — o melhor']];
 
 function regMontar(){
 if(REG)return REG;
@@ -13508,6 +13872,8 @@ var corpo=f.querySelector('.reg-corpo');
    preso a botão morreria na primeira repintura */
 corpo.addEventListener('click',function(e){
  if(!REG_EST||!REG_EST.sel)return;
+ /* a barra e as abas do editor de Markdown das observações */
+ if(mdClique(e))return;
  /* o interruptor da licao concluida entra aqui junto dos botoes de conceito: ele tambem e uma
     marca de campo, so que com duas posicoes em vez de quatro (2026-09-20) */
  var b=e.target.closest('.reg-op,.reg-tg');
@@ -13530,6 +13896,8 @@ corpo.addEventListener('click',function(e){
 /* teclado do combobox: ↑↓ andam, Enter escolhe a realçada, Esc fecha sem mexer na escolha.
    O keydown mora no corpo (e não no input) porque o campo é repintado a cada troca de aula. */
 corpo.addEventListener('keydown',function(e){
+ /* atalhos do editor de Markdown (Ctrl+B, Ctrl+I, Enter que continua a lista) */
+ if(mdTecla(e))return;
  if(!e.target.classList||!e.target.classList.contains('reg-cb-in'))return;
  var cb=regCbEl(),aberto=cb&&cb.classList.contains('aberto');
  if(e.key==='ArrowDown'){e.preventDefault();if(!aberto)regCbAbrir(e.target.value);else regCbAndar(1);return}
@@ -13570,6 +13938,11 @@ corpo.addEventListener('input',function(e){
  }
 });
 f.querySelector('.reg-dia').addEventListener('click',function(e){
+ /* o "+" abre a aula seguinte deste dia (ele não é aba: não acende) */
+ var mais=e.target.closest('.reg-chip-mais');
+ if(mais){
+  if(mais.classList.contains('trava')){msg((mais.dataset.porQue||'Registre as aulas abertas antes de criar outra')+'.',true);return}
+  if(REG_EST&&REG_EST.dados)regBuscar(Number(mais.dataset.seq));return}
  var c=e.target.closest('.reg-chip');
  if(!c||!REG_EST||!REG_EST.dados)return;
  /* a hora mora dentro da pílula desde 2026-09-20; clicar NELA corrige o carimbo, clicar no resto da
@@ -13641,7 +14014,7 @@ run('getRegistroAula',[{idMatricula:o.idMatricula,livro:o.livro,data:o.data,hora
   profs:d.profs.slice(),tipos:d.tiposSel.slice(),
   observacao:(g.observacao!=null?g.observacao:(d.observacaoDia||'')),
   fala:g.fala||'',audicao:g.audicao||'',leitura:g.leitura||'',escrita:g.escrita||'',
-  cs:g.checking_sentences||'',app:(g.app!=null?String(g.app):''),eng:(g.engajamento!=null?String(g.engajamento):''),
+  cs:(g.checking_sentences!=null?String(g.checking_sentences):''),app:(g.app!=null?String(g.app):''),eng:(g.engajamento!=null?String(g.engajamento):''),
   /* as tarefas que CHEGARAM nesta aula: começa com o que já estava marcado, e o que sair daqui é
      comparado com este mesmo estado na hora de salvar (2026-09-20) */
   tarEntregues:(d.tarefas||[]).filter(function(t){return t.nesta}).map(regTarKey),
@@ -13655,6 +14028,132 @@ if(!REG||!REG.fundo.classList.contains('on'))return;
 REG.fundo.classList.remove('on');REG_EST=null;
 if(REG.foco&&REG.foco.focus)try{REG.foco.focus()}catch(e){}
 }
+
+/* ===== O EDITOR DE MARKDOWN (Wiztools 18, dele) =====
+   *"Que esse campo seja um editor de Markdown, ele entenda Markdown. Pra mim fica até melhor, pra estruturar."*
+   O texto continua sendo o MESMO campo (a observação da aula, texto puro no banco): o Markdown é a forma de
+   escrever, e "Visualizar" mostra como ele fica. Sem biblioteca: o app roda sem internet, e o pedaço de
+   Markdown que uma anotação de aula usa (título, negrito, itálico, riscado, listas, checklist, citação,
+   código, link) cabe em poucas linhas. SEGURANÇA: o texto é escapado ANTES de virar HTML — nada que alguém
+   digite vira tag; só as marcas abaixo viram formatação, e link só abre http(s). */
+function mdEsc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+/* o que vale DENTRO de uma linha. O código vira marca provisória primeiro, para o negrito não entrar nele */
+function mdInline(s){
+var cod=[];
+s=s.replace(/`([^`]+)`/g,function(m,c){cod.push(c);return '\u0001'+(cod.length-1)+'\u0001'});
+s=s.replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>').replace(/__([^_]+)__/g,'<b>$1</b>')
+ .replace(/(^|[^*\w])\*([^*\s](?:[^*]*[^*\s])?)\*(?!\*)/g,'$1<i>$2</i>')
+ .replace(/(^|[^_\w])_([^_\s](?:[^_]*[^_\s])?)_(?!\w)/g,'$1<i>$2</i>')
+ .replace(/~~([^~]+)~~/g,'<s>$1</s>')
+ .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g,'<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+return s.replace(/\u0001(\d+)\u0001/g,function(m,i){return '<code>'+cod[Number(i)]+'</code>'})}
+function mdParaHtml(t){
+var linhas=String(t||'').replace(/\r\n?/g,'\n').split('\n'),h='',lista=null,par=[];
+var fechaPar=function(){if(par.length){h+='<p>'+par.join('<br>')+'</p>';par=[]}};
+var fechaLista=function(){if(lista){h+='</'+lista.tag+'>';lista=null}};
+var abre=function(tag,cls){if(!lista||lista.tag!==tag||lista.cls!==cls){fechaLista();h+='<'+tag+(cls?' class="'+cls+'"':'')+'>';lista={tag:tag,cls:cls}}};
+linhas.forEach(function(l){
+ var m,e=mdEsc(l);
+ if(/^\s*$/.test(l)){fechaPar();fechaLista();return}
+ if((m=e.match(/^(#{1,3})\s+(.*)$/))){fechaPar();fechaLista();var n=m[1].length+3;h+='<h'+n+'>'+mdInline(m[2])+'</h'+n+'>';return}
+ if((m=e.match(/^\s*[-*+]\s+\[( |x|X)\]\s+(.*)$/))){fechaPar();abre('ul','md-task');
+  h+='<li><span class="md-ck'+(m[1]===' '?'':' on')+'"></span>'+mdInline(m[2])+'</li>';return}
+ if((m=e.match(/^\s*[-*+]\s+(.*)$/))){fechaPar();abre('ul','');h+='<li>'+mdInline(m[1])+'</li>';return}
+ if((m=e.match(/^\s*\d+[.)]\s+(.*)$/))){fechaPar();abre('ol','');h+='<li>'+mdInline(m[1])+'</li>';return}
+ if((m=e.match(/^&gt;\s?(.*)$/))){fechaPar();fechaLista();h+='<blockquote>'+mdInline(m[1])+'</blockquote>';return}
+ if(/^\s*(-{3,}|\*{3,})\s*$/.test(l)){fechaPar();fechaLista();h+='<hr>';return}
+ fechaLista();par.push(mdInline(e))});
+fechaPar();fechaLista();
+return h||'<span class="md-vazio">nada escrito ainda</span>'}
+/* a barra: marcas que ABRAÇAM a seleção, e marcas que vão no COMEÇO de cada linha selecionada */
+var MD_ABRACA={b:['**','**','negrito'],i:['*','*','itálico'],s:['~~','~~','riscado'],code:['`','`','código']};
+var MD_LINHA={h:'## ',ul:'- ',ol:'1. ',task:'- [ ] ',quote:'> '};
+function mdEditorHtml(valor,campo){
+var bt=function(k,ic,tit){return '<button type="button" class="md-bt" data-md="'+k+'" title="'+tit+'" tabindex="-1">'+ic+'</button>'};
+return '<div class="md-ed" data-modo="escrever">'
+ +'<div class="md-barra"><div class="md-abas" role="tablist">'
+ +'<button type="button" class="md-aba on" data-md-modo="escrever" role="tab">Escrever</button>'
+ +'<button type="button" class="md-aba" data-md-modo="ver" role="tab">Visualizar</button></div>'
+ +'<div class="md-ferr">'
+ +bt('h',icon('heading',15),'Título (## no começo da linha)')
+ +bt('b',icon('bold',15),'Negrito (Ctrl+B)')+bt('i',icon('italic',15),'Itálico (Ctrl+I)')+bt('s',icon('strikethrough',15),'Riscado')
+ +'<span class="md-sep"></span>'
+ +bt('ul',icon('list',15),'Lista')+bt('ol',icon('list-ordered',15),'Lista numerada')+bt('task',icon('list-checks',15),'Lista de tarefas')
+ +'</div></div>'
+ +'<textarea class="md-tx" data-f="'+campo+'" rows="4" placeholder="O que aconteceu na aula. Aceita Markdown: **negrito**, *itálico*, - lista, - [ ] tarefa, ## título">'
+ +escBloco(valor||'')+'</textarea>'
+ +'<div class="md-ver" hidden></div></div>'}
+/* escreve no campo como se fosse digitado: `insertText` entra no desfazer (Ctrl+Z) do navegador */
+function mdTrocar(ta,ini,fim,txt,selIni,selFim){
+ta.focus();ta.setSelectionRange(ini,fim);
+var ok=false;try{ok=document.execCommand('insertText',false,txt)}catch(e){}
+if(!ok)ta.setRangeText(txt,ini,fim,'end');
+if(selIni!=null)ta.setSelectionRange(selIni,selFim);
+ta.dispatchEvent(new Event('input',{bubbles:true}))}
+function mdAplicar(ta,k){
+if(!ta)return;
+var v=ta.value,a=ta.selectionStart,b=ta.selectionEnd;
+if(MD_ABRACA[k]){
+ var x=MD_ABRACA[k],sel=v.slice(a,b);
+ /* já abraçada: tira as marcas (o botão desfaz o que fez) */
+ /* o itálico (*) não "desfaz" um negrito (**): o caractere de fora não pode ser outro asterisco (revisão) */
+ var dentroDeOutra=k==='i'&&(v.charAt(a-2)==='*'||v.charAt(b+1)==='*');
+ if(!dentroDeOutra&&v.slice(a-x[0].length,a)===x[0]&&v.slice(b,b+x[1].length)===x[1]){
+  mdTrocar(ta,a-x[0].length,b+x[1].length,sel,a-x[0].length,b-x[0].length);return}
+ if(!sel){mdTrocar(ta,a,b,x[0]+x[2]+x[1],a+x[0].length,a+x[0].length+x[2].length);return}
+ mdTrocar(ta,a,b,x[0]+sel+x[1],a+x[0].length,b+x[0].length);return}
+var pre=MD_LINHA[k];if(!pre)return;
+var li=v.lastIndexOf('\n',a-1)+1,lf=v.indexOf('\n',b);if(lf<0)lf=v.length;
+var linhas=v.slice(li,lf).split('\n');
+var re=/^(#{1,3} |[-*+] \[[ xX]\] |[-*+] |\d+[.)] |> )/;
+/* cada tipo pela forma COMPLETA (revisão): "- [ ] x" começa com "- ", mas não é lista simples */
+var eh={ul:/^[-*+] (?!\[[ xX]\] )/,task:/^[-*+] \[[ xX]\] /,ol:/^\d+[.)] /,h:/^#{1,3} /,quote:/^> /}[k];
+var todas=linhas.every(function(l){return eh?eh.test(l):l.indexOf(pre)===0});
+var n=0,novo=linhas.map(function(l){
+ if(todas)return l.replace(re,'');
+ var limpo=l.replace(re,'');n++;
+ return (k==='ol'?n+'. ':pre)+limpo}).join('\n');
+mdTrocar(ta,li,lf,novo,li,li+novo.length)}
+/* Enter numa linha de lista continua a lista; Enter num item vazio sai dela (como todo editor faz) */
+function mdEnter(ta,ev){
+var v=ta.value,a=ta.selectionStart;if(a!==ta.selectionEnd)return;
+var li=v.lastIndexOf('\n',a-1)+1,linha=v.slice(li,a);
+var m=linha.match(/^(\s*)([-*+] \[[ xX]\] |[-*+] |(\d+)([.)]) |> )/);if(!m)return;
+ev.preventDefault();
+/* item VAZIO é o que não tem nada nem depois do cursor (revisão): com texto à frente, o Enter quebra a linha */
+var lf=v.indexOf('\n',a),resto=v.slice(a,lf<0?v.length:lf);
+if(linha.length===m[0].length&&!resto.trim()){mdTrocar(ta,li,a,'',li,li);return}
+var prox=m[3]?m[1]+(Number(m[3])+1)+m[4]+' ':m[1]+m[2].replace(/\[[xX]\]/,'[ ]');
+mdTrocar(ta,a,a,'\n'+prox,a+1+prox.length,a+1+prox.length)}
+/* os três gestos do editor, para qualquer contêiner que o hospede (o registro de aula hoje) */
+function mdClique(e){
+var b=e.target.closest('[data-md],[data-md-modo]');if(!b)return false;
+var ed=b.closest('.md-ed');if(!ed)return false;
+var ta=ed.querySelector('.md-tx'),ver=ed.querySelector('.md-ver');
+if(b.dataset.mdModo){
+ var m=b.dataset.mdModo;ed.dataset.modo=m;
+ ed.querySelectorAll('.md-aba').forEach(function(x){x.classList.toggle('on',x.dataset.mdModo===m)});
+ if(m==='ver'){ver.innerHTML=mdParaHtml(ta.value);ver.hidden=false;ta.hidden=true}
+ else{ver.hidden=true;ta.hidden=false;ta.focus()}
+ return true}
+if(ed.dataset.modo!=='escrever')return true;
+mdAplicar(ta,b.dataset.md);return true}
+function mdTecla(e){
+var ta=e.target;if(!ta.classList||!ta.classList.contains('md-tx'))return false;
+if((e.ctrlKey||e.metaKey)&&!e.shiftKey&&!e.altKey&&(e.key==='b'||e.key==='B'||e.key==='i'||e.key==='I')){
+ e.preventDefault();mdAplicar(ta,e.key.toLowerCase());return true}
+if(e.key==='Enter'&&!e.ctrlKey&&!e.metaKey&&!e.shiftKey){mdEnter(ta,e);return true}
+return false}
+/* a coluna dos rótulos das escalas tem a largura da palavra-régua de cada grupo, medida com a fonte que a tela usa
+   de fato: Audição na matriz FALE, Engajamento nas outras escalas (dele, Wiztools 18) */
+function regAlinharRotulos(){
+[['.reg-fale','Audição'],['.reg-outras','Engajamento']].forEach(function(p){
+ var g=REG.corpo.querySelector(p[0]),rot=g&&g.querySelector('.reg-rot');if(!rot)return;
+ var m=document.createElement('span');
+ m.style.cssText='position:absolute;visibility:hidden;white-space:nowrap;left:-9999px;top:0';
+ m.style.font=getComputedStyle(rot).font;m.textContent=p[1];
+ document.body.appendChild(m);
+ g.style.setProperty('--rot-w',(Math.ceil(m.getBoundingClientRect().width)+1)+'px');m.remove()})}
 
 function regDataCurta(iso){
 var d=new Date(iso+'T12:00:00');
@@ -13697,11 +14196,9 @@ r.corpo.innerHTML='<div class="reg-esq">'
  +'<div class="reg-campo reg-lic"><span>Lição</span>'+regSelectLicao()+'</div>'
  +'</div>'
  +'<div class="reg-campo"><span>Professores</span><div class="reg-profs">'+regProfsHtml()+'</div></div>'
- +'<div class="reg-campo"><span>Tipo de aula</span><div class="reg-tipos">'+regTiposHtml()+'</div>'
- +'<small class="reg-dica reg-tipos-dica">'+regTiposDica()+'</small></div>'
- +'<div class="reg-conc">'+regConcluidaHtml()+'</div>'
- +'<label class="reg-campo reg-obs"><span>Observações e anotações</span><textarea data-f="obs" rows="3">'
-  +escBloco(REG_EST.sel.observacao)+'</textarea></label>'
+ /* a dica foi para o lado do título: embaixo dos tipos, ela impedia a caixa de encostar no pé das tarefas */
+ +'<div class="reg-campo reg-tipos-campo"><span>Tipo de aula<small class="reg-tipos-dica">'+regTiposDica()+'</small></span>'
+ +'<div class="reg-tipos">'+regTiposHtml()+'</div></div>'
  +'</div>'
  +'<div class="reg-dir">'
  +'<div class="reg-aval">'
@@ -13716,9 +14213,15 @@ r.corpo.innerHTML='<div class="reg-esq">'
  +'</div>'
  +'</div>'
  +'<div class="reg-tarefa"></div>'
+ +'</div>'
+ /* a faixa de baixo, de ponta a ponta (Wiztools 18): o interruptor da lição e as observações em Markdown */
+ +'<div class="reg-baixo">'
+ +'<div class="reg-conc">'+regConcluidaHtml()+'</div>'
+ +'<div class="reg-campo reg-obs"><span>Observações e anotações</span>'+mdEditorHtml(REG_EST.sel.observacao,'obs')+'</div>'
  +'</div>';
 /* a faixa das tarefas nasce vazia no HTML e é pintada aqui: é a mesma função que as setas chamam */
 regTarefaPintar();
+regAlinharRotulos();
 r.excluir.style.display=(d.registro&&d.registro.definido)?'':'none';
 r.salvar.disabled=false;
 r.salvar.textContent=(d.registro&&d.registro.definido)?'Salvar alterações':'Salvar registro';
@@ -13741,7 +14244,8 @@ return h}
 function regDiaHtml(){
 var d=REG_EST.dados;
 var feitas=d.dia.map(function(x){return x.seq});
-var maior=Math.max(d.previstas,d.seq,feitas.length?Math.max.apply(null,feitas):0);
+/* as abas são as aulas que o dia TEVE (`pisoDia`: as aulas feitas digitadas mandam), não as que a agenda previa */
+var maior=Math.max(d.pisoDia||d.previstas,d.seq,feitas.length?Math.max.apply(null,feitas):0);
 var todas=feitas.length>=d.previstas;
 /* a barra existe SEMPRE desde 2026-09-20: virou aba, e aba que some conforme o dia muda a cara da
    janela de um aluno para outro. Com uma aula só, é uma aba só — e ela ainda carrega lição e hora. */
@@ -13755,9 +14259,17 @@ for(var k=1;k<=maior;k++){
   +(g?'já registrada'+(g.rotulo?': '+escBloco(g.rotulo):''):'ainda sem registro')
   +(hk?' · começou às '+escBloco(hk):'')+'">'+regChipConteudo(k,g,hk)+'</button>';
 }
-/* uma aula ALÉM da agenda (duas seguidas numa reposição, por exemplo) só se cria de propósito: o "+"
-   aparece com o dia já fechado, e reabrir o livro nunca inventa aula nenhuma */
-if(todas)h+='<button type="button" class="reg-chip reg-chip-mais" data-seq="'+(maior+1)+'" title="registrar outra aula neste mesmo dia">+</button>';
+/* o "+" de navegador (Wiztools 18, dele): sempre ao lado da última aba, abre a aula seguinte deste dia — que só
+   passa a existir quando for SALVA. Ele só CRIA com todas as abas do dia já registradas: com uma aba aberta e não
+   salva, um segundo "+" abria a 3ª aula e a do meio ficava "dada" sem ninguém registrar, consumindo uma lição na
+   projeção (auditoria da Wiztools 18). Travado, ele fica esmaecido e diz por quê. */
+var todasFeitas=true,falta=0;for(var kf=1;kf<=maior;kf++)if(feitas.indexOf(kf)<0){todasFeitas=false;if(!falta)falta=kf}
+/* diz QUAL aula falta (revisão): "a aula aberta" era falso quando a aberta já estava registrada e a que falta é outra */
+var porQue='Registre a '+falta+'ª aula deste dia antes de criar outra';
+h+='<button type="button" class="reg-chip-mais'+(todasFeitas?'':' trava')+'" data-seq="'+(maior+1)+'" aria-label="Nova aula"'
+ +(todasFeitas?'':' data-por-que="'+porQue+'"')
+ +' title="'+(todasFeitas?'Nova aula':porQue)+'"'+(todasFeitas?'':' aria-disabled="true"')+'>'
+ +icon('plus',16)+'</button>';
 return h}
 
 /* ===== A LIÇÃO: UM COMBOBOX DA CASA, E A ETIQUETA DENTRO DELE (2026-09-20, dele) =====
@@ -13855,10 +14367,11 @@ var curto=d.licoes.filter(function(l){return String(l.licao).toLowerCase()===t
 return curto.length===1?curto[0]:null}
 function regLicPilulasPintar(){var b=REG.corpo.querySelector('.reg-pilulas');if(b)b.innerHTML=regLicPilulas();
 var c=REG.corpo.querySelector('.reg-continua-l');if(c)c.innerHTML=regLicContinua()}
-function regConcluidaPintar(){var b=REG.corpo.querySelector('.reg-conc');if(b)b.innerHTML=regConcluidaHtml();
+/* `semFoco`: repintar por causa de um TIPO marcado não leva o cursor ao "Parou em" (revisão da Wiztools 18) */
+function regConcluidaPintar(semFoco){var b=REG.corpo.querySelector('.reg-conc');if(b)b.innerHTML=regConcluidaHtml();
 /* a etiqueta do campo da lição acompanha a resposta: dizer "sim" aqui é dizer "feita" lá */
 regLicPilulasPintar();
-var i=REG.corpo.querySelector('[data-f="parouEm"]');if(i)i.focus()}
+var i=REG.corpo.querySelector('[data-f="parouEm"]');if(i&&!semFoco)i.focus()}
 /* ===== UMA ETIQUETA SÓ, COLADA NA LIÇÃO ESCOLHIDA (2026-09-20, dele) =====
    *"Pega essas duas pílulas, diminui o tamanho delas... depois da lição 50, a pílula azul com o ícone de
    alvo escrito 'a fazer'. Aí, se ela fez a lição já, foi concluída, vai ser 'feita'."*
@@ -13988,6 +14501,10 @@ if(el.checked){
 var box=REG.corpo.querySelector('.reg-tipos');if(box)box.innerHTML=regTiposHtml();
 var lic=REG.corpo.querySelector('.reg-lic');if(lic)lic.innerHTML='<span>Lição</span>'+regSelectLicao();
 var dica=REG.corpo.querySelector('.reg-tipos-dica');if(dica)dica.textContent=regTiposDica();
+/* aula sem conteúdo não tem lição para concluir: o interruptor some (e o "parou em" junto), e volta quando o tipo
+   sai — sem isto o Salvar mandava um "parou em" que o servidor recusa (auditoria da Wiztools 18) */
+if(regSemConteudo()){s.concluida=null;s.parouEm=''}
+regConcluidaPintar(true);
 regAulaAtualiza();
 }
 
@@ -13998,12 +14515,12 @@ return '<div class="reg-linha"><span class="reg-rot">'+escBloco(rot)+'</span>'
  +'<div class="reg-seg" role="radiogroup" aria-label="'+escBloco(rot)+'">'
  +ops.map(function(o){var on=String(v)===String(o[0]);
   return '<button type="button" role="radio" aria-checked="'+on+'" class="reg-op '+regCls(campo,o[0])+(on?' on':'')
-   +'" data-campo="'+campo+'" data-v="'+escBloco(String(o[0]))+'" title="'+escBloco(o[1])+'">'+escBloco(String(o[0]))+'</button>'}).join('')
+   +'" data-campo="'+campo+'" data-v="'+escBloco(String(o[0]))+'" title="'+escBloco(o[1])+'">'+escBloco(String(o.length>2?o[2]:o[0]))+'</button>'}).join('')
  +'</div></div>'}
 function regCls(campo,v){
 if(campo==='eng')return 'e'+v;
 if(campo==='app')return 'a'+v;
-if(campo==='cs')return v==='Ok'?'cs-ok':'cs-at';
+if(campo==='cs')return v===''?'cs-nd':'cs'+v;
 return ffCls(v)}
 function regMarca(campo,v,bt){
 var s=REG_EST.sel;
@@ -14096,10 +14613,10 @@ var retiradas=s.tarInicial.filter(function(k){return s.tarEntregues.indexOf(k)<0
 r.salvar.disabled=true;r.av.textContent='salvando…';
 run('salvarRegistroAula',[{idMatricula:o.idMatricula,livro:o.livro,data:o.data,seq:s.seq,
  licaoOrdem:sem?null:s.licaoOrdem,aulaN:(s.aulaEditada?s.aulaN:''),tipos:s.tipos,professores:s.profs,
- observacao:s.observacao,fala:s.fala,audicao:s.audicao,leitura:s.leitura,escrita:s.escrita,
+ observacao:s.observacao,obsDiaVista:d.obsDiaVista,fala:s.fala,audicao:s.audicao,leitura:s.leitura,escrita:s.escrita,
  checking_sentences:s.cs,app:s.app,engajamento:s.eng,
  /* o que esta aula fez da lição, e a hora dela (2026-09-19) */
- concluida:(sem||s.concluida==null)?null:s.concluida,parouEm:(s.concluida===false?s.parouEm:''),
+ concluida:(sem||s.concluida==null)?null:s.concluida,parouEm:(!sem&&s.concluida===false?s.parouEm:''),
  inicio:s.inicio||''}],function(res){
  var fim=function(){var cb=o.ok;regFechar();
   msg(res.seq+'ª aula de '+d.aluno.nome.split(' ')[0]+' registrada.'
@@ -14118,7 +14635,8 @@ if(!REG_EST||!REG_EST.dados||!REG_EST.dados.registro)return;
 var d=REG_EST.dados,o=REG_EST.o;
 dlgConfirmar({titulo:'Excluir o registro desta aula?',perigo:true,ok:'Excluir registro',
  texto:'Somem a lição, o tipo, as notas e a anotação da '+d.seq+'ª aula de '+d.aluno.nome+' neste dia.\n'
-  +'A presença continua lançada, e o dia volta a ser calculado como antes do registro.'},
+  +'A presença continua lançada, e o dia volta a ser calculado como antes do registro. '
+  +'A tarefa desta lição (a entrega e a nota da Ficha) fica.'},
  function(sim){if(!sim)return;
   run('excluirRegistroAula',[{id:d.registro.id}],function(res){
    var cb=o.ok;regFechar();msg('Registro excluído.');if(cb)cb(res)})});
@@ -15173,7 +15691,7 @@ var rem=(r.ipp||{}).rematricula||{},c=rem.cabecalho||{},h='';
 var quando=r.fechado&&r.fechado.em?'no fechamento ('+dataCurta(String(r.fechado.em).slice(0,10))+')':'hoje';
 var ref=pefMesRot(r.mes);
 h+='<div class="pef-rem-top">'
- +'<div class="pef-bloco pef-rem-cab"><div class="pef-bt">Alunos ativos… <small>início do ciclo '+dataCurta((rem.ciclo||{}).de||'')+'</small></div>'
+ +'<div class="pef-bloco pef-rem-cab"><div class="pef-bt">Alunos ativos… <small>início do ciclo '+dataCurta((rem.ciclo||{}).de||'')+' · conferência da planilha</small></div>'
  +'<table class="pef-rem-t"><tbody>'
  +'<tr class="tot"><td>Contratos ativos '+quando+' <small class="pef-cd">— o IPP conta alunos no último dia do mês; aqui é a lista de trabalho, contrato por contrato</small></td><td class="c"><b>'+(c.ativos??'—')+'</b></td></tr>'
  +'<tr><td>…matriculados no primeiro livro, em geral</td><td class="c">'+(c.matriculados??'—')+'</td></tr>'
@@ -15183,7 +15701,7 @@ h+='<div class="pef-rem-top">'
  +'<tr><td>…rematriculados durante o ciclo</td><td class="c">'+(c.rematriculadosCiclo??'—')+'</td></tr>'
  +'<tr><td>…rematriculados no mês do relatório</td><td class="c">'+(c.rematriculadosMes??'—')+'</td></tr>'
  +'</tbody></table></div>'
- +'<div class="pef-bloco pef-rem-jan"><div class="pef-bt">Alunos a rematricular <small>trocar de livro</small></div>'
+ +'<div class="pef-bloco pef-rem-jan"><div class="pef-bt">Alunos a rematricular <small>trocar de livro · conferência da planilha, não vai ao portal</small></div>'
  +'<table class="pef-rem-t"><thead><tr><th>Período</th><th class="c">Fim do contrato</th><th class="c">Previsão de término</th></tr></thead><tbody>'
  +(rem.janelas||[]).map(function(j){
    var lf=(rem.lista||[]).filter(function(x){return x.fimContrato&&x.fimContrato>=j.a&&x.fimContrato<=j.b});
@@ -15195,29 +15713,13 @@ h+='<div class="pef-rem-top">'
 /* ---------- a LISTA DE TRABALHO de hoje (era o Progresso dos contratos do Dashboard — Wiztools 17) ----------
    Os números acima seguem o mês (e congelam quando ele fecha); esta lista é sempre a de hoje. Ela chega à
    parte (`pefProgCarregar`, quando a aba abre): esta função só deixa o lugar dela. */
-h+='<div class="pef-bloco"><div class="pef-bt">Lista de trabalho <small>os contratos de hoje, quem está mais perto do fim do livro primeiro — clique para abrir o planejamento</small>'
+/* o que vai ao portal, em cima da tabela: os itens 25 e 26 e o percentual do relatório do mês */
+var rpi=(rem.ipp||{});
+h+='<div class="pef-bloco"><div class="pef-bt">Os contratos e o IPP do ciclo <small>uma tabela só: os contratos de hoje, quem está mais perto do fim do livro primeiro, e na coluna IPP como cada aluno conta no relatório de '+escBloco(ref)
+ +(rpi.aRematricular!=null?' — '+rpi.aRematricular+' a rematricular · '+(rpi.rematriculados||0)+' rematriculado(s) · '+(rpi.percentual==null?'—':String(rpi.percentual).replace('.',',')+'%'):'')
+ +'. Clique para abrir o planejamento</small>'
  +'<button type="button" class="al-hist-add" onclick="PEF_PROG=null;pefProgCarregar()" title="Recalcular">↻</button></div>'
  +'<div id="pef-prog"><div class="al-hist-vazio">calculando o progresso dos contratos…</div></div></div>';
-/* ---------- a lista, agrupada como na planilha: segmento → canal → experiência ---------- */
-var G=rem.grupos||{},ORD=['Kids','Outros Idiomas','Teens','Ws'];
-h+='<div class="pef-bloco"><div class="pef-bt">Os alunos <small>'+(rem.lista||[]).length+' ativos · ordem da planilha</small></div>'
- +'<table class="pef-tab pef-rem-l"><thead><tr><th>Aluno(a)</th><th>Tipo de contrato</th><th>Livro</th><th class="c">Início do contrato</th>'
- +'<th class="c">Fim do contrato</th><th class="c">Última presença</th><th class="c">Lições faltantes</th></tr></thead><tbody>';
-var cont=0;
-ORD.forEach(function(s){if(!G[s])return;
- h+='<tr class="pef-g1"><td colspan="7">'+escBloco(s==='Kids'?'KIDS':s==='Teens'?'TEENS':s)+'</td></tr>';
- ['Presencial','Online'].forEach(function(cn){if(!G[s][cn])return;
-  h+='<tr class="pef-g2"><td colspan="7">'+cn+'</td></tr>';
-  ['Connections','Interactive'].forEach(function(e){var L=G[s][cn][e];if(!L||!L.length)return;
-   h+='<tr class="pef-g3"><td colspan="7">'+e+'</td></tr>';
-   L.forEach(function(x){cont++;
-    h+='<tr><td><span class="ret-nome">'+escBloco(x.nome)+'</span></td><td>'+escBloco(x.tipo)+'</td>'
-     +'<td><span class="lc-livro">'+escBloco(x.livroNome||x.livro)+'</span></td>'
-     +'<td class="c">'+(x.inicio?dataCurta(x.inicio):'—')+'</td>'
-     +'<td class="c'+(x.fimContrato&&x.fimContrato<=r.hoje?' pef-venc':'')+'">'+(x.fimContrato?dataCurta(x.fimContrato):'—')+'</td>'
-     +'<td class="c">'+(x.ultimaPresenca?dataCurta(x.ultimaPresenca.slice(0,10)):'<span class="ret-nunca">nunca</span>')+'</td>'
-     +'<td class="c"><b>'+(x.faltamLicoes??'—')+'</b></td></tr>'})})})});
-h+='</tbody></table></div>';
 return h}
 
 /* ===== ABA 3: GESTÃO PEDAGÓGICA — os outros itens do painel ===== */
@@ -15765,7 +16267,8 @@ cl.appendChild(pil);
    diz quantas aulas do dia já foram registradas, verde quando fechou. */
 if(est==='aula'||est==='feita'){
 var cr=document.createElement('button');cr.type='button';cr.className='lc-cron'+(est==='feita'?' parado':'');
-var nReg=(p&&p.registradas)||0, nPrev=(p&&p.previstas)||1;
+var afL=p&&p.aulasFeitas, nReg=(p&&p.registradas)||0,
+ nPrev=(afL!=null&&afL!=='')?Math.max(1,+afL):((p&&p.previstas)||1);   /* as aulas feitas digitadas mandam */
 /* ===== O CARTÃO É CHEGADA E SAÍDA, SÓ (2026-09-20, dele) =====
    *"Quando o aluno está em aula ou feita, esse card representa apenas a chegada e a saída da escola. Não
    importa quantas aulas ele fez, ele não vai demonstrar isso — só apertando o formulário."* O contador
@@ -16180,6 +16683,20 @@ m.onclick=function(e){e.stopPropagation();
 setTimeout(function(){document.addEventListener('click',lcFecharPopLicao)},0);
 setTimeout(function(){if(LC_POP_LIC===m)fim()},12000);
 }
+/* ===== APAGAR O DIA, POR QUALQUER PORTA (auditoria da Wiztools 18) =====
+   O servidor só apaga um dia com registro de aula depois de alguém confirmar — e a recusa vem como `ok:false` SEM
+   `erro`, que o run() trata como sucesso. A Frequência e o "Limpar" da busca rápida diziam "Lançamento removido" e
+   nada saía. Agora as duas fazem como o quadro da semana (lcGravarStatus, logo abaixo): perguntam e repetem
+   confirmando. `depois(true)` só quando o dia saiu de fato. */
+function apagarDia(idm,livro,data,nome,depois,confirmado){
+run('lancarPresenca',[{idMatricula:idm,livro:livro,data:data,status:null,confirmadoRegistros:!!confirmado}],function(r){
+ if(r&&r.precisaConfirmarRegistros){
+  dlgConfirmar({titulo:'Desfazer o registro de aulas deste dia?',ok:'Desfazer tudo',perigo:true,
+   texto:nome+' — '+r.aviso+'\n\nApagar o lançamento leva junto a lição registrada, as avaliações e a '
+    +'entrega de tarefa daquelas aulas. A ficha de frequência volta a não ter este dia.'},
+  function(sim){if(sim)apagarDia(idm,livro,data,nome,depois,true);else if(depois)depois(false)});
+  return}
+ if(depois)depois(!r||r.ok!==false)})}
 function lcGravarStatus(al,c,status,card,ok,confirmado){
 run('lancarPresenca',[{idMatricula:al.id,livro:al.livro,data:c.data,status:status,
  confirmadoRegistros:!!confirmado}],function(r){
@@ -16326,10 +16843,11 @@ marcar.forEach(function(c){b.alunos.forEach(function(a){
 itens.push({idMatricula:a.id,livro:a.livro,data:c.data,status:'N'})})});
 limpar.forEach(function(c){b.alunos.forEach(function(a){
 itens.push({idMatricula:a.id,livro:a.livro,data:c.data,status:null})})});
-run('lancarPresencaLote',[{itens:itens}],function(){
+run('lancarPresencaLote',[{itens:itens}],function(r){lcLoteRecusados(r,function(ficaram){
 msg((marcar.length?marcar.length+' dia(s) marcados como não aula. ':'')
-   +(limpar.length?limpar.length+' dia(s) desmarcados.':''));
-lcCarregar()})});
+   +(limpar.length?limpar.length+' dia(s) desmarcados.':'')
+   +(ficaram?' '+ficaram+' lançamento(s) com registro de aula ficaram como estavam.':''));
+lcCarregar()})})});
 };
 }
 /* "A ESCOLA ABRIU NESTE DIA" (05/10/2026, dele: as datas "dependem da minha patroa... nunca vai ser estático"). É aqui
@@ -16352,7 +16870,23 @@ dlgConfirmar({titulo:todosN?'Desmarcar não aula':'Marcar dia como não aula',ok
   :('Marcar o dia '+c.numero+' como NÃO AULA (feriado ou férias) para os '+b.alunos.length+' aluno(s) deste bloco?')},
 function(sim){if(!sim)return;
 run('lancarPresencaLote',[{itens:b.alunos.map(function(a){return {idMatricula:a.id,livro:a.livro,data:c.data,status:novo}})}],
-function(){msg(todosN?'Dia '+c.numero+' desmarcado.':'Dia '+c.numero+' marcado como não aula.');lcCarregar()})})}
+function(r){lcLoteRecusados(r,function(ficaram){
+ msg((todosN?'Dia '+c.numero+' desmarcado.':'Dia '+c.numero+' marcado como não aula.')
+  +(ficaram?' '+ficaram+' aluno(s) com registro de aula ficaram como estavam.':''));lcCarregar()})})})}
+/* ===== O LOTE TAMBÉM PERGUNTA (revisão da Wiztools 18) =====
+   Desmarcar um dia que tem registro de aula só apaga confirmando — a mesma regra do ✕ da Frequência (apagarDia). O
+   servidor devolve quem ficou (`recusados`); aqui se pergunta uma vez por todos e se reenvia confirmando.
+   `depois(ficaram)`: quantos continuam como estavam (0 quando ele confirmou, ou quando não havia nenhum). */
+function lcLoteRecusados(r,depois){
+var rec=(r&&r.recusados)||[];
+if(!rec.length){depois(0);return}
+dlgConfirmar({titulo:'Desfazer o registro de aulas destes dias?',ok:'Desfazer tudo',perigo:true,
+ texto:rec.length+' lançamento(s) têm aula registrada ('+rec.map(function(x){return x.aviso}).filter(Boolean).slice(0,3).join(' · ')
+  +(rec.length>3?' …':'')+').\n\nApagar leva junto a lição registrada, as avaliações e a entrega de tarefa daquelas aulas.'},
+ function(sim){
+  if(!sim){depois(rec.length);return}
+  run('lancarPresencaLote',[{itens:rec.map(function(x){return {idMatricula:x.idMatricula,livro:x.livro,data:x.data,
+   status:x.status,confirmadoRegistros:true}})}],function(){depois(0)})})}
 /* ===== encontro avulso: o aluno vem fora da agenda dele =====
    Dois usos no mesmo painel: MOMENTÂNEO (ele já está aqui — grava a presença junto) e PRÉVIO (a
    recepção soube que ele vem às 15h — não grava presença nenhuma, só faz a linha aparecer na grade
@@ -16430,12 +16964,15 @@ var m=LC_INFO.matriculas[i];if(!m)return;
    deixava a pergunta sem dia nenhum */
 var quando=LC?LC.data:isoLocal(new Date());
 function gravar(){
-run('lancarPresenca',[{idMatricula:LC_INFO.id,livro:m.livro,data:quando,status:status}],function(){
+/* o "Limpar" passa pela mesma porta do ✕ da Frequência: dia com registro de aula pergunta antes */
+if(!status){apagarDia(LC_INFO.id,m.livro,quando,LC_INFO.nome,function(ok){if(ok)feito()});return}
+run('lancarPresenca',[{idMatricula:LC_INFO.id,livro:m.livro,data:quando,status:status}],feito)}
+function feito(){
 m.status=status;
 msg(status==='P'?'Presença lançada: '+LC_INFO.nome+' ('+nomeLivro(m.livro)+').':status==='F'?'Falta lançada: '+LC_INFO.nome+' ('+nomeLivro(m.livro)+').':status==='N'?'Marcado como não aula: '+LC_INFO.nome+' ('+nomeLivro(m.livro)+').':'Lançamento removido.');
 lcAbrirDialog(LC_INFO.id); // redesenha os botões com o estado novo
 lcCarregar();              // e reflete na tabela do bloco
-})}
+}
 if(m.status==='F'&&status!=='F')
   lcConfirmaDesfazerFalta({nome:LC_INFO.nome},{data:quando},status,function(sim){if(sim)gravar()});
 else gravar()}
@@ -17959,8 +18496,7 @@ if(destino==='aluno'||destino==='aluno-historico'){
      situação mora. Antes `alAba/alInfoAba` mexiam nas seções do depósito escondido e o piscar acontecia
      numa seção invisível (Wiztools 17). `MAT_ABA_DE=null`: com o aluno já aberto, os cartões velhos
      passariam no teste e o render seguinte os destruiria. */
-  if(destino==='aluno-historico')MAT_ABA_DE=null;
-  alCarregar(a);
+  alCarregar(a,function(){
   if(destino!=='aluno-historico'){
    esperar(function(){ctPiscar(function(){return $('al-nome')},2200);msg(rotulo||a.nome)},700);
    return}
@@ -17968,7 +18504,8 @@ if(destino==='aluno'||destino==='aluno-historico'){
    if(alSel&&String(alSel.id)===String(a.id)&&String(MAT_ABA_DE)===String(a.id)
       &&document.querySelector('#mat-lista .matricula-card')){
     matIrPara('info');ctPiscar(function(){return $('hist-corpo')},2200);msg(rotulo||a.nome);return}
-   if(++n<50)setTimeout(tenta,100);else msg(rotulo||a.nome)})();
+   if(++n<50)setTimeout(tenta,100);else msg(rotulo||a.nome)})()},
+  function(){if(destino==='aluno-historico')MAT_ABA_DE=null});
  });
  return}
 if(destino==='entrega'){
